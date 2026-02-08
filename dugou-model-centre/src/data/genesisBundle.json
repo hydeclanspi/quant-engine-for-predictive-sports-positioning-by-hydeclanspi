@@ -1,0 +1,3835 @@
+{
+  "version": 1,
+  "source": "DUGOU G4模型 running statistics v3.4 04.01.2026.xlsx",
+  "generated_at": "2026-02-04T00:00:00.000Z",
+  "system_config": {
+    "initialCapital": 600,
+    "riskCapRatio": 0.12,
+    "defaultOdds": 2.5,
+    "kellyDivisor": 4,
+    "weightConf": 0.5,
+    "weightTys": 0.25,
+    "weightMode": 0.2,
+    "weightFid": 0.05,
+    "weightOdds": 0.06,
+    "weightFse": 0.07
+  },
+  "team_profiles": [
+    {
+      "teamId": "gen_team_1",
+      "teamName": "曼城",
+      "abbreviations": [
+        "曼城"
+      ],
+      "totalSamples": 16,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_2",
+      "teamName": "阿森纳",
+      "abbreviations": [
+        "阿森纳"
+      ],
+      "totalSamples": 14,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_3",
+      "teamName": "利物浦",
+      "abbreviations": [
+        "利物浦"
+      ],
+      "totalSamples": 13,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_4",
+      "teamName": "切尔西",
+      "abbreviations": [
+        "切尔西"
+      ],
+      "totalSamples": 11,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_5",
+      "teamName": "狼队",
+      "abbreviations": [
+        "狼队"
+      ],
+      "totalSamples": 11,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_6",
+      "teamName": "桑德兰",
+      "abbreviations": [
+        "桑德兰"
+      ],
+      "totalSamples": 8,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_7",
+      "teamName": "热刺",
+      "abbreviations": [
+        "热刺"
+      ],
+      "totalSamples": 8,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_8",
+      "teamName": "纽卡",
+      "abbreviations": [
+        "纽卡"
+      ],
+      "totalSamples": 8,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_9",
+      "teamName": "曼联",
+      "abbreviations": [
+        "曼联"
+      ],
+      "totalSamples": 7,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_10",
+      "teamName": "伯恩茅斯",
+      "abbreviations": [
+        "伯恩茅斯"
+      ],
+      "totalSamples": 5,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_11",
+      "teamName": "利兹联",
+      "abbreviations": [
+        "利兹联"
+      ],
+      "totalSamples": 5,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_12",
+      "teamName": "水晶宫",
+      "abbreviations": [
+        "水晶宫"
+      ],
+      "totalSamples": 5,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_13",
+      "teamName": "埃弗顿",
+      "abbreviations": [
+        "埃弗顿"
+      ],
+      "totalSamples": 4,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_14",
+      "teamName": "富勒姆",
+      "abbreviations": [
+        "富勒姆"
+      ],
+      "totalSamples": 4,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_15",
+      "teamName": "布伦特福德",
+      "abbreviations": [
+        "布伦特福德"
+      ],
+      "totalSamples": 4,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_16",
+      "teamName": "拜仁",
+      "abbreviations": [
+        "拜仁"
+      ],
+      "totalSamples": 4,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_17",
+      "teamName": "西汉姆",
+      "abbreviations": [
+        "西汉姆"
+      ],
+      "totalSamples": 4,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_18",
+      "teamName": "伯恩利",
+      "abbreviations": [
+        "伯恩利"
+      ],
+      "totalSamples": 3,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_19",
+      "teamName": "巴萨",
+      "abbreviations": [
+        "巴萨"
+      ],
+      "totalSamples": 3,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_20",
+      "teamName": "皇马",
+      "abbreviations": [
+        "皇马"
+      ],
+      "totalSamples": 3,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_21",
+      "teamName": "诺丁汉森林",
+      "abbreviations": [
+        "诺丁汉森林"
+      ],
+      "totalSamples": 3,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_22",
+      "teamName": "那不勒斯",
+      "abbreviations": [
+        "那不勒斯"
+      ],
+      "totalSamples": 3,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_23",
+      "teamName": "阿斯顿维拉",
+      "abbreviations": [
+        "阿斯顿维拉"
+      ],
+      "totalSamples": 3,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_24",
+      "teamName": "博洛尼亚",
+      "abbreviations": [
+        "博洛尼亚"
+      ],
+      "totalSamples": 2,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_25",
+      "teamName": "巴黎",
+      "abbreviations": [
+        "巴黎"
+      ],
+      "totalSamples": 2,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_26",
+      "teamName": "泰u23",
+      "abbreviations": [
+        "泰u23"
+      ],
+      "totalSamples": 2,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_27",
+      "teamName": "维拉",
+      "abbreviations": [
+        "维拉"
+      ],
+      "totalSamples": 2,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_28",
+      "teamName": "西汉姆联",
+      "abbreviations": [
+        "西汉姆联"
+      ],
+      "totalSamples": 2,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_29",
+      "teamName": "马竞",
+      "abbreviations": [
+        "马竞"
+      ],
+      "totalSamples": 2,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_30",
+      "teamName": "黄潜",
+      "abbreviations": [
+        "黄潜"
+      ],
+      "totalSamples": 2,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_31",
+      "teamName": "伯恩茅斯",
+      "abbreviations": [
+        "伯恩茅斯"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_32",
+      "teamName": "利雅得新月",
+      "abbreviations": [
+        "利雅得新月"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_33",
+      "teamName": "加拉塔萨雷",
+      "abbreviations": [
+        "加拉塔萨雷"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_34",
+      "teamName": "勒沃库森",
+      "abbreviations": [
+        "勒沃库森"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_35",
+      "teamName": "博德闪耀",
+      "abbreviations": [
+        "博德闪耀"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_36",
+      "teamName": "卡拉巴赫",
+      "abbreviations": [
+        "卡拉巴赫"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_37",
+      "teamName": "吉马良斯",
+      "abbreviations": [
+        "吉马良斯"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_38",
+      "teamName": "哥本哈根",
+      "abbreviations": [
+        "哥本哈根"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_39",
+      "teamName": "国u23",
+      "abbreviations": [
+        "国u23"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_40",
+      "teamName": "国际米兰",
+      "abbreviations": [
+        "国际米兰"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_41",
+      "teamName": "圣吉尔",
+      "abbreviations": [
+        "圣吉尔"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_42",
+      "teamName": "埃因霍温",
+      "abbreviations": [
+        "埃因霍温"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_43",
+      "teamName": "奥格斯堡",
+      "abbreviations": [
+        "奥格斯堡"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_44",
+      "teamName": "布拉格",
+      "abbreviations": [
+        "布拉格"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_45",
+      "teamName": "布鲁日",
+      "abbreviations": [
+        "布鲁日"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_46",
+      "teamName": "法兰克福",
+      "abbreviations": [
+        "法兰克福"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_47",
+      "teamName": "波尔图",
+      "abbreviations": [
+        "波尔图"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_48",
+      "teamName": "澳u23",
+      "abbreviations": [
+        "澳u23"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_49",
+      "teamName": "热那亚",
+      "abbreviations": [
+        "热那亚"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_50",
+      "teamName": "米兰",
+      "abbreviations": [
+        "米兰"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_51",
+      "teamName": "葡体",
+      "abbreviations": [
+        "葡体"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_52",
+      "teamName": "达马克",
+      "abbreviations": [
+        "达马克"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_53",
+      "teamName": "阿尔维卡",
+      "abbreviations": [
+        "阿尔维卡"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_54",
+      "teamName": "阿拉图木",
+      "abbreviations": [
+        "阿拉图木"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    },
+    {
+      "teamId": "gen_team_55",
+      "teamName": "阿拉维斯",
+      "abbreviations": [
+        "阿拉维斯"
+      ],
+      "totalSamples": 1,
+      "avgRep": 0.5
+    }
+  ],
+  "investments": [
+    {
+      "id": "gen_inv_1",
+      "created_at": "2025-11-01T12:00:00.000Z",
+      "parlay_size": 1,
+      "inputs": 16.0,
+      "suggested_amount": 16.0,
+      "expected_rating": 0.56,
+      "combined_odds": 32.0,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -16.0,
+      "actual_rating": 0.2,
+      "rep": null,
+      "remarks": "埃梅里和大马丁nmsl",
+      "matches": [
+        {
+          "id": "gen_match_1_1",
+          "home_team": "利物浦",
+          "away_team": "维拉",
+          "entries": [
+            {
+              "name": "1-2",
+              "odds": 32.0
+            },
+            {
+              "name": "1-3",
+              "odds": 32.0
+            }
+          ],
+          "entry_text": "1-2, 1-3",
+          "odds": 32.0,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "2-0",
+          "is_correct": false,
+          "match_rating": 0.2,
+          "match_rep": null,
+          "post_note": "埃梅里和大马丁nmsl"
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_2",
+      "created_at": "2025-11-07T12:00:00.000Z",
+      "parlay_size": 2,
+      "inputs": 24.0,
+      "suggested_amount": 24.0,
+      "expected_rating": 0.52,
+      "combined_odds": 42.5,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -24.0,
+      "actual_rating": 0.2,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_2_1",
+          "home_team": "曼城",
+          "away_team": "利物浦",
+          "entries": [
+            {
+              "name": "2-1",
+              "odds": 8.5
+            },
+            {
+              "name": "2-2",
+              "odds": 8.5
+            }
+          ],
+          "entry_text": "2-1, 2-2",
+          "odds": 8.5,
+          "conf": 0.4,
+          "mode": "常规",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "3-0",
+          "is_correct": false,
+          "match_rating": 0.2,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_2_2",
+          "home_team": "桑德兰",
+          "away_team": "阿森纳",
+          "entries": [
+            {
+              "name": "0-1",
+              "odds": 5.0
+            },
+            {
+              "name": "0-2",
+              "odds": 5.0
+            }
+          ],
+          "entry_text": "0-1, 0-2",
+          "odds": 5.0,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "2-2",
+          "is_correct": false,
+          "match_rating": 0.2,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_3",
+      "created_at": "2025-11-26T12:00:00.000Z",
+      "parlay_size": 1,
+      "inputs": 24.0,
+      "suggested_amount": 24.0,
+      "expected_rating": 0.58,
+      "combined_odds": 6.5,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -24.0,
+      "actual_rating": 0.4,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_3_1",
+          "home_team": "阿森纳",
+          "away_team": "拜仁",
+          "entries": [
+            {
+              "name": "1-1",
+              "odds": 6.5
+            }
+          ],
+          "entry_text": "1-1",
+          "odds": 6.5,
+          "conf": 0.6,
+          "mode": "半彩票半保险",
+          "tys_home": "L",
+          "tys_away": "L",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "3-1",
+          "is_correct": false,
+          "match_rating": 0.4,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_4",
+      "created_at": "2025-11-30T12:00:00.000Z",
+      "parlay_size": 1,
+      "inputs": 16.0,
+      "suggested_amount": 16.0,
+      "expected_rating": 0.52,
+      "combined_odds": 6.0,
+      "status": "win",
+      "revenues": 96.0,
+      "profit": 80.0,
+      "actual_rating": 0.8,
+      "rep": null,
+      "remarks": "第一次发国难财了",
+      "matches": [
+        {
+          "id": "gen_match_4_1",
+          "home_team": "切尔西",
+          "away_team": "阿森纳",
+          "entries": [
+            {
+              "name": "1-1",
+              "odds": 6.0
+            }
+          ],
+          "entry_text": "1-1",
+          "odds": 6.0,
+          "conf": 0.6,
+          "mode": "保险产品",
+          "tys_home": "H",
+          "tys_away": "H",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "1-1",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": "第一次发国难财了"
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_5",
+      "created_at": "2025-11-30T12:00:00.000Z",
+      "parlay_size": 1,
+      "inputs": 8.0,
+      "suggested_amount": 8.0,
+      "expected_rating": 0.47,
+      "combined_odds": 2.06,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -8.0,
+      "actual_rating": 0.4,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_5_1",
+          "home_team": "切尔西",
+          "away_team": "阿森纳",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 2.06
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 2.06,
+          "conf": 0.4,
+          "mode": "常规",
+          "tys_home": "H",
+          "tys_away": "H",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": false,
+          "match_rating": 0.4,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_6",
+      "created_at": "2025-12-06T12:00:00.000Z",
+      "parlay_size": 1,
+      "inputs": 10.0,
+      "suggested_amount": 10.0,
+      "expected_rating": 0.68,
+      "combined_odds": 1.14,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -10.0,
+      "actual_rating": 0.8,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_6_1",
+          "home_team": "曼城",
+          "away_team": "桑德兰",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.14
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.14,
+          "conf": 0.8,
+          "mode": "半彩票半保险",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_7",
+      "created_at": "2025-12-06T12:00:00.000Z",
+      "parlay_size": 1,
+      "inputs": 16.0,
+      "suggested_amount": 16.0,
+      "expected_rating": 0.48,
+      "combined_odds": 24.0,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -16.0,
+      "actual_rating": 0.01,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_7_1",
+          "home_team": "曼城",
+          "away_team": "桑德兰",
+          "entries": [
+            {
+              "name": "2-2",
+              "odds": 24.0
+            }
+          ],
+          "entry_text": "2-2",
+          "odds": 24.0,
+          "conf": 0.2,
+          "mode": "赌一把",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "3-0",
+          "is_correct": false,
+          "match_rating": 0.01,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_8",
+      "created_at": "2025-12-10T12:00:00.000Z",
+      "parlay_size": 2,
+      "inputs": 16.0,
+      "suggested_amount": 16.0,
+      "expected_rating": 0.6,
+      "combined_odds": 4.72,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -16.0,
+      "actual_rating": 0.7,
+      "rep": null,
+      "remarks": "666 瓜瓜居然没轮换",
+      "matches": [
+        {
+          "id": "gen_match_8_1",
+          "home_team": "布鲁日",
+          "away_team": "阿森纳",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 1.24
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 1.24,
+          "conf": 0.8,
+          "mode": "常规",
+          "tys_home": "L",
+          "tys_away": "L",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_8_2",
+          "home_team": "皇马",
+          "away_team": "曼城",
+          "entries": [
+            {
+              "name": "draw",
+              "odds": 3.81
+            }
+          ],
+          "entry_text": "draw",
+          "odds": 3.81,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": false,
+          "match_rating": 0.6,
+          "match_rep": null,
+          "post_note": "666 瓜瓜居然没轮换"
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_9",
+      "created_at": "2025-12-14T12:00:00.000Z",
+      "parlay_size": 2,
+      "inputs": 24.0,
+      "suggested_amount": 24.0,
+      "expected_rating": 0.59,
+      "combined_odds": 3.14,
+      "status": "win",
+      "revenues": 75.36,
+      "profit": 51.36,
+      "actual_rating": 0.8,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_9_1",
+          "home_team": "水晶宫",
+          "away_team": "曼城",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 1.68
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 1.68,
+          "conf": 0.6,
+          "mode": "半彩票半保险",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_9_2",
+          "home_team": "西汉姆",
+          "away_team": "阿斯顿维拉",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 1.87
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 1.87,
+          "conf": 0.6,
+          "mode": "半彩票半保险",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_10",
+      "created_at": "2025-12-14T12:00:00.000Z",
+      "parlay_size": 2,
+      "inputs": 24.0,
+      "suggested_amount": 24.0,
+      "expected_rating": 0.64,
+      "combined_odds": 2.55,
+      "status": "win",
+      "revenues": 61.32,
+      "profit": 37.32,
+      "actual_rating": 0.8,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_10_1",
+          "home_team": "水晶宫",
+          "away_team": "曼城",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 1.68
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 1.68,
+          "conf": 0.6,
+          "mode": "半彩票半保险",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_10_2",
+          "home_team": "阿拉维斯",
+          "away_team": "皇马",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 1.52
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 1.52,
+          "conf": 0.8,
+          "mode": "半彩票半保险",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_11",
+      "created_at": "2025-12-20T12:00:00.000Z",
+      "parlay_size": 1,
+      "inputs": 12.0,
+      "suggested_amount": 12.0,
+      "expected_rating": 0.46,
+      "combined_odds": 6.6,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -12.0,
+      "actual_rating": 0.01,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_11_1",
+          "home_team": "埃弗顿",
+          "away_team": "阿森纳",
+          "entries": [
+            {
+              "name": "1-1",
+              "odds": 6.6
+            }
+          ],
+          "entry_text": "1-1",
+          "odds": 6.6,
+          "conf": 0.2,
+          "mode": "保险产品",
+          "tys_home": "/",
+          "tys_away": "/",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "0-1",
+          "is_correct": false,
+          "match_rating": 0.01,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_12",
+      "created_at": "2025-12-20T12:00:00.000Z",
+      "parlay_size": 2,
+      "inputs": 28.0,
+      "suggested_amount": 28.0,
+      "expected_rating": 0.63,
+      "combined_odds": 3.05,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -28.0,
+      "actual_rating": 0.65,
+      "rep": null,
+      "remarks": "妈的伯恩茅斯能被伯恩利绝平",
+      "matches": [
+        {
+          "id": "gen_match_12_1",
+          "home_team": "曼城",
+          "away_team": "西汉姆",
+          "entries": [
+            {
+              "name": "-2 win",
+              "odds": 2.21
+            }
+          ],
+          "entry_text": "-2 win",
+          "odds": 2.21,
+          "conf": 0.7,
+          "mode": "半彩票半保险",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "-2 win",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_12_2",
+          "home_team": "伯恩茅斯",
+          "away_team": "伯恩利",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.38
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.38,
+          "conf": 0.6,
+          "mode": "半彩票半保险",
+          "tys_home": "L",
+          "tys_away": "L",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": false,
+          "match_rating": 0.5,
+          "match_rep": null,
+          "post_note": "妈的伯恩茅斯能被伯恩利绝平"
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_13",
+      "created_at": "2025-12-20T12:00:00.000Z",
+      "parlay_size": 2,
+      "inputs": 22.0,
+      "suggested_amount": 22.0,
+      "expected_rating": 0.65,
+      "combined_odds": 6.49,
+      "status": "win",
+      "revenues": 142.72,
+      "profit": 120.72,
+      "actual_rating": 0.8,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_13_1",
+          "home_team": "纽卡",
+          "away_team": "切尔西",
+          "entries": [
+            {
+              "name": "draw",
+              "odds": 3.45
+            }
+          ],
+          "entry_text": "draw",
+          "odds": 3.45,
+          "conf": 0.7,
+          "mode": "常规",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_13_2",
+          "home_team": "热刺",
+          "away_team": "利物浦",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 1.88
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 1.88,
+          "conf": 0.8,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_14",
+      "created_at": "2025-12-22T12:00:00.000Z",
+      "parlay_size": 2,
+      "inputs": 10.0,
+      "suggested_amount": 10.0,
+      "expected_rating": 0.51,
+      "combined_odds": 8.45,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -10.0,
+      "actual_rating": 0.6,
+      "rep": null,
+      "remarks": "你妈的 巴萨门神附体 黄潜还红牌",
+      "matches": [
+        {
+          "id": "gen_match_14_1",
+          "home_team": "黄潜",
+          "away_team": "巴萨",
+          "entries": [
+            {
+              "name": "draw",
+              "odds": 4.4
+            }
+          ],
+          "entry_text": "draw",
+          "odds": 4.4,
+          "conf": 0.4,
+          "mode": "赌一把",
+          "tys_home": "/",
+          "tys_away": "/",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": false,
+          "match_rating": 0.4,
+          "match_rep": null,
+          "post_note": "你妈的 巴萨门神附体 黄潜还红牌"
+        },
+        {
+          "id": "gen_match_14_2",
+          "home_team": "维拉",
+          "away_team": "曼联",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.92
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.92,
+          "conf": 0.6,
+          "mode": "赌一把",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_15",
+      "created_at": "2025-12-22T12:00:00.000Z",
+      "parlay_size": 2,
+      "inputs": 56.0,
+      "suggested_amount": 56.0,
+      "expected_rating": 0.65,
+      "combined_odds": 2.38,
+      "status": "win",
+      "revenues": 133.28,
+      "profit": 77.28,
+      "actual_rating": 0.8,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_15_1",
+          "home_team": "那不勒斯",
+          "away_team": "博洛尼亚",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.95
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.95,
+          "conf": 0.8,
+          "mode": "常规",
+          "tys_home": "L",
+          "tys_away": "L",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_15_2",
+          "home_team": "阿尔维卡",
+          "away_team": "波尔图",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 1.22
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 1.22,
+          "conf": 0.8,
+          "mode": "常规",
+          "tys_home": "L",
+          "tys_away": "L",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_16",
+      "created_at": "2025-12-22T12:00:00.000Z",
+      "parlay_size": 2,
+      "inputs": 44.0,
+      "suggested_amount": 44.0,
+      "expected_rating": 0.52,
+      "combined_odds": 12.01,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -44.0,
+      "actual_rating": 0.5,
+      "rep": null,
+      "remarks": "哎气死我了那不勒斯 2-0 结果另一场错了\n前天维拉也是，以后就应该串大保底的场次",
+      "matches": [
+        {
+          "id": "gen_match_16_1",
+          "home_team": "那不勒斯",
+          "away_team": "博洛尼亚",
+          "entries": [
+            {
+              "name": "-1 win",
+              "odds": 4.35
+            }
+          ],
+          "entry_text": "-1 win",
+          "odds": 4.35,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "L",
+          "tys_away": "L",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "-1 win",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": "哎气死我了那不勒斯 2-0 结果另一场错了\n前天维拉也是，以后就应该串大保底的场次"
+        },
+        {
+          "id": "gen_match_16_2",
+          "home_team": "富勒姆",
+          "away_team": "诺丁汉森林",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 2.76
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 2.76,
+          "conf": 0.4,
+          "mode": "常规",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": false,
+          "match_rating": 0.2,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_17",
+      "created_at": "2025-12-23T12:00:00.000Z",
+      "parlay_size": 2,
+      "inputs": 10.0,
+      "suggested_amount": 10.0,
+      "expected_rating": 0.51,
+      "combined_odds": 4.32,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -10.0,
+      "actual_rating": 0.7,
+      "rep": null,
+      "remarks": "你妈的  90+5' 被绝平  真的气死我了",
+      "matches": [
+        {
+          "id": "gen_match_17_1",
+          "home_team": "阿森纳",
+          "away_team": "水晶宫",
+          "entries": [
+            {
+              "name": "-1 draw",
+              "odds": 3.2
+            }
+          ],
+          "entry_text": "-1 draw",
+          "odds": 3.2,
+          "conf": 0.2,
+          "mode": "保险产品",
+          "tys_home": "/",
+          "tys_away": "/",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "-1 lose",
+          "is_correct": false,
+          "match_rating": 0.6,
+          "match_rep": null,
+          "post_note": "你妈的  90+5' 被绝平  真的气死我了"
+        },
+        {
+          "id": "gen_match_17_2",
+          "home_team": "吉马良斯",
+          "away_team": "葡体",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 1.35
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 1.35,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_18",
+      "created_at": "2025-12-27T12:00:00.000Z",
+      "parlay_size": 2,
+      "inputs": 56.0,
+      "suggested_amount": 56.0,
+      "expected_rating": 0.65,
+      "combined_odds": 1.67,
+      "status": "win",
+      "revenues": 93.52,
+      "profit": 37.52,
+      "actual_rating": 0.8,
+      "rep": null,
+      "remarks": "赔率太低了，这么稳的两场应该多加点",
+      "matches": [
+        {
+          "id": "gen_match_18_1",
+          "home_team": "诺丁汉森林",
+          "away_team": "曼城",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 1.45
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 1.45,
+          "conf": 0.8,
+          "mode": "半彩票半保险",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": "赔率太低了，这么稳的两场应该多加点"
+        },
+        {
+          "id": "gen_match_18_2",
+          "home_team": "利物浦",
+          "away_team": "狼队",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.15
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.15,
+          "conf": 0.8,
+          "mode": "常规",
+          "tys_home": "L",
+          "tys_away": "L",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_19",
+      "created_at": "2025-12-27T12:00:00.000Z",
+      "parlay_size": 2,
+      "inputs": 24.0,
+      "suggested_amount": 24.0,
+      "expected_rating": 0.52,
+      "combined_odds": 8.92,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -24.0,
+      "actual_rating": 0.5,
+      "rep": null,
+      "remarks": "草啊，曼城和利物浦都少赢1个球\n666，我当时纠结的是利物浦可能3-0，没想到才2-1\n其实本质上就是曼城这场我的err.<conf.了，简称预测错了",
+      "matches": [
+        {
+          "id": "gen_match_19_1",
+          "home_team": "诺丁汉森林",
+          "away_team": "曼城",
+          "entries": [
+            {
+              "name": "+1 lose",
+              "odds": 2.38
+            }
+          ],
+          "entry_text": "+1 lose",
+          "odds": 2.38,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "+1 draw",
+          "is_correct": false,
+          "match_rating": 0.4,
+          "match_rep": null,
+          "post_note": "草啊，曼城和利物浦都少赢1个球\n666，我当时纠结的是利物浦可能3-0，没想到才2-1\n其实本质上就是曼城这场我的err.<conf.了，简称预测错了"
+        },
+        {
+          "id": "gen_match_19_2",
+          "home_team": "利物浦",
+          "away_team": "狼队",
+          "entries": [
+            {
+              "name": "-2 draw",
+              "odds": 3.75
+            }
+          ],
+          "entry_text": "-2 draw",
+          "odds": 3.75,
+          "conf": 0.3,
+          "mode": "赌一把",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "-2 lose",
+          "is_correct": false,
+          "match_rating": 0.6,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_20",
+      "created_at": "2025-12-27T12:00:00.000Z",
+      "parlay_size": 2,
+      "inputs": 34.0,
+      "suggested_amount": 34.0,
+      "expected_rating": 0.56,
+      "combined_odds": 4.08,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -34.0,
+      "actual_rating": 0.6,
+      "rep": null,
+      "remarks": "切尔西进攻水平低于我预期，妈的",
+      "matches": [
+        {
+          "id": "gen_match_20_1",
+          "home_team": "切尔西",
+          "away_team": "阿斯顿维拉",
+          "entries": [
+            {
+              "name": "draw",
+              "odds": 3.55
+            }
+          ],
+          "entry_text": "draw",
+          "odds": 3.55,
+          "conf": 0.4,
+          "mode": "常规",
+          "tys_home": "H",
+          "tys_away": "H",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": false,
+          "match_rating": 0.4,
+          "match_rep": null,
+          "post_note": "切尔西进攻水平低于我预期，妈的"
+        },
+        {
+          "id": "gen_match_20_2",
+          "home_team": "利物浦",
+          "away_team": "狼队",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.15
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.15,
+          "conf": 0.8,
+          "mode": "常规",
+          "tys_home": "L",
+          "tys_away": "L",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_21",
+      "created_at": "2025-12-30T12:00:00.000Z",
+      "parlay_size": 2,
+      "inputs": 12.0,
+      "suggested_amount": 12.0,
+      "expected_rating": 0.55,
+      "combined_odds": 5.44,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -12.0,
+      "actual_rating": 0.4,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_21_1",
+          "home_team": "阿森纳",
+          "away_team": "阿斯顿维拉",
+          "entries": [
+            {
+              "name": "draw",
+              "odds": 4.35
+            }
+          ],
+          "entry_text": "draw",
+          "odds": 4.35,
+          "conf": 0.4,
+          "mode": "保险产品",
+          "tys_home": "/",
+          "tys_away": "/",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": false,
+          "match_rating": 0.4,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_21_2",
+          "home_team": "曼联",
+          "away_team": "狼队",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.25
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.25,
+          "conf": 0.8,
+          "mode": "常规",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": false,
+          "match_rating": 0.4,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_22",
+      "created_at": "2025-12-30T12:00:00.000Z",
+      "parlay_size": 2,
+      "inputs": 22.0,
+      "suggested_amount": 22.0,
+      "expected_rating": 0.57,
+      "combined_odds": 4.72,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -22.0,
+      "actual_rating": 0.6,
+      "rep": null,
+      "remarks": "纽卡读秒吊射绝杀3-1哈哈哈哈；曼联爆冷了吗的 狼队都赢不了",
+      "matches": [
+        {
+          "id": "gen_match_22_1",
+          "home_team": "伯恩利",
+          "away_team": "纽卡",
+          "entries": [
+            {
+              "name": "-1 lose",
+              "odds": 2.55
+            }
+          ],
+          "entry_text": "-1 lose",
+          "odds": 2.55,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "-1 lose",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": "纽卡读秒吊射绝杀3-1哈哈哈哈"
+        },
+        {
+          "id": "gen_match_22_2",
+          "home_team": "曼联",
+          "away_team": "狼队",
+          "entries": [
+            {
+              "name": "-1 win",
+              "odds": 1.85
+            }
+          ],
+          "entry_text": "-1 win",
+          "odds": 1.85,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "-1 lose",
+          "is_correct": false,
+          "match_rating": 0.4,
+          "match_rep": null,
+          "post_note": "曼联爆冷了吗的 狼队都赢不了"
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_23",
+      "created_at": "2025-12-30T12:00:00.000Z",
+      "parlay_size": 1,
+      "inputs": 14.0,
+      "suggested_amount": 14.0,
+      "expected_rating": 0.57,
+      "combined_odds": 4.38,
+      "status": "win",
+      "revenues": 61.32,
+      "profit": 47.32,
+      "actual_rating": 0.8,
+      "rep": null,
+      "remarks": "马雷斯卡果然是不让我失望哈哈哈哈",
+      "matches": [
+        {
+          "id": "gen_match_23_1",
+          "home_team": "切尔西",
+          "away_team": "伯恩茅斯",
+          "entries": [
+            {
+              "name": "draw",
+              "odds": 4.38
+            }
+          ],
+          "entry_text": "draw",
+          "odds": 4.38,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": "马雷斯卡果然是不让我失望哈哈哈哈"
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_24",
+      "created_at": "2026-01-01T12:00:00.000Z",
+      "parlay_size": 3,
+      "inputs": 54.0,
+      "suggested_amount": 54.0,
+      "expected_rating": 0.52,
+      "combined_odds": 16.44,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -54.0,
+      "actual_rating": 0.47,
+      "rep": null,
+      "remarks": "唉，啊啊啊啊 你厂突然丢2个球了吗的；读秒绝平。。",
+      "matches": [
+        {
+          "id": "gen_match_24_1",
+          "home_team": "伯恩茅斯",
+          "away_team": "阿森纳",
+          "entries": [
+            {
+              "name": "+1 lose",
+              "odds": 2.24
+            }
+          ],
+          "entry_text": "+1 lose",
+          "odds": 2.24,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "+1 draw",
+          "is_correct": false,
+          "match_rating": 0.6,
+          "match_rep": null,
+          "post_note": "唉，啊啊啊啊 你厂突然丢2个球了吗的"
+        },
+        {
+          "id": "gen_match_24_2",
+          "home_team": "富勒姆",
+          "away_team": "利物浦",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 1.79
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 1.79,
+          "conf": 0.45,
+          "mode": "常规",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": false,
+          "match_rating": 0.6,
+          "match_rep": null,
+          "post_note": "读秒绝平。。"
+        },
+        {
+          "id": "gen_match_24_3",
+          "home_team": "热刺",
+          "away_team": "桑德兰",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 4.1
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 4.1,
+          "conf": 0.45,
+          "mode": "常规",
+          "tys_home": "L",
+          "tys_away": "L",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": false,
+          "match_rating": 0.2,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_25",
+      "created_at": "2026-01-03T12:00:00.000Z",
+      "parlay_size": 2,
+      "inputs": 18.0,
+      "suggested_amount": 18.0,
+      "expected_rating": 0.54,
+      "combined_odds": 3.77,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -18.0,
+      "actual_rating": 0.55,
+      "rep": null,
+      "remarks": "好好好，这个我错的心甘情愿，切尔西绝平。；我要继续做多利兹联，做空曼联，你妈的，我相信会均值回归，这场算曼联爆冷",
+      "matches": [
+        {
+          "id": "gen_match_25_1",
+          "home_team": "曼城",
+          "away_team": "切尔西",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.52
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.52,
+          "conf": 0.6,
+          "mode": "半彩票半保险",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": false,
+          "match_rating": 0.5,
+          "match_rep": null,
+          "post_note": "好好好，这个我错的心甘情愿，切尔西绝平。"
+        },
+        {
+          "id": "gen_match_25_2",
+          "home_team": "利兹联",
+          "away_team": "曼联",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 2.48
+            }
+          ],
+          "entry_text": "win",
+          "odds": 2.48,
+          "conf": 0.4,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": false,
+          "match_rating": 0.6,
+          "match_rep": null,
+          "post_note": "我要继续做多利兹联，做空曼联，你妈的，我相信会均值回归，这场算曼联爆冷"
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_26",
+      "created_at": "2026-01-03T12:00:00.000Z",
+      "parlay_size": 1,
+      "inputs": 8.0,
+      "suggested_amount": 8.0,
+      "expected_rating": 0.46,
+      "combined_odds": 2.32,
+      "status": "win",
+      "revenues": 18.8,
+      "profit": 10.8,
+      "actual_rating": 0.8,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_26_1",
+          "home_team": "狼队",
+          "away_team": "西汉姆联",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 2.32
+            }
+          ],
+          "entry_text": "win",
+          "odds": 2.32,
+          "conf": 0.3,
+          "mode": "赌一把",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_27",
+      "created_at": "2026-01-03T12:00:00.000Z",
+      "parlay_size": 1,
+      "inputs": 18.0,
+      "suggested_amount": 18.0,
+      "expected_rating": 0.48,
+      "combined_odds": 8.25,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -18.0,
+      "actual_rating": 0.2,
+      "rep": null,
+      "remarks": "果然首胜。",
+      "matches": [
+        {
+          "id": "gen_match_27_1",
+          "home_team": "狼队",
+          "away_team": "西汉姆联",
+          "entries": [
+            {
+              "name": "1-2",
+              "odds": 8.25
+            },
+            {
+              "name": "0-1",
+              "odds": 8.25
+            }
+          ],
+          "entry_text": "1-2, 0-1",
+          "odds": 8.25,
+          "conf": 0.3,
+          "mode": "赌一把",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "3-0",
+          "is_correct": false,
+          "match_rating": 0.2,
+          "match_rep": null,
+          "post_note": "果然首胜。"
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_28",
+      "created_at": "2026-01-04T12:00:00.000Z",
+      "parlay_size": 3,
+      "inputs": 56.0,
+      "suggested_amount": 56.0,
+      "expected_rating": 0.49,
+      "combined_odds": 21.75,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -56.0,
+      "actual_rating": 0.4,
+      "rep": null,
+      "remarks": "曼联不配，这场利兹联就该3分的；根据评论区，埃弗顿本赛季全队踢的最梦游最摆烂的一场比赛。。给我撞上了你妈。不过也确实低估了布伦特福德的进攻",
+      "matches": [
+        {
+          "id": "gen_match_28_1",
+          "home_team": "利兹联",
+          "away_team": "曼联",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 2.4
+            }
+          ],
+          "entry_text": "win",
+          "odds": 2.4,
+          "conf": 0.4,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": false,
+          "match_rating": 0.6,
+          "match_rep": null,
+          "post_note": "曼联不配，这场利兹联就该3分的"
+        },
+        {
+          "id": "gen_match_28_2",
+          "home_team": "热刺",
+          "away_team": "桑德兰",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 4.1
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 4.1,
+          "conf": 0.45,
+          "mode": "常规",
+          "tys_home": "L",
+          "tys_away": "L",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": false,
+          "match_rating": 0.4,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_28_3",
+          "home_team": "埃弗顿",
+          "away_team": "布伦特福德",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 2.21
+            }
+          ],
+          "entry_text": "win",
+          "odds": 2.21,
+          "conf": 0.35,
+          "mode": "常规",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": false,
+          "match_rating": 0.2,
+          "match_rep": null,
+          "post_note": "根据评论区，埃弗顿本赛季全队踢的最梦游最摆烂的一场比赛。。给我撞上了你妈。不过也确实低估了布伦特福德的进攻"
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_29",
+      "created_at": "2026-01-04T12:00:00.000Z",
+      "parlay_size": 3,
+      "inputs": 56.0,
+      "suggested_amount": 56.0,
+      "expected_rating": 0.49,
+      "combined_odds": 30.91,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -56.0,
+      "actual_rating": 0.4,
+      "rep": null,
+      "remarks": "行。",
+      "matches": [
+        {
+          "id": "gen_match_29_1",
+          "home_team": "纽卡",
+          "away_team": "水晶宫",
+          "entries": [
+            {
+              "name": "-1 draw",
+              "odds": 3.3
+            }
+          ],
+          "entry_text": "-1 draw",
+          "odds": 3.3,
+          "conf": 0.25,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "-1 win",
+          "is_correct": false,
+          "match_rating": 0.6,
+          "match_rep": null,
+          "post_note": "行。"
+        },
+        {
+          "id": "gen_match_29_2",
+          "home_team": "热刺",
+          "away_team": "桑德兰",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 4.2
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 4.2,
+          "conf": 0.45,
+          "mode": "常规",
+          "tys_home": "L",
+          "tys_away": "L",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": false,
+          "match_rating": 0.4,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_29_3",
+          "home_team": "埃弗顿",
+          "away_team": "布伦特福德",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 2.23
+            }
+          ],
+          "entry_text": "win",
+          "odds": 2.23,
+          "conf": 0.35,
+          "mode": "常规",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": false,
+          "match_rating": 0.2,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_30",
+      "created_at": "2026-01-04T12:00:00.000Z",
+      "parlay_size": 1,
+      "inputs": 12.0,
+      "suggested_amount": 12.0,
+      "expected_rating": 0.48,
+      "combined_odds": 14.0,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -12.0,
+      "actual_rating": 0.4,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_30_1",
+          "home_team": "纽卡",
+          "away_team": "水晶宫",
+          "entries": [
+            {
+              "name": "2-2",
+              "odds": 14.0
+            }
+          ],
+          "entry_text": "2-2",
+          "odds": 14.0,
+          "conf": 0.2,
+          "mode": "赌一把",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "2-0",
+          "is_correct": false,
+          "match_rating": 0.4,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_31",
+      "created_at": "2026-01-04T12:00:00.000Z",
+      "parlay_size": 3,
+      "inputs": 22.0,
+      "suggested_amount": 22.0,
+      "expected_rating": 0.58,
+      "combined_odds": 6.94,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -22.0,
+      "actual_rating": 0.57,
+      "rep": null,
+      "remarks": "我真服了，凭什么你妈的，我真的不理解，我现在还是不理解。但是专业的足球模型还真给他算出来了，热刺主胜的赔率是1.9几，真的不得不服，但是我还是不理解。。；所以，其实今天这四场也都确实\"冷\"了，不是赔率最热门的选项，所以并不是说对抗专业模型就没有margin的。只不过我都选错了更具体的side。热刺桑德兰的显著胜变成了平，但我选了负。富勒姆利物浦的显著热门是负，但也平了。利兹联曼联的显著热门是负 结果也平了，可是我选成了胜。。唯一命中的高赔率是狼队主胜了，但我只单关下了轻注。。而纽卡的-1 win的赔率也是二点几，但是我选了保守的-1 draw 唉。。唯一错的离谱的是埃弗顿踢布伦特福德那场，不过刚好这本来就是唯一一场三个选项赔率都比较接近的纯粹中游比赛，主要是其他几场全错的太难受了",
+      "matches": [
+        {
+          "id": "gen_match_31_1",
+          "home_team": "热刺",
+          "away_team": "桑德兰",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 4.2
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 4.2,
+          "conf": 0.45,
+          "mode": "常规",
+          "tys_home": "L",
+          "tys_away": "L",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": false,
+          "match_rating": 0.4,
+          "match_rep": null,
+          "post_note": "我真服了，凭什么你妈的，我真的不理解，我现在还是不理解。但是专业的足球模型还真给他算出来了，热刺主胜的赔率是1.9几，真的不得不服，但是我还是不理解。。"
+        },
+        {
+          "id": "gen_match_31_2",
+          "home_team": "曼城",
+          "away_team": "切尔西",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.45
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.45,
+          "conf": 0.6,
+          "mode": "半彩票半保险",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": false,
+          "match_rating": 0.5,
+          "match_rep": null,
+          "post_note": "所以，其实今天这四场也都确实\"冷\"了，不是赔率最热门的选项，所以并不是说对抗专业模型就没有margin的。只不过我都选错了更具体的side。热刺桑德兰的显著胜变成了平，但我选了负。富勒姆利物浦的显著热门是负，但也平了。利兹联曼联的显著热门是负 结果也平了，可是我选成了胜。。唯一命中的高赔率是狼队主胜了，但我只单关下了轻注。。而纽卡的-1 win的赔率也是二点几，但是我选了保守的-1 draw 唉。。唯一错的离谱的是埃弗顿踢布伦特福德那场，不过刚好这本来就是唯一一场三个选项赔率都比较接近的纯粹中游比赛，主要是其他几场全错的太难受了"
+        },
+        {
+          "id": "gen_match_31_3",
+          "home_team": "达马克",
+          "away_team": "利雅得新月",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 1.14
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 1.14,
+          "conf": 0.8,
+          "mode": "常规",
+          "tys_home": "L",
+          "tys_away": "L",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_32",
+      "created_at": "2026-01-07T12:00:00.000Z",
+      "parlay_size": 3,
+      "inputs": 24.0,
+      "suggested_amount": 24.0,
+      "expected_rating": 0.52,
+      "combined_odds": 19.19,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -24.0,
+      "actual_rating": 0.8,
+      "rep": null,
+      "remarks": "好好好，这下又加上了一个切尔西绝平曼城了，another one, 高赔率option realized, 所以其实这周还真是基本每一场的结果都是高赔率选项，把它们串起来实现十几倍的赔率四位数的利润是完全可能的，只可惜我选错了具体选项唉 然后选择串的场次搭配也很有待改进。可惜哎！",
+      "matches": [
+        {
+          "id": "gen_match_32_1",
+          "home_team": "布伦特福德",
+          "away_team": "桑德兰",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.67
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.67,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": "好好好，这下又加上了一个切尔西绝平曼城了，another one, 高赔率option realized, 所以其实这周还真是基本每一场的结果都是高赔率选项，把它们串起来实现十几倍的赔率四位数的利润是完全可能的，只可惜我选错了具体选项唉 然后选择串的场次搭配也很有待改进。可惜哎！"
+        },
+        {
+          "id": "gen_match_32_2",
+          "home_team": "富勒姆",
+          "away_team": "切尔西",
+          "entries": [
+            {
+              "name": "win/lose",
+              "odds": 3.38
+            }
+          ],
+          "entry_text": "win/lose",
+          "odds": 3.38,
+          "conf": 0.4,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_32_3",
+          "home_team": "埃弗顿",
+          "away_team": "狼队",
+          "entries": [
+            {
+              "name": "draw",
+              "odds": 3.4
+            }
+          ],
+          "entry_text": "draw",
+          "odds": 3.4,
+          "conf": 0.4,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_33",
+      "created_at": "2026-01-01T12:00:00.000Z",
+      "parlay_size": 1,
+      "inputs": 16.0,
+      "suggested_amount": 16.0,
+      "expected_rating": 0.55,
+      "combined_odds": 3.8,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -16.0,
+      "actual_rating": 0.7,
+      "rep": null,
+      "remarks": "纽卡90+12 绝杀 本来3-3利兹联的 啊啊啊 草泥马 我快疯了真的",
+      "matches": [
+        {
+          "id": "gen_match_33_1",
+          "home_team": "纽卡",
+          "away_team": "利兹联",
+          "entries": [
+            {
+              "name": "draw",
+              "odds": 3.8
+            }
+          ],
+          "entry_text": "draw",
+          "odds": 3.8,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": false,
+          "match_rating": 0.7,
+          "match_rep": null,
+          "post_note": "纽卡90+12 绝杀 本来3-3利兹联的 啊啊啊 草泥马 我快疯了真的"
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_34",
+      "created_at": "2026-01-08T12:00:00.000Z",
+      "parlay_size": 3,
+      "inputs": 52.0,
+      "suggested_amount": 52.0,
+      "expected_rating": 0.54,
+      "combined_odds": 9.07,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -52.0,
+      "actual_rating": 0.33,
+      "rep": null,
+      "remarks": "富勒姆playing very direct，主场顺风就会很牛逼，反击有声有色。切尔西下半场反击机会也不少、但是接下来换帅了。利兹联地面高位压迫很猛，鉴定为稳定地牛逼了，阿伦森很牛逼，但是空中对抗落点好像不太行。纽卡主场太猛了，但是这场疑似进攻威胁太定位球了。布伦特福德不负我望，猛。曼联踢得有声有色，新套路很多，预计对手不会迅速适应。狼队威胁挺低的，不过也不是0。埃弗顿摇子又停赛了有的受了。；另，复盘昨日组合策略，布伦特福德主胜桑德兰、纽卡平利兹联是基石。在此基础之上，分别下了\"埃弗顿胜狼队+富勒姆胜/负切尔西\"和\"埃弗顿平狼队+富勒姆平切尔西\"两注，实际结果为\"埃弗顿平狼队+富勒姆胜切尔西\"。先不总结下定论，但是这个感觉是明显有总结价值和未来组合的策略提升空间的。",
+      "matches": [
+        {
+          "id": "gen_match_34_1",
+          "home_team": "阿森纳",
+          "away_team": "利物浦",
+          "entries": [
+            {
+              "name": "-1 win",
+              "odds": 2.53
+            }
+          ],
+          "entry_text": "-1 win",
+          "odds": 2.53,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "H",
+          "tys_away": "H",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": false,
+          "match_rating": 0.2,
+          "match_rep": null,
+          "post_note": "富勒姆playing very direct，主场顺风就会很牛逼，反击有声有色。切尔西下半场反击机会也不少、但是接下来换帅了。利兹联地面高位压迫很猛，鉴定为稳定地牛逼了，阿伦森很牛逼，但是空中对抗落点好像不太行。纽卡主场太猛了，但是这场疑似进攻威胁太定位球了。布伦特福德不负我望，猛。曼联踢得有声有色，新套路很多，预计对手不会迅速适应。狼队威胁挺低的，不过也不是0。埃弗顿摇子又停赛了有的受了。"
+        },
+        {
+          "id": "gen_match_34_2",
+          "home_team": "马竞",
+          "away_team": "皇马",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 2.8
+            }
+          ],
+          "entry_text": "win",
+          "odds": 2.8,
+          "conf": 0.4,
+          "mode": "常规",
+          "tys_home": "L",
+          "tys_away": "L",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": false,
+          "match_rating": 0.4,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_34_3",
+          "home_team": "米兰",
+          "away_team": "热那亚",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.28
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.28,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": false,
+          "match_rating": 0.4,
+          "match_rep": null,
+          "post_note": "另，复盘昨日组合策略，布伦特福德主胜桑德兰、纽卡平利兹联是基石。在此基础之上，分别下了\"埃弗顿胜狼队+富勒姆胜/负切尔西\"和\"埃弗顿平狼队+富勒姆平切尔西\"两注，实际结果为\"埃弗顿平狼队+富勒姆胜切尔西\"。先不总结下定论，但是这个感觉是明显有总结价值和未来组合的策略提升空间的。"
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_35",
+      "created_at": "2026-01-08T12:00:00.000Z",
+      "parlay_size": 2,
+      "inputs": 168.0,
+      "suggested_amount": 168.0,
+      "expected_rating": 0.58,
+      "combined_odds": 2.91,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -168.0,
+      "actual_rating": 0.5,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_35_1",
+          "home_team": "阿森纳",
+          "away_team": "利物浦",
+          "entries": [
+            {
+              "name": "-1 win",
+              "odds": 2.53
+            }
+          ],
+          "entry_text": "-1 win",
+          "odds": 2.53,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "H",
+          "tys_away": "H",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": false,
+          "match_rating": 0.2,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_35_2",
+          "home_team": "澳u23",
+          "away_team": "泰u23",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.15
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.15,
+          "conf": 0.8,
+          "mode": "常规",
+          "tys_home": "H",
+          "tys_away": "H",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_36",
+      "created_at": "2026-01-14T12:00:00.000Z",
+      "parlay_size": 1,
+      "inputs": 10.0,
+      "suggested_amount": 10.0,
+      "expected_rating": 0.57,
+      "combined_odds": 2.88,
+      "status": "win",
+      "revenues": 28.8,
+      "profit": 18.8,
+      "actual_rating": null,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_36_1",
+          "home_team": "泰u23",
+          "away_team": "国u23",
+          "entries": [
+            {
+              "name": "draw",
+              "odds": 2.88
+            }
+          ],
+          "entry_text": "draw",
+          "odds": 2.88,
+          "conf": 0.5,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": true,
+          "match_rating": null,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_37",
+      "created_at": "2026-01-17T12:00:00.000Z",
+      "parlay_size": 1,
+      "inputs": 84.0,
+      "suggested_amount": 84.0,
+      "expected_rating": 0.58,
+      "combined_odds": 2.0,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -84.0,
+      "actual_rating": 0.2,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_37_1",
+          "home_team": "曼联",
+          "away_team": "曼城",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 2.0
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 2.0,
+          "conf": 0.6,
+          "mode": "半彩票半保险",
+          "tys_home": "L",
+          "tys_away": "L",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": false,
+          "match_rating": 0.2,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_38",
+      "created_at": "2026-01-17T12:00:00.000Z",
+      "parlay_size": 1,
+      "inputs": 52.0,
+      "suggested_amount": 52.0,
+      "expected_rating": 0.54,
+      "combined_odds": 3.8,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -52.0,
+      "actual_rating": 0.2,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_38_1",
+          "home_team": "曼联",
+          "away_team": "曼城",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 3.8
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 3.8,
+          "conf": 0.5,
+          "mode": "常规",
+          "tys_home": "H",
+          "tys_away": "H",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": false,
+          "match_rating": 0.2,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_39",
+      "created_at": "2026-01-17T12:00:00.000Z",
+      "parlay_size": 3,
+      "inputs": 34.0,
+      "suggested_amount": 34.0,
+      "expected_rating": 0.53,
+      "combined_odds": 17.97,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -34.0,
+      "actual_rating": null,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_39_1",
+          "home_team": "热刺",
+          "away_team": "西汉姆",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.7
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.7,
+          "conf": 0.5,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "",
+          "is_correct": null,
+          "match_rating": null,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_39_2",
+          "home_team": "利兹联",
+          "away_team": "富勒姆",
+          "entries": [
+            {
+              "name": "draw",
+              "odds": 2.97
+            }
+          ],
+          "entry_text": "draw",
+          "odds": 2.97,
+          "conf": 0.5,
+          "mode": "常规",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "",
+          "is_correct": null,
+          "match_rating": null,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_39_3",
+          "home_team": "切尔西",
+          "away_team": "布伦特福德",
+          "entries": [
+            {
+              "name": "draw",
+              "odds": 3.56
+            }
+          ],
+          "entry_text": "draw",
+          "odds": 3.56,
+          "conf": 0.4,
+          "mode": "常规",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "",
+          "is_correct": null,
+          "match_rating": null,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_40",
+      "created_at": "2026-01-20T12:00:00.000Z",
+      "parlay_size": 3,
+      "inputs": 56.0,
+      "suggested_amount": 56.0,
+      "expected_rating": 0.61,
+      "combined_odds": 6.1,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -56.0,
+      "actual_rating": 0.73,
+      "rep": null,
+      "remarks": "赛前有个一手信源的视频号，记者去问塔子，塔子”语气严肃地说no excuses, same standard\"，于是我心中就从0.4上升到了0.6的confidence，来买了，确实没让我失望；What can I say! 凯恩丢点球! 接着奥利赛门前丢王玉栋都能进的球! 棒子红牌! WHAT CAN I SAY!!!!!",
+      "matches": [
+        {
+          "id": "gen_match_40_1",
+          "home_team": "国际米兰",
+          "away_team": "阿森纳",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 2.44
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 2.44,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": "赛前有个一手信源的视频号，记者去问塔子，塔子”语气严肃地说no excuses, same standard\"，于是我心中就从0.4上升到了0.6的confidence，来买了，确实没让我失望"
+        },
+        {
+          "id": "gen_match_40_2",
+          "home_team": "拜仁",
+          "away_team": "圣吉尔",
+          "entries": [
+            {
+              "name": "-2 win",
+              "odds": 1.97
+            }
+          ],
+          "entry_text": "-2 win",
+          "odds": 1.97,
+          "conf": 0.7,
+          "mode": "常规",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "-2 draw",
+          "is_correct": false,
+          "match_rating": 0.6,
+          "match_rep": null,
+          "post_note": "What can I say! 凯恩丢点球! 接着奥利赛门前丢王玉栋都能进的球! 棒子红牌! WHAT CAN I SAY!!!!!"
+        },
+        {
+          "id": "gen_match_40_3",
+          "home_team": "布拉格",
+          "away_team": "巴萨",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 1.27
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 1.27,
+          "conf": 0.7,
+          "mode": "常规",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_41",
+      "created_at": "2026-01-24T12:00:00.000Z",
+      "parlay_size": 2,
+      "inputs": 46.0,
+      "suggested_amount": 46.0,
+      "expected_rating": 0.56,
+      "combined_odds": 3.16,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -46.0,
+      "actual_rating": 0.5,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_41_1",
+          "home_team": "曼城",
+          "away_team": "狼队",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.21
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.21,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_41_2",
+          "home_team": "拜仁",
+          "away_team": "奥格斯堡",
+          "entries": [
+            {
+              "name": "-3 win",
+              "odds": 2.61
+            }
+          ],
+          "entry_text": "-3 win",
+          "odds": 2.61,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": false,
+          "match_rating": 0.2,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_42",
+      "created_at": "2026-01-24T12:00:00.000Z",
+      "parlay_size": 1,
+      "inputs": 16.0,
+      "suggested_amount": 16.0,
+      "expected_rating": 0.48,
+      "combined_odds": 10.5,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -16.0,
+      "actual_rating": 0.7,
+      "rep": null,
+      "remarks": "操你妈啊利物浦被最后一个界外球绝杀啊。。。劳资盯着屏幕看到最后一秒。。操啊。。。843块的收米啊。。",
+      "matches": [
+        {
+          "id": "gen_match_42_1",
+          "home_team": "伯恩茅斯",
+          "away_team": "利物浦",
+          "entries": [
+            {
+              "name": "2-2",
+              "odds": 10.5
+            }
+          ],
+          "entry_text": "2-2",
+          "odds": 10.5,
+          "conf": 0.4,
+          "mode": "常规",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "3-2",
+          "is_correct": false,
+          "match_rating": 0.7,
+          "match_rep": null,
+          "post_note": "操你妈啊利物浦被最后一个界外球绝杀啊。。。劳资盯着屏幕看到最后一秒。。操啊。。。843块的收米啊。。"
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_43",
+      "created_at": "2026-01-24T12:00:00.000Z",
+      "parlay_size": 3,
+      "inputs": 46.0,
+      "suggested_amount": 46.0,
+      "expected_rating": 0.54,
+      "combined_odds": 14.55,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -46.0,
+      "actual_rating": 0.77,
+      "rep": null,
+      "remarks": "可惜了这场热刺平局被我命中了啊 2-2对了啊 唉。。",
+      "matches": [
+        {
+          "id": "gen_match_43_1",
+          "home_team": "伯恩茅斯",
+          "away_team": "利物浦",
+          "entries": [
+            {
+              "name": "draw",
+              "odds": 3.7
+            }
+          ],
+          "entry_text": "draw",
+          "odds": 3.7,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": false,
+          "match_rating": 0.7,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_43_2",
+          "home_team": "伯恩利",
+          "away_team": "热刺",
+          "entries": [
+            {
+              "name": "draw",
+              "odds": 3.25
+            }
+          ],
+          "entry_text": "draw",
+          "odds": 3.25,
+          "conf": 0.4,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": "可惜了这场热刺平局被我命中了啊 2-2对了啊 唉。。"
+        },
+        {
+          "id": "gen_match_43_3",
+          "home_team": "曼城",
+          "away_team": "狼队",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.21
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.21,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_44",
+      "created_at": "2026-01-28T12:00:00.000Z",
+      "parlay_size": 11,
+      "inputs": 1.08,
+      "suggested_amount": 1.08,
+      "expected_rating": 0.54,
+      "combined_odds": 4240.46,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -1.08,
+      "actual_rating": 0.49,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_44_1",
+          "home_team": "拜仁",
+          "away_team": "埃因霍温",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.36
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.36,
+          "conf": 0.7,
+          "mode": "常规",
+          "tys_home": "H",
+          "tys_away": "H",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_44_2",
+          "home_team": "巴黎",
+          "away_team": "纽卡",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.43
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.43,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": false,
+          "match_rating": 0.4,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_44_3",
+          "home_team": "巴黎",
+          "away_team": "纽卡",
+          "entries": [
+            {
+              "name": "-1 win",
+              "odds": 2.26
+            }
+          ],
+          "entry_text": "-1 win",
+          "odds": 2.26,
+          "conf": 0.4,
+          "mode": "常规",
+          "tys_home": "L",
+          "tys_away": "L",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "draw",
+          "is_correct": false,
+          "match_rating": 0.2,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_44_4",
+          "home_team": "勒沃库森",
+          "away_team": "黄潜",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.49
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.49,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "L",
+          "tys_away": "L",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_44_5",
+          "home_team": "马竞",
+          "away_team": "博德闪耀",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.18
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.18,
+          "conf": 0.7,
+          "mode": "常规",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": false,
+          "match_rating": 0.3,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_44_6",
+          "home_team": "法兰克福",
+          "away_team": "热刺",
+          "entries": [
+            {
+              "name": "draw",
+              "odds": 3.85
+            }
+          ],
+          "entry_text": "draw",
+          "odds": 3.85,
+          "conf": 0.3,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": false,
+          "match_rating": 0.2,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_44_7",
+          "home_team": "巴萨",
+          "away_team": "哥本哈根",
+          "entries": [
+            {
+              "name": "-2 win",
+              "odds": 1.67
+            }
+          ],
+          "entry_text": "-2 win",
+          "odds": 1.67,
+          "conf": 0.4,
+          "mode": "常规",
+          "tys_home": "L",
+          "tys_away": "L",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "-2 win",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_44_8",
+          "home_team": "利物浦",
+          "away_team": "卡拉巴赫",
+          "entries": [
+            {
+              "name": "-2 draw",
+              "odds": 4.2
+            }
+          ],
+          "entry_text": "-2 draw",
+          "odds": 4.2,
+          "conf": 0.3,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "-2 win",
+          "is_correct": false,
+          "match_rating": 0.2,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_44_9",
+          "home_team": "阿森纳",
+          "away_team": "阿拉图木",
+          "entries": [
+            {
+              "name": "-3 draw",
+              "odds": 4.75
+            }
+          ],
+          "entry_text": "-3 draw",
+          "odds": 4.75,
+          "conf": 0.3,
+          "mode": "常规",
+          "tys_home": "H",
+          "tys_away": "H",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "-3 lose",
+          "is_correct": false,
+          "match_rating": 0.4,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_44_10",
+          "home_team": "切尔西",
+          "away_team": "那不勒斯",
+          "entries": [
+            {
+              "name": "win",
+              "odds": 1.86
+            }
+          ],
+          "entry_text": "win",
+          "odds": 1.86,
+          "conf": 0.5,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_44_11",
+          "home_team": "曼城",
+          "away_team": "加拉塔萨雷",
+          "entries": [
+            {
+              "name": "-2 lose",
+              "odds": 2.3
+            }
+          ],
+          "entry_text": "-2 lose",
+          "odds": 2.3,
+          "conf": 0.4,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "-2 draw",
+          "is_correct": false,
+          "match_rating": 0.5,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    },
+    {
+      "id": "gen_inv_45",
+      "created_at": "2026-01-31T12:00:00.000Z",
+      "parlay_size": 4,
+      "inputs": 48.01,
+      "suggested_amount": 48.01,
+      "expected_rating": 0.57,
+      "combined_odds": 29.78,
+      "status": "lose",
+      "revenues": 0.0,
+      "profit": -48.01,
+      "actual_rating": 0.65,
+      "rep": null,
+      "remarks": "",
+      "matches": [
+        {
+          "id": "gen_match_45_1",
+          "home_team": "狼队",
+          "away_team": "伯恩茅斯",
+          "entries": [
+            {
+              "name": "draw+lose",
+              "odds": 2.57
+            }
+          ],
+          "entry_text": "draw+lose",
+          "odds": 2.57,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_45_2",
+          "home_team": "利兹联",
+          "away_team": "阿森纳",
+          "entries": [
+            {
+              "name": "lose",
+              "odds": 1.39
+            }
+          ],
+          "entry_text": "lose",
+          "odds": 1.39,
+          "conf": 0.8,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "lose",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_45_3",
+          "home_team": "切尔西",
+          "away_team": "西汉姆",
+          "entries": [
+            {
+              "name": "win+draw",
+              "odds": 2.1
+            }
+          ],
+          "entry_text": "win+draw",
+          "odds": 2.1,
+          "conf": 0.4,
+          "mode": "常规",
+          "tys_home": "S",
+          "tys_away": "S",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": true,
+          "match_rating": 0.8,
+          "match_rep": null,
+          "post_note": ""
+        },
+        {
+          "id": "gen_match_45_4",
+          "home_team": "利物浦",
+          "away_team": "纽卡",
+          "entries": [
+            {
+              "name": "draw+lose",
+              "odds": 3.97
+            }
+          ],
+          "entry_text": "draw+lose",
+          "odds": 3.97,
+          "conf": 0.6,
+          "mode": "常规",
+          "tys_home": "M",
+          "tys_away": "M",
+          "fid": 0.4,
+          "fse_home": 0.5,
+          "fse_away": 0.5,
+          "fse_match": 0.5,
+          "note": "",
+          "results": "win",
+          "is_correct": false,
+          "match_rating": 0.2,
+          "match_rep": null,
+          "post_note": ""
+        }
+      ]
+    }
+  ]
+}

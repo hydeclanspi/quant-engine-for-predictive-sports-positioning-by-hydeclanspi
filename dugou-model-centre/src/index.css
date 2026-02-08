@@ -1,0 +1,482 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========================================
+   hydecaside · QCTE — Global Styles
+   ======================================== */
+
+/* Base Styles */
+@layer base {
+  * {
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-stone-100/50 text-stone-800;
+  }
+}
+
+/* Component Styles */
+@layer components {
+  /* Glow Card Effect */
+  .glow-card {
+    @apply relative bg-white rounded-2xl transition-all duration-300;
+  }
+
+  .glow-card:hover {
+    box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.3), 0 8px 30px -12px rgba(251, 191, 36, 0.2);
+  }
+
+  .glow-card::after {
+    content: '';
+    @apply absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-300 pointer-events-none;
+    background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(251, 191, 36, 0.06), transparent 40%);
+  }
+
+  .glow-card:hover::after {
+    @apply opacity-100;
+  }
+
+  /* Lift Card Effect */
+  .lift-card {
+    @apply transition-transform duration-200;
+  }
+
+  .lift-card:hover {
+    @apply -translate-y-0.5;
+    box-shadow: 0 8px 30px -12px rgba(0, 0, 0, 0.12);
+  }
+
+  /* Button Hover Effect */
+  .btn-hover {
+    @apply transition-all duration-200;
+  }
+
+  .btn-hover:hover {
+    @apply scale-[1.02];
+  }
+
+  .btn-hover:active {
+    @apply scale-[0.98];
+  }
+
+  /* Primary Button */
+  .btn-primary {
+    @apply px-5 py-2.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl text-sm font-medium;
+    box-shadow: 0 4px 14px -4px rgba(251, 191, 36, 0.4);
+  }
+
+  .btn-primary:hover {
+    box-shadow: 0 6px 20px -4px rgba(251, 191, 36, 0.5);
+  }
+
+  /* Secondary Button */
+  .btn-secondary {
+    @apply px-4 py-2 border border-stone-200 text-stone-600 rounded-xl text-sm font-medium hover:bg-stone-50 hover:border-amber-300;
+  }
+
+  /* Input Focus Glow */
+  .input-glow {
+    @apply transition-all duration-200;
+  }
+
+  .input-glow:focus {
+    @apply outline-none border-amber-400;
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.15);
+  }
+
+  /* Sidebar Item */
+  .sidebar-item {
+    @apply transition-all duration-200;
+  }
+
+  .sidebar-item:hover {
+    @apply translate-x-0.5;
+  }
+
+  /* Custom Scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-stone-300 rounded;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-stone-400;
+  }
+}
+
+/* Utility Styles */
+@layer utilities {
+  /* Font Display */
+  .font-display {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+
+  /* Custom Range Slider */
+  input[type="range"] {
+    -webkit-appearance: none;
+    @apply h-1.5 bg-stone-200 rounded-full;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    @apply w-4 h-4 rounded-full cursor-pointer;
+    background: linear-gradient(135deg, #fbbf24, #f97316);
+    box-shadow: 0 2px 8px rgba(251, 191, 36, 0.5);
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+  }
+
+  /* Chart Bar Animation */
+  .chart-bar {
+    @apply transition-all duration-200;
+  }
+
+  .chart-bar:hover {
+    @apply brightness-110;
+    transform: scaleY(1.05);
+  }
+
+  /* Note Cell */
+  .note-cell {
+    @apply cursor-pointer transition-all duration-150;
+  }
+
+  .note-cell:hover {
+    @apply text-amber-600 underline;
+  }
+
+  /* Custom Checkbox */
+  .custom-checkbox {
+    @apply w-[18px] h-[18px] border-[1.5px] border-stone-300 rounded-md flex items-center justify-center cursor-pointer transition-all duration-200 bg-white relative;
+  }
+
+  .custom-checkbox:hover {
+    @apply border-amber-400;
+  }
+
+  .custom-checkbox.checked {
+    @apply border-amber-400;
+    background: linear-gradient(135deg, rgba(254,243,199,0.6), rgba(254,215,170,0.6));
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.2);
+  }
+
+  .custom-checkbox.checked::after {
+    content: '';
+    @apply w-1.5 h-2.5 border-r-2 border-b-2 border-amber-600 -translate-y-px rotate-45;
+  }
+}
+
+/* Animation Classes */
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* ============================================================
+   Sidebar Brand — Solo C19 Logo (Proposal 1)
+   ============================================================ */
+
+.sidebar-brand-solo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  border-bottom: 1px solid rgba(231, 229, 228, 0.4);
+}
+
+/* ============================================================
+   C19 Golden Frame — Sidebar Brand Logo (48px)
+   ============================================================ */
+
+@property --c19-border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* C19 base structure — 48px, light background */
+.c19-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 13px;
+  position: relative;
+  background: white;
+  box-shadow: 0 2px 14px -3px rgba(0,0,0,0.08);
+  flex-shrink: 0;
+}
+
+.c19-logo-border {
+  position: absolute;
+  inset: 0;
+  border-radius: 13px;
+  border: 2px solid transparent;
+  background:
+    linear-gradient(white, white) padding-box,
+    linear-gradient(145deg, #fbbf24, #f97316, #fcd34d) border-box;
+}
+
+.c19-logo-inner {
+  position: absolute;
+  inset: 7px;
+  border-radius: 8px;
+  border: 0.5px solid #e7e5e4;
+}
+
+.c19-logo-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.c19-logo-content .c19-t {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 2.8px;
+  color: #292524;
+  text-transform: uppercase;
+  padding-left: 2.8px;
+  line-height: 1.3;
+}
+
+.c19-logo-content .c19-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #fbbf24;
+  box-shadow: 0 0 6px rgba(251,191,36,0.4);
+}
+
+.c19-logo-content .c19-b {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 2.8px;
+  color: #f59e0b;
+  text-transform: uppercase;
+  padding-left: 2.8px;
+  line-height: 1.3;
+}
+
+/* A3: Shimmer Sweep at 0.85x speed */
+.c19-logo-shimmer {
+  position: absolute;
+  inset: 0;
+  border-radius: 13px;
+  z-index: 10;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.c19-logo-shimmer::after {
+  content: '';
+  position: absolute;
+  top: -100%;
+  left: -60%;
+  width: 40%;
+  height: 300%;
+  background: linear-gradient(105deg,
+    transparent 30%,
+    rgba(255,255,255,0.5) 45%,
+    rgba(255,255,255,0.8) 50%,
+    rgba(255,255,255,0.5) 55%,
+    transparent 70%
+  );
+  animation: c19-shimmer-sweep 4.12s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+@keyframes c19-shimmer-sweep {
+  0%, 20% { left: -60%; }
+  60%, 100% { left: 160%; }
+}
+
+/* A4: Frame Draw entrance */
+.c19-entrance .c19-logo-border {
+  border: none;
+  background: none;
+}
+
+.c19-draw-border {
+  position: absolute;
+  inset: 0;
+  border-radius: 13px;
+  overflow: hidden;
+}
+
+.c19-draw-border svg {
+  position: absolute;
+  inset: -1px;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+}
+
+.c19-draw-border svg rect {
+  fill: none;
+  stroke: url(#c19DrawGrad);
+  stroke-width: 2;
+  stroke-dasharray: 216;
+  stroke-dashoffset: 216;
+  animation: c19-draw 1.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  animation-delay: 0.2s;
+}
+
+@keyframes c19-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+.c19-entrance .c19-logo-inner {
+  opacity: 0;
+  animation: c19-reveal 0.4s ease forwards;
+  animation-delay: 1.2s;
+}
+
+.c19-entrance .c19-t {
+  opacity: 0;
+  animation: c19-text-in 0.4s ease forwards;
+  animation-delay: 1.4s;
+}
+
+.c19-entrance .c19-dot {
+  opacity: 0;
+  transform: scale(0);
+  animation: c19-dot-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation-delay: 1.6s;
+}
+
+.c19-entrance .c19-b {
+  opacity: 0;
+  animation: c19-text-in 0.4s ease forwards;
+  animation-delay: 1.8s;
+}
+
+.c19-entrance .c19-logo-shimmer::after {
+  animation-delay: 2.5s;
+}
+
+@keyframes c19-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes c19-text-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes c19-dot-pop {
+  to { opacity: 1; transform: scale(1); }
+}
+
+
+/* ============================================================
+   TopBar — Slim Atmosphere Layer (Proposal 1+3)
+   ============================================================ */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  height: 44px;
+  border-bottom: 1px solid rgba(231, 229, 228, 0.5);
+  background: linear-gradient(180deg, #fafaf9, rgba(250,250,249,0.3));
+  position: relative;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  min-width: 0;
+}
+
+.topbar-page-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #78716c;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.topbar-subtitle {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  color: #a8a29e;
+  letter-spacing: 0.1px;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar-subtitle-accent {
+  color: #d97706;
+  font-weight: 500;
+}
+
+/* Thin gradient line — right side atmospheric accent */
+.topbar-gradient-line {
+  width: 48px;
+  height: 2px;
+  border-radius: 1px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.topbar-gradient-line-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 1px;
+  background-size: 200% 100%;
+  background-image: linear-gradient(90deg,
+    #a8a29e, #d97706, #fbbf24, #f59e0b,
+    #a8a29e, #d97706, #fbbf24, #a8a29e
+  );
+  animation: topbar-gradient-shift 5s linear infinite;
+}
+
+@keyframes topbar-gradient-shift {
+  0% { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
