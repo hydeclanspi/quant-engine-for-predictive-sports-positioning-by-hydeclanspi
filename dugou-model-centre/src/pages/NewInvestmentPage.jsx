@@ -723,7 +723,7 @@ export default function NewInvestmentPage() {
             const awaySuggestions =
               activeTeamInput?.matchIdx === idx && activeTeamInput?.side === 'away' ? getTeamSuggestions(match.awayTeam) : []
             const matchupKey = normalizeMatchupKey(match.homeTeam, match.awayTeam)
-            const historySuggestions = matchupKey ? (historySuggestionsByMatchup.get(matchupKey) || []).slice(0, 4) : []
+            const historySuggestions = matchupKey ? (historySuggestionsByMatchup.get(matchupKey) || []).slice(0, 3) : []
             const appliedHistory = historyPrefillApplied[idx] || null
             const homeTeamKey = normalizeTeamKey(match.homeTeam)
             const awayTeamKey = normalizeTeamKey(match.awayTeam)
@@ -733,58 +733,61 @@ export default function NewInvestmentPage() {
             return (
               <div key={idx} className={`relative ${idx > 0 ? 'pt-6 border-t border-stone-100' : ''}`}>
                 {appliedHistory ? (
-                  <div className="absolute right-0 top-0 z-30 w-[min(420px,52%)]">
-                    <div className="rounded-2xl border border-white/70 bg-white/55 backdrop-blur-xl shadow-[0_14px_36px_rgba(148,163,184,0.22)] px-3 py-2.5">
-                      <div className="flex items-center justify-between gap-3">
+                  <div className="absolute right-1 top-0 z-30 history-float-wrap">
+                    <div className="history-float-panel history-float-enter px-2.5 py-2">
+                      <div className="relative z-[1] flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="text-[10px] uppercase tracking-[0.12em] text-stone-500">已应用历史对阵模板</p>
-                          <p className="text-xs text-stone-600 truncate mt-0.5">
-                            {appliedHistory.dateLabel} · {appliedHistory.entryPreview || 'Entries 未记录'}
-                          </p>
+                          <p className="text-[9px] uppercase tracking-[0.11em] text-stone-500/95">已套用历史参数</p>
+                          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/65 text-stone-600 border border-white/70">
+                              {appliedHistory.dateLabel}
+                            </span>
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${getModeBadgeClass(appliedHistory.mode)}`}>{appliedHistory.mode}</span>
+                            <span className={`text-[10px] font-semibold ${getConfBadgeClass(appliedHistory.confPercent)}`}>
+                              Conf {(appliedHistory.confPercent / 100).toFixed(2)}
+                            </span>
+                          </div>
                         </div>
                         <button
                           type="button"
                           onClick={() => clearHistoryPrefill(idx)}
-                          className="shrink-0 px-2.5 py-1 rounded-lg text-[11px] border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors"
+                          className="relative z-[1] shrink-0 px-2 py-0.5 rounded-md text-[10px] font-medium border border-amber-200/90 bg-amber-50/90 text-amber-700 hover:bg-amber-100 transition-colors"
                         >
-                          一键撤回
+                          撤回
                         </button>
                       </div>
-                      <div className="mt-2 flex items-center gap-2 text-[10px]">
-                        <span className={`px-2 py-0.5 rounded-md ${getModeBadgeClass(appliedHistory.mode)}`}>{appliedHistory.mode}</span>
-                        <span className={`font-semibold ${getConfBadgeClass(appliedHistory.confPercent)}`}>
-                          Conf {(appliedHistory.confPercent / 100).toFixed(2)}
-                        </span>
-                      </div>
+                      <p className="relative z-[1] mt-1.5 text-[10px] text-stone-500 truncate">
+                        Entries · {appliedHistory.entryPreview || '未记录'}
+                      </p>
                     </div>
                   </div>
                 ) : (
                   historySuggestions.length > 0 && (
-                    <div className="absolute right-0 top-0 z-30 w-[min(420px,52%)]">
-                      <div className="rounded-2xl border border-white/70 bg-white/55 backdrop-blur-xl shadow-[0_14px_36px_rgba(148,163,184,0.22)] px-3 py-2.5 animate-fade-in">
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className="text-[10px] uppercase tracking-[0.12em] text-stone-500">历史对阵匹配</span>
-                          <span className="text-[10px] text-stone-400">{historySuggestions.length} 条</span>
+                    <div className="absolute right-1 top-0 z-30 history-float-wrap">
+                      <div className="history-float-panel history-float-enter px-2.5 py-2">
+                        <div className="relative z-[1] flex items-center justify-between gap-2">
+                          <span className="text-[9px] uppercase tracking-[0.11em] text-stone-500/95">历史对阵匹配</span>
+                          <span className="text-[9px] text-stone-400/95">{historySuggestions.length} 条</span>
                         </div>
-                        <div className="space-y-1.5 max-h-44 overflow-y-auto custom-scrollbar pr-0.5">
+                        <div className="relative z-[1] mt-1.5 space-y-1 max-h-36 overflow-y-auto custom-scrollbar pr-0.5">
                           {historySuggestions.map((historyItem) => (
                             <button
                               key={historyItem.id}
                               type="button"
                               onClick={() => applyHistoryPrefill(idx, historyItem)}
-                              className="w-full text-left rounded-xl border border-white/70 bg-white/75 px-2.5 py-2 hover:border-amber-200 hover:bg-amber-50/70 transition-all"
+                              className="history-float-item w-full text-left rounded-lg border border-white/75 bg-white/72 px-2 py-1.5 hover:border-amber-200/80 hover:bg-amber-50/70"
                             >
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-[10px] px-2 py-0.5 rounded-md bg-stone-100 text-stone-600 border border-stone-200">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/70 text-stone-600 border border-stone-200/80">
                                   {historyItem.dateLabel}
                                 </span>
-                                <span className={`text-[10px] px-2 py-0.5 rounded-md ${getModeBadgeClass(historyItem.mode)}`}>{historyItem.mode}</span>
-                                <span className={`text-[11px] font-semibold ${getConfBadgeClass(historyItem.confPercent)}`}>
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${getModeBadgeClass(historyItem.mode)}`}>{historyItem.mode}</span>
+                                <span className={`text-[10px] font-semibold ${getConfBadgeClass(historyItem.confPercent)}`}>
                                   Conf {(historyItem.confPercent / 100).toFixed(2)}
                                 </span>
                               </div>
-                              <p className="mt-1 text-[11px] text-stone-500 truncate">
-                                Entries: {historyItem.entryPreview || '—'}
+                              <p className="mt-1 text-[10px] text-stone-500 truncate">
+                                Entries · {historyItem.entryPreview || '未记录'}
                               </p>
                             </button>
                           ))}
