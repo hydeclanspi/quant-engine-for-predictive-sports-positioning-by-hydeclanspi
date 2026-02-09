@@ -192,6 +192,14 @@ const buildEntryDraftsFromHistory = (match) => {
   return [{ name: '', odds: '' }]
 }
 
+const getHistoryOddsLabel = (match, entries) => {
+  const directOdds = Number.parseFloat(match?.odds)
+  if (Number.isFinite(directOdds) && directOdds > 0) return directOdds.toFixed(2)
+  const firstEntryOdds = Number.parseFloat(entries.find((entry) => Number.parseFloat(entry?.odds) > 0)?.odds)
+  if (Number.isFinite(firstEntryOdds) && firstEntryOdds > 0) return firstEntryOdds.toFixed(2)
+  return '--'
+}
+
 export default function NewInvestmentPage() {
   const navigate = useNavigate()
   const [dataVersion, setDataVersion] = useState(0)
@@ -225,6 +233,7 @@ export default function NewInvestmentPage() {
               .map((entry) => String(entry.name || '').trim())
               .filter(Boolean)
               .join(' / ')
+            const oddsLabel = getHistoryOddsLabel(match, entries)
             return {
               id: `${investment.id || 'inv'}_${match?.id || matchIdx}`,
               createdAt: investment.created_at,
@@ -235,6 +244,7 @@ export default function NewInvestmentPage() {
               matchupKey,
               entries,
               entryPreview,
+              oddsLabel,
               mode: normalizeModeValue(match?.mode),
               confPercent: normalizeSliderPercent(match?.conf, 50),
               tys_home: normalizeTysValue(match?.tys_home),
@@ -563,6 +573,7 @@ export default function NewInvestmentPage() {
         mode: historyItem.mode,
         confPercent: historyItem.confPercent,
         entryPreview: historyItem.entryPreview,
+        oddsLabel: historyItem.oddsLabel,
       },
     }))
     setHistoryFloatDismissed((prev) => {
@@ -806,7 +817,10 @@ export default function NewInvestmentPage() {
                         </button>
                       </div>
                       <p className="relative z-[1] mt-1.5 text-[10px] text-stone-500 truncate">
-                        Entries · {appliedHistory.entryPreview || '未记录'}
+                        <span>Entries · {appliedHistory.entryPreview || '未记录'}</span>
+                        <span className="ml-1.5 text-[10px] italic text-violet-600">
+                          odds {appliedHistory.oddsLabel || '--'}
+                        </span>
                       </p>
                     </div>
                   </div>
@@ -836,7 +850,10 @@ export default function NewInvestmentPage() {
                                 </span>
                               </div>
                               <p className="mt-1 text-[10px] text-stone-500 truncate">
-                                Entries · {historyItem.entryPreview || '未记录'}
+                                <span>Entries · {historyItem.entryPreview || '未记录'}</span>
+                                <span className="ml-1.5 text-[10px] italic text-violet-600">
+                                  odds {historyItem.oddsLabel || '--'}
+                                </span>
                               </p>
                             </button>
                           ))}
@@ -845,9 +862,9 @@ export default function NewInvestmentPage() {
                           type="button"
                           onClick={() => dismissHistorySuggestions(idx)}
                           title="关闭历史匹配浮层"
-                          className="absolute bottom-1 right-1 z-[2] h-4 w-4 inline-flex items-center justify-center rounded-full bg-white/60 hover:bg-white/85 text-[9px] leading-none text-stone-400 transition-colors"
+                          className="absolute bottom-1 right-1 z-[2] h-4 w-4 inline-flex items-center justify-center rounded-full border border-white/70 bg-white/58 hover:bg-white/88 text-[11px] font-medium leading-none text-stone-400 transition-colors"
                         >
-                          ❎
+                          ×
                         </button>
                       </div>
                     </div>
