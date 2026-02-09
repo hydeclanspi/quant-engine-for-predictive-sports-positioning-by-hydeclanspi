@@ -141,9 +141,9 @@
     gap: 1.5rem;
   }
 
-  @container (min-width: 920px) {
+  @container (min-width: 820px) {
     .combo-main-grid {
-      grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
+      grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
       align-items: start;
     }
 
@@ -154,9 +154,9 @@
   }
 
   @supports not (container-type: inline-size) {
-    @media (min-width: 1140px) {
+    @media (min-width: 1020px) {
       .combo-main-grid {
-        grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
+        grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
         align-items: start;
       }
 
