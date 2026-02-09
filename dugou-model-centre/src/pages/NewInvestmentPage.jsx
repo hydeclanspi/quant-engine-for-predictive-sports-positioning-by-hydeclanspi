@@ -670,7 +670,7 @@ export default function NewInvestmentPage() {
                       />
                       <span className="text-sm font-medium text-amber-600 w-10">{(match.conf / 100).toFixed(2)}</span>
                     </div>
-                    <div className="mt-2 pr-[3.25rem]">
+                    <div className="mt-2 pr-[3rem]">
                       <div className="flex items-center justify-between">
                         {CONF_QUICK_OPTIONS.map((value) => (
                           <button
