@@ -7,6 +7,7 @@ import {
   getModeKellyRecommendations,
   getModelValidationSnapshot,
   getPredictionCalibrationContext,
+  normalizeAjrForModel,
 } from '../lib/analytics'
 import { exportDataBundle, getCloudSyncStatus, getInvestments, getSystemConfig, importDataBundle, pullCloudSnapshotNow, runCloudSyncNow, saveSystemConfig, setCloudSyncEnabled } from '../lib/localData'
 import { getPrimaryEntryMarket, normalizeEntryRecord } from '../lib/entryParsing'
@@ -454,7 +455,7 @@ const collectMatchAdjustments = (settledInvestments) => {
     const createdAt = item.created_at
     ;(item.matches || []).forEach((match) => {
       const conf = Number(match.conf)
-      const actual = Number(match.match_rating)
+      const actual = normalizeAjrForModel(match.match_rating, Number.NaN)
       if (!Number.isFinite(conf) || !Number.isFinite(actual) || conf <= 0) return
       const confRatio = normalizeAdjustment(actual / conf)
       if (!confRatio) return

@@ -54,9 +54,26 @@ const getComboLabel = (matchCount) => {
   return `${matchCount} Matches Combo`
 }
 
+const AJR_MIN = 0
+const AJR_MAX = 0.8
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
+
 const toNumberOrNull = (value) => {
   const n = Number.parseFloat(value)
   return Number.isFinite(n) ? n : null
+}
+
+const isAjrValueValid = (value) => {
+  const text = String(value ?? '').trim()
+  if (!text) return true
+  const parsed = Number.parseFloat(text)
+  return Number.isFinite(parsed) && parsed >= AJR_MIN && parsed <= AJR_MAX
+}
+
+const toAjrOrNull = (value) => {
+  const parsed = Number.parseFloat(value)
+  if (!Number.isFinite(parsed)) return null
+  return Number(clamp(parsed, AJR_MIN, AJR_MAX).toFixed(2))
 }
 
 export default function SettlePage() {
@@ -113,6 +130,11 @@ export default function SettlePage() {
       return '请先把每场比赛的“是否命中”填写完整。'
     }
 
+    const invalidAjrIndex = form.matches.findIndex((match) => !isAjrValueValid(match.matchRating))
+    if (invalidAjrIndex >= 0) {
+      return `第 ${invalidAjrIndex + 1} 场 AJR 需在 0~0.8 之间。`
+    }
+
     const revenues = Number.parseFloat(form.revenues)
     if (!Number.isFinite(revenues) || revenues < 0) {
       return 'Revenue 实际收益需要是大于等于 0 的数字。'
@@ -124,7 +146,7 @@ export default function SettlePage() {
     const revenues = Number.parseFloat(form.revenues)
     const status = form.matches.every((match) => match.isCorrect === true) ? 'win' : 'lose'
     const profit = Number((revenues - combo.totalInputs).toFixed(2))
-    const ratingValues = form.matches.map((match) => toNumberOrNull(match.matchRating)).filter((value) => value !== null)
+    const ratingValues = form.matches.map((match) => toAjrOrNull(match.matchRating)).filter((value) => value !== null)
     const repValues = form.matches.map((match) => toNumberOrNull(match.matchRep)).filter((value) => value !== null)
     const actualRating =
       ratingValues.length > 0 ? Number((ratingValues.reduce((sum, value) => sum + value, 0) / ratingValues.length).toFixed(2)) : null
@@ -150,7 +172,7 @@ export default function SettlePage() {
         ...match,
         results: String(form.matches[idx]?.results || '').trim(),
         is_correct: form.matches[idx]?.isCorrect ?? null,
-        match_rating: toNumberOrNull(form.matches[idx]?.matchRating),
+        match_rating: toAjrOrNull(form.matches[idx]?.matchRating),
         match_rep: toNumberOrNull(form.matches[idx]?.matchRep),
         post_note: String(form.matches[idx]?.postNote || '').trim(),
       })),
@@ -254,7 +276,13 @@ export default function SettlePage() {
       return
     }
 
-    const ratingValue = toNumberOrNull(batchRating)
+    const hasBatchRating = String(batchRating ?? '').trim() !== ''
+    if (hasBatchRating && !isAjrValueValid(batchRating)) {
+      window.alert('批量 AJR 需在 0~0.8 之间。')
+      return
+    }
+
+    const ratingValue = hasBatchRating ? toAjrOrNull(batchRating) : null
     const repValue = toNumberOrNull(batchRep)
     if (ratingValue === null && repValue === null) {
       window.alert('请至少填写一个批量值（AJR 或 REP）。')
@@ -299,6 +327,8 @@ export default function SettlePage() {
             <input
               type="number"
               step="0.01"
+              min={AJR_MIN}
+              max={AJR_MAX}
               placeholder="批量 AJR"
               value={batchRating}
               onChange={(event) => setBatchRating(event.target.value)}
@@ -444,18 +474,20 @@ export default function SettlePage() {
                         <input
                           type="number"
                           step="0.01"
-                          placeholder="0~1"
+                          min={AJR_MIN}
+                          max={AJR_MAX}
+                          placeholder="0~0.8"
                           value={forms[combo.id]?.matches[matchIdx]?.matchRating ?? ''}
                           onChange={(event) => updateMatchField(combo.id, matchIdx, 'matchRating', event.target.value)}
                           className="input-glow w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm"
                         />
                         <div className="absolute left-0 top-full mt-1 z-10 hidden group-hover:block w-56 p-2 bg-stone-800 text-white text-[10px] rounded-lg shadow-lg">
-                          <p className="font-medium mb-1">赛后复盘评分 (0-1)</p>
-                          <p>0.8+: 判断极准，过程结果完美匹配</p>
-                          <p>0.6-0.8: 判断正确，略有偏差</p>
-                          <p>0.4-0.6: 判断一般，有明显失误</p>
-                          <p>0.2-0.4: 判断较差，结果靠运气</p>
-                          <p>&lt;0.2: 完全误判</p>
+                          <p className="font-medium mb-1">赛后复盘评分 (0-0.8)</p>
+                          <p>0.64-0.8: 判断极准，过程结果完美匹配</p>
+                          <p>0.48-0.64: 判断正确，略有偏差</p>
+                          <p>0.32-0.48: 判断一般，有明显失误</p>
+                          <p>0.16-0.32: 判断较差，结果靠运气</p>
+                          <p>&lt;0.16: 完全误判</p>
                         </div>
                       </div>
                       <div className="relative group">

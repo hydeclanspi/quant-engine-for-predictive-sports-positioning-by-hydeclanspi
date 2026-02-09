@@ -12,6 +12,14 @@ const toNumber = (value, fallback = 0) => {
 }
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
+const AJR_INPUT_MAX = 0.8
+
+export const normalizeAjrForModel = (value, fallback = Number.NaN) => {
+  const parsed = toNumber(value, Number.NaN)
+  if (!Number.isFinite(parsed)) return fallback
+  const clamped = clamp(parsed, 0, AJR_INPUT_MAX)
+  return clamp(clamped / AJR_INPUT_MAX, 0, 1)
+}
 
 const formatDate = (value) => {
   const date = new Date(value)
@@ -1307,7 +1315,7 @@ export const getConfRegressionCalibration = (matchRowsInput = null) => {
 
   matchRows.forEach((row, index) => {
     const conf = toNumber(row.match.conf, Number.NaN)
-    const actual = toNumber(row.match.match_rating, Number.NaN)
+    const actual = normalizeAjrForModel(row.match.match_rating, Number.NaN)
     if (!Number.isFinite(conf) || !Number.isFinite(actual) || conf <= 0) return
 
     // 计算时间近因权重
@@ -1451,7 +1459,7 @@ export const getPredictionCalibrationContext = () => {
 
     const sampleWeight = band.weight * repBucket.weight
     const conf = toNumber(row.match.conf, Number.NaN)
-    const actual = toNumber(row.match.match_rating, Number.NaN)
+    const actual = normalizeAjrForModel(row.match.match_rating, Number.NaN)
     if (!Number.isFinite(conf) || !Number.isFinite(actual) || conf <= 0) return
 
     const confRatio = clamp(actual / conf, 0.6, 1.4)

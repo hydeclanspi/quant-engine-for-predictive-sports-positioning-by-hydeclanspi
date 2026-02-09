@@ -21,6 +21,8 @@ const DEFAULT_MODE_KELLY_DIVISOR = {
 }
 const TYS_OPTIONS = ['S', 'M', 'L', 'H']
 const FID_OPTIONS = ['0', '0.25', '0.4', '0.6', '0.75']
+const CONF_QUICK_OPTIONS = [0.2, 0.4, 0.5, 0.6, 0.8]
+const FSE_QUICK_OPTIONS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
 
 const MODE_FACTOR_MAP = {
   常规: 1.0,
@@ -56,7 +58,7 @@ const createEmptyMatch = () => ({
   mode: '常规',
   tys_home: 'M',
   tys_away: 'M',
-  fid: '0.6',
+  fid: '0.4',
   fse_home: 50,
   fse_away: 50,
   note: '',
@@ -89,7 +91,7 @@ export default function NewInvestmentPage() {
   const [matches, setMatches] = useState([createEmptyMatch()])
   const [comboName, setComboName] = useState('')
   const [showModeDropdown, setShowModeDropdown] = useState({})
-  const [actualInput, setActualInput] = useState(180)
+  const [actualInput, setActualInput] = useState('180')
   const [activeTeamInput, setActiveTeamInput] = useState(null)
   const [profilesVersion, setProfilesVersion] = useState(0)
   const [systemConfig] = useState(() => getSystemConfig())
@@ -136,8 +138,13 @@ export default function NewInvestmentPage() {
         }
       }),
     )
-    setActualInput(parlaySize > 1 ? 80 : 180)
+    setActualInput(parlaySize > 1 ? '80' : '180')
   }, [parlaySize])
+
+  const parsedActualInput = useMemo(() => {
+    const parsed = Number.parseInt(String(actualInput || '').trim(), 10)
+    return Number.isFinite(parsed) ? parsed : Number.NaN
+  }, [actualInput])
 
   const updateMatch = (idx, field, value) => {
     setMatches((prev) => {
@@ -308,7 +315,7 @@ export default function NewInvestmentPage() {
   }
 
   const validateForm = () => {
-    if (!Number.isFinite(actualInput) || actualInput <= 0) {
+    if (!Number.isFinite(parsedActualInput) || parsedActualInput <= 0) {
       return '请先填写 Inputs 实际投资金额（必须大于 0）。'
     }
 
@@ -378,7 +385,7 @@ export default function NewInvestmentPage() {
       created_at: new Date().toISOString(),
       parlay_size: parlaySize,
       combo_name: parlaySize > 1 ? comboName.trim() : '',
-      inputs: actualInput,
+      inputs: parsedActualInput,
       suggested_amount: recommendedInvest,
       expected_rating: Number(expectedRating.toFixed(2)),
       combined_odds: Number(combinedOdds.toFixed(2)),
@@ -663,12 +670,12 @@ export default function NewInvestmentPage() {
                       />
                       <span className="text-sm font-medium text-amber-600 w-10">{(match.conf / 100).toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between mt-2">
-                      {[0.2, 0.4, 0.6, 0.8].map((value) => (
+                    <div className="grid grid-cols-5 gap-1 mt-2 mr-[3.25rem]">
+                      {CONF_QUICK_OPTIONS.map((value) => (
                         <button
                           key={value}
                           onClick={() => updateMatch(idx, 'conf', Math.round(value * 100))}
-                          className={`px-3 py-1 text-xs rounded-lg btn-hover transition-all ${
+                          className={`px-2 py-[3px] text-[10px] rounded-lg btn-hover transition-all ${
                             match.conf === value * 100
                               ? 'bg-amber-100 text-amber-700 border border-amber-200'
                               : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
@@ -759,7 +766,7 @@ export default function NewInvestmentPage() {
                           <span className="text-sm font-medium text-stone-600 w-10">{(match.fse_home / 100).toFixed(2)}</span>
                         </div>
                         <div className="flex gap-1 mt-1">
-                          {[0.2, 0.4, 0.6, 0.8].map((value) => (
+                          {FSE_QUICK_OPTIONS.map((value) => (
                             <button
                               key={value}
                               onClick={() => updateMatch(idx, 'fse_home', Math.round(value * 100))}
@@ -786,7 +793,7 @@ export default function NewInvestmentPage() {
                           <span className="text-sm font-medium text-stone-600 w-10">{(match.fse_away / 100).toFixed(2)}</span>
                         </div>
                         <div className="flex gap-1 mt-1">
-                          {[0.2, 0.4, 0.6, 0.8].map((value) => (
+                          {FSE_QUICK_OPTIONS.map((value) => (
                             <button
                               key={value}
                               onClick={() => updateMatch(idx, 'fse_away', Math.round(value * 100))}
@@ -856,10 +863,7 @@ export default function NewInvestmentPage() {
                 <input
                   type="number"
                   value={actualInput}
-                  onChange={(event) => {
-                    const next = Number.parseInt(event.target.value, 10)
-                    setActualInput(Number.isNaN(next) ? 0 : next)
-                  }}
+                  onChange={(event) => setActualInput(event.target.value)}
                   className="input-glow w-28 px-3 py-2 rounded-xl border border-stone-200 text-sm font-medium focus:outline-none focus:border-amber-400"
                 />
               </div>
