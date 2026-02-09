@@ -93,6 +93,11 @@ const formatShortDateWithYear = (value) => {
   return `${year}-${month}-${day}`
 }
 
+const parseTimestamp = (value) => {
+  const timestamp = new Date(value).getTime()
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
 const getModeBadgeClass = (mode) => {
   if (mode === '保险产品') return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
   if (mode === '赌一把') return 'bg-rose-50 text-rose-600 border border-rose-200'
@@ -145,9 +150,11 @@ const normalizeSliderPercent = (value, fallback = 50) => {
   return clamp(Math.round(num), 0, 100)
 }
 
+const normalizeTeamKey = (value) => normalizeTeamNameInput(value).toLowerCase()
+
 const normalizeMatchupKey = (homeTeam, awayTeam) => {
-  const home = normalizeTeamNameInput(homeTeam).toLowerCase()
-  const away = normalizeTeamNameInput(awayTeam).toLowerCase()
+  const home = normalizeTeamKey(homeTeam)
+  const away = normalizeTeamKey(awayTeam)
   if (!home || !away) return ''
   return [home, away].sort().join('::')
 }
@@ -210,8 +217,8 @@ export default function NewInvestmentPage() {
             const awayTeam = normalizeTeamNameInput(match?.away_team)
             const matchupKey = normalizeMatchupKey(homeTeam, awayTeam)
             if (!matchupKey) return null
-            const homeKey = normalizeTeamNameInput(homeTeam).toLowerCase()
-            const awayKey = normalizeTeamNameInput(awayTeam).toLowerCase()
+            const homeKey = normalizeTeamKey(homeTeam)
+            const awayKey = normalizeTeamKey(awayTeam)
             const entries = buildEntryDraftsFromHistory(match)
             const entryPreview = entries
               .map((entry) => String(entry.name || '').trim())
@@ -220,6 +227,7 @@ export default function NewInvestmentPage() {
             return {
               id: `${investment.id || 'inv'}_${match?.id || matchIdx}`,
               createdAt: investment.created_at,
+              createdAtTs: parseTimestamp(investment.created_at),
               dateLabel: formatShortDateWithYear(investment.created_at),
               homeKey,
               awayKey,
@@ -238,13 +246,25 @@ export default function NewInvestmentPage() {
           })
           .filter(Boolean)
       })
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .sort((a, b) => b.createdAtTs - a.createdAtTs)
   }, [dataVersion])
   const historySuggestionsByMatchup = useMemo(() => {
     const map = new Map()
     historicalMatchLibrary.forEach((item) => {
       if (!map.has(item.matchupKey)) map.set(item.matchupKey, [])
       map.get(item.matchupKey).push(item)
+    })
+    return map
+  }, [historicalMatchLibrary])
+  const latestTeamFseMap = useMemo(() => {
+    const map = new Map()
+    historicalMatchLibrary.forEach((item) => {
+      if (item.homeKey && !map.has(item.homeKey)) {
+        map.set(item.homeKey, { value: item.fse_home, dateLabel: item.dateLabel })
+      }
+      if (item.awayKey && !map.has(item.awayKey)) {
+        map.set(item.awayKey, { value: item.fse_away, dateLabel: item.dateLabel })
+      }
     })
     return map
   }, [historicalMatchLibrary])
@@ -705,6 +725,10 @@ export default function NewInvestmentPage() {
             const matchupKey = normalizeMatchupKey(match.homeTeam, match.awayTeam)
             const historySuggestions = matchupKey ? (historySuggestionsByMatchup.get(matchupKey) || []).slice(0, 4) : []
             const appliedHistory = historyPrefillApplied[idx] || null
+            const homeTeamKey = normalizeTeamKey(match.homeTeam)
+            const awayTeamKey = normalizeTeamKey(match.awayTeam)
+            const homeFseHistorySuggestion = homeTeamKey ? (latestTeamFseMap.get(homeTeamKey) ?? null) : null
+            const awayFseHistorySuggestion = awayTeamKey ? (latestTeamFseMap.get(awayTeamKey) ?? null) : null
 
             return (
               <div key={idx} className={`relative ${idx > 0 ? 'pt-6 border-t border-stone-100' : ''}`}>
@@ -1049,7 +1073,23 @@ export default function NewInvestmentPage() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-xs text-stone-400 mb-1.5 block">FSE (主) Feature Sensor Beta</label>
+                        <div className="mb-1.5 flex items-center justify-between gap-2">
+                          <label className="text-xs text-stone-400 block">FSE (主) Feature Sensor Beta</label>
+                          {homeFseHistorySuggestion && (
+                            <button
+                              type="button"
+                              onClick={() => updateMatch(idx, 'fse_home', homeFseHistorySuggestion.value)}
+                              title={`${match.homeTeam || '主队'} 最近历史 FSE ${homeFseHistorySuggestion.dateLabel}`}
+                              className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all ${
+                                match.fse_home === homeFseHistorySuggestion.value
+                                  ? 'border-sky-300 bg-sky-100 text-sky-700 shadow-[0_6px_14px_rgba(56,189,248,0.22)]'
+                                  : 'border-sky-200/80 bg-sky-50/90 text-sky-700 hover:bg-sky-100 shadow-[0_6px_12px_rgba(56,189,248,0.16)]'
+                              }`}
+                            >
+                              {(homeFseHistorySuggestion.value / 100).toFixed(2)}
+                            </button>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2">
                           <input
                             type="range"
@@ -1078,7 +1118,23 @@ export default function NewInvestmentPage() {
                         </div>
                       </div>
                       <div>
-                        <label className="text-xs text-stone-400 mb-1.5 block">FSE (客) Feature Sensor Beta</label>
+                        <div className="mb-1.5 flex items-center justify-between gap-2">
+                          <label className="text-xs text-stone-400 block">FSE (客) Feature Sensor Beta</label>
+                          {awayFseHistorySuggestion && (
+                            <button
+                              type="button"
+                              onClick={() => updateMatch(idx, 'fse_away', awayFseHistorySuggestion.value)}
+                              title={`${match.awayTeam || '客队'} 最近历史 FSE ${awayFseHistorySuggestion.dateLabel}`}
+                              className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all ${
+                                match.fse_away === awayFseHistorySuggestion.value
+                                  ? 'border-sky-300 bg-sky-100 text-sky-700 shadow-[0_6px_14px_rgba(56,189,248,0.22)]'
+                                  : 'border-sky-200/80 bg-sky-50/90 text-sky-700 hover:bg-sky-100 shadow-[0_6px_12px_rgba(56,189,248,0.16)]'
+                              }`}
+                            >
+                              {(awayFseHistorySuggestion.value / 100).toFixed(2)}
+                            </button>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2">
                           <input
                             type="range"
