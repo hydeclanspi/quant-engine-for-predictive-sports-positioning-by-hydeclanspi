@@ -670,7 +670,7 @@ export default function NewInvestmentPage() {
                       />
                       <span className="text-sm font-medium text-amber-600 w-10">{(match.conf / 100).toFixed(2)}</span>
                     </div>
-                    <div className="mt-2 pr-[1.5rem]">
+                    <div className="mt-2 pr-[3.25rem]">
                       <div className="flex items-center justify-between">
                         {CONF_QUICK_OPTIONS.map((value) => (
                           <button
@@ -767,7 +767,7 @@ export default function NewInvestmentPage() {
                           />
                           <span className="text-sm font-medium text-stone-600 w-10">{(match.fse_home / 100).toFixed(2)}</span>
                         </div>
-                        <div className="mt-1 pr-[1rem]">
+                        <div className="mt-1 pr-[1.25rem]">
                           <div className="flex items-center justify-between">
                             {FSE_QUICK_OPTIONS.map((value) => (
                               <button
@@ -796,7 +796,7 @@ export default function NewInvestmentPage() {
                           />
                           <span className="text-sm font-medium text-stone-600 w-10">{(match.fse_away / 100).toFixed(2)}</span>
                         </div>
-                        <div className="mt-1 pr-[1rem]">
+                        <div className="mt-1 pr-[1.25rem]">
                           <div className="flex items-center justify-between">
                             {FSE_QUICK_OPTIONS.map((value) => (
                               <button
