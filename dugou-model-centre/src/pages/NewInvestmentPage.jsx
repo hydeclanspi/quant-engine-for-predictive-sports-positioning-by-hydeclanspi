@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, X, ChevronDown, ChevronRight } from 'lucide-react'
-import { bumpTeamSamples, findTeamProfile, getSystemConfig, getTeamProfiles, saveInvestment, searchTeamProfiles } from '../lib/localData'
+import { bumpTeamSamples, findTeamProfile, getInvestments, getSystemConfig, getTeamProfiles, saveInvestment, searchTeamProfiles } from '../lib/localData'
 import { handleNoteShortcut } from '../lib/noteFormatting'
 import { getPredictionCalibrationContext, getModeKellyRecommendations } from '../lib/analytics'
 import { getPrimaryEntryMarket, normalizeEntryName, normalizeEntryRecord } from '../lib/entryParsing'
@@ -84,6 +84,107 @@ const buildId = (prefix = 'id') => {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
+const formatShortDateWithYear = (value) => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '--'
+  const year = String(date.getFullYear()).slice(-2)
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const getModeBadgeClass = (mode) => {
+  if (mode === '保险产品') return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+  if (mode === '赌一把') return 'bg-rose-50 text-rose-600 border border-rose-200'
+  if (mode === '半彩票半保险') return 'bg-violet-50 text-violet-600 border border-violet-200'
+  if (mode === '常规-稳') return 'bg-sky-50 text-sky-600 border border-sky-200'
+  if (mode === '常规-杠杆' || mode === '常规-激进') return 'bg-amber-50 text-amber-700 border border-amber-200'
+  return 'bg-stone-100 text-stone-600 border border-stone-200'
+}
+
+const getConfBadgeClass = (confPercent) => {
+  if (confPercent >= 80) return 'text-blue-700'
+  if (confPercent >= 70) return 'text-blue-600'
+  if (confPercent >= 60) return 'text-sky-600'
+  if (confPercent >= 50) return 'text-sky-500'
+  return 'text-stone-500'
+}
+
+const createResettableMatchFields = () => ({
+  entries: [{ name: '', odds: '' }],
+  conf: 50,
+  mode: '常规',
+  tys_home: 'M',
+  tys_away: 'M',
+  fid: '0.4',
+  fse_home: 50,
+  fse_away: 50,
+  note: '',
+})
+
+const normalizeModeValue = (value) => (MODE_OPTIONS.includes(value) ? value : '常规')
+const normalizeTysValue = (value) => {
+  const text = String(value || '').trim().toUpperCase()
+  return TYS_OPTIONS.includes(text) ? text : 'M'
+}
+
+const normalizeFidOption = (value) => {
+  const num = Number.parseFloat(value)
+  if (!Number.isFinite(num)) return '0.4'
+  return (
+    [...FID_OPTIONS]
+      .map((option) => ({ option, diff: Math.abs(Number.parseFloat(option) - num) }))
+      .sort((a, b) => a.diff - b.diff)[0]?.option || '0.4'
+  )
+}
+
+const normalizeSliderPercent = (value, fallback = 50) => {
+  const num = Number.parseFloat(value)
+  if (!Number.isFinite(num)) return fallback
+  if (num <= 1.2) return clamp(Math.round(num * 100), 0, 100)
+  return clamp(Math.round(num), 0, 100)
+}
+
+const normalizeMatchupKey = (homeTeam, awayTeam) => {
+  const home = normalizeTeamNameInput(homeTeam).toLowerCase()
+  const away = normalizeTeamNameInput(awayTeam).toLowerCase()
+  if (!home || !away) return ''
+  return [home, away].sort().join('::')
+}
+
+const buildEntryDraftsFromHistory = (match) => {
+  const entryList = Array.isArray(match?.entries) ? match.entries : []
+  const normalizedEntries = entryList
+    .map((entry) => {
+      const name = normalizeEntryName(entry?.name || '')
+      const odd = Number.parseFloat(entry?.odds)
+      return {
+        name,
+        odds: Number.isFinite(odd) && odd > 0 ? String(odd) : '',
+      }
+    })
+    .filter((entry) => entry.name || entry.odds)
+
+  if (normalizedEntries.length > 0) return normalizedEntries
+
+  const fallbackText = String(match?.entry_text || '').trim()
+  if (fallbackText) {
+    const names = fallbackText
+      .split(',')
+      .map((name) => normalizeEntryName(name))
+      .filter(Boolean)
+    const fallbackOdds = Number.parseFloat(match?.odds)
+    if (names.length > 0) {
+      return names.map((name, idx) => ({
+        name,
+        odds: idx === 0 && Number.isFinite(fallbackOdds) && fallbackOdds > 0 ? String(fallbackOdds) : '',
+      }))
+    }
+  }
+
+  return [{ name: '', odds: '' }]
+}
+
 export default function NewInvestmentPage() {
   const navigate = useNavigate()
   const [dataVersion, setDataVersion] = useState(0)
@@ -94,9 +195,59 @@ export default function NewInvestmentPage() {
   const [actualInput, setActualInput] = useState('180')
   const [activeTeamInput, setActiveTeamInput] = useState(null)
   const [profilesVersion, setProfilesVersion] = useState(0)
+  const [historyPrefillApplied, setHistoryPrefillApplied] = useState({})
   const [systemConfig] = useState(() => getSystemConfig())
 
   const teamProfiles = useMemo(() => getTeamProfiles(), [profilesVersion])
+  const historicalMatchLibrary = useMemo(() => {
+    const investments = getInvestments().filter((item) => !item?.is_archived)
+    return investments
+      .flatMap((investment) => {
+        const matchesInInvestment = Array.isArray(investment?.matches) ? investment.matches : []
+        return matchesInInvestment
+          .map((match, matchIdx) => {
+            const homeTeam = normalizeTeamNameInput(match?.home_team)
+            const awayTeam = normalizeTeamNameInput(match?.away_team)
+            const matchupKey = normalizeMatchupKey(homeTeam, awayTeam)
+            if (!matchupKey) return null
+            const homeKey = normalizeTeamNameInput(homeTeam).toLowerCase()
+            const awayKey = normalizeTeamNameInput(awayTeam).toLowerCase()
+            const entries = buildEntryDraftsFromHistory(match)
+            const entryPreview = entries
+              .map((entry) => String(entry.name || '').trim())
+              .filter(Boolean)
+              .join(' / ')
+            return {
+              id: `${investment.id || 'inv'}_${match?.id || matchIdx}`,
+              createdAt: investment.created_at,
+              dateLabel: formatShortDateWithYear(investment.created_at),
+              homeKey,
+              awayKey,
+              matchupKey,
+              entries,
+              entryPreview,
+              mode: normalizeModeValue(match?.mode),
+              confPercent: normalizeSliderPercent(match?.conf, 50),
+              tys_home: normalizeTysValue(match?.tys_home),
+              tys_away: normalizeTysValue(match?.tys_away),
+              fid: normalizeFidOption(match?.fid),
+              fse_home: normalizeSliderPercent(match?.fse_home, 50),
+              fse_away: normalizeSliderPercent(match?.fse_away, 50),
+              note: String(match?.note || ''),
+            }
+          })
+          .filter(Boolean)
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  }, [dataVersion])
+  const historySuggestionsByMatchup = useMemo(() => {
+    const map = new Map()
+    historicalMatchLibrary.forEach((item) => {
+      if (!map.has(item.matchupKey)) map.set(item.matchupKey, [])
+      map.get(item.matchupKey).push(item)
+    })
+    return map
+  }, [historicalMatchLibrary])
   const riskCap = useMemo(
     () => Math.round(systemConfig.initialCapital * systemConfig.riskCapRatio),
     [systemConfig.initialCapital, systemConfig.riskCapRatio],
@@ -141,6 +292,18 @@ export default function NewInvestmentPage() {
     setActualInput(parlaySize > 1 ? '80' : '180')
   }, [parlaySize])
 
+  useEffect(() => {
+    setHistoryPrefillApplied((prev) => {
+      const next = {}
+      Object.keys(prev).forEach((key) => {
+        if (Number.parseInt(key, 10) < parlaySize) {
+          next[key] = prev[key]
+        }
+      })
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next
+    })
+  }, [parlaySize])
+
   const parsedActualInput = useMemo(() => {
     const parsed = Number.parseInt(String(actualInput || '').trim(), 10)
     return Number.isFinite(parsed) ? parsed : Number.NaN
@@ -154,6 +317,14 @@ export default function NewInvestmentPage() {
       next[idx] = { ...next[idx], [field]: normalizedValue }
       return next
     })
+    if (field === 'homeTeam' || field === 'awayTeam') {
+      setHistoryPrefillApplied((prev) => {
+        if (!Object.prototype.hasOwnProperty.call(prev, idx)) return prev
+        const next = { ...prev }
+        delete next[idx]
+        return next
+      })
+    }
   }
 
   const updateEntry = (idx, entryIdx, field, value) => {
@@ -314,6 +485,63 @@ export default function NewInvestmentPage() {
     return warnings
   }
 
+  const applyHistoryPrefill = (idx, historyItem) => {
+    if (!historyItem) return
+    setMatches((prev) => {
+      const next = [...prev]
+      const current = next[idx]
+      if (!current) return prev
+
+      const currentHomeKey = normalizeTeamNameInput(current.homeTeam).toLowerCase()
+      const currentAwayKey = normalizeTeamNameInput(current.awayTeam).toLowerCase()
+      const reversed = currentHomeKey === historyItem.awayKey && currentAwayKey === historyItem.homeKey
+
+      next[idx] = {
+        ...current,
+        entries: historyItem.entries.map((entry) => ({ ...entry })),
+        conf: historyItem.confPercent,
+        mode: historyItem.mode,
+        tys_home: reversed ? historyItem.tys_away : historyItem.tys_home,
+        tys_away: reversed ? historyItem.tys_home : historyItem.tys_away,
+        fid: historyItem.fid,
+        fse_home: reversed ? historyItem.fse_away : historyItem.fse_home,
+        fse_away: reversed ? historyItem.fse_home : historyItem.fse_away,
+        note: historyItem.note,
+      }
+      return next
+    })
+    setHistoryPrefillApplied((prev) => ({
+      ...prev,
+      [idx]: {
+        id: historyItem.id,
+        dateLabel: historyItem.dateLabel,
+        mode: historyItem.mode,
+        confPercent: historyItem.confPercent,
+        entryPreview: historyItem.entryPreview,
+      },
+    }))
+    setShowModeDropdown((prev) => ({ ...prev, [idx]: false }))
+  }
+
+  const clearHistoryPrefill = (idx) => {
+    setMatches((prev) => {
+      const next = [...prev]
+      const current = next[idx]
+      if (!current) return prev
+      next[idx] = {
+        ...current,
+        ...createResettableMatchFields(),
+      }
+      return next
+    })
+    setHistoryPrefillApplied((prev) => {
+      if (!Object.prototype.hasOwnProperty.call(prev, idx)) return prev
+      const next = { ...prev }
+      delete next[idx]
+      return next
+    })
+  }
+
   const validateForm = () => {
     if (!Number.isFinite(parsedActualInput) || parsedActualInput <= 0) {
       return '请先填写 Inputs 实际投资金额（必须大于 0）。'
@@ -339,6 +567,7 @@ export default function NewInvestmentPage() {
     setMatches(Array.from({ length: parlaySize }, () => createEmptyMatch()))
     setShowModeDropdown({})
     setActiveTeamInput(null)
+    setHistoryPrefillApplied({})
   }
 
   const buildInvestmentPayload = () => {
@@ -473,9 +702,74 @@ export default function NewInvestmentPage() {
               activeTeamInput?.matchIdx === idx && activeTeamInput?.side === 'home' ? getTeamSuggestions(match.homeTeam) : []
             const awaySuggestions =
               activeTeamInput?.matchIdx === idx && activeTeamInput?.side === 'away' ? getTeamSuggestions(match.awayTeam) : []
+            const matchupKey = normalizeMatchupKey(match.homeTeam, match.awayTeam)
+            const historySuggestions = matchupKey ? (historySuggestionsByMatchup.get(matchupKey) || []).slice(0, 4) : []
+            const appliedHistory = historyPrefillApplied[idx] || null
 
             return (
-              <div key={idx} className={idx > 0 ? 'pt-6 border-t border-stone-100' : ''}>
+              <div key={idx} className={`relative ${idx > 0 ? 'pt-6 border-t border-stone-100' : ''}`}>
+                {appliedHistory ? (
+                  <div className="absolute right-0 top-0 z-30 w-[min(420px,52%)]">
+                    <div className="rounded-2xl border border-white/70 bg-white/55 backdrop-blur-xl shadow-[0_14px_36px_rgba(148,163,184,0.22)] px-3 py-2.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[10px] uppercase tracking-[0.12em] text-stone-500">已应用历史对阵模板</p>
+                          <p className="text-xs text-stone-600 truncate mt-0.5">
+                            {appliedHistory.dateLabel} · {appliedHistory.entryPreview || 'Entries 未记录'}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => clearHistoryPrefill(idx)}
+                          className="shrink-0 px-2.5 py-1 rounded-lg text-[11px] border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors"
+                        >
+                          一键撤回
+                        </button>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2 text-[10px]">
+                        <span className={`px-2 py-0.5 rounded-md ${getModeBadgeClass(appliedHistory.mode)}`}>{appliedHistory.mode}</span>
+                        <span className={`font-semibold ${getConfBadgeClass(appliedHistory.confPercent)}`}>
+                          Conf {(appliedHistory.confPercent / 100).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  historySuggestions.length > 0 && (
+                    <div className="absolute right-0 top-0 z-30 w-[min(420px,52%)]">
+                      <div className="rounded-2xl border border-white/70 bg-white/55 backdrop-blur-xl shadow-[0_14px_36px_rgba(148,163,184,0.22)] px-3 py-2.5 animate-fade-in">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="text-[10px] uppercase tracking-[0.12em] text-stone-500">历史对阵匹配</span>
+                          <span className="text-[10px] text-stone-400">{historySuggestions.length} 条</span>
+                        </div>
+                        <div className="space-y-1.5 max-h-44 overflow-y-auto custom-scrollbar pr-0.5">
+                          {historySuggestions.map((historyItem) => (
+                            <button
+                              key={historyItem.id}
+                              type="button"
+                              onClick={() => applyHistoryPrefill(idx, historyItem)}
+                              className="w-full text-left rounded-xl border border-white/70 bg-white/75 px-2.5 py-2 hover:border-amber-200 hover:bg-amber-50/70 transition-all"
+                            >
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] px-2 py-0.5 rounded-md bg-stone-100 text-stone-600 border border-stone-200">
+                                  {historyItem.dateLabel}
+                                </span>
+                                <span className={`text-[10px] px-2 py-0.5 rounded-md ${getModeBadgeClass(historyItem.mode)}`}>{historyItem.mode}</span>
+                                <span className={`text-[11px] font-semibold ${getConfBadgeClass(historyItem.confPercent)}`}>
+                                  Conf {(historyItem.confPercent / 100).toFixed(2)}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-[11px] text-stone-500 truncate">
+                                Entries: {historyItem.entryPreview || '—'}
+                              </p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                )}
+
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center">
                     <span className="text-amber-600 text-xs font-bold">{idx + 1}</span>
