@@ -326,7 +326,7 @@ export default function MetricsPage({ openModal }) {
   }
 
   return (
-    <div className="p-8">
+    <div className="page-shell page-content-wide">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-stone-800 font-display">数据总览</h2>

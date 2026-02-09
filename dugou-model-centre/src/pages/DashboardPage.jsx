@@ -809,7 +809,7 @@ export default function DashboardPage({ openModal }) {
   }
 
   return (
-    <div className="px-8 pt-5 pb-8 space-y-5">
+    <div className="page-shell page-content-wide pt-5 space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-stone-800 font-display">Dashboard</h2>

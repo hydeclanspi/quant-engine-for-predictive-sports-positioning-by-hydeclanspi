@@ -1105,7 +1105,7 @@ export default function AnalysisPage({ openModal }) {
   }
 
   return (
-    <div className="p-8">
+    <div className="page-shell page-content-wide">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-stone-800 font-display">深度分析</h2>

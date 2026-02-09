@@ -271,7 +271,7 @@ export default function TeamsPage() {
     : []
 
   return (
-    <div className="p-8">
+    <div className="page-shell page-content-fluid">
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-stone-800 font-display">球队档案馆</h2>
         <p className="text-stone-400 text-sm mt-1">球队维度：样本量 / ROI / AJR-Conf 走势</p>

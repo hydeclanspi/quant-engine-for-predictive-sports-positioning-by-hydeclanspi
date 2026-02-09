@@ -1182,7 +1182,7 @@ export default function ComboPage({ openModal }) {
   }
 
   return (
-    <div className="p-8">
+    <div className="page-shell page-content-wide">
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-stone-800 font-display">智能组合建议</h2>
         <p className="text-stone-400 text-sm mt-1">基于 Portfolio Optimization 的最优下注方案</p>

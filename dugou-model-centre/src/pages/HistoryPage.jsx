@@ -620,7 +620,7 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="p-4 md:p-8" onClick={() => setNotePopup(null)}>
+    <div className="page-shell page-content-wide" onClick={() => setNotePopup(null)}>
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
         <div>
           <h2 className="text-2xl font-semibold text-stone-800 font-display">历史记录</h2>
