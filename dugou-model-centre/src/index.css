@@ -119,6 +119,26 @@
 
 /* Utility Styles */
 @layer utilities {
+  /* Fluid page container: avoids fixed-width dead space on large/zoomed-out screens */
+  .page-shell {
+    padding: clamp(14px, 1.8vw, 32px);
+  }
+
+  .page-content-fluid {
+    width: min(100%, clamp(980px, 82vw, 1360px));
+  }
+
+  .page-content-wide {
+    width: min(100%, clamp(1080px, 88vw, 1520px));
+  }
+
+  @media (max-width: 1024px) {
+    .page-content-fluid,
+    .page-content-wide {
+      width: 100%;
+    }
+  }
+
   /* Font Display */
   .font-display {
     font-family: 'Playfair Display', Georgia, serif;

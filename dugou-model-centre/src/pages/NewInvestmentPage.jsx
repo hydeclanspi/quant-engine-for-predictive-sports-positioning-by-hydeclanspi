@@ -424,7 +424,7 @@ export default function NewInvestmentPage() {
   }
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="page-shell page-content-fluid">
       <div className="mb-8">
         <h2 className="text-2xl font-semibold text-stone-800 font-display">新建投资</h2>
         <p className="text-stone-400 text-sm mt-1">录入比赛信息与预测参数</p>

@@ -1431,7 +1431,7 @@ export default function ParamsPage({ openModal }) {
   }
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="page-shell page-content-wide">
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-stone-800 font-display">参数后台</h2>
         <p className="text-stone-400 text-sm mt-1">系统参数、动态校准系数与 Kelly 分母历史校准</p>
