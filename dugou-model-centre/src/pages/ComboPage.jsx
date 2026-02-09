@@ -1188,7 +1188,7 @@ export default function ComboPage({ openModal }) {
         <p className="text-stone-400 text-sm mt-1">基于 Portfolio Optimization 的最优下注方案</p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+      <div className="combo-main-grid mb-6">
         <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium text-stone-700">今日备选比赛</h3>
@@ -1570,7 +1570,7 @@ export default function ComboPage({ openModal }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+      <div className="combo-secondary-grid mb-6">
         <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium text-stone-700">单组合方案排序</h3>
