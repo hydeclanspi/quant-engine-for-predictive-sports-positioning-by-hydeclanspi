@@ -145,6 +145,11 @@ const isBrowser = typeof window !== 'undefined'
 
 const normalize = (value) => String(value || '').trim().toLowerCase()
 
+const markGenesisApplied = () => {
+  if (!isBrowser) return
+  window.localStorage.setItem(GENESIS_APPLIED_KEY, '1')
+}
+
 const mergeAliases = (...groups) => {
   const values = []
   groups.forEach((group) => {
@@ -764,12 +769,14 @@ const applyDataBundle = (bundle, mode = 'replace') => {
     writeJSON(STORAGE_KEYS.systemConfig, { ...getSystemConfig(), ...incomingConfig })
     writeJSON(STORAGE_KEYS.teamProfiles, [...teamMap.values()])
     writeJSON(STORAGE_KEYS.investments, [...investmentMap.values()])
+    markGenesisApplied()
     return true
   }
 
   writeJSON(STORAGE_KEYS.systemConfig, { ...DEFAULT_SYSTEM_CONFIG, ...incomingConfig })
   writeJSON(STORAGE_KEYS.teamProfiles, incomingTeams.length > 0 ? incomingTeams : DEFAULT_TEAM_PROFILES)
   writeJSON(STORAGE_KEYS.investments, incomingInvestments)
+  markGenesisApplied()
   return true
 }
 
@@ -860,6 +867,14 @@ export const setCloudSyncEnabled = (enabled) =>
     enabled: Boolean(enabled),
     lastError: '',
   })
+
+export const bootstrapCloudSnapshotOnLoad = async () => {
+  const status = getCloudSyncState()
+  if (!status.hasEnv) {
+    return { ok: false, reason: 'missing_env', applied: false }
+  }
+  return pullCloudSnapshotNow('replace')
+}
 
 export const runCloudSyncNow = async () => {
   const snapshot = exportDataBundle()
