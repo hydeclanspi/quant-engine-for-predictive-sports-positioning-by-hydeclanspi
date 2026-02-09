@@ -203,6 +203,7 @@ export default function NewInvestmentPage() {
   const [activeTeamInput, setActiveTeamInput] = useState(null)
   const [profilesVersion, setProfilesVersion] = useState(0)
   const [historyPrefillApplied, setHistoryPrefillApplied] = useState({})
+  const [historyFloatDismissed, setHistoryFloatDismissed] = useState({})
   const [systemConfig] = useState(() => getSystemConfig())
 
   const teamProfiles = useMemo(() => getTeamProfiles(), [profilesVersion])
@@ -253,6 +254,12 @@ export default function NewInvestmentPage() {
     historicalMatchLibrary.forEach((item) => {
       if (!map.has(item.matchupKey)) map.set(item.matchupKey, [])
       map.get(item.matchupKey).push(item)
+    })
+    map.forEach((items, key) => {
+      map.set(
+        key,
+        [...items].sort((a, b) => b.createdAtTs - a.createdAtTs),
+      )
     })
     return map
   }, [historicalMatchLibrary])
@@ -324,6 +331,18 @@ export default function NewInvestmentPage() {
     })
   }, [parlaySize])
 
+  useEffect(() => {
+    setHistoryFloatDismissed((prev) => {
+      const next = {}
+      Object.keys(prev).forEach((key) => {
+        if (Number.parseInt(key, 10) < parlaySize) {
+          next[key] = prev[key]
+        }
+      })
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next
+    })
+  }, [parlaySize])
+
   const parsedActualInput = useMemo(() => {
     const parsed = Number.parseInt(String(actualInput || '').trim(), 10)
     return Number.isFinite(parsed) ? parsed : Number.NaN
@@ -339,6 +358,12 @@ export default function NewInvestmentPage() {
     })
     if (field === 'homeTeam' || field === 'awayTeam') {
       setHistoryPrefillApplied((prev) => {
+        if (!Object.prototype.hasOwnProperty.call(prev, idx)) return prev
+        const next = { ...prev }
+        delete next[idx]
+        return next
+      })
+      setHistoryFloatDismissed((prev) => {
         if (!Object.prototype.hasOwnProperty.call(prev, idx)) return prev
         const next = { ...prev }
         delete next[idx]
@@ -540,6 +565,12 @@ export default function NewInvestmentPage() {
         entryPreview: historyItem.entryPreview,
       },
     }))
+    setHistoryFloatDismissed((prev) => {
+      if (!Object.prototype.hasOwnProperty.call(prev, idx)) return prev
+      const next = { ...prev }
+      delete next[idx]
+      return next
+    })
     setShowModeDropdown((prev) => ({ ...prev, [idx]: false }))
   }
 
@@ -559,6 +590,22 @@ export default function NewInvestmentPage() {
       const next = { ...prev }
       delete next[idx]
       return next
+    })
+    setHistoryFloatDismissed((prev) => {
+      if (!Object.prototype.hasOwnProperty.call(prev, idx)) return prev
+      const next = { ...prev }
+      delete next[idx]
+      return next
+    })
+  }
+
+  const dismissHistorySuggestions = (idx) => {
+    setHistoryFloatDismissed((prev) => {
+      if (prev[idx]) return prev
+      return {
+        ...prev,
+        [idx]: true,
+      }
     })
   }
 
@@ -588,6 +635,7 @@ export default function NewInvestmentPage() {
     setShowModeDropdown({})
     setActiveTeamInput(null)
     setHistoryPrefillApplied({})
+    setHistoryFloatDismissed({})
   }
 
   const buildInvestmentPayload = () => {
@@ -725,6 +773,7 @@ export default function NewInvestmentPage() {
             const matchupKey = normalizeMatchupKey(match.homeTeam, match.awayTeam)
             const historySuggestions = matchupKey ? (historySuggestionsByMatchup.get(matchupKey) || []).slice(0, 3) : []
             const appliedHistory = historyPrefillApplied[idx] || null
+            const isHistorySuggestionDismissed = Boolean(historyFloatDismissed[idx])
             const homeTeamKey = normalizeTeamKey(match.homeTeam)
             const awayTeamKey = normalizeTeamKey(match.awayTeam)
             const homeFseHistorySuggestion = homeTeamKey ? (latestTeamFseMap.get(homeTeamKey) ?? null) : null
@@ -762,7 +811,7 @@ export default function NewInvestmentPage() {
                     </div>
                   </div>
                 ) : (
-                  historySuggestions.length > 0 && (
+                  historySuggestions.length > 0 && !isHistorySuggestionDismissed && (
                     <div className="absolute right-1 top-0 z-30 history-float-wrap">
                       <div className="history-float-panel history-float-enter px-2.5 py-2">
                         <div className="relative z-[1] flex items-center justify-between gap-2">
@@ -792,6 +841,14 @@ export default function NewInvestmentPage() {
                             </button>
                           ))}
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => dismissHistorySuggestions(idx)}
+                          title="关闭历史匹配浮层"
+                          className="absolute bottom-1 right-1 z-[2] h-4 w-4 inline-flex items-center justify-center rounded-full bg-white/60 hover:bg-white/85 text-[9px] leading-none text-stone-400 transition-colors"
+                        >
+                          ❎
+                        </button>
                       </div>
                     </div>
                   )
