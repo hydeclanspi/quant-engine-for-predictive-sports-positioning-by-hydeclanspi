@@ -141,7 +141,7 @@
     gap: 1.5rem;
   }
 
-  @container (min-width: 960px) {
+  @container (min-width: 920px) {
     .combo-main-grid {
       grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
       align-items: start;
@@ -154,7 +154,7 @@
   }
 
   @supports not (container-type: inline-size) {
-    @media (min-width: 1180px) {
+    @media (min-width: 1140px) {
       .combo-main-grid {
         grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
         align-items: start;
