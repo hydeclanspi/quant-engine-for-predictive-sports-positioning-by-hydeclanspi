@@ -817,9 +817,11 @@ export default function NewInvestmentPage() {
                         </button>
                       </div>
                       <p className="relative z-[1] mt-1.5 text-[10px] text-stone-500 truncate">
-                        <span>Entries · {appliedHistory.entryPreview || '未记录'}</span>
+                        <span>
+                          Entries · <span className="font-semibold">{appliedHistory.entryPreview || '未记录'}</span>
+                        </span>
                         <span className="ml-1.5 text-[10px] italic text-violet-600">
-                          odds {appliedHistory.oddsLabel || '--'}
+                          odds <span className="font-semibold">{appliedHistory.oddsLabel || '--'}</span>
                         </span>
                       </p>
                     </div>
@@ -850,9 +852,11 @@ export default function NewInvestmentPage() {
                                 </span>
                               </div>
                               <p className="mt-1 text-[10px] text-stone-500 truncate">
-                                <span>Entries · {historyItem.entryPreview || '未记录'}</span>
+                                <span>
+                                  Entries · <span className="font-semibold">{historyItem.entryPreview || '未记录'}</span>
+                                </span>
                                 <span className="ml-1.5 text-[10px] italic text-violet-600">
-                                  odds {historyItem.oddsLabel || '--'}
+                                  odds <span className="font-semibold">{historyItem.oddsLabel || '--'}</span>
                                 </span>
                               </p>
                             </button>
