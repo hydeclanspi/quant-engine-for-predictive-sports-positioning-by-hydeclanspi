@@ -670,13 +670,13 @@ export default function NewInvestmentPage() {
                       />
                       <span className="text-sm font-medium text-amber-600 w-10">{(match.conf / 100).toFixed(2)}</span>
                     </div>
-                    <div className="mt-2 pr-[3.25rem]">
+                    <div className="mt-2 pr-[1.5rem]">
                       <div className="flex items-center justify-between">
                         {CONF_QUICK_OPTIONS.map((value) => (
                           <button
                             key={value}
                             onClick={() => updateMatch(idx, 'conf', Math.round(value * 100))}
-                            className={`px-1.5 py-[3px] text-[10px] rounded-lg btn-hover transition-all ${
+                            className={`px-2 py-[3px] text-[10px] rounded-lg btn-hover transition-all ${
                               match.conf === value * 100
                                 ? 'bg-amber-100 text-amber-700 border border-amber-200'
                                 : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
@@ -767,7 +767,7 @@ export default function NewInvestmentPage() {
                           />
                           <span className="text-sm font-medium text-stone-600 w-10">{(match.fse_home / 100).toFixed(2)}</span>
                         </div>
-                        <div className="mt-1 pr-[2.9rem]">
+                        <div className="mt-1 pr-[1rem]">
                           <div className="flex items-center justify-between">
                             {FSE_QUICK_OPTIONS.map((value) => (
                               <button
@@ -796,7 +796,7 @@ export default function NewInvestmentPage() {
                           />
                           <span className="text-sm font-medium text-stone-600 w-10">{(match.fse_away / 100).toFixed(2)}</span>
                         </div>
-                        <div className="mt-1 pr-[2.9rem]">
+                        <div className="mt-1 pr-[1rem]">
                           <div className="flex items-center justify-between">
                             {FSE_QUICK_OPTIONS.map((value) => (
                               <button
