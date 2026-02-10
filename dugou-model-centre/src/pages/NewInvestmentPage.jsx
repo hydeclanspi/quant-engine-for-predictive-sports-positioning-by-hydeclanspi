@@ -1335,7 +1335,7 @@ export default function NewInvestmentPage() {
                 <span className="text-xs text-stone-400 block">风控上限</span>
                 <span className="text-sm text-stone-500">¥ {riskCap} ({Math.round(systemConfig.riskCapRatio * 100)}%)</span>
                 <span className="block text-[10px] text-stone-400 mt-0.5">
-                  Kelly÷{effectiveKellyDivisor.toFixed(1)} · Conf×{calibrationContext.multipliers.conf.toFixed(2)} · FSE×
+                  Atomic Kelly÷{effectiveKellyDivisor.toFixed(1)} · Conf×{calibrationContext.multipliers.conf.toFixed(2)} · FSE×
                   {calibrationContext.multipliers.fse.toFixed(2)} · TeamCal {calibrationContext.teamCalibration?.teamCount || 0}队 ·
                   MarketLean {(calibrationContext.marketBlend?.marketLean || 0).toFixed(2)}
                 </span>

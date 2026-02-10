@@ -1912,9 +1912,9 @@ export default function ComboPage({ openModal }) {
           <p><strong>1. 输入处理</strong>：录入今日 n 场比赛参数（Conf, Mode, TYS, FID, FSE, Odds），系统构建候选组合池（最多到 5 关，且按最小关数筛选，候选数为 ΣC(n,k)）。</p>
           <p><strong>2. Calibration 校准层</strong>：引入时间近因权重 + REP 方向性权重，先做 Conf 回归校准，再叠加球队层级偏差校准（小样本自动收缩）。</p>
           <p><strong>3. 市场先验融合</strong>：将模型概率与 Odds 隐含概率做动态融合；球队样本越可靠，越偏向模型；球队可靠度不足时自动向市场先验回归。</p>
-          <p><strong>4. 滚动回测护栏</strong>：使用 walk-forward 窗口评估 Brier / LogLoss / ROI，动态调节 market lean，抑制过拟合。</p>
+          <p><strong>4. 滚动回测护栏</strong>：使用 walk-forward 窗口评估 Brier / LogLoss / ROI，策略层采用 Bootstrap Monte Carlo 回测，动态调节 market lean，抑制过拟合。</p>
           <p><strong>5. 原子结果建模</strong>：同场多 Entry 先拆成原子状态（含 miss），按分支权重与赔率计算每个原子收益，再做跨场联合分布，避免调和平均带来的失真。</p>
-          <p><strong>6. 预期收益与风险</strong>：直接由联合分布求 E[R] / Var[R]，再得 Sharpe；因此可同时覆盖单 Entry 与多 Entry 串联情形。</p>
+          <p><strong>6. 预期收益与风险</strong>：直接由联合分布求 E[R] / Var[R]，再得 Sharpe，同时输出命中概率与盈利概率（profit win rate），覆盖单 Entry 与多 Entry 串联情形。</p>
           <p><strong>7. Risk Preference 加权</strong>：效用函数 U = α × μ - (1-α) × σ，α 由滑杆控制（0=稳健，100=激进）。</p>
           <p><strong>8. 组合策略</strong>：可选「勾选优先 / 阈值优先 / 软惩罚」。软惩罚对阈值外方案降分但不直接淘汰。</p>
           <p><strong>9. 角色结构软约束</strong>：支持“稳/杠杆/中性双档”逐场自定义，并以软约束项参与打分，不做硬性赔率或配比锁定。</p>
@@ -1924,7 +1924,7 @@ export default function ComboPage({ openModal }) {
           <p><strong>13. MMR 去重排序</strong>：使用 Maximal Marginal Relevance 算法，每选一个方案时同时考虑其效用和与已选方案的差异度，避免"前几名都带同一场"。</p>
           <p><strong>14. 覆盖动态加分</strong>：对候选中尚未被充分覆盖的场次，自动提升包含该场次的组合分数，随覆盖增加自然衰减。</p>
           <p><strong>15. Entry Family 多样化</strong>：同一场比赛的多个 entry（如曼联胜/平/double）被识别为一个 family，鼓励 family 内 entry 多样化。</p>
-          <p><strong>16. 输出</strong>：上方可勾选方案直接采纳；下方提供单组合排序与分层下注建议。</p>
+          <p><strong>16. 输出</strong>：上方可勾选方案直接采纳；下方提供单组合排序与分层下注建议，并显示命中率/盈利率双指标。</p>
         </div>
       ),
     })
@@ -2414,11 +2414,13 @@ export default function ComboPage({ openModal }) {
                   <p className="text-sm text-stone-700 mb-2">{item.combo}</p>
                   <div className="flex gap-4 text-xs text-stone-500">
                     <span>预期收益: <span className="text-emerald-600 font-medium">{item.ev}</span></span>
-                    <span>Win Rate: <span className="italic font-semibold text-sky-600">{item.winRate}</span></span>
+                    <span>Hit: <span className="italic font-semibold text-sky-600">{item.winRate}</span></span>
+                    <span>Profit: <span className="italic font-semibold text-indigo-600">{item.profitWinRate}</span></span>
                     <span>Sharpe: <span className="italic font-semibold text-violet-600">{item.sharpe}</span></span>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
                     <span className="px-2 py-0.5 rounded-full bg-stone-200/70 text-stone-600">Conf均值 {item.explain.confAvg.toFixed(2)}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">盈利率 {item.explain.profitWinPct.toFixed(1)}%</span>
                     <span className={`px-2 py-0.5 rounded-full ${item.explain.calibGainPp >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-600'}`}>
                       校准增益 {item.explain.calibGainPp >= 0 ? '+' : ''}{item.explain.calibGainPp.toFixed(1)}pp
                     </span>
@@ -2568,7 +2570,7 @@ export default function ComboPage({ openModal }) {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-stone-700 truncate">{row.combo}</p>
                     <p className="text-[11px] text-stone-400">
-                      <span className="text-violet-600 font-medium">{row.legs || row.subset.length}关</span> · Odds {row.combinedOdds.toFixed(2)} · Win {row.winRate}
+                      <span className="text-violet-600 font-medium">{row.legs || row.subset.length}关</span> · Odds {row.combinedOdds.toFixed(2)} · Hit {row.winRate} · Profit {row.profitWinRate}
                     </p>
                   </div>
                   <div className="text-right">
@@ -2692,7 +2694,7 @@ export default function ComboPage({ openModal }) {
           </button>
         </div>
         <p className="text-sm text-stone-500">
-          基于 Markowitz 均值-方差模型，结合 Kelly 准则优化多资产配置，在风险约束下最大化预期收益，并通过时间近因 + REP 降噪做动态校准。
+          基于 Markowitz 均值-方差模型，结合原子结果建模与 Kelly 准则优化多资产配置，在风险约束下最大化预期收益，并通过时间近因 + REP + 市场先验融合做动态校准。
         </p>
       </div>
 

@@ -1238,7 +1238,7 @@ export default function ParamsPage({ openModal }) {
       content: (
         <div className="space-y-5">
           <div>
-            <p className="text-sm text-stone-500 mb-3">Mode 级别建议（按历史回测评分自动选优）</p>
+            <p className="text-sm text-stone-500 mb-3">Mode 级别建议（按历史回测评分自动选优，策略回测采用 Bootstrap Monte Carlo）</p>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-stone-200 text-left text-stone-500">
@@ -1687,7 +1687,7 @@ export default function ParamsPage({ openModal }) {
             <h3 className="font-medium text-stone-700 flex items-center gap-2">
               <span className="text-amber-500">▣</span> Kelly 分母回测台
             </h3>
-            <p className="text-xs text-stone-400 mt-1">基于历史已结算样本的分母表现对比（ROI / 回撤 / 胜率）</p>
+            <p className="text-xs text-stone-400 mt-1">基于历史已结算样本的分母表现对比（ROI / 回撤 / 胜率，Bootstrap Monte Carlo）</p>
           </div>
           <button
             onClick={() => applyKellyDivisor(kellyBacktest.globalBest?.divisor)}
@@ -1707,6 +1707,7 @@ export default function ParamsPage({ openModal }) {
                 <tr className="border-b border-stone-200 text-left text-stone-500">
                   <th className="py-2">Kelly 分母</th>
                   <th className="py-2">样本</th>
+                  <th className="py-2">模拟次数</th>
                   <th className="py-2">ROI</th>
                   <th className="py-2">胜率</th>
                   <th className="py-2">最大回撤</th>
@@ -1721,6 +1722,7 @@ export default function ParamsPage({ openModal }) {
                     <tr key={`kelly-${row.divisor}`} className={`border-b border-stone-100 ${isBest ? 'bg-amber-50/50' : ''}`}>
                       <td className="py-2 font-medium text-stone-700">{row.divisor}</td>
                       <td className="py-2 text-stone-600">{row.samples}</td>
+                      <td className="py-2 text-stone-500">{row.runs || 0}</td>
                       <td className={`py-2 font-medium ${row.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                         {toSigned(row.roi, 1, '%')}
                       </td>
@@ -1761,7 +1763,7 @@ export default function ParamsPage({ openModal }) {
               </div>
               <p className="text-xs text-stone-400 mt-1">建议分母 {row.best?.divisor || '--'}</p>
               <p className={`text-xs mt-1 ${row.best?.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                ROI {row.best ? toSigned(row.best.roi, 1, '%') : '--'} · 回撤 {row.best ? `-${row.best.maxDrawdown.toFixed(1)}%` : '--'}
+                ROI {row.best ? toSigned(row.best.roi, 1, '%') : '--'} · 回撤 {row.best ? `-${row.best.maxDrawdown.toFixed(1)}%` : '--'} · MC {row.best?.runs || 0}
               </p>
             </div>
           ))}
@@ -2264,7 +2266,7 @@ export default function ParamsPage({ openModal }) {
                   ROI {toSigned(modelValidation.strategy.raw.roi, 2, '%')}
                 </p>
                 <p className="text-[11px] text-stone-400 mt-1">
-                  回撤 -{modelValidation.strategy.raw.maxDrawdown.toFixed(2)}% · 样本 {modelValidation.strategy.raw.samples}
+                  回撤 -{modelValidation.strategy.raw.maxDrawdown.toFixed(2)}% · 样本 {modelValidation.strategy.raw.samples} · MC {modelValidation.strategy.raw.runs || 0}
                 </p>
               </div>
               <div className="p-3 rounded-xl border border-amber-200 bg-amber-50/40">
@@ -2273,7 +2275,7 @@ export default function ParamsPage({ openModal }) {
                   ROI {toSigned(modelValidation.strategy.calibrated.roi, 2, '%')}
                 </p>
                 <p className="text-[11px] text-stone-500 mt-1">
-                  回撤 -{modelValidation.strategy.calibrated.maxDrawdown.toFixed(2)}% · 样本 {modelValidation.strategy.calibrated.samples}
+                  回撤 -{modelValidation.strategy.calibrated.maxDrawdown.toFixed(2)}% · 样本 {modelValidation.strategy.calibrated.samples} · MC {modelValidation.strategy.calibrated.runs || 0}
                 </p>
               </div>
             </div>
@@ -2302,6 +2304,7 @@ export default function ParamsPage({ openModal }) {
                 </div>
               )}
             </div>
+            <p className="text-[11px] text-stone-400 mt-2">注：策略回测使用 Bootstrap Monte Carlo（目标 100000 次，按样本量自动做计算预算缩放）。</p>
           </>
         )}
       </div>
