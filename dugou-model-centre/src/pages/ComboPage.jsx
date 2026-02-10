@@ -102,7 +102,7 @@ const mmrRerank = (candidates, lambda = 0.6, maxPick = 10, coverageTargetKeys = 
   const safeLambda = Math.max(0, Math.min(1, Number(lambda) || 0))
   const safeEta = Math.max(0, Math.min(1, Number(eta) || 0))
   const similarityWeight = Math.max(0, 1 - safeLambda)
-  const concentrationWeight = 0.24 + safeEta * 0.12
+  const concentrationWeight = 0.18 + safeEta * 0.08
 
   // Normalize utilities to [0, 1] for fair blending
   const utilValues = candidates.map((c) => c.utility)
@@ -1174,7 +1174,7 @@ export default function ComboPage({ openModal }) {
   const [layerSummary, setLayerSummary] = useState([])
   const [qualityFilter, setQualityFilter] = useState({
     minEvPercent: 0,
-    minWinRate: 35,
+    minWinRate: 5,
     maxCorr: 0.85,
   })
   const [comboStrategy, setComboStrategy] = useState(DEFAULT_COMBO_STRATEGY)
@@ -1816,7 +1816,7 @@ export default function ComboPage({ openModal }) {
                   onClick={() =>
                     setQualityFilter({
                       minEvPercent: 0,
-                      minWinRate: 35,
+                      minWinRate: 5,
                       maxCorr: 0.85,
                     })
                   }
