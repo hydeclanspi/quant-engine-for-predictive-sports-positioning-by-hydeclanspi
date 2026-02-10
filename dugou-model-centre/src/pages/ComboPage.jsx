@@ -35,6 +35,148 @@ const LAYER_META = {
   次推: { tone: 'text-sky-700', badge: 'bg-sky-100 text-sky-700', desc: '风险收益平衡' },
   博冷: { tone: 'text-violet-700', badge: 'bg-violet-100 text-violet-700', desc: '尾部机会，高波动' },
 }
+
+const MATCH_ROLE_OPTIONS = [
+  { value: 'stable', label: '稳', tone: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  { value: 'lever', label: '杠杆', tone: 'bg-amber-100 text-amber-700 border-amber-200' },
+  { value: 'neutral_plus', label: '中性+自信', tone: 'bg-sky-100 text-sky-700 border-sky-200' },
+  { value: 'neutral_soft', label: '中性-保守', tone: 'bg-stone-200 text-stone-600 border-stone-300' },
+]
+
+const MATCH_ROLE_TILT_MAP = {
+  stable: 0.18,
+  lever: 0.24,
+  neutral_plus: 0.12,
+  neutral_soft: 0.06,
+}
+
+const MATCH_ROLE_PRESETS = {
+  balanced: {
+    label: '平衡',
+    targets: { stable: 0.32, lever: 0.24, neutral_plus: 0.24, neutral_soft: 0.2 },
+  },
+  stableCore: {
+    label: '稳健底盘',
+    targets: { stable: 0.42, lever: 0.18, neutral_plus: 0.25, neutral_soft: 0.15 },
+  },
+  leverDrive: {
+    label: '杠杆推进',
+    targets: { stable: 0.24, lever: 0.38, neutral_plus: 0.24, neutral_soft: 0.14 },
+  },
+}
+
+const DEFAULT_ROLE_PREFERENCE = {
+  preset: 'balanced',
+  mixStrength: 0.08,
+  targets: MATCH_ROLE_PRESETS.balanced.targets,
+}
+
+const normalizeRoleTag = (value) => {
+  const normalized = String(value || '').trim()
+  if (normalized === 'stable') return 'stable'
+  if (normalized === 'lever') return 'lever'
+  if (normalized === 'neutral_plus') return 'neutral_plus'
+  if (normalized === 'neutral_soft') return 'neutral_soft'
+  return 'neutral_plus'
+}
+
+const normalizeRoleTargets = (value) => {
+  const source = value && typeof value === 'object' ? value : MATCH_ROLE_PRESETS.balanced.targets
+  const stable = Math.max(0, Number(source.stable) || 0)
+  const lever = Math.max(0, Number(source.lever) || 0)
+  const neutralPlus = Math.max(0, Number(source.neutral_plus) || 0)
+  const neutralSoft = Math.max(0, Number(source.neutral_soft) || 0)
+  const total = stable + lever + neutralPlus + neutralSoft
+  if (total <= 0) return { ...MATCH_ROLE_PRESETS.balanced.targets }
+  return {
+    stable: stable / total,
+    lever: lever / total,
+    neutral_plus: neutralPlus / total,
+    neutral_soft: neutralSoft / total,
+  }
+}
+
+const sanitizeRolePreference = (value) => {
+  const preset = value?.preset && MATCH_ROLE_PRESETS[value.preset] ? value.preset : DEFAULT_ROLE_PREFERENCE.preset
+  const presetTargets = MATCH_ROLE_PRESETS[preset].targets
+  const targets = normalizeRoleTargets(value?.targets || presetTargets)
+  return {
+    preset,
+    mixStrength: clamp(Number(value?.mixStrength ?? DEFAULT_ROLE_PREFERENCE.mixStrength), 0, 0.2),
+    targets,
+  }
+}
+
+const inferMatchRoleByMetrics = (adjustedProb, odds, rawConf) => {
+  const p = clamp(Number(adjustedProb) || 0, 0.02, 0.98)
+  const odd = Math.max(1.01, Number(odds) || 1.01)
+  const conf = clamp(Number(rawConf) || 0.5, 0.02, 0.98)
+  const implied = clamp(1 / odd, 0.02, 0.98)
+  const edge = p - implied
+
+  if (p >= 0.58 && odd <= 2.25 && edge >= -0.015) return 'stable'
+  if (odd >= 2.55 && p >= 0.27 && (edge >= 0.018 || conf >= 0.55)) return 'lever'
+  if (edge >= 0.02 || p >= 0.5) return 'neutral_plus'
+  return 'neutral_soft'
+}
+
+const calcRoleStructureSignal = (subset, roleTargets, mixStrength = 0.08) => {
+  const rows = Array.isArray(subset) ? subset : []
+  if (rows.length === 0) {
+    return {
+      bonus: 0,
+      shares: { stable: 0, lever: 0, neutral_plus: 0, neutral_soft: 0 },
+      signature: '--',
+      alignmentGap: 0,
+      diversity: 0,
+    }
+  }
+
+  const counts = {
+    stable: 0,
+    lever: 0,
+    neutral_plus: 0,
+    neutral_soft: 0,
+  }
+  rows.forEach((item) => {
+    const role = normalizeRoleTag(item.roleTag)
+    counts[role] += 1
+  })
+
+  const shares = {
+    stable: counts.stable / rows.length,
+    lever: counts.lever / rows.length,
+    neutral_plus: counts.neutral_plus / rows.length,
+    neutral_soft: counts.neutral_soft / rows.length,
+  }
+  const tilt =
+    shares.stable * MATCH_ROLE_TILT_MAP.stable +
+    shares.lever * MATCH_ROLE_TILT_MAP.lever +
+    shares.neutral_plus * MATCH_ROLE_TILT_MAP.neutral_plus +
+    shares.neutral_soft * MATCH_ROLE_TILT_MAP.neutral_soft
+  const concentration =
+    shares.stable ** 2 +
+    shares.lever ** 2 +
+    shares.neutral_plus ** 2 +
+    shares.neutral_soft ** 2
+  const diversity = 1 - concentration
+  const stableLeverSynergy = Math.sqrt(Math.max(0, shares.stable * shares.lever))
+  const alignmentGap =
+    Math.abs(shares.stable - roleTargets.stable) +
+    Math.abs(shares.lever - roleTargets.lever) +
+    Math.abs(shares.neutral_plus - roleTargets.neutral_plus) +
+    Math.abs(shares.neutral_soft - roleTargets.neutral_soft)
+  const rawScore = tilt * 0.62 + diversity * 0.44 + stableLeverSynergy * 0.48 - alignmentGap * 0.78
+  const bonus = clamp(rawScore * mixStrength, -0.08, 0.08)
+
+  return {
+    bonus,
+    shares,
+    signature: `稳${counts.stable}/杠${counts.lever}/中+${counts.neutral_plus}/中-${counts.neutral_soft}`,
+    alignmentGap,
+    diversity,
+  }
+}
 /* ── Parlay bonus: concave reward for multi-leg combos (思路2) ─────────── */
 const parlayBonusFn = (legs, parlayBeta = 0.12) => {
   // 0 for singles, peaks around 3-4 legs, mild diminishing returns beyond 4
@@ -600,7 +742,6 @@ const calcAdjustedProbability = (match, systemConfig, calibrationContext) => {
   const fidFactor = FID_FACTOR_MAP[match.fid] || 1
   const fseMatch = Math.sqrt(clamp(match.fseHome, 0.05, 1) * clamp(match.fseAway, 0.05, 1))
   const fseFactor = clamp((0.88 + fseMatch * 0.24) * fseMultiplier, 0.72, 1.35)
-  const oddsFactor = clamp(1 - (match.odds - Number(systemConfig.defaultOdds || 2.5)) * 0.025, 0.88, 1.12)
   const confSignal = clamp(conf / 0.5, 0.15, 1.95)
 
   const weightedLift =
@@ -608,10 +749,21 @@ const calcAdjustedProbability = (match, systemConfig, calibrationContext) => {
     modeFactor ** getFactorWeight(systemConfig.weightMode, 0.16) *
     tysFactor ** getFactorWeight(systemConfig.weightTys, 0.12) *
     fidFactor ** getFactorWeight(systemConfig.weightFid, 0.14) *
-    oddsFactor ** getFactorWeight(systemConfig.weightOdds, 0.06) *
     fseFactor ** getFactorWeight(systemConfig.weightFse, 0.07)
 
-  return clamp(0.5 * weightedLift, 0.05, 0.95)
+  const baseProbability = clamp(0.5 * weightedLift, 0.05, 0.95)
+  if (typeof calibrationContext?.calibrateProbabilityForMatch !== 'function') return baseProbability
+  return clamp(
+    calibrationContext.calibrateProbabilityForMatch({
+      baseProbability,
+      conf: rawConf,
+      odds: Number(match.odds),
+      homeTeam: match.homeTeam,
+      awayTeam: match.awayTeam,
+    }),
+    0.05,
+    0.95,
+  )
 }
 
 const buildComboTitle = (subset) =>
@@ -926,6 +1078,7 @@ const generateRecommendations = (
   qualityFilter,
   comboStrategy = DEFAULT_COMBO_STRATEGY,
   comboStructure = null,
+  rolePreference = null,
 ) => {
   if (selectedMatches.length === 0) return null
 
@@ -943,6 +1096,9 @@ const generateRecommendations = (
   const mmrLambda = normalizedComboStructure.mmrLambda
   // ── Coverage dynamic boost eta ──
   const coverageEta = normalizedComboStructure.coverageEta
+  const normalizedRolePreference = sanitizeRolePreference(rolePreference)
+  const roleMixStrength = normalizedRolePreference.mixStrength
+  const roleTargets = normalizedRolePreference.targets
 
   const maxSubsetSize = Math.min(5, selectedMatches.length)
   const subsets = buildSubsets(selectedMatches, maxSubsetSize)
@@ -965,7 +1121,8 @@ const generateRecommendations = (
     // ── 思路6: Entry family diversity bonus ──
     const familyDiv = calcEntryFamilyDiversity(subset)
     const familyBonus = (familyDiv - 0.5) * 0.04 // small bonus for diverse entries within families
-    const utility = rewardTerm - riskPenalty + pBonus + familyBonus
+    const roleSignal = calcRoleStructureSignal(subset, roleTargets, roleMixStrength)
+    const utility = rewardTerm - riskPenalty + pBonus + familyBonus + roleSignal.bonus
     const corr = calcSubsetSourceCorrelation(subset)
     const confAvg = subset.reduce((sum, item) => sum + clamp(item.conf, 0.05, 0.95), 0) / Math.max(legs, 1)
     return {
@@ -983,6 +1140,10 @@ const generateRecommendations = (
       riskPenalty,
       parlayBonus: pBonus,
       familyDiversity: familyDiv,
+      roleMixBonus: roleSignal.bonus,
+      roleSignature: roleSignal.signature,
+      roleAlignmentGap: roleSignal.alignmentGap,
+      roleDiversity: roleSignal.diversity,
       corr,
       confAvg,
     }
@@ -1107,6 +1268,8 @@ const generateRecommendations = (
         corr: Number(item.corr.toFixed(2)),
         parlayBonus: Number((item.parlayBonus || 0).toFixed(3)),
         familyDiversity: Number((item.familyDiversity || 1).toFixed(2)),
+        roleMixBonus: Number((item.roleMixBonus || 0).toFixed(3)),
+        roleSignature: item.roleSignature || '--',
         thresholdPass: item.ev >= minEv && item.p >= minWinRate && item.corr <= maxCorr,
       },
     }
@@ -1179,6 +1342,8 @@ export default function ComboPage({ openModal }) {
   })
   const [comboStrategy, setComboStrategy] = useState(DEFAULT_COMBO_STRATEGY)
   const [comboStructure, setComboStructure] = useState(() => sanitizeComboStructure(DEFAULT_COMBO_STRUCTURE))
+  const [rolePreference, setRolePreference] = useState(() => sanitizeRolePreference(DEFAULT_ROLE_PREFERENCE))
+  const [matchRoleOverrides, setMatchRoleOverrides] = useState({})
   const [showRiskProbe, setShowRiskProbe] = useState(false)
   const [showAllRecommendations, setShowAllRecommendations] = useState(false)
   const [selectedRecommendationIds, setSelectedRecommendationIds] = useState({})
@@ -1214,11 +1379,13 @@ export default function ComboPage({ openModal }) {
         const adjustedProb = calcAdjustedProbability(item, systemConfig, calibrationContext)
         const adjustedEvPercent = (adjustedProb * item.odds - 1) * 100
         const suggestedAmount = calcRecommendedAmount(adjustedProb, item.odds, systemConfig, riskCap)
+        const autoRole = inferMatchRoleByMetrics(adjustedProb, item.odds, item.conf)
         return {
           ...item,
           adjustedProb,
           adjustedEvPercent,
           suggestedAmount,
+          autoRole,
         }
       }),
     [calibrationContext, riskCap, systemConfig, todayMatches],
@@ -1241,8 +1408,14 @@ export default function ComboPage({ openModal }) {
   }, [analysisFilter, candidateRows])
 
   const selectedMatches = useMemo(
-    () => displayedCandidates.filter((_, idx) => checkedMatches[idx]),
-    [checkedMatches, displayedCandidates],
+    () =>
+      displayedCandidates
+        .filter((_, idx) => checkedMatches[idx])
+        .map((row) => ({
+          ...row,
+          roleTag: normalizeRoleTag(matchRoleOverrides[row.key] || row.autoRole),
+        })),
+    [checkedMatches, displayedCandidates, matchRoleOverrides],
   )
   const candidateComboCount = useMemo(
     () => countCandidateCombos(selectedMatches.length, 5, comboStructure.minLegs, true),
@@ -1331,6 +1504,7 @@ export default function ComboPage({ openModal }) {
         qualityFilter,
         comboStrategy,
         comboStructure,
+        rolePreference,
       )
       if (!generated || generated.recommendations.length === 0) {
         return {
@@ -1363,7 +1537,7 @@ export default function ComboPage({ openModal }) {
       ...row,
       best: Boolean(best && row.riskPref === best.riskPref),
     }))
-  }, [calibrationContext, comboStrategy, comboStructure, qualityFilter, riskCap, selectedMatches, systemConfig])
+  }, [calibrationContext, comboStrategy, comboStructure, qualityFilter, riskCap, rolePreference, selectedMatches, systemConfig])
 
   const matchExposure = useMemo(() => {
     const map = new Map()
@@ -1400,6 +1574,22 @@ export default function ComboPage({ openModal }) {
     setCheckedMatches(displayedCandidates.map(() => true))
   }, [displayedCandidates])
 
+  useEffect(() => {
+    setMatchRoleOverrides((prev) => {
+      const validKeys = new Set(candidateRows.map((row) => row.key))
+      let changed = false
+      const next = {}
+      Object.entries(prev).forEach(([key, value]) => {
+        if (!validKeys.has(key)) {
+          changed = true
+          return
+        }
+        next[key] = normalizeRoleTag(value)
+      })
+      return changed ? next : prev
+    })
+  }, [candidateRows])
+
   const toggleCheck = (idx) => {
     setCheckedMatches((prev) => prev.map((value, i) => (i === idx ? !value : value)))
   }
@@ -1430,6 +1620,7 @@ export default function ComboPage({ openModal }) {
     setRankingRows([])
     setLayerSummary([])
     setSelectedRecommendationIds({})
+    setMatchRoleOverrides({})
     setGenerationSummary({
       totalInvest: 0,
       expectedReturnPercent: 0,
@@ -1445,6 +1636,12 @@ export default function ComboPage({ openModal }) {
 
   const pushPlanHistory = (generated, selectedRows, pref) => {
     const selectedLabel = selectedRows.slice(0, 2).map((row) => row.match).join(' + ')
+    const roleMap = selectedRows.reduce((acc, row) => {
+      if (row?.key) {
+        acc[row.key] = normalizeRoleTag(row.roleTag)
+      }
+      return acc
+    }, {})
     const entry = {
       id: `plan_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       createdAt: new Date().toISOString(),
@@ -1460,6 +1657,8 @@ export default function ComboPage({ openModal }) {
       layerSummary: generated.layerSummary,
       comboStrategy,
       comboStructure: sanitizeComboStructure(comboStructure),
+      rolePreference: sanitizeRolePreference(rolePreference),
+      selectedRoleMap: roleMap,
       coverageInjectedCombos: generated.coverageInjectedCombos,
       uncoveredMatches: generated.uncoveredMatches,
       legsDistribution: generated.legsDistribution || {},
@@ -1479,6 +1678,16 @@ export default function ComboPage({ openModal }) {
     }
     if (historyRow.comboStructure) {
       setComboStructure(sanitizeComboStructure(historyRow.comboStructure))
+    }
+    if (historyRow.rolePreference) {
+      setRolePreference(sanitizeRolePreference(historyRow.rolePreference))
+    }
+    if (historyRow.selectedRoleMap && typeof historyRow.selectedRoleMap === 'object') {
+      const nextRoleMap = {}
+      Object.entries(historyRow.selectedRoleMap).forEach(([key, value]) => {
+        nextRoleMap[key] = normalizeRoleTag(value)
+      })
+      setMatchRoleOverrides(nextRoleMap)
     }
     setRecommendations(historyRow.recommendations)
     setRankingRows(historyRow.recommendations)
@@ -1540,6 +1749,7 @@ export default function ComboPage({ openModal }) {
       qualityFilter,
       comboStrategy,
       comboStructure,
+      rolePreference,
     )
     if (!generated) {
       window.alert(
@@ -1662,18 +1872,21 @@ export default function ComboPage({ openModal }) {
           content: (
         <div className="text-sm text-stone-600 space-y-4">
           <p><strong>1. 输入处理</strong>：录入今日 n 场比赛参数（Conf, Mode, TYS, FID, FSE, Odds），系统构建候选组合池（最多到 5 关，且按最小关数筛选，候选数为 ΣC(n,k)）。</p>
-          <p><strong>2. Calibration 校准层</strong>：引入时间近因权重（最近样本 1.4x / 中期样本 1.15x）+ REP 方向性权重（低随机性上调、高随机性降权），修正 Conf 偏差。</p>
-          <p><strong>3. 预期收益计算</strong>：每个组合的期望收益 μ = ∏(校准胜率ᵢ) × ∏(Oddsᵢ) - 1。</p>
-          <p><strong>4. 风险评估</strong>：按二项收益分布计算波动性 σ（赢时收益=Odds-1，输时=-1）；Sharpe = μ/σ 作为稳定性指标。</p>
-          <p><strong>5. Risk Preference 加权</strong>：效用函数 U = α × μ - (1-α) × σ，α 由滑杆控制（0=稳健，100=激进）。</p>
-          <p><strong>6. 组合策略</strong>：可选「勾选优先 / 阈值优先 / 软惩罚」。勾选优先会自动补位，确保手动勾选场次进入推荐。</p>
-          <p><strong>7. Portfolio 分配</strong>：对 Top 组合按效用打分分配仓位，约束总仓位不超过风控上限（Risk Cap）。</p>
-          <p><strong>8. 串关偏好 (Parlay Bonus)</strong>：在效用函数中加入 β·√(legs-1) 项，天然提升多关串联的优先级；β 由「串关偏好」滑杆控制。</p>
-          <p><strong>9. 分层选优 (Stratified Selection)</strong>：按关数分层（2/3/4/5关），每层按效用取 Top-K，跨层配额确保结构多样。</p>
-          <p><strong>10. MMR 去重排序</strong>：使用 Maximal Marginal Relevance 算法，每选一个方案时同时考虑其效用和与已选方案的差异度，避免"前几名都带同一场"。</p>
-          <p><strong>11. 覆盖动态加分</strong>：对候选中尚未被充分覆盖的场次，自动提升包含该场次的组合分数，随覆盖增加自然衰减。</p>
-          <p><strong>12. Entry Family 多样化</strong>：同一场比赛的多个 entry（如曼联胜/平/double）被识别为一个 family，鼓励 family 内 entry 多样化。</p>
-          <p><strong>13. 输出</strong>：上方可勾选方案直接采纳；下方提供单组合排序与分层下注建议。</p>
+          <p><strong>2. Calibration 校准层</strong>：引入时间近因权重 + REP 方向性权重，先做 Conf 回归校准，再叠加球队层级偏差校准（小样本自动收缩）。</p>
+          <p><strong>3. 市场先验融合</strong>：将模型概率与 Odds 隐含概率做动态融合；球队样本越可靠，越偏向模型；球队可靠度不足时自动向市场先验回归。</p>
+          <p><strong>4. 滚动回测护栏</strong>：使用 walk-forward 窗口评估 Brier / LogLoss / ROI，动态调节 market lean，抑制过拟合。</p>
+          <p><strong>5. 预期收益计算</strong>：每个组合的期望收益 μ = ∏(校准胜率ᵢ) × ∏(Oddsᵢ) - 1。</p>
+          <p><strong>6. 风险评估</strong>：按二项收益分布计算波动性 σ（赢时收益=Odds-1，输时=-1）；Sharpe = μ/σ 作为稳定性指标。</p>
+          <p><strong>7. Risk Preference 加权</strong>：效用函数 U = α × μ - (1-α) × σ，α 由滑杆控制（0=稳健，100=激进）。</p>
+          <p><strong>8. 组合策略</strong>：可选「勾选优先 / 阈值优先 / 软惩罚」。软惩罚对阈值外方案降分但不直接淘汰。</p>
+          <p><strong>9. 角色结构软约束</strong>：支持“稳/杠杆/中性双档”逐场自定义，并以软约束项参与打分，不做硬性赔率或配比锁定。</p>
+          <p><strong>10. Portfolio 分配</strong>：对 Top 组合按效用打分分配仓位，约束总仓位不超过风控上限（Risk Cap）。</p>
+          <p><strong>11. 串关偏好 (Parlay Bonus)</strong>：在效用函数中加入 β·√(legs-1) 项，天然提升多关串联的优先级；β 由「串关偏好」滑杆控制。</p>
+          <p><strong>12. 分层选优 (Stratified Selection)</strong>：按关数分层（2/3/4/5关），每层按效用取 Top-K，跨层配额确保结构多样。</p>
+          <p><strong>13. MMR 去重排序</strong>：使用 Maximal Marginal Relevance 算法，每选一个方案时同时考虑其效用和与已选方案的差异度，避免"前几名都带同一场"。</p>
+          <p><strong>14. 覆盖动态加分</strong>：对候选中尚未被充分覆盖的场次，自动提升包含该场次的组合分数，随覆盖增加自然衰减。</p>
+          <p><strong>15. Entry Family 多样化</strong>：同一场比赛的多个 entry（如曼联胜/平/double）被识别为一个 family，鼓励 family 内 entry 多样化。</p>
+          <p><strong>16. 输出</strong>：上方可勾选方案直接采纳；下方提供单组合排序与分层下注建议。</p>
         </div>
       ),
     })
@@ -1732,30 +1945,78 @@ export default function ComboPage({ openModal }) {
           </div>
 
           <div className="space-y-3">
-            {displayedCandidates.map((item, i) => (
-              <div
-                key={item.key}
-                className="flex items-center justify-between p-4 rounded-xl bg-stone-50 border border-stone-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all cursor-pointer lift-card"
-              >
-                <div className="flex items-center gap-3">
-                  <div onClick={() => toggleCheck(i)} className={`custom-checkbox ${checkedMatches[i] ? 'checked' : ''}`} />
-                  <div>
-                    <p className="text-sm font-medium text-stone-700">{item.match}</p>
-                    <p className="text-xs text-stone-400">
-                      Conf <span className="font-medium text-stone-500">{item.conf.toFixed(2)}</span> · Odds{' '}
-                      <span className="font-medium italic text-stone-500">{item.odds.toFixed(2)}</span>
-                    </p>
+            {displayedCandidates.map((item, i) => {
+              const hasManualRole = Object.prototype.hasOwnProperty.call(matchRoleOverrides, item.key)
+              const effectiveRole = normalizeRoleTag(matchRoleOverrides[item.key] || item.autoRole)
+
+              return (
+                <div
+                  key={item.key}
+                  className="flex items-center justify-between p-4 rounded-xl bg-stone-50 border border-stone-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all cursor-pointer lift-card"
+                >
+                  <div className="flex items-center gap-3">
+                    <div onClick={() => toggleCheck(i)} className={`custom-checkbox ${checkedMatches[i] ? 'checked' : ''}`} />
+                    <div>
+                      <p className="text-sm font-medium text-stone-700">{item.match}</p>
+                      <p className="text-xs text-stone-400">
+                        Conf <span className="font-medium text-stone-500">{item.conf.toFixed(2)}</span> · Odds{' '}
+                        <span className="font-medium italic text-stone-500">{item.odds.toFixed(2)}</span>
+                      </p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                        <span className="text-[10px] text-stone-400">角色</span>
+                        {MATCH_ROLE_OPTIONS.map((role) => {
+                          const active = effectiveRole === role.value
+                          return (
+                            <button
+                              key={`${item.key}-${role.value}`}
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                setMatchRoleOverrides((prev) => ({
+                                  ...prev,
+                                  [item.key]: role.value,
+                                }))
+                              }}
+                              className={`px-1.5 py-0.5 rounded-md border text-[10px] transition-colors ${
+                                active
+                                  ? role.tone
+                                  : 'bg-white text-stone-400 border-stone-200 hover:border-stone-300'
+                              }`}
+                            >
+                              {role.label}
+                            </button>
+                          )
+                        })}
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            setMatchRoleOverrides((prev) => {
+                              if (!Object.prototype.hasOwnProperty.call(prev, item.key)) return prev
+                              const next = { ...prev }
+                              delete next[item.key]
+                              return next
+                            })
+                          }}
+                          className={`px-1.5 py-0.5 rounded-md border text-[10px] transition-colors ${
+                            hasManualRole
+                              ? 'bg-white text-stone-400 border-stone-200 hover:border-stone-300'
+                              : 'bg-sky-100 text-sky-700 border-sky-200'
+                          }`}
+                        >
+                          自动
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs text-stone-400">Recom. Invest</span>
+                    <span className="block text-sm font-semibold text-stone-700">{item.suggestedAmount > 0 ? `${item.suggestedAmount} rmb` : '--'}</span>
+                    <span className={`text-[11px] ${item.adjustedEvPercent >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                      {formatPercent(item.adjustedEvPercent)}
+                    </span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-xs text-stone-400">Recom. Invest</span>
-                  <span className="block text-sm font-semibold text-stone-700">{item.suggestedAmount > 0 ? `${item.suggestedAmount} rmb` : '--'}</span>
-                  <span className={`text-[11px] ${item.adjustedEvPercent >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                    {formatPercent(item.adjustedEvPercent)}
-                  </span>
-                </div>
-              </div>
-            ))}
+              )
+            })}
 
             {displayedCandidates.length === 0 && (
               <div className="py-8 text-center space-y-2">
@@ -1791,7 +2052,8 @@ export default function ComboPage({ openModal }) {
             </div>
             <p className="text-[11px] text-stone-400 mt-2">
               近因 n={calibrationContext.n} · Conf×{calibrationContext.multipliers.conf.toFixed(2)} · FSE×
-              {calibrationContext.multipliers.fse.toFixed(2)} · 策略 {activeStrategyMeta.label} · 候选组合{' '}
+              {calibrationContext.multipliers.fse.toFixed(2)} · TeamCal {calibrationContext.teamCalibration?.teamCount || 0}队 ·
+              MarketLean {(calibrationContext.marketBlend?.marketLean || 0).toFixed(2)} · 策略 {activeStrategyMeta.label} · 候选组合{' '}
               {generationSummary.candidateCombos || candidateComboCount}
             </p>
           </div>
@@ -2017,6 +2279,63 @@ export default function ComboPage({ openModal }) {
             )}
           </div>
 
+          <div className="mt-4 p-3.5 rounded-xl bg-sky-50/60 border border-sky-100">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-sky-700 font-medium">角色结构引导（软约束）</span>
+              <div className="flex items-center gap-1.5">
+                {Object.entries(MATCH_ROLE_PRESETS).map(([key, preset]) => {
+                  const active = rolePreference.preset === key
+                  return (
+                    <button
+                      key={key}
+                      onClick={() =>
+                        setRolePreference((prev) =>
+                          sanitizeRolePreference({
+                            ...prev,
+                            preset: key,
+                            targets: preset.targets,
+                          }),
+                        )
+                      }
+                      className={`px-2 py-1 rounded-md text-[11px] border transition-colors ${
+                        active
+                          ? 'border-sky-300 bg-sky-100 text-sky-700'
+                          : 'border-stone-200 bg-white text-stone-600 hover:border-sky-200 hover:text-sky-700'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <label className="text-[11px] text-stone-500 block">
+              结构引导强度 γ
+              <input
+                type="range"
+                min="0"
+                max="0.2"
+                step="0.01"
+                value={rolePreference.mixStrength}
+                onChange={(event) =>
+                  setRolePreference((prev) =>
+                    sanitizeRolePreference({
+                      ...prev,
+                      mixStrength: Number(event.target.value),
+                    }),
+                  )
+                }
+                className="mt-1 w-full"
+              />
+              <span className="text-[10px] text-stone-400">
+                {rolePreference.mixStrength.toFixed(2)}（0=不引导，越高越贴近你选择的“稳/杠杆/中性”风格）
+              </span>
+            </label>
+            <p className="text-[10px] text-sky-600/80 mt-2">
+              该机制只影响打分，不做硬筛选，不会强行锁死总赔率或固定配比。
+            </p>
+          </div>
+
           <div className="flex gap-3 mt-6">
             <button onClick={handleGenerate} className="flex-1 btn-primary btn-hover">
               生成最优组合
@@ -2070,6 +2389,12 @@ export default function ComboPage({ openModal }) {
                     {item.explain.parlayBonus > 0 && (
                       <span className="px-2 py-0.5 rounded-full bg-violet-50 text-violet-600">串关+{item.explain.parlayBonus.toFixed(3)}</span>
                     )}
+                    {Math.abs(item.explain.roleMixBonus) > 0.0001 && (
+                      <span className={`px-2 py-0.5 rounded-full ${item.explain.roleMixBonus >= 0 ? 'bg-sky-100 text-sky-700' : 'bg-stone-200 text-stone-600'}`}>
+                        角色{item.explain.roleMixBonus >= 0 ? '+' : ''}{item.explain.roleMixBonus.toFixed(3)}
+                      </span>
+                    )}
+                    <span className="px-2 py-0.5 rounded-full bg-stone-200/70 text-stone-600">{item.explain.roleSignature}</span>
                     {item.coverageInjected && (
                       <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">覆盖补位</span>
                     )}

@@ -33,6 +33,20 @@ const normalize = (value) => String(value || '').trim().toLowerCase()
 const normalizeMode = (mode) => MODE_ALIAS[mode] || mode
 const isActiveInvestment = (item) => !Boolean(item?.is_archived)
 const getActiveInvestments = () => getInvestments().filter(isActiveInvestment)
+const getWeightFactor = (value, fallback = 0.06) => clamp(toNumber(value, fallback), 0.01, 1.5)
+
+const toImpliedProbability = (odds, floor = 0.02, ceil = 0.98) => {
+  const parsed = toNumber(odds, Number.NaN)
+  if (!Number.isFinite(parsed) || parsed <= 1) return Number.NaN
+  return clamp(1 / parsed, floor, ceil)
+}
+
+const resolveTeamNameForCalibration = (teamName, profiles = []) => {
+  const clean = String(teamName || '').trim()
+  if (!clean) return ''
+  const profile = findTeamProfile(clean, profiles)
+  return profile?.teamName || clean
+}
 
 const getRangeDays = (periodKey) => {
   if (periodKey === '1w') return 7
@@ -1415,7 +1429,307 @@ const getRecencyBandByIndex = (index, n) => {
   return 'base'
 }
 
+const buildTeamCalibrationModelFromMatchRows = (matchRows, teamProfiles, baseCalibrate, n) => {
+  const teamStats = new Map()
+  const ensureTeam = (teamName) => {
+    if (!teamStats.has(teamName)) {
+      teamStats.set(teamName, {
+        teamName,
+        samples: 0,
+        weight: 0,
+        weightedResidual: 0,
+        weightedResidualSq: 0,
+      })
+    }
+    return teamStats.get(teamName)
+  }
+
+  matchRows.forEach((row, index) => {
+    const conf = toNumber(row?.match?.conf, Number.NaN)
+    const actual = normalizeAjrForModel(row?.match?.match_rating, Number.NaN)
+    if (!Number.isFinite(conf) || !Number.isFinite(actual) || conf <= 0) return
+    const calibrated = clamp(baseCalibrate(conf), 0.02, 0.98)
+    const residual = actual - calibrated
+
+    let recencyWeight = 1.0
+    if (index < 6 * n) recencyWeight = 1.4
+    else if (index < 11 * n) recencyWeight = 1.15
+
+    const repValue = toNumber(row?.match?.match_rep, toNumber(row?.investment?.rep, Number.NaN))
+    const repWeight = getRepDirectionWeight(repValue)
+    const sampleWeight = recencyWeight * repWeight
+
+    const homeTeam = resolveTeamNameForCalibration(row?.match?.home_team, teamProfiles)
+    const awayTeam = resolveTeamNameForCalibration(row?.match?.away_team, teamProfiles)
+    const teams = [homeTeam, awayTeam].filter(Boolean)
+    if (teams.length === 0) return
+
+    const teamWeight = sampleWeight / teams.length
+    teams.forEach((teamName) => {
+      const bucket = ensureTeam(teamName)
+      bucket.samples += 1 / teams.length
+      bucket.weight += teamWeight
+      bucket.weightedResidual += residual * teamWeight
+      bucket.weightedResidualSq += residual * residual * teamWeight
+    })
+  })
+
+  const teamRows = [...teamStats.values()]
+    .map((row) => {
+      const meanResidual = row.weight > 0 ? row.weightedResidual / row.weight : 0
+      const variance = row.weight > 0 ? row.weightedResidualSq / row.weight - meanResidual * meanResidual : 0
+      const residualStd = Math.sqrt(Math.max(variance, 0))
+      const sampleReliability = clamp((row.weight - 2.5) / 24, 0, 1)
+      const stability = clamp(1 - residualStd / 0.34, 0, 1)
+      const reliability = clamp(sampleReliability * 0.72 + stability * 0.28, 0, 1)
+      const shift = clamp(meanResidual * reliability, -0.18, 0.18)
+      return {
+        teamName: row.teamName,
+        samples: Number(row.samples.toFixed(1)),
+        reliability: Number(reliability.toFixed(3)),
+        shift: Number(shift.toFixed(4)),
+        residualMean: Number(meanResidual.toFixed(4)),
+        residualStd: Number(residualStd.toFixed(4)),
+      }
+    })
+    .filter((row) => row.samples > 0)
+    .sort((a, b) => b.reliability - a.reliability || b.samples - a.samples)
+
+  const teamMap = new Map(teamRows.map((row) => [normalize(row.teamName), row]))
+  const defaultReliability =
+    teamRows.length > 0
+      ? clamp(teamRows.reduce((sum, row) => sum + row.reliability, 0) / teamRows.length * 0.6, 0.12, 0.35)
+      : 0.2
+
+  const getMatchAdjustment = (homeTeam, awayTeam) => {
+    const homeKey = normalize(resolveTeamNameForCalibration(homeTeam, teamProfiles))
+    const awayKey = normalize(resolveTeamNameForCalibration(awayTeam, teamProfiles))
+    const homeMeta = homeKey ? teamMap.get(homeKey) : null
+    const awayMeta = awayKey ? teamMap.get(awayKey) : null
+    const parts = [homeMeta, awayMeta].filter(Boolean)
+    if (parts.length === 0) {
+      return {
+        shift: 0,
+        reliability: defaultReliability,
+      }
+    }
+    const shift = parts.reduce((sum, item) => sum + item.shift, 0) / parts.length
+    const reliability = clamp(parts.reduce((sum, item) => sum + item.reliability, 0) / parts.length, 0, 1)
+    return {
+      shift,
+      reliability,
+    }
+  }
+
+  return {
+    teams: teamRows.slice(0, 32),
+    teamCount: teamRows.length,
+    defaultReliability: Number(defaultReliability.toFixed(3)),
+    getMatchAdjustment,
+  }
+}
+
+const buildTeamCalibrationModelFromBinaryRows = (rows, teamProfiles, calibrateFn) => {
+  const sortedRows = [...rows].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  const n = Math.max(1, Math.floor(sortedRows.length / 50))
+  const teamStats = new Map()
+  const ensureTeam = (teamName) => {
+    if (!teamStats.has(teamName)) {
+      teamStats.set(teamName, {
+        teamName,
+        samples: 0,
+        weight: 0,
+        weightedResidual: 0,
+        weightedResidualSq: 0,
+      })
+    }
+    return teamStats.get(teamName)
+  }
+
+  sortedRows.forEach((row, index) => {
+    const conf = toNumber(row.conf, Number.NaN)
+    const actual = toNumber(row.actual, Number.NaN)
+    if (!Number.isFinite(conf) || !Number.isFinite(actual)) return
+    const calibrated = clamp(calibrateFn(conf), 0.02, 0.98)
+    const residual = actual - calibrated
+
+    let recencyWeight = 1.0
+    if (index < 6 * n) recencyWeight = 1.4
+    else if (index < 11 * n) recencyWeight = 1.15
+    const repWeight = getRepDirectionWeight(toNumber(row.rep, Number.NaN))
+    const sampleWeight = recencyWeight * repWeight
+
+    const homeTeam = resolveTeamNameForCalibration(row.homeTeam, teamProfiles)
+    const awayTeam = resolveTeamNameForCalibration(row.awayTeam, teamProfiles)
+    const teams = [homeTeam, awayTeam].filter(Boolean)
+    if (teams.length === 0) return
+    const teamWeight = sampleWeight / teams.length
+
+    teams.forEach((teamName) => {
+      const bucket = ensureTeam(teamName)
+      bucket.samples += 1 / teams.length
+      bucket.weight += teamWeight
+      bucket.weightedResidual += residual * teamWeight
+      bucket.weightedResidualSq += residual * residual * teamWeight
+    })
+  })
+
+  const teamRows = [...teamStats.values()].map((row) => {
+    const meanResidual = row.weight > 0 ? row.weightedResidual / row.weight : 0
+    const variance = row.weight > 0 ? row.weightedResidualSq / row.weight - meanResidual * meanResidual : 0
+    const residualStd = Math.sqrt(Math.max(variance, 0))
+    const sampleReliability = clamp((row.weight - 2.5) / 24, 0, 1)
+    const stability = clamp(1 - residualStd / 0.34, 0, 1)
+    const reliability = clamp(sampleReliability * 0.72 + stability * 0.28, 0, 1)
+    const shift = clamp(meanResidual * reliability, -0.18, 0.18)
+    return {
+      teamName: row.teamName,
+      reliability,
+      shift,
+    }
+  })
+
+  const teamMap = new Map(teamRows.map((row) => [normalize(row.teamName), row]))
+  const defaultReliability =
+    teamRows.length > 0
+      ? clamp(teamRows.reduce((sum, row) => sum + row.reliability, 0) / teamRows.length * 0.6, 0.12, 0.35)
+      : 0.2
+
+  return {
+    getMatchAdjustment: (homeTeam, awayTeam) => {
+      const homeKey = normalize(resolveTeamNameForCalibration(homeTeam, teamProfiles))
+      const awayKey = normalize(resolveTeamNameForCalibration(awayTeam, teamProfiles))
+      const homeMeta = homeKey ? teamMap.get(homeKey) : null
+      const awayMeta = awayKey ? teamMap.get(awayKey) : null
+      const parts = [homeMeta, awayMeta].filter(Boolean)
+      if (parts.length === 0) {
+        return {
+          shift: 0,
+          reliability: defaultReliability,
+        }
+      }
+      const shift = parts.reduce((sum, item) => sum + item.shift, 0) / parts.length
+      const reliability = clamp(parts.reduce((sum, item) => sum + item.reliability, 0) / parts.length, 0, 1)
+      return {
+        shift,
+        reliability,
+      }
+    },
+  }
+}
+
+const summarizeBlendWalkForward = (windows) => {
+  if (!Array.isArray(windows) || windows.length === 0) {
+    return {
+      marketLean: 0.26,
+      blendReliability: 0,
+      calibratedBrier: 0,
+      marketBrier: 0,
+      blendedBrier: 0,
+      calibratedLogLoss: 0,
+      marketLogLoss: 0,
+      blendedLogLoss: 0,
+      calibratedRoi: 0,
+      marketRoi: 0,
+      blendedRoi: 0,
+    }
+  }
+
+  const mean = (key) => windows.reduce((sum, row) => sum + toNumber(row[key], 0), 0) / windows.length
+  const calibratedBrier = mean('calibratedBrier')
+  const marketBrier = mean('marketBrier')
+  const blendedBrier = mean('blendedBrier')
+  const calibratedLogLoss = mean('calibratedLogLoss')
+  const marketLogLoss = mean('marketLogLoss')
+  const blendedLogLoss = mean('blendedLogLoss')
+  const calibratedRoi = mean('calibratedRoi')
+  const marketRoi = mean('marketRoi')
+  const blendedRoi = mean('blendedRoi')
+
+  const brierEdgeToMarket = calibratedBrier - marketBrier
+  const brierEdgeToBlend = calibratedBrier - blendedBrier
+  const marketLean = clamp(
+    0.24 + brierEdgeToMarket * 3.1 + brierEdgeToBlend * 2.2 - Math.max(0, blendedBrier - calibratedBrier) * 2.8,
+    0.12,
+    0.62,
+  )
+  const blendReliability = clamp((windows.length - 1) / 4, 0, 1)
+
+  return {
+    marketLean: Number(marketLean.toFixed(3)),
+    blendReliability: Number(blendReliability.toFixed(3)),
+    calibratedBrier: Number(calibratedBrier.toFixed(4)),
+    marketBrier: Number(marketBrier.toFixed(4)),
+    blendedBrier: Number(blendedBrier.toFixed(4)),
+    calibratedLogLoss: Number(calibratedLogLoss.toFixed(4)),
+    marketLogLoss: Number(marketLogLoss.toFixed(4)),
+    blendedLogLoss: Number(blendedLogLoss.toFixed(4)),
+    calibratedRoi: Number(calibratedRoi.toFixed(2)),
+    marketRoi: Number(marketRoi.toFixed(2)),
+    blendedRoi: Number(blendedRoi.toFixed(2)),
+  }
+}
+
+const evaluateBlendWalkForward = (rows, config, teamProfiles) => {
+  if (!Array.isArray(rows) || rows.length < 24) return []
+  const checkpoints = [0.55, 0.7, 0.82]
+  const windows = []
+
+  checkpoints.forEach((ratio, idx) => {
+    const split = Math.floor(rows.length * ratio)
+    const testSize = Math.max(8, Math.floor(rows.length * 0.12))
+    const trainRows = rows.slice(0, split)
+    const testRows = rows.slice(split, Math.min(rows.length, split + testSize))
+    if (trainRows.length < 14 || testRows.length < 8) return
+
+    const fit = getConfRegressionCalibration(toCalibrationMatchRows(trainRows))
+    const teamModel = buildTeamCalibrationModelFromBinaryRows(trainRows, teamProfiles, (conf) => fit.calibrate(conf))
+
+    const predictCalibrated = (row) => {
+      const base = clamp(fit.calibrate(row.conf), 0.02, 0.98)
+      const teamAdj = teamModel.getMatchAdjustment(row.homeTeam, row.awayTeam)
+      return clamp(base + teamAdj.shift, 0.02, 0.98)
+    }
+    const predictMarket = (row) => {
+      const implied = toImpliedProbability(row.odds, 0.02, 0.98)
+      return Number.isFinite(implied) ? implied : clamp(row.conf, 0.02, 0.98)
+    }
+    const predictBlended = (row) => {
+      const calibrated = predictCalibrated(row)
+      const implied = predictMarket(row)
+      const teamAdj = teamModel.getMatchAdjustment(row.homeTeam, row.awayTeam)
+      const oddsWeightBase = clamp(0.12 + getWeightFactor(config.weightOdds, 0.06) * 0.95, 0.08, 0.55)
+      const oddsAnchor = clamp(oddsWeightBase + (1 - teamAdj.reliability) * 0.2, 0.08, 0.72)
+      return clamp(calibrated * (1 - oddsAnchor) + implied * oddsAnchor, 0.02, 0.98)
+    }
+
+    const divisor = Math.max(1, toNumber(config.kellyDivisor, 4))
+    const strategyCalibrated = simulateKellyStrategyByRows(testRows, predictCalibrated, config, divisor)
+    const strategyMarket = simulateKellyStrategyByRows(testRows, predictMarket, config, divisor)
+    const strategyBlended = simulateKellyStrategyByRows(testRows, predictBlended, config, divisor)
+
+    windows.push({
+      label: `B${idx + 1}`,
+      trainSamples: trainRows.length,
+      testSamples: testRows.length,
+      calibratedBrier: Number(calcBrierScore(testRows, predictCalibrated).toFixed(4)),
+      marketBrier: Number(calcBrierScore(testRows, predictMarket).toFixed(4)),
+      blendedBrier: Number(calcBrierScore(testRows, predictBlended).toFixed(4)),
+      calibratedLogLoss: Number(calcLogLoss(testRows, predictCalibrated).toFixed(4)),
+      marketLogLoss: Number(calcLogLoss(testRows, predictMarket).toFixed(4)),
+      blendedLogLoss: Number(calcLogLoss(testRows, predictBlended).toFixed(4)),
+      calibratedRoi: Number(strategyCalibrated.roi.toFixed(2)),
+      marketRoi: Number(strategyMarket.roi.toFixed(2)),
+      blendedRoi: Number(strategyBlended.roi.toFixed(2)),
+    })
+  })
+
+  return windows
+}
+
 export const getPredictionCalibrationContext = () => {
+  const config = getSystemConfig()
+  const teamProfiles = getTeamProfiles()
   const settled = getSettledInvestments(getActiveInvestments())
   const matchRows = settled
     .flatMap((investment) =>
@@ -1487,6 +1801,46 @@ export const getPredictionCalibrationContext = () => {
 
   // 获取回归校准数据
   const regressionData = getConfRegressionCalibration()
+  const baseConfCalibrate = (conf) => {
+    const cleanConf = clamp(toNumber(conf, Number.NaN), 0.02, 0.98)
+    if (!Number.isFinite(cleanConf)) return 0.5
+    if (typeof regressionData.calibrate === 'function') {
+      return clamp(regressionData.calibrate(cleanConf), 0.02, 0.98)
+    }
+    return clamp(cleanConf * confMultiplier, 0.02, 0.98)
+  }
+  const teamCalibration = buildTeamCalibrationModelFromMatchRows(matchRows, teamProfiles, baseConfCalibrate, n)
+
+  const binaryRows = getBinaryOutcomeRows()
+  const blendWalkForward = evaluateBlendWalkForward(binaryRows, config, teamProfiles)
+  const blendSummary = summarizeBlendWalkForward(blendWalkForward)
+  const oddsWeightBase = clamp(0.12 + getWeightFactor(config.weightOdds, 0.06) * 0.95, 0.08, 0.55)
+
+  const calibrateProbabilityForMatch = (input = {}) => {
+    const rawConf = toNumber(input.conf ?? input.rawConf, Number.NaN)
+    const baseProbability = toNumber(input.baseProbability, Number.NaN)
+    const odds = toNumber(input.odds, Number.NaN)
+    const homeTeam = input.homeTeam || input.home_team || ''
+    const awayTeam = input.awayTeam || input.away_team || ''
+
+    let probability = Number.isFinite(baseProbability) ? clamp(baseProbability, 0.02, 0.98) : baseConfCalibrate(rawConf)
+    const teamAdjustment = teamCalibration.getMatchAdjustment(homeTeam, awayTeam)
+    probability = clamp(probability + teamAdjustment.shift, 0.02, 0.98)
+
+    if (Number.isFinite(odds) && odds > 1) {
+      const impliedProbability = toImpliedProbability(odds, 0.02, 0.98)
+      if (Number.isFinite(impliedProbability)) {
+        const oddsAnchor = clamp(
+          oddsWeightBase * (0.78 + blendSummary.marketLean) + (1 - teamAdjustment.reliability) * 0.22,
+          0.08,
+          0.72,
+        )
+        probability = clamp(probability * (1 - oddsAnchor) + impliedProbability * oddsAnchor, 0.02, 0.98)
+      }
+    }
+
+    return probability
+  }
 
   return {
     sampleCount,
@@ -1504,6 +1858,27 @@ export const getPredictionCalibrationContext = () => {
     regressionReliability: regressionData.regressionReliability,
     scatterData: regressionData.scatterData,
     calibrate: regressionData.calibrate,
+    teamCalibration: {
+      teamCount: teamCalibration.teamCount,
+      defaultReliability: teamCalibration.defaultReliability,
+      topTeams: teamCalibration.teams,
+    },
+    marketBlend: {
+      oddsWeightBase: Number(oddsWeightBase.toFixed(3)),
+      marketLean: blendSummary.marketLean,
+      blendReliability: blendSummary.blendReliability,
+      calibratedBrier: blendSummary.calibratedBrier,
+      marketBrier: blendSummary.marketBrier,
+      blendedBrier: blendSummary.blendedBrier,
+      calibratedLogLoss: blendSummary.calibratedLogLoss,
+      marketLogLoss: blendSummary.marketLogLoss,
+      blendedLogLoss: blendSummary.blendedLogLoss,
+      calibratedRoi: blendSummary.calibratedRoi,
+      marketRoi: blendSummary.marketRoi,
+      blendedRoi: blendSummary.blendedRoi,
+      walkForward: blendWalkForward,
+    },
+    calibrateProbabilityForMatch,
   }
 }
 
@@ -1524,6 +1899,7 @@ const toCalibrationMatchRows = (rows) =>
   }))
 
 const getBinaryOutcomeRows = () => {
+  const teamProfiles = getTeamProfiles()
   const settled = getSettledInvestments(getActiveInvestments())
   return settled
     .flatMap((investment) =>
@@ -1538,6 +1914,8 @@ const getBinaryOutcomeRows = () => {
           actual: match.is_correct ? 1 : 0,
           odds,
           rep: toNumber(match.match_rep, toNumber(investment.rep, Number.NaN)),
+          homeTeam: resolveTeamNameForCalibration(match.home_team, teamProfiles),
+          awayTeam: resolveTeamNameForCalibration(match.away_team, teamProfiles),
         }
       }),
     )

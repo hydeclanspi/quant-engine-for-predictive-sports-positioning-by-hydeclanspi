@@ -447,16 +447,26 @@ export default function NewInvestmentPage() {
     const fseMatch = Math.sqrt((match.fse_home / 100) * (match.fse_away / 100))
     const fseFactor = clamp((0.85 + fseMatch * 0.3) * fseMultiplier, 0.72, 1.35)
     const odds = calcMatchOdds(match.entries)
-    const oddsFactor = clamp(1 - (odds - systemConfig.defaultOdds) * 0.03, 0.86, 1.12)
     const confSignal = clamp(confBase / 0.5, 0.15, 1.95)
     const weightedLift =
       confSignal ** getFactorWeight(systemConfig.weightConf, 0.45) *
       modeFactor ** getFactorWeight(systemConfig.weightMode, 0.16) *
       tysFactor ** getFactorWeight(systemConfig.weightTys, 0.12) *
       fidFactor ** getFactorWeight(systemConfig.weightFid, 0.14) *
-      oddsFactor ** getFactorWeight(systemConfig.weightOdds, 0.06) *
       fseFactor ** getFactorWeight(systemConfig.weightFse, 0.07)
-    return clamp(0.5 * weightedLift, 0.05, 0.95)
+    const baseProbability = clamp(0.5 * weightedLift, 0.05, 0.95)
+    if (typeof calibrationContext?.calibrateProbabilityForMatch !== 'function') return baseProbability
+    return clamp(
+      calibrationContext.calibrateProbabilityForMatch({
+        baseProbability,
+        conf: rawConf,
+        odds,
+        homeTeam: match.homeTeam,
+        awayTeam: match.awayTeam,
+      }),
+      0.05,
+      0.95,
+    )
   }
 
   const combinedOdds = useMemo(() => {
@@ -1289,7 +1299,8 @@ export default function NewInvestmentPage() {
                 <span className="text-sm text-stone-500">¥ {riskCap} ({Math.round(systemConfig.riskCapRatio * 100)}%)</span>
                 <span className="block text-[10px] text-stone-400 mt-0.5">
                   Kelly÷{effectiveKellyDivisor.toFixed(1)} · Conf×{calibrationContext.multipliers.conf.toFixed(2)} · FSE×
-                  {calibrationContext.multipliers.fse.toFixed(2)}
+                  {calibrationContext.multipliers.fse.toFixed(2)} · TeamCal {calibrationContext.teamCalibration?.teamCount || 0}队 ·
+                  MarketLean {(calibrationContext.marketBlend?.marketLean || 0).toFixed(2)}
                 </span>
               </div>
             </div>
