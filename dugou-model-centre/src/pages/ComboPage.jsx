@@ -87,6 +87,14 @@ const calcComboJaccard = (subsetA, subsetB) => {
   return union > 0 ? overlap / union : 0
 }
 
+const getSubsetMatchKeys = (subset) => {
+  const keys = new Set()
+  ;(subset || []).forEach((item) => {
+    keys.add(buildMatchRefKey(item))
+  })
+  return [...keys]
+}
+
 const mmrRerank = (candidates, lambda = 0.6, maxPick = 10, coverageTargetKeys = null, eta = 0.15) => {
   // MMR: score(i) = lambda * utility(i) - (1-lambda) * maxSim(i, selected) + eta * coverageGain(i)
   if (candidates.length === 0) return []
@@ -94,6 +102,7 @@ const mmrRerank = (candidates, lambda = 0.6, maxPick = 10, coverageTargetKeys = 
   const safeLambda = Math.max(0, Math.min(1, Number(lambda) || 0))
   const safeEta = Math.max(0, Math.min(1, Number(eta) || 0))
   const similarityWeight = Math.max(0, 1 - safeLambda)
+  const concentrationWeight = 0.24 + safeEta * 0.12
 
   // Normalize utilities to [0, 1] for fair blending
   const utilValues = candidates.map((c) => c.utility)
@@ -104,6 +113,7 @@ const mmrRerank = (candidates, lambda = 0.6, maxPick = 10, coverageTargetKeys = 
   const selected = []
   const remaining = new Set(candidates.map((_, i) => i))
   const coveredKeys = new Set()
+  const matchUseCount = new Map()
 
   for (let step = 0; step < Math.min(maxPick, candidates.length); step += 1) {
     let bestIdx = -1
@@ -132,7 +142,25 @@ const mmrRerank = (candidates, lambda = 0.6, maxPick = 10, coverageTargetKeys = 
         coverageGain /= coverageTargetKeys.size // normalize
       }
 
-      const score = safeLambda * normUtil - similarityWeight * maxSim + safeEta * coverageGain
+      // Penalize over-concentration on the same match across top selections.
+      const candidateMatchKeys = getSubsetMatchKeys(cand.subset)
+      let concentrationPenalty = 0
+      if (candidateMatchKeys.length > 0 && selected.length > 0) {
+        let penaltyAcc = 0
+        candidateMatchKeys.forEach((mk) => {
+          const used = matchUseCount.get(mk) || 0
+          if (used <= 0) return
+          const usageRatio = used / selected.length
+          penaltyAcc += usageRatio * usageRatio
+        })
+        concentrationPenalty = penaltyAcc / candidateMatchKeys.length
+      }
+
+      const score =
+        safeLambda * normUtil
+        - similarityWeight * maxSim
+        + safeEta * coverageGain
+        - concentrationWeight * concentrationPenalty
       if (score > bestScore) {
         bestScore = score
         bestIdx = idx
@@ -146,6 +174,9 @@ const mmrRerank = (candidates, lambda = 0.6, maxPick = 10, coverageTargetKeys = 
     // update coverage
     picked.subset.forEach((item) => {
       coveredKeys.add(buildMatchRefKey(item))
+    })
+    getSubsetMatchKeys(picked.subset).forEach((mk) => {
+      matchUseCount.set(mk, (matchUseCount.get(mk) || 0) + 1)
     })
   }
 
@@ -684,6 +715,77 @@ const ensureCoverageInRanked = (baseRanked, fallbackRanked, selectedMatches, max
   }
 }
 
+const rebalanceMatchConcentration = (baseRanked, fallbackRanked, maxRows = 10, maxShare = 0.78) => {
+  const seed = Array.isArray(baseRanked) ? baseRanked.slice(0, maxRows) : []
+  if (seed.length <= 1) return seed
+
+  const maxAllowed = Math.max(2, Math.ceil(seed.length * maxShare))
+  const fallback = Array.isArray(fallbackRanked) ? fallbackRanked : []
+  const ranked = [...seed]
+  const usedSignatures = new Set(ranked.map((row) => buildSubsetSignature(row.subset)).filter(Boolean))
+
+  const buildMatchUsageMap = (rows) => {
+    const usage = new Map()
+    rows.forEach((row) => {
+      getSubsetMatchKeys(row.subset).forEach((mk) => {
+        usage.set(mk, (usage.get(mk) || 0) + 1)
+      })
+    })
+    return usage
+  }
+
+  let usageMap = buildMatchUsageMap(ranked)
+
+  for (let guard = 0; guard < 40; guard += 1) {
+    const offenders = [...usageMap.entries()]
+      .filter(([, count]) => count > maxAllowed)
+      .sort((a, b) => b[1] - a[1])
+    if (offenders.length === 0) break
+
+    const [offenderKey, offenderCount] = offenders[0]
+    let replaceIdx = -1
+    for (let i = ranked.length - 1; i >= 0; i -= 1) {
+      const row = ranked[i]
+      const keys = getSubsetMatchKeys(row.subset)
+      if (!keys.includes(offenderKey)) continue
+      replaceIdx = i
+      if (!row.coverageInjected) break
+    }
+    if (replaceIdx < 0) break
+
+    const rowToReplace = ranked[replaceIdx]
+    const rowSig = buildSubsetSignature(rowToReplace.subset)
+    const rowKeys = new Set(getSubsetMatchKeys(rowToReplace.subset))
+    let replacement = null
+    for (const cand of fallback) {
+      const candSig = buildSubsetSignature(cand.subset)
+      if (!candSig || usedSignatures.has(candSig)) continue
+      const candKeys = new Set(getSubsetMatchKeys(cand.subset))
+      if (candKeys.has(offenderKey)) continue
+
+      let projectedOffender = offenderCount
+      if (rowKeys.has(offenderKey)) projectedOffender -= 1
+      if (candKeys.has(offenderKey)) projectedOffender += 1
+      if (projectedOffender >= offenderCount) continue
+
+      replacement = cand
+      break
+    }
+    if (!replacement) break
+
+    ranked[replaceIdx] = {
+      ...replacement,
+      concentrationRebalanced: true,
+    }
+    if (rowSig) usedSignatures.delete(rowSig)
+    const replacementSig = buildSubsetSignature(replacement.subset)
+    if (replacementSig) usedSignatures.add(replacementSig)
+    usageMap = buildMatchUsageMap(ranked)
+  }
+
+  return ranked
+}
+
 const calcSubsetSourceCorrelation = (subset) => {
   const size = subset.length
   if (size <= 1) return 0
@@ -947,6 +1049,10 @@ const generateRecommendations = (
   if (comboStrategy !== 'thresholdStrict') {
     selectedRanked = ensureCoverageInRanked(selectedRanked, weightedUniverse, selectedMatches, 10).ranked
   }
+  const concentrationPool = dedupeRankedBySignature(
+    [...weightedUniverse].sort((a, b) => b.weight - a.weight || b.utility - a.utility),
+  )
+  selectedRanked = rebalanceMatchConcentration(selectedRanked, concentrationPool, 10, 0.78)
 
   const fallbackRanked = selectedRanked.length > 0 ? selectedRanked : weightedUniverse.slice(0, Math.min(3, weightedUniverse.length))
   const allocationSeed = fallbackRanked.map((item) => {
