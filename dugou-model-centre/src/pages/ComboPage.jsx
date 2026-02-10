@@ -35,6 +35,244 @@ const LAYER_META = {
   次推: { tone: 'text-sky-700', badge: 'bg-sky-100 text-sky-700', desc: '风险收益平衡' },
   博冷: { tone: 'text-violet-700', badge: 'bg-violet-100 text-violet-700', desc: '尾部机会，高波动' },
 }
+/* ── Parlay bonus: concave reward for multi-leg combos (思路2) ─────────── */
+const parlayBonusFn = (legs, parlayBeta = 0.12) => {
+  // 0 for singles, peaks around 3-4 legs, mild diminishing returns beyond 4
+  if (legs <= 1) return 0
+  // sqrt(legs-1) gives: 2-leg=1, 3-leg=1.41, 4-leg=1.73, 5-leg=2
+  return parlayBeta * (Math.sqrt(legs - 1) - 0.15)
+}
+
+/* ── Entry family: identify match families for diversification (思路6) ── */
+const buildMatchFamilyKey = (item) => `${item.homeTeam}__${item.awayTeam}`
+
+const calcEntryFamilyDiversity = (subset) => {
+  // Measures how well a combo uses diverse entries within same-match families
+  // Returns value in [0, 1], higher = more diverse within families
+  const familyMap = new Map()
+  subset.forEach((item) => {
+    const fk = buildMatchFamilyKey(item)
+    if (!familyMap.has(fk)) {
+      familyMap.set(fk, {
+        count: 0,
+        entries: new Set(),
+      })
+    }
+    const bucket = familyMap.get(fk)
+    bucket.count += 1
+    bucket.entries.add(item.entry || item.key)
+  })
+  // If all items are from unique matches, diversity is 1 (no family overlap issue)
+  if (familyMap.size === subset.length) return 1
+  // For each family with >1 member, check unique-entry ratio.
+  let totalMembers = 0
+  let weightedDiversity = 0
+  familyMap.forEach((bucket) => {
+    if (!bucket || bucket.count <= 1) return
+    const ratio = bucket.entries.size / bucket.count
+    totalMembers += bucket.count
+    weightedDiversity += ratio * bucket.count
+  })
+  if (totalMembers <= 0) return 1
+  return Math.max(0, Math.min(1, weightedDiversity / totalMembers))
+}
+
+/* ── MMR (Maximal Marginal Relevance) reranking ──────────────────────── */
+const calcComboJaccard = (subsetA, subsetB) => {
+  const keysA = new Set(subsetA.map((item) => item.key))
+  const keysB = new Set(subsetB.map((item) => item.key))
+  let overlap = 0
+  keysA.forEach((k) => { if (keysB.has(k)) overlap += 1 })
+  const union = new Set([...keysA, ...keysB]).size
+  return union > 0 ? overlap / union : 0
+}
+
+const mmrRerank = (candidates, lambda = 0.6, maxPick = 10, coverageTargetKeys = null, eta = 0.15) => {
+  // MMR: score(i) = lambda * utility(i) - (1-lambda) * maxSim(i, selected) + eta * coverageGain(i)
+  if (candidates.length === 0) return []
+  if (candidates.length <= 1) return [...candidates]
+  const safeLambda = Math.max(0, Math.min(1, Number(lambda) || 0))
+  const safeEta = Math.max(0, Math.min(1, Number(eta) || 0))
+  const similarityWeight = Math.max(0, 1 - safeLambda)
+
+  // Normalize utilities to [0, 1] for fair blending
+  const utilValues = candidates.map((c) => c.utility)
+  const uMin = Math.min(...utilValues)
+  const uMax = Math.max(...utilValues)
+  const uRange = uMax - uMin || 1
+
+  const selected = []
+  const remaining = new Set(candidates.map((_, i) => i))
+  const coveredKeys = new Set()
+
+  for (let step = 0; step < Math.min(maxPick, candidates.length); step += 1) {
+    let bestIdx = -1
+    let bestScore = -Infinity
+
+    remaining.forEach((idx) => {
+      const cand = candidates[idx]
+      const normUtil = (cand.utility - uMin) / uRange
+
+      // Max similarity to any already selected
+      let maxSim = 0
+      selected.forEach((sel) => {
+        const sim = calcComboJaccard(cand.subset, sel.subset)
+        if (sim > maxSim) maxSim = sim
+      })
+
+      // Coverage gain: how many new uncovered keys does this add?
+      let coverageGain = 0
+      if (coverageTargetKeys && coverageTargetKeys.size > 0) {
+        cand.subset.forEach((item) => {
+          const mk = buildMatchRefKey(item)
+          if (coverageTargetKeys.has(mk) && !coveredKeys.has(mk)) {
+            coverageGain += 1
+          }
+        })
+        coverageGain /= coverageTargetKeys.size // normalize
+      }
+
+      const score = safeLambda * normUtil - similarityWeight * maxSim + safeEta * coverageGain
+      if (score > bestScore) {
+        bestScore = score
+        bestIdx = idx
+      }
+    })
+
+    if (bestIdx < 0) break
+    const picked = candidates[bestIdx]
+    selected.push(picked)
+    remaining.delete(bestIdx)
+    // update coverage
+    picked.subset.forEach((item) => {
+      coveredKeys.add(buildMatchRefKey(item))
+    })
+  }
+
+  return selected
+}
+
+/* ── Stratified selection: layer quotas by legs count (思路3) ─────────── */
+const stratifiedSelect = (scoredCombos, totalSlots = 10, minLegs = 2) => {
+  // Group by leg count
+  const byLegs = new Map()
+  scoredCombos.forEach((combo) => {
+    const legs = combo.subset.length
+    if (!byLegs.has(legs)) byLegs.set(legs, [])
+    byLegs.get(legs).push(combo)
+  })
+
+  // Sort each group internally by utility
+  byLegs.forEach((group) => {
+    group.sort((a, b) => b.utility - a.utility || b.sharpe - a.sharpe)
+  })
+
+  // Default quota preferences: favor 3-4 legs, fewer for 2 and 5, minimal for 1
+  // Quotas are proportional targets, not hard limits
+  const quotaPrefs = { 1: 0.0, 2: 0.2, 3: 0.35, 4: 0.3, 5: 0.15 }
+  // If minLegs > 1, zero out quota for legs below minLegs
+  for (let k = 1; k < minLegs; k += 1) {
+    quotaPrefs[k] = 0
+  }
+
+  // Normalize quotas to only available leg groups
+  const availableLegs = [...byLegs.keys()].filter((k) => k >= minLegs)
+  if (availableLegs.length === 0) {
+    // fallback: use all groups
+    return scoredCombos.slice(0, totalSlots)
+  }
+
+  let quotaSum = availableLegs.reduce((sum, k) => sum + (quotaPrefs[k] || 0.1), 0)
+  const quotas = new Map()
+  availableLegs.forEach((k) => {
+    const raw = ((quotaPrefs[k] || 0.1) / quotaSum) * totalSlots
+    quotas.set(k, Math.max(1, Math.round(raw))) // at least 1 from each available group
+  })
+
+  // Adjust to not exceed totalSlots
+  let quotaTotal = [...quotas.values()].reduce((s, v) => s + v, 0)
+  while (quotaTotal > totalSlots) {
+    // reduce from groups with most quota
+    const sorted = [...quotas.entries()].sort((a, b) => b[1] - a[1])
+    if (sorted[0][1] > 1) {
+      quotas.set(sorted[0][0], sorted[0][1] - 1)
+      quotaTotal -= 1
+    } else break
+  }
+  while (quotaTotal < totalSlots) {
+    // add to groups with most available candidates
+    const sorted = [...quotas.entries()]
+      .filter(([k]) => (byLegs.get(k)?.length || 0) > quotas.get(k))
+      .sort((a, b) => (byLegs.get(b[0])?.length || 0) - (byLegs.get(a[0])?.length || 0))
+    if (sorted.length > 0) {
+      quotas.set(sorted[0][0], sorted[0][1] + 1)
+      quotaTotal += 1
+    } else break
+  }
+
+  // Select from each group
+  const result = []
+  quotas.forEach((quota, legs) => {
+    const group = byLegs.get(legs) || []
+    result.push(...group.slice(0, quota))
+  })
+
+  // If we still have room, fill from the best remaining across all groups
+  if (result.length < totalSlots) {
+    const selectedSigs = new Set(result.map((r) => buildSubsetSignature(r.subset)))
+    const remaining = scoredCombos
+      .filter((c) => c.subset.length >= minLegs && !selectedSigs.has(buildSubsetSignature(c.subset)))
+      .sort((a, b) => b.utility - a.utility)
+    for (const r of remaining) {
+      if (result.length >= totalSlots) break
+      result.push(r)
+    }
+  }
+
+  return result.slice(0, totalSlots)
+}
+
+/* ── Coverage dynamic scoring (replaces hard injection) ──────────────── */
+const applyCoverageDynamicBoost = (scoredCombos, selectedMatches, baseDecay = 0.6) => {
+  // For each uncovered / under-covered candidate, boost combos that include it
+  // The boost decays as coverage increases (diminishing returns)
+  const targetKeys = new Set(selectedMatches.map((m) => buildMatchRefKey(m)))
+  if (targetKeys.size === 0) return scoredCombos
+
+  // Count how many times each target key appears across top combos
+  const keyCounts = new Map()
+  targetKeys.forEach((k) => keyCounts.set(k, 0))
+  // First pass: count appearances in top N combos
+  const topN = Math.min(20, scoredCombos.length)
+  for (let i = 0; i < topN; i += 1) {
+    scoredCombos[i].subset.forEach((item) => {
+      const mk = buildMatchRefKey(item)
+      if (keyCounts.has(mk)) {
+        keyCounts.set(mk, keyCounts.get(mk) + 1)
+      }
+    })
+  }
+
+  // Compute boost for each combo based on how many under-covered keys it contains
+  return scoredCombos.map((combo) => {
+    let coverageBoost = 0
+    combo.subset.forEach((item) => {
+      const mk = buildMatchRefKey(item)
+      if (keyCounts.has(mk)) {
+        const count = keyCounts.get(mk)
+        // Diminishing boost: full boost for 0 appearances, decaying as count increases
+        const boost = Math.pow(baseDecay, count) * 0.08
+        coverageBoost += boost
+      }
+    })
+    return {
+      ...combo,
+      coverageBoost,
+      boostedUtility: combo.utility + coverageBoost,
+    }
+  })
+}
+
 const CANDIDATE_DISMISSED_KEY = 'dugou.combo.dismissed_candidates.v1'
 const COMBO_PLAN_HISTORY_KEY = 'dugou.combo.plan_history.v1'
 const COMBO_ANALYSIS_FILTER_KEY = 'dugou.combo.analysis_filter.v1'
@@ -96,6 +334,20 @@ const clearAnalysisFilter = () => {
 }
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
+
+const DEFAULT_COMBO_STRUCTURE = {
+  minLegs: 2,
+  parlayBeta: 0.12,
+  mmrLambda: 0.55,
+  coverageEta: 0.15,
+}
+
+const sanitizeComboStructure = (value) => ({
+  minLegs: clamp(Number(value?.minLegs ?? DEFAULT_COMBO_STRUCTURE.minLegs), 1, 5),
+  parlayBeta: clamp(Number(value?.parlayBeta ?? DEFAULT_COMBO_STRUCTURE.parlayBeta), 0, 0.5),
+  mmrLambda: clamp(Number(value?.mmrLambda ?? DEFAULT_COMBO_STRUCTURE.mmrLambda), 0.2, 0.9),
+  coverageEta: clamp(Number(value?.coverageEta ?? DEFAULT_COMBO_STRUCTURE.coverageEta), 0, 0.4),
+})
 
 const getFactorWeight = (value, fallback) => {
   const n = Number.parseFloat(value)
@@ -191,12 +443,14 @@ const calcCombinationCount = (n, k) => {
   return Math.round(result)
 }
 
-const countCandidateCombos = (matchCount, maxSubsetSize = 5) => {
+const countCandidateCombos = (matchCount, maxSubsetSize = 5, minSubsetSize = 1, gracefulFallback = true) => {
   const n = Math.max(0, Number.parseInt(matchCount, 10) || 0)
   if (n === 0) return 0
   const upper = Math.min(maxSubsetSize, n)
+  const requestedMin = Math.max(1, Number.parseInt(minSubsetSize, 10) || 1)
+  const lower = gracefulFallback && requestedMin > upper ? 1 : Math.min(requestedMin, upper)
   let total = 0
-  for (let k = 1; k <= upper; k += 1) {
+  for (let k = lower; k <= upper; k += 1) {
     total += calcCombinationCount(n, k)
   }
   return total
@@ -569,6 +823,7 @@ const generateRecommendations = (
   calibrationContext,
   qualityFilter,
   comboStrategy = DEFAULT_COMBO_STRATEGY,
+  comboStructure = null,
 ) => {
   if (selectedMatches.length === 0) return null
 
@@ -576,10 +831,22 @@ const generateRecommendations = (
   const minEv = Number(qualityFilter?.minEvPercent || 0) / 100
   const minWinRate = clamp(Number(qualityFilter?.minWinRate || 0) / 100, 0, 1)
   const maxCorr = clamp(Number(qualityFilter?.maxCorr ?? 1), 0, 1)
+
+  const normalizedComboStructure = sanitizeComboStructure(comboStructure)
+  // ── 思路4: Minimum legs floor ──
+  const minLegs = normalizedComboStructure.minLegs
+  // ── 思路2: Parlay bonus strength ──
+  const parlayBeta = normalizedComboStructure.parlayBeta
+  // ── MMR lambda (diversity vs utility tradeoff) ──
+  const mmrLambda = normalizedComboStructure.mmrLambda
+  // ── Coverage dynamic boost eta ──
+  const coverageEta = normalizedComboStructure.coverageEta
+
   const maxSubsetSize = Math.min(5, selectedMatches.length)
   const subsets = buildSubsets(selectedMatches, maxSubsetSize)
 
   const scoredAll = subsets.map((subset) => {
+    const legs = subset.length
     const p = subset.reduce((prod, item) => prod * calcAdjustedProbability(item, systemConfig, calibrationContext), 1)
     const rawP = subset.reduce((prod, item) => prod * clamp(item.conf, 0.05, 0.95), 1)
     const odds = subset.reduce((prod, item) => prod * item.odds, 1)
@@ -591,11 +858,17 @@ const generateRecommendations = (
     const sharpe = ev / sigma
     const rewardTerm = alpha * ev
     const riskPenalty = (1 - alpha) * sigma
-    const utility = rewardTerm - riskPenalty
+    // ── 思路2: Parlay bonus integrated into utility ──
+    const pBonus = parlayBonusFn(legs, parlayBeta)
+    // ── 思路6: Entry family diversity bonus ──
+    const familyDiv = calcEntryFamilyDiversity(subset)
+    const familyBonus = (familyDiv - 0.5) * 0.04 // small bonus for diverse entries within families
+    const utility = rewardTerm - riskPenalty + pBonus + familyBonus
     const corr = calcSubsetSourceCorrelation(subset)
-    const confAvg = subset.reduce((sum, item) => sum + clamp(item.conf, 0.05, 0.95), 0) / Math.max(subset.length, 1)
+    const confAvg = subset.reduce((sum, item) => sum + clamp(item.conf, 0.05, 0.95), 0) / Math.max(legs, 1)
     return {
       subset,
+      legs,
       p,
       rawP,
       odds,
@@ -606,12 +879,19 @@ const generateRecommendations = (
       utility,
       rewardTerm,
       riskPenalty,
+      parlayBonus: pBonus,
+      familyDiversity: familyDiv,
       corr,
       confAvg,
     }
   })
-  const rankedAllByUtility = dedupeRankedBySignature([...scoredAll].sort((a, b) => b.utility - a.utility || b.sharpe - a.sharpe))
-  const qualifiedRaw = scoredAll.filter((item) => item.ev >= minEv && item.p >= minWinRate && item.corr <= maxCorr)
+
+  // ── Pre-filter: apply minLegs (思路4) ──
+  const legsFiltered = scoredAll.filter((item) => item.legs >= minLegs)
+  const pool = legsFiltered.length > 0 ? legsFiltered : scoredAll // graceful fallback
+
+  const rankedAllByUtility = dedupeRankedBySignature([...pool].sort((a, b) => b.utility - a.utility || b.sharpe - a.sharpe))
+  const qualifiedRaw = pool.filter((item) => item.ev >= minEv && item.p >= minWinRate && item.corr <= maxCorr)
   const rankedQualified = dedupeRankedBySignature([...qualifiedRaw].sort((a, b) => b.utility - a.utility || b.sharpe - a.sharpe))
   const rankedSoftPenalty = dedupeRankedBySignature(rankWithSoftThresholdPenalty(rankedAllByUtility, minEv, minWinRate, maxCorr, alpha))
 
@@ -630,12 +910,27 @@ const generateRecommendations = (
   }
   if (preparedRanked.length === 0) return null
 
+  // ── 思路5: Coverage dynamic boost (replaces old hard injection for first pass) ──
+  const targetKeys = new Set(selectedMatches.map((m) => buildMatchRefKey(m)))
   if (comboStrategy !== 'thresholdStrict') {
-    preparedRanked = ensureCoverageInRanked(preparedRanked, rankedAllByUtility, selectedMatches, 16).ranked
+    preparedRanked = applyCoverageDynamicBoost(preparedRanked, selectedMatches, 0.6)
+    preparedRanked.sort((a, b) => b.boostedUtility - a.boostedUtility || b.utility - a.utility)
   }
 
-  const maxUniverse = Math.min(14, preparedRanked.length)
-  const universe = preparedRanked.slice(0, maxUniverse)
+  // ── 思路3: Stratified selection by legs count ──
+  const stratifiedPool = stratifiedSelect(preparedRanked, 18, minLegs)
+
+  // ── MMR reranking for final diversity ──
+  const mmrPool = mmrRerank(
+    stratifiedPool,
+    mmrLambda,
+    14,
+    comboStrategy !== 'thresholdStrict' ? targetKeys : null,
+    coverageEta,
+  )
+
+  const maxUniverse = Math.min(14, mmrPool.length)
+  const universe = mmrPool.slice(0, maxUniverse)
   const maxWeight = clamp(0.32 + alpha * 0.45, 0.32, 0.78)
   const weights = optimizePortfolioWeights(universe, alpha, maxWeight)
 
@@ -647,6 +942,8 @@ const generateRecommendations = (
     .filter((item, idx) => item.weight >= 0.045 || idx < 10)
     .sort((a, b) => b.weight - a.weight || b.utility - a.utility)
     .slice(0, 10)
+
+  // Legacy coverage injection as final safety net (lightweight, only fills gaps)
   if (comboStrategy !== 'thresholdStrict') {
     selectedRanked = ensureCoverageInRanked(selectedRanked, weightedUniverse, selectedMatches, 10).ranked
   }
@@ -681,6 +978,7 @@ const generateRecommendations = (
       layer,
       tierLabel: `${tierLabel} ${layer}`,
       combo: buildComboTitle(item.subset),
+      legs: item.legs,
       amount,
       allocation: `${amount} rmb`,
       ev: formatPercent(item.ev * 100),
@@ -701,6 +999,8 @@ const generateRecommendations = (
           ((item.riskPenalty / (Math.abs(item.rewardTerm) + item.riskPenalty + 0.000001)) * 100).toFixed(1),
         ),
         corr: Number(item.corr.toFixed(2)),
+        parlayBonus: Number((item.parlayBonus || 0).toFixed(3)),
+        familyDiversity: Number((item.familyDiversity || 1).toFixed(2)),
         thresholdPass: item.ev >= minEv && item.p >= minWinRate && item.corr <= maxCorr,
       },
     }
@@ -732,17 +1032,25 @@ const generateRecommendations = (
     }
   })
 
+  // Compute legs distribution for summary
+  const legsDistribution = {}
+  recommendations.forEach((r) => {
+    const k = r.legs || r.subset.length
+    legsDistribution[k] = (legsDistribution[k] || 0) + 1
+  })
+
   return {
     recommendations,
     rankingRows: recommendations,
     layerSummary,
     totalInvest,
     expectedReturnPercent: weightedEv * 100,
-    candidateCombos: subsets.length,
+    candidateCombos: pool.length,
     qualifiedCombos: qualifiedRaw.length,
-    filteredOutCombos: Math.max(0, subsets.length - qualifiedRaw.length),
+    filteredOutCombos: Math.max(0, pool.length - qualifiedRaw.length),
     coverageInjectedCombos: recommendations.filter((item) => item.coverageInjected).length,
     uncoveredMatches: ensureCoverageInRanked(recommendations, [], selectedMatches, recommendations.length).uncoveredCount,
+    legsDistribution,
   }
 }
 
@@ -764,6 +1072,7 @@ export default function ComboPage({ openModal }) {
     maxCorr: 0.85,
   })
   const [comboStrategy, setComboStrategy] = useState(DEFAULT_COMBO_STRATEGY)
+  const [comboStructure, setComboStructure] = useState(() => sanitizeComboStructure(DEFAULT_COMBO_STRUCTURE))
   const [showRiskProbe, setShowRiskProbe] = useState(false)
   const [showAllRecommendations, setShowAllRecommendations] = useState(false)
   const [selectedRecommendationIds, setSelectedRecommendationIds] = useState({})
@@ -775,6 +1084,7 @@ export default function ComboPage({ openModal }) {
     filteredOutCombos: 0,
     coverageInjectedCombos: 0,
     uncoveredMatches: 0,
+    legsDistribution: {},
   })
 
   const [systemConfig] = useState(() => getSystemConfig())
@@ -828,7 +1138,10 @@ export default function ComboPage({ openModal }) {
     () => displayedCandidates.filter((_, idx) => checkedMatches[idx]),
     [checkedMatches, displayedCandidates],
   )
-  const candidateComboCount = useMemo(() => countCandidateCombos(selectedMatches.length, 5), [selectedMatches.length])
+  const candidateComboCount = useMemo(
+    () => countCandidateCombos(selectedMatches.length, 5, comboStructure.minLegs, true),
+    [selectedMatches.length, comboStructure.minLegs],
+  )
 
   const displayedRecommendations = useMemo(
     () => (showAllRecommendations ? recommendations : recommendations.slice(0, 3)),
@@ -911,6 +1224,7 @@ export default function ComboPage({ openModal }) {
         calibrationContext,
         qualityFilter,
         comboStrategy,
+        comboStructure,
       )
       if (!generated || generated.recommendations.length === 0) {
         return {
@@ -943,7 +1257,7 @@ export default function ComboPage({ openModal }) {
       ...row,
       best: Boolean(best && row.riskPref === best.riskPref),
     }))
-  }, [calibrationContext, comboStrategy, qualityFilter, riskCap, selectedMatches, systemConfig])
+  }, [calibrationContext, comboStrategy, comboStructure, qualityFilter, riskCap, selectedMatches, systemConfig])
 
   const matchExposure = useMemo(() => {
     const map = new Map()
@@ -1018,6 +1332,7 @@ export default function ComboPage({ openModal }) {
       filteredOutCombos: 0,
       coverageInjectedCombos: 0,
       uncoveredMatches: 0,
+      legsDistribution: {},
     })
     setShowAllRecommendations(false)
   }
@@ -1038,8 +1353,10 @@ export default function ComboPage({ openModal }) {
       recommendations: generated.recommendations,
       layerSummary: generated.layerSummary,
       comboStrategy,
+      comboStructure: sanitizeComboStructure(comboStructure),
       coverageInjectedCombos: generated.coverageInjectedCombos,
       uncoveredMatches: generated.uncoveredMatches,
+      legsDistribution: generated.legsDistribution || {},
     }
     setPlanHistory((prev) => {
       const next = [entry, ...prev].slice(0, 12)
@@ -1054,6 +1371,9 @@ export default function ComboPage({ openModal }) {
     if (historyRow.comboStrategy) {
       setComboStrategy(historyRow.comboStrategy)
     }
+    if (historyRow.comboStructure) {
+      setComboStructure(sanitizeComboStructure(historyRow.comboStructure))
+    }
     setRecommendations(historyRow.recommendations)
     setRankingRows(historyRow.recommendations)
     setLayerSummary(Array.isArray(historyRow.layerSummary) ? historyRow.layerSummary : [])
@@ -1065,6 +1385,9 @@ export default function ComboPage({ openModal }) {
       filteredOutCombos: Number(historyRow.filteredOutCombos || 0),
       coverageInjectedCombos: Number(historyRow.coverageInjectedCombos || 0),
       uncoveredMatches: Number(historyRow.uncoveredMatches || 0),
+      legsDistribution: historyRow.legsDistribution && typeof historyRow.legsDistribution === 'object'
+        ? historyRow.legsDistribution
+        : {},
     })
     setShowAllRecommendations(false)
 
@@ -1110,6 +1433,7 @@ export default function ComboPage({ openModal }) {
       calibrationContext,
       qualityFilter,
       comboStrategy,
+      comboStructure,
     )
     if (!generated) {
       window.alert(
@@ -1131,6 +1455,7 @@ export default function ComboPage({ openModal }) {
       filteredOutCombos: generated.filteredOutCombos,
       coverageInjectedCombos: generated.coverageInjectedCombos,
       uncoveredMatches: generated.uncoveredMatches,
+      legsDistribution: generated.legsDistribution || {},
     })
     setShowAllRecommendations(false)
     pushPlanHistory(generated, selectedMatches, riskPref)
@@ -1228,16 +1553,21 @@ export default function ComboPage({ openModal }) {
   const openAlgoModal = () => {
     openModal({
       title: 'Portfolio Optimization 算法说明',
-      content: (
+          content: (
         <div className="text-sm text-stone-600 space-y-4">
-          <p><strong>1. 输入处理</strong>：录入今日 n 场比赛参数（Conf, Mode, TYS, FID, FSE, Odds），系统构建候选组合池（2ⁿ-1 种非空组合）。</p>
+          <p><strong>1. 输入处理</strong>：录入今日 n 场比赛参数（Conf, Mode, TYS, FID, FSE, Odds），系统构建候选组合池（最多到 5 关，且按最小关数筛选，候选数为 ΣC(n,k)）。</p>
           <p><strong>2. Calibration 校准层</strong>：引入时间近因权重（最近样本 1.4x / 中期样本 1.15x）+ REP 方向性权重（低随机性上调、高随机性降权），修正 Conf 偏差。</p>
           <p><strong>3. 预期收益计算</strong>：每个组合的期望收益 μ = ∏(校准胜率ᵢ) × ∏(Oddsᵢ) - 1。</p>
           <p><strong>4. 风险评估</strong>：按二项收益分布计算波动性 σ（赢时收益=Odds-1，输时=-1）；Sharpe = μ/σ 作为稳定性指标。</p>
           <p><strong>5. Risk Preference 加权</strong>：效用函数 U = α × μ - (1-α) × σ，α 由滑杆控制（0=稳健，100=激进）。</p>
           <p><strong>6. 组合策略</strong>：可选「勾选优先 / 阈值优先 / 软惩罚」。勾选优先会自动补位，确保手动勾选场次进入推荐。</p>
           <p><strong>7. Portfolio 分配</strong>：对 Top 组合按效用打分分配仓位，约束总仓位不超过风控上限（Risk Cap）。</p>
-          <p><strong>8. 输出</strong>：上方可勾选方案直接采纳；下方提供单组合排序与分层下注建议。</p>
+          <p><strong>8. 串关偏好 (Parlay Bonus)</strong>：在效用函数中加入 β·√(legs-1) 项，天然提升多关串联的优先级；β 由「串关偏好」滑杆控制。</p>
+          <p><strong>9. 分层选优 (Stratified Selection)</strong>：按关数分层（2/3/4/5关），每层按效用取 Top-K，跨层配额确保结构多样。</p>
+          <p><strong>10. MMR 去重排序</strong>：使用 Maximal Marginal Relevance 算法，每选一个方案时同时考虑其效用和与已选方案的差异度，避免"前几名都带同一场"。</p>
+          <p><strong>11. 覆盖动态加分</strong>：对候选中尚未被充分覆盖的场次，自动提升包含该场次的组合分数，随覆盖增加自然衰减。</p>
+          <p><strong>12. Entry Family 多样化</strong>：同一场比赛的多个 entry（如曼联胜/平/double）被识别为一个 family，鼓励 family 内 entry 多样化。</p>
+          <p><strong>13. 输出</strong>：上方可勾选方案直接采纳；下方提供单组合排序与分层下注建议。</p>
         </div>
       ),
     })
@@ -1468,6 +1798,119 @@ export default function ComboPage({ openModal }) {
             </div>
           </div>
 
+          <div className="mt-4 p-3.5 rounded-xl bg-violet-50/60 border border-violet-100">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-violet-700 font-medium">串关结构偏好</span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() =>
+                    setComboStructure({
+                      minLegs: 3,
+                      parlayBeta: 0.18,
+                      mmrLambda: 0.5,
+                      coverageEta: 0.2,
+                    })
+                  }
+                  className="px-2 py-1 rounded-md text-[11px] bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors"
+                >
+                  强串联
+                </button>
+                <button
+                  onClick={() =>
+                    setComboStructure({
+                      minLegs: 2,
+                      parlayBeta: 0.12,
+                      mmrLambda: 0.55,
+                      coverageEta: 0.15,
+                    })
+                  }
+                  className="px-2 py-1 rounded-md text-[11px] bg-stone-200 text-stone-600 hover:bg-stone-300 transition-colors"
+                >
+                  默认
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-[11px] text-stone-500">
+                最小关数
+                <select
+                  value={comboStructure.minLegs}
+                  onChange={(e) =>
+                    setComboStructure((prev) => ({ ...prev, minLegs: Number(e.target.value) }))
+                  }
+                  className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-stone-200 text-xs"
+                >
+                  <option value={1}>1（含单关）</option>
+                  <option value={2}>2（至少2串1）</option>
+                  <option value={3}>3（至少3串1）</option>
+                  <option value={4}>4（至少4串1）</option>
+                </select>
+              </label>
+              <label className="text-[11px] text-stone-500">
+                串关偏好 β
+                <input
+                  type="range"
+                  min="0"
+                  max="0.35"
+                  step="0.01"
+                  value={comboStructure.parlayBeta}
+                  onChange={(e) =>
+                    setComboStructure((prev) => ({ ...prev, parlayBeta: Number(e.target.value) }))
+                  }
+                  className="mt-1 w-full"
+                />
+                <span className="text-[10px] text-stone-400">{comboStructure.parlayBeta.toFixed(2)}（0=无偏好）</span>
+              </label>
+              <label className="text-[11px] text-stone-500">
+                多样性强度 λ
+                <input
+                  type="range"
+                  min="0.25"
+                  max="0.85"
+                  step="0.05"
+                  value={comboStructure.mmrLambda}
+                  onChange={(e) =>
+                    setComboStructure((prev) => ({ ...prev, mmrLambda: Number(e.target.value) }))
+                  }
+                  className="mt-1 w-full"
+                />
+                <span className="text-[10px] text-stone-400">{comboStructure.mmrLambda.toFixed(2)}（低=更多样化）</span>
+              </label>
+              <label className="text-[11px] text-stone-500">
+                覆盖强度 η
+                <input
+                  type="range"
+                  min="0"
+                  max="0.35"
+                  step="0.05"
+                  value={comboStructure.coverageEta}
+                  onChange={(e) =>
+                    setComboStructure((prev) => ({ ...prev, coverageEta: Number(e.target.value) }))
+                  }
+                  className="mt-1 w-full"
+                />
+                <span className="text-[10px] text-stone-400">{comboStructure.coverageEta.toFixed(2)}（高=候选全覆盖）</span>
+              </label>
+            </div>
+            <p className="text-[10px] text-violet-500/70 mt-2">
+              β 提升多关串联的效用分；λ 控制 MMR 去重力度；η 给未覆盖候选加分。
+            </p>
+            {Object.keys(generationSummary.legsDistribution || {}).length > 0 && (
+              <div className="mt-2 pt-2 border-t border-violet-100">
+                <p className="text-[10px] text-violet-600 mb-1">上次生成关数分布</p>
+                <div className="flex gap-2 flex-wrap">
+                  {Object.entries(generationSummary.legsDistribution)
+                    .sort(([a], [b]) => Number(a) - Number(b))
+                    .map(([legs, count]) => (
+                      <span key={legs} className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 text-[10px]">
+                        {legs}关×{count}
+                      </span>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-3 mt-6">
             <button onClick={handleGenerate} className="flex-1 btn-primary btn-hover">
               生成最优组合
@@ -1496,7 +1939,10 @@ export default function ComboPage({ openModal }) {
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className={`text-xs font-medium ${selected ? 'text-amber-600' : 'text-stone-500'}`}>{item.tierLabel}</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-medium ${selected ? 'text-amber-600' : 'text-stone-500'}`}>{item.tierLabel}</span>
+                      <span className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 text-[10px] font-medium">{item.legs || item.subset.length}关</span>
+                    </div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-stone-800">{item.allocation}</span>
                       <div className={`custom-checkbox ${selected ? 'checked' : ''}`} />
@@ -1515,6 +1961,9 @@ export default function ComboPage({ openModal }) {
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">风险惩罚占比 {item.explain.riskPenaltySharePct.toFixed(0)}%</span>
                     <span className="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">相关性 {item.explain.corr.toFixed(2)}</span>
+                    {item.explain.parlayBonus > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-violet-50 text-violet-600">串关+{item.explain.parlayBonus.toFixed(3)}</span>
+                    )}
                     {item.coverageInjected && (
                       <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">覆盖补位</span>
                     )}
@@ -1649,7 +2098,9 @@ export default function ComboPage({ openModal }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-stone-700 truncate">{row.combo}</p>
-                    <p className="text-[11px] text-stone-400">Odds {row.combinedOdds.toFixed(2)} · Win {row.winRate}</p>
+                    <p className="text-[11px] text-stone-400">
+                      <span className="text-violet-600 font-medium">{row.legs || row.subset.length}关</span> · Odds {row.combinedOdds.toFixed(2)} · Win {row.winRate}
+                    </p>
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-stone-500">EV / σ</p>

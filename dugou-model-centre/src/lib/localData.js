@@ -10,6 +10,7 @@ const STORAGE_KEYS = {
 const GENESIS_APPLIED_KEY = 'dugou.genesis_applied.v1'
 const DATA_PATCH_V20260205_KEY = 'dugou.data_patch.v20260205'
 const DATA_PATCH_V20260206_KEY = 'dugou.data_patch.v20260206'
+let cloudBootstrapInProgress = false
 
 const DEFAULT_SYSTEM_CONFIG = {
   initialCapital: 600,
@@ -228,9 +229,12 @@ const writeJSON = (key, value) => {
   window.localStorage.setItem(key, JSON.stringify(value))
   window.dispatchEvent(new CustomEvent('dugou:data-changed', { detail: { key } }))
   if (
-    key === STORAGE_KEYS.investments ||
-    key === STORAGE_KEYS.teamProfiles ||
-    key === STORAGE_KEYS.systemConfig
+    !cloudBootstrapInProgress &&
+    (
+      key === STORAGE_KEYS.investments ||
+      key === STORAGE_KEYS.teamProfiles ||
+      key === STORAGE_KEYS.systemConfig
+    )
   ) {
     scheduleSnapshotSync(() => exportDataBundle())
   }
@@ -869,11 +873,17 @@ export const setCloudSyncEnabled = (enabled) =>
   })
 
 export const bootstrapCloudSnapshotOnLoad = async () => {
+  cloudBootstrapInProgress = true
   const status = getCloudSyncState()
   if (!status.hasEnv) {
+    cloudBootstrapInProgress = false
     return { ok: false, reason: 'missing_env', applied: false }
   }
-  return pullCloudSnapshotNow('replace')
+  try {
+    return await pullCloudSnapshotNow('replace')
+  } finally {
+    cloudBootstrapInProgress = false
+  }
 }
 
 export const runCloudSyncNow = async () => {
