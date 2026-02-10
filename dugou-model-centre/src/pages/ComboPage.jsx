@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { Info, Plus, Sparkles, XCircle } from 'lucide-react'
 import { bumpTeamSamples, getInvestments, getSystemConfig, saveInvestment } from '../lib/localData'
 import { getPredictionCalibrationContext } from '../lib/analytics'
+import {
+  buildAtomicMatchProfile,
+  combineAtomicMatchProfiles,
+  estimateEntryAnchorOdds,
+} from '../lib/atomicParlay'
 
 const MODE_FACTOR_MAP = {
   常规: 1.0,
@@ -752,12 +757,13 @@ const calcAdjustedProbability = (match, systemConfig, calibrationContext) => {
     fseFactor ** getFactorWeight(systemConfig.weightFse, 0.07)
 
   const baseProbability = clamp(0.5 * weightedLift, 0.05, 0.95)
+  const anchorOdds = estimateEntryAnchorOdds(match.entries, Number(match.odds) || Number(systemConfig.defaultOdds || 2.5))
   if (typeof calibrationContext?.calibrateProbabilityForMatch !== 'function') return baseProbability
   return clamp(
     calibrationContext.calibrateProbabilityForMatch({
       baseProbability,
       conf: rawConf,
-      odds: Number(match.odds),
+      odds: anchorOdds,
       homeTeam: match.homeTeam,
       awayTeam: match.awayTeam,
     }),
@@ -765,6 +771,13 @@ const calcAdjustedProbability = (match, systemConfig, calibrationContext) => {
     0.95,
   )
 }
+
+const buildAtomicLegProfile = (match, unionProbability, fallbackOdds = 2.5) =>
+  buildAtomicMatchProfile({
+    entries: Array.isArray(match.entries) ? match.entries : [],
+    unionProbability,
+    fallbackOdds,
+  })
 
 const buildComboTitle = (subset) =>
   subset
@@ -1105,13 +1118,27 @@ const generateRecommendations = (
 
   const scoredAll = subsets.map((subset) => {
     const legs = subset.length
-    const p = subset.reduce((prod, item) => prod * calcAdjustedProbability(item, systemConfig, calibrationContext), 1)
-    const rawP = subset.reduce((prod, item) => prod * clamp(item.conf, 0.05, 0.95), 1)
-    const odds = subset.reduce((prod, item) => prod * item.odds, 1)
-    const winReturn = odds - 1
-    const loseReturn = -1
-    const ev = p * winReturn + (1 - p) * loseReturn
-    const variance = p * (winReturn - ev) ** 2 + (1 - p) * (loseReturn - ev) ** 2
+    const adjustedProfiles = subset.map((item) => {
+      if (item.atomicProfile) return item.atomicProfile
+      const fallbackOdds = Math.max(1.01, Number(item.odds) || 2.5)
+      const unionProbability = calcAdjustedProbability(item, systemConfig, calibrationContext)
+      return buildAtomicLegProfile(item, unionProbability, fallbackOdds)
+    })
+    const rawProfiles = subset.map((item) => {
+      if (item.rawAtomicProfile) return item.rawAtomicProfile
+      const fallbackOdds = Math.max(1.01, Number(item.odds) || 2.5)
+      const unionProbability = clamp(Number(item.conf) || 0.5, 0.05, 0.95)
+      return buildAtomicLegProfile(item, unionProbability, fallbackOdds)
+    })
+    const adjustedCombo = combineAtomicMatchProfiles(adjustedProfiles)
+    const rawCombo = combineAtomicMatchProfiles(rawProfiles)
+    const p = clamp(Number(adjustedCombo.hitProbability || 0), 0, 1)
+    const profitWinProbability = clamp(Number(adjustedCombo.profitWinProbability || 0), 0, 1)
+    const rawP = clamp(Number(rawCombo.hitProbability || 0), 0, 1)
+    const fallbackOdds = subset.reduce((prod, item) => prod * Math.max(1.01, Number(item.odds) || 1.01), 1)
+    const odds = Math.max(1.01, Number(adjustedCombo.equivalentOdds || fallbackOdds))
+    const ev = Number(adjustedCombo.expectedReturn || 0)
+    const variance = Math.max(0, Number(adjustedCombo.variance || 0))
     const sigma = Math.sqrt(Math.max(variance, 0.0001))
     const sharpe = ev / sigma
     const rewardTerm = alpha * ev
@@ -1129,6 +1156,8 @@ const generateRecommendations = (
       subset,
       legs,
       p,
+      profitWinProbability,
+      hitProbability: p,
       rawP,
       odds,
       ev,
@@ -1250,18 +1279,20 @@ const generateRecommendations = (
       allocation: `${amount} rmb`,
       ev: formatPercent(item.ev * 100),
       winRate: `${Math.round(item.p * 100)}%`,
+      profitWinRate: `${Math.round(item.profitWinProbability * 100)}%`,
       sharpe: item.sharpe.toFixed(2),
       sigma: Number(item.sigma.toFixed(3)),
       utility: Number(item.utility.toFixed(4)),
       expectedReturn: item.ev,
       subset: item.subset,
       combinedOdds: Number(item.odds.toFixed(2)),
-      expectedRating: Number(item.p.toFixed(2)),
+      expectedRating: Number((item.hitProbability || item.p).toFixed(2)),
       coverageInjected: Boolean(item.coverageInjected),
       explain: {
         weightPct: Number((item.allocatedWeight * 100).toFixed(1)),
         confAvg: Number(item.confAvg.toFixed(2)),
         calibGainPp: Number(((item.p - item.rawP) * 100).toFixed(1)),
+        profitWinPct: Number((item.profitWinProbability * 100).toFixed(1)),
         riskPenaltySharePct: Number(
           ((item.riskPenalty / (Math.abs(item.rewardTerm) + item.riskPenalty + 0.000001)) * 100).toFixed(1),
         ),
@@ -1377,14 +1408,21 @@ export default function ComboPage({ openModal }) {
     () =>
       todayMatches.map((item) => {
         const adjustedProb = calcAdjustedProbability(item, systemConfig, calibrationContext)
-        const adjustedEvPercent = (adjustedProb * item.odds - 1) * 100
-        const suggestedAmount = calcRecommendedAmount(adjustedProb, item.odds, systemConfig, riskCap)
-        const autoRole = inferMatchRoleByMetrics(adjustedProb, item.odds, item.conf)
+        const fallbackOdds = Math.max(1.01, Number(item.odds) || 2.5)
+        const atomicProfile = buildAtomicLegProfile(item, adjustedProb, fallbackOdds)
+        const rawAtomicProfile = buildAtomicLegProfile(item, clamp(Number(item.conf) || 0.5, 0.05, 0.95), fallbackOdds)
+        const effectiveOdds = Math.max(1.01, Number(atomicProfile.equivalentOdds || fallbackOdds))
+        const adjustedEvPercent = Number(atomicProfile.expectedReturn || 0) * 100
+        const suggestedAmount = calcRecommendedAmount(adjustedProb, effectiveOdds, systemConfig, riskCap)
+        const autoRole = inferMatchRoleByMetrics(adjustedProb, effectiveOdds, item.conf)
         return {
           ...item,
           adjustedProb,
           adjustedEvPercent,
           suggestedAmount,
+          effectiveOdds,
+          atomicProfile,
+          rawAtomicProfile,
           autoRole,
         }
       }),
@@ -1875,8 +1913,8 @@ export default function ComboPage({ openModal }) {
           <p><strong>2. Calibration 校准层</strong>：引入时间近因权重 + REP 方向性权重，先做 Conf 回归校准，再叠加球队层级偏差校准（小样本自动收缩）。</p>
           <p><strong>3. 市场先验融合</strong>：将模型概率与 Odds 隐含概率做动态融合；球队样本越可靠，越偏向模型；球队可靠度不足时自动向市场先验回归。</p>
           <p><strong>4. 滚动回测护栏</strong>：使用 walk-forward 窗口评估 Brier / LogLoss / ROI，动态调节 market lean，抑制过拟合。</p>
-          <p><strong>5. 预期收益计算</strong>：每个组合的期望收益 μ = ∏(校准胜率ᵢ) × ∏(Oddsᵢ) - 1。</p>
-          <p><strong>6. 风险评估</strong>：按二项收益分布计算波动性 σ（赢时收益=Odds-1，输时=-1）；Sharpe = μ/σ 作为稳定性指标。</p>
+          <p><strong>5. 原子结果建模</strong>：同场多 Entry 先拆成原子状态（含 miss），按分支权重与赔率计算每个原子收益，再做跨场联合分布，避免调和平均带来的失真。</p>
+          <p><strong>6. 预期收益与风险</strong>：直接由联合分布求 E[R] / Var[R]，再得 Sharpe；因此可同时覆盖单 Entry 与多 Entry 串联情形。</p>
           <p><strong>7. Risk Preference 加权</strong>：效用函数 U = α × μ - (1-α) × σ，α 由滑杆控制（0=稳健，100=激进）。</p>
           <p><strong>8. 组合策略</strong>：可选「勾选优先 / 阈值优先 / 软惩罚」。软惩罚对阈值外方案降分但不直接淘汰。</p>
           <p><strong>9. 角色结构软约束</strong>：支持“稳/杠杆/中性双档”逐场自定义，并以软约束项参与打分，不做硬性赔率或配比锁定。</p>

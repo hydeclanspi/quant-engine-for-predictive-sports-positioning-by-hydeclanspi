@@ -1,5 +1,6 @@
 import { fetchLatestSnapshot, getCloudSyncState, saveCloudSyncState, scheduleSnapshotSync, syncSnapshotNow } from './cloudSync'
 import { getPrimaryEntryMarket, normalizeEntries } from './entryParsing'
+import { calcAtomicEquivalentOdds } from './atomicParlay'
 import genesisBundle from '../data/genesisBundle.json'
 
 const STORAGE_KEYS = {
@@ -437,7 +438,14 @@ const normalizeMatchRecord = (matchRaw) => {
 
 const calcCombinedOdds = (matches, fallback = 0) => {
   const odds = matches
-    .map((match) => Number.parseFloat(match?.odds))
+    .map((match) => {
+      if (Array.isArray(match?.entries) && match.entries.length > 0) {
+        const matchFallback = Number.parseFloat(match?.odds)
+        const safeFallback = Number.isFinite(matchFallback) && matchFallback > 1 ? matchFallback : 2.5
+        return calcAtomicEquivalentOdds(match.entries, safeFallback)
+      }
+      return Number.parseFloat(match?.odds)
+    })
     .filter((odd) => Number.isFinite(odd) && odd > 0)
 
   if (odds.length === 0) {

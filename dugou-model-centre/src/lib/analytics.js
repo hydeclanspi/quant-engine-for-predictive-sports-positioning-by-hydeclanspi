@@ -13,6 +13,9 @@ const toNumber = (value, fallback = 0) => {
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
 const AJR_INPUT_MAX = 0.8
+const MONTE_CARLO_TARGET_RUNS = 100000
+const MONTE_CARLO_MIN_RUNS = 12000
+const MONTE_CARLO_OP_BUDGET = 6000000
 
 export const normalizeAjrForModel = (value, fallback = Number.NaN) => {
   const parsed = toNumber(value, Number.NaN)
@@ -468,16 +471,139 @@ const calcKellyStake = (expected, odds, divisor, config) => {
   return Math.max(0, Math.min(riskCap, raw))
 }
 
-const simulateKellyDivisorFromRows = (rows, divisor, config) => {
-  let balance = toNumber(config.initialCapital, 0)
-  let peak = balance
-  let maxDrawdown = 0
-  let totalInvest = 0
-  let totalProfit = 0
-  let wins = 0
-  let samples = 0
-  const sampleReturns = []
+const resolveMonteCarloRuns = (sampleCount, targetRuns = MONTE_CARLO_TARGET_RUNS) => {
+  const n = Math.max(1, Number.parseInt(sampleCount, 10) || 1)
+  const budgetCap = Math.floor(MONTE_CARLO_OP_BUDGET / n)
+  const hardFloor = 4000
+  if (budgetCap >= MONTE_CARLO_MIN_RUNS) {
+    return Math.max(MONTE_CARLO_MIN_RUNS, Math.min(targetRuns, budgetCap))
+  }
+  return Math.max(hardFloor, Math.min(targetRuns, Math.max(hardFloor, budgetCap)))
+}
 
+const createSeededRng = (seedInput = 1) => {
+  let seed = (Number(seedInput) >>> 0) || 1
+  return () => {
+    seed = (seed + 0x6d2b79f5) >>> 0
+    let t = seed
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+const buildMonteCarloSeed = (rows, salt = 0) => {
+  let hash = (2166136261 ^ (salt >>> 0)) >>> 0
+  const limit = Math.min(rows.length, 96)
+  for (let i = 0; i < limit; i += 1) {
+    const row = rows[i] || {}
+    const expected = Math.round(clamp(toNumber(row.expected, toNumber(row.conf, 0.5)), 0, 1) * 1000)
+    const odds = Math.round(Math.max(1, toNumber(row.odds, 1)) * 100)
+    const unitReturn = Math.round(toNumber(row.unitReturn, toNumber(row.profit, 0)) * 100)
+    hash ^= expected + 31 * odds + 17 * unitReturn + i
+    hash = Math.imul(hash, 16777619) >>> 0
+  }
+  hash ^= rows.length
+  hash = Math.imul(hash, 16777619) >>> 0
+  return hash >>> 0
+}
+
+const runKellyBootstrapMonteCarlo = (simRowsInput, config, requestedRuns = MONTE_CARLO_TARGET_RUNS, seedSalt = 0) => {
+  const simRows = Array.isArray(simRowsInput) ? simRowsInput.filter(Boolean) : []
+  if (simRows.length === 0) {
+    return {
+      runs: 0,
+      samples: 0,
+      totalInvest: 0,
+      totalProfit: 0,
+      roi: 0,
+      hitRate: 0,
+      maxDrawdown: 0,
+      sharpe: 0,
+    }
+  }
+
+  const runs = resolveMonteCarloRuns(simRows.length, requestedRuns)
+  const initialCapital = toNumber(config.initialCapital, 0)
+  const rng = createSeededRng(buildMonteCarloSeed(simRows, seedSalt))
+  const sampleSize = simRows.length
+
+  const stakes = new Array(sampleSize)
+  const unitReturns = new Array(sampleSize)
+  for (let i = 0; i < sampleSize; i += 1) {
+    stakes[i] = Math.max(0, toNumber(simRows[i].stake, 0))
+    unitReturns[i] = toNumber(simRows[i].unitReturn, 0)
+  }
+
+  let totalInvestSum = 0
+  let totalProfitSum = 0
+  let roiSum = 0
+  let hitRateSum = 0
+  let maxDrawdownSum = 0
+  let sharpeSum = 0
+  let samplesSum = 0
+
+  for (let run = 0; run < runs; run += 1) {
+    let balance = initialCapital
+    let peak = balance
+    let maxDrawdown = 0
+    let totalInvest = 0
+    let totalProfit = 0
+    let wins = 0
+    let samples = 0
+    let meanReturn = 0
+    let m2 = 0
+
+    for (let step = 0; step < sampleSize; step += 1) {
+      const idx = Math.min(sampleSize - 1, Math.floor(rng() * sampleSize))
+      const stake = stakes[idx]
+      if (stake <= 0) continue
+      const unitReturn = unitReturns[idx]
+      const simProfit = stake * unitReturn
+
+      totalInvest += stake
+      totalProfit += simProfit
+      samples += 1
+      if (simProfit > 0) wins += 1
+
+      const delta = unitReturn - meanReturn
+      meanReturn += delta / samples
+      m2 += delta * (unitReturn - meanReturn)
+
+      balance += simProfit
+      if (balance > peak) peak = balance
+      const drawdown = peak > 0 ? ((peak - balance) / peak) * 100 : 0
+      if (drawdown > maxDrawdown) maxDrawdown = drawdown
+    }
+
+    const roi = calcRoi(totalProfit, totalInvest)
+    const hitRate = samples > 0 ? (wins / samples) * 100 : 0
+    const volatility = samples > 1 ? Math.sqrt(Math.max(m2 / samples, 0)) : 0
+    const sharpe = volatility > 0 ? meanReturn / volatility : meanReturn > 0 ? 1 : 0
+
+    totalInvestSum += totalInvest
+    totalProfitSum += totalProfit
+    roiSum += roi
+    hitRateSum += hitRate
+    maxDrawdownSum += maxDrawdown
+    sharpeSum += sharpe
+    samplesSum += samples
+  }
+
+  return {
+    runs,
+    samples: runs > 0 ? Math.round(samplesSum / runs) : 0,
+    totalInvest: runs > 0 ? totalInvestSum / runs : 0,
+    totalProfit: runs > 0 ? totalProfitSum / runs : 0,
+    roi: runs > 0 ? roiSum / runs : 0,
+    hitRate: runs > 0 ? hitRateSum / runs : 0,
+    maxDrawdown: runs > 0 ? maxDrawdownSum / runs : 0,
+    sharpe: runs > 0 ? sharpeSum / runs : 0,
+  }
+}
+
+const simulateKellyDivisorFromRows = (rows, divisor, config) => {
+  const simRows = []
   rows.forEach((row) => {
     const inputs = Math.max(0, toNumber(row.inputs, 0))
     const profit = toNumber(row.profit, 0)
@@ -486,41 +612,29 @@ const simulateKellyDivisorFromRows = (rows, divisor, config) => {
     const odds = Math.max(1.01, toNumber(row.odds, toNumber(config.defaultOdds, 2.5)))
     const stake = Math.round(calcKellyStake(expected, odds, divisor, config))
     if (stake <= 0) return
-    const profitRatio = profit / inputs
-    const simProfit = stake * profitRatio
-    totalInvest += stake
-    totalProfit += simProfit
-    samples += 1
-    if (simProfit > 0) wins += 1
-    sampleReturns.push(profitRatio)
-
-    balance += simProfit
-    if (balance > peak) peak = balance
-    const drawdown = peak > 0 ? ((peak - balance) / peak) * 100 : 0
-    if (drawdown > maxDrawdown) maxDrawdown = drawdown
+    const profitRatio = clamp(profit / inputs, -1, Math.max(odds - 1, -1))
+    simRows.push({
+      expected,
+      odds,
+      stake,
+      unitReturn: profitRatio,
+    })
   })
 
-  const roi = calcRoi(totalProfit, totalInvest)
-  const hitRate = samples > 0 ? (wins / samples) * 100 : 0
-  const avgReturn = sampleReturns.length > 0 ? sampleReturns.reduce((sum, value) => sum + value, 0) / sampleReturns.length : 0
-  const variance =
-    sampleReturns.length > 1
-      ? sampleReturns.reduce((sum, value) => sum + (value - avgReturn) ** 2, 0) / sampleReturns.length
-      : 0
-  const volatility = Math.sqrt(Math.max(variance, 0))
-  const sharpe = volatility > 0 ? avgReturn / volatility : avgReturn > 0 ? 1 : 0
-  const samplePenalty = samples > 0 ? clamp(12 / Math.max(1, samples), 0, 12) : 12
-  const score = roi - maxDrawdown * 0.72 + sharpe * 8 - samplePenalty
+  const mc = runKellyBootstrapMonteCarlo(simRows, config, MONTE_CARLO_TARGET_RUNS, Math.round(divisor * 1000))
+  const samplePenalty = mc.samples > 0 ? clamp(12 / Math.max(1, mc.samples), 0, 12) : 12
+  const score = mc.roi - mc.maxDrawdown * 0.72 + mc.sharpe * 8 - samplePenalty
 
   return {
     divisor,
-    samples,
-    totalInvest,
-    totalProfit,
-    roi,
-    hitRate,
-    maxDrawdown,
-    sharpe,
+    runs: mc.runs,
+    samples: mc.samples,
+    totalInvest: mc.totalInvest,
+    totalProfit: mc.totalProfit,
+    roi: mc.roi,
+    hitRate: mc.hitRate,
+    maxDrawdown: mc.maxDrawdown,
+    sharpe: mc.sharpe,
     score: Number(score.toFixed(3)),
   }
 }
@@ -1970,14 +2084,7 @@ const calcCalibrationMae = (rows, predictFn, bins = 8) => {
 }
 
 const simulateKellyStrategyByRows = (rows, predictFn, config, divisor) => {
-  let balance = toNumber(config.initialCapital, 0)
-  let peak = balance
-  let maxDrawdown = 0
-  let totalInvest = 0
-  let totalProfit = 0
-  let samples = 0
-  let wins = 0
-
+  const simRows = []
   rows.forEach((row) => {
     const p = clamp(toNumber(predictFn(row), row.conf), 0.02, 0.98)
     const odds = Math.max(1.01, toNumber(row.odds, toNumber(config.defaultOdds, 2.5)))
@@ -1985,25 +2092,23 @@ const simulateKellyStrategyByRows = (rows, predictFn, config, divisor) => {
     if (stake <= 0) return
 
     const unitReturn = row.actual === 1 ? odds - 1 : -1
-    const simProfit = stake * unitReturn
-    totalInvest += stake
-    totalProfit += simProfit
-    samples += 1
-    if (simProfit > 0) wins += 1
-
-    balance += simProfit
-    if (balance > peak) peak = balance
-    const drawdown = peak > 0 ? ((peak - balance) / peak) * 100 : 0
-    if (drawdown > maxDrawdown) maxDrawdown = drawdown
+    simRows.push({
+      expected: p,
+      odds,
+      stake,
+      unitReturn,
+    })
   })
 
+  const mc = runKellyBootstrapMonteCarlo(simRows, config, MONTE_CARLO_TARGET_RUNS, rows.length * 97 + Math.round(divisor * 1000))
   return {
-    samples,
-    totalInvest,
-    totalProfit,
-    roi: calcRoi(totalProfit, totalInvest),
-    hitRate: samples > 0 ? (wins / samples) * 100 : 0,
-    maxDrawdown,
+    runs: mc.runs,
+    samples: mc.samples,
+    totalInvest: mc.totalInvest,
+    totalProfit: mc.totalProfit,
+    roi: mc.roi,
+    hitRate: mc.hitRate,
+    maxDrawdown: mc.maxDrawdown,
   }
 }
 
@@ -2120,12 +2225,14 @@ export const getModelValidationSnapshot = () => {
     },
     strategy: {
       raw: {
+        runs: strategyRaw.runs || 0,
         roi: Number(strategyRaw.roi.toFixed(2)),
         maxDrawdown: Number(strategyRaw.maxDrawdown.toFixed(2)),
         hitRate: Number(strategyRaw.hitRate.toFixed(1)),
         samples: strategyRaw.samples,
       },
       calibrated: {
+        runs: strategyCalibrated.runs || 0,
         roi: Number(strategyCalibrated.roi.toFixed(2)),
         maxDrawdown: Number(strategyCalibrated.maxDrawdown.toFixed(2)),
         hitRate: Number(strategyCalibrated.hitRate.toFixed(1)),

@@ -5,6 +5,13 @@ import { bumpTeamSamples, findTeamProfile, getInvestments, getSystemConfig, getT
 import { handleNoteShortcut } from '../lib/noteFormatting'
 import { getPredictionCalibrationContext, getModeKellyRecommendations } from '../lib/analytics'
 import { getPrimaryEntryMarket, normalizeEntryName, normalizeEntryRecord } from '../lib/entryParsing'
+import {
+  buildAtomicMatchProfile,
+  calcAtomicEquivalentOdds,
+  combineAtomicMatchProfiles,
+  estimateEntryAnchorOdds,
+  solveKellyFractionByAtomicDistribution,
+} from '../lib/atomicParlay'
 
 const MODE_OPTIONS = ['常规', '常规-稳', '常规-杠杆', '半彩票半保险', '保险产品', '赌一把']
 
@@ -421,16 +428,14 @@ export default function NewInvestmentPage() {
       .map((entry) => normalizeEntryRecord({ name: entry.name, odds: parseOdds(entry.odds) }, parseOdds(entry.odds)))
       .filter((entry) => entry.name && Number.isFinite(entry.odds) && entry.odds > 0)
 
-  const calcHarmonicMean = (entries) => {
-    const validOdds = getValidEntries(entries).map((entry) => entry.odds)
-    if (validOdds.length < 2) return null
-    return validOdds.length / validOdds.reduce((sum, odd) => sum + 1 / odd, 0)
+  const calcMatchOdds = (entries) => {
+    const validEntries = getValidEntries(entries)
+    return calcAtomicEquivalentOdds(validEntries, systemConfig.defaultOdds)
   }
 
-  const calcMatchOdds = (entries) => {
-    const validOdds = getValidEntries(entries).map((entry) => entry.odds)
-    if (validOdds.length === 0) return systemConfig.defaultOdds
-    return validOdds.length / validOdds.reduce((sum, odd) => sum + 1 / odd, 0)
+  const calcMatchAnchorOdds = (entries) => {
+    const validEntries = getValidEntries(entries)
+    return estimateEntryAnchorOdds(validEntries, systemConfig.defaultOdds)
   }
 
   const calcAdjustedConf = (match) => {
@@ -446,7 +451,7 @@ export default function NewInvestmentPage() {
     const fidFactor = FID_FACTOR_MAP[match.fid] || 1
     const fseMatch = Math.sqrt((match.fse_home / 100) * (match.fse_away / 100))
     const fseFactor = clamp((0.85 + fseMatch * 0.3) * fseMultiplier, 0.72, 1.35)
-    const odds = calcMatchOdds(match.entries)
+    const odds = calcMatchAnchorOdds(match.entries)
     const confSignal = clamp(confBase / 0.5, 0.15, 1.95)
     const weightedLift =
       confSignal ** getFactorWeight(systemConfig.weightConf, 0.45) *
@@ -469,16 +474,42 @@ export default function NewInvestmentPage() {
     )
   }
 
+  const atomicMatchProfiles = useMemo(
+    () =>
+      matches.map((match) => {
+        const unionProbability = calcAdjustedConf(match)
+        const validEntries = getValidEntries(match.entries)
+        return {
+          ...buildAtomicMatchProfile({
+            entries: validEntries,
+            unionProbability,
+            fallbackOdds: systemConfig.defaultOdds,
+          }),
+          unionProbability,
+        }
+      }),
+    [calibrationContext, matches, systemConfig],
+  )
+
+  const combinedAtomicProfile = useMemo(
+    () => combineAtomicMatchProfiles(atomicMatchProfiles),
+    [atomicMatchProfiles],
+  )
+
   const combinedOdds = useMemo(() => {
-    const value = matches.reduce((product, match) => product * calcMatchOdds(match.entries), 1)
-    return Number.isFinite(value) ? value : 0
-  }, [matches, systemConfig])
+    const conditionalOdds = Number(combinedAtomicProfile.conditionalOdds)
+    if (Number.isFinite(conditionalOdds) && conditionalOdds > 0) {
+      return conditionalOdds
+    }
+    const fallback = matches.reduce((product, match) => product * calcMatchOdds(match.entries), 1)
+    return Number.isFinite(fallback) ? fallback : 0
+  }, [combinedAtomicProfile, matches, systemConfig.defaultOdds])
 
   const expectedRating = useMemo(() => {
-    if (matches.length === 0) return 0
-    const average = matches.reduce((sum, match) => sum + calcAdjustedConf(match), 0) / matches.length
+    if (atomicMatchProfiles.length === 0) return 0
+    const average = atomicMatchProfiles.reduce((sum, row) => sum + row.unionProbability, 0) / atomicMatchProfiles.length
     return Number.isFinite(average) ? average : 0
-  }, [calibrationContext, matches, systemConfig])
+  }, [atomicMatchProfiles])
 
   // S4: 计算综合 Kelly 分母（加权平均各场 Mode 的 Kelly 分母）
   const effectiveKellyDivisor = useMemo(() => {
@@ -489,15 +520,15 @@ export default function NewInvestmentPage() {
   }, [matches, modeKellyMap, systemConfig.kellyDivisor])
 
   const recommendedInvest = useMemo(() => {
-    if (combinedOdds <= 1) return 0
-    const combinedProbability = matches.reduce((product, match) => product * calcAdjustedConf(match), 1)
-    const kelly = (combinedProbability * combinedOdds - 1) / (combinedOdds - 1)
+    const states = combinedAtomicProfile.states || []
+    if (states.length === 0) return 0
+    const kelly = solveKellyFractionByAtomicDistribution(states, 0.95)
     if (!Number.isFinite(kelly) || kelly <= 0) return 0
     // S4: 使用动态 Kelly 分母（基于 Mode）
     const raw = systemConfig.initialCapital * (kelly / effectiveKellyDivisor)
     const confidenceLift = 0.88 + expectedRating * 0.24
     return Math.min(riskCap, Math.max(0, Math.round(raw * confidenceLift)))
-  }, [combinedOdds, effectiveKellyDivisor, expectedRating, matches, riskCap, systemConfig.initialCapital])
+  }, [combinedAtomicProfile, effectiveKellyDivisor, expectedRating, riskCap, systemConfig.initialCapital])
 
   const getTeamSuggestions = (query) => searchTeamProfiles(query, teamProfiles, 6)
 
@@ -546,6 +577,12 @@ export default function NewInvestmentPage() {
     }
     if (validOdds.length > 1 && maxOdds / Math.max(minOdds, 0.01) > 8) {
       warnings.push('同场 Entry 赔率跨度较大，请确认是否跨盘口混录。')
+    }
+    if (validOdds.length > 1) {
+      const atomicOdds = calcMatchOdds(entries)
+      if (Number.isFinite(atomicOdds) && atomicOdds <= 1.05) {
+        warnings.push(`同场多 Entry 当前等效赔率约 ${atomicOdds.toFixed(2)}，更偏向对冲结构。`)
+      }
     }
     return warnings
   }
@@ -1018,10 +1055,10 @@ export default function NewInvestmentPage() {
                       </div>
                     ))}
                   </div>
-                  {match.entries.length > 1 && calcHarmonicMean(match.entries) && (
+                  {match.entries.length > 1 && (
                     <p className="text-xs text-stone-500 mt-2">
-                      Overall Odds（调和平均）:{' '}
-                      <span className="font-semibold text-amber-600">{calcHarmonicMean(match.entries)?.toFixed(2)}</span>
+                      Overall Odds（原子等效）:{' '}
+                      <span className="font-semibold text-amber-600">{calcMatchOdds(match.entries).toFixed(2)}</span>
                     </p>
                   )}
                   {getMatchOddsWarnings(match.entries).length > 0 && (
