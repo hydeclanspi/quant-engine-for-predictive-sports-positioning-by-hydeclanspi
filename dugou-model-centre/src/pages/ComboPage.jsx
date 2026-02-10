@@ -180,6 +180,66 @@ const calcRecommendedAmount = (probability, odds, systemConfig, riskCap) => {
   return Math.max(20, Math.min(riskCap, rounded))
 }
 
+const calcCombinationCount = (n, k) => {
+  if (!Number.isFinite(n) || !Number.isFinite(k) || k < 0 || k > n) return 0
+  const kk = Math.min(k, n - k)
+  if (kk === 0) return 1
+  let result = 1
+  for (let i = 1; i <= kk; i += 1) {
+    result = (result * (n - kk + i)) / i
+  }
+  return Math.round(result)
+}
+
+const countCandidateCombos = (matchCount, maxSubsetSize = 5) => {
+  const n = Math.max(0, Number.parseInt(matchCount, 10) || 0)
+  if (n === 0) return 0
+  const upper = Math.min(maxSubsetSize, n)
+  let total = 0
+  for (let k = 1; k <= upper; k += 1) {
+    total += calcCombinationCount(n, k)
+  }
+  return total
+}
+
+const allocateAmountsWithinRiskCap = (weights, riskCap, unit = 10) => {
+  if (!Array.isArray(weights) || weights.length === 0) return []
+  const step = Math.max(1, Math.round(Number(unit) || 10))
+  const cap = Math.max(0, Math.floor((Number(riskCap) || 0) / step) * step)
+  if (cap <= 0) return Array(weights.length).fill(0)
+
+  const safeWeights = weights.map((value) => Math.max(0, Number(value) || 0))
+  const weightSum = safeWeights.reduce((sum, value) => sum + value, 0)
+  if (weightSum <= 1e-9) {
+    const next = Array(weights.length).fill(0)
+    next[0] = step
+    return next
+  }
+
+  const capUnits = Math.floor(cap / step)
+  const rawUnits = safeWeights.map((value) => (value / weightSum) * capUnits)
+  const units = rawUnits.map((value) => Math.floor(value))
+  let remainUnits = capUnits - units.reduce((sum, value) => sum + value, 0)
+
+  const order = rawUnits
+    .map((value, index) => ({
+      index,
+      remainder: value - Math.floor(value),
+      weight: safeWeights[index],
+    }))
+    .sort((a, b) => b.remainder - a.remainder || b.weight - a.weight || a.index - b.index)
+
+  let cursor = 0
+  while (remainUnits > 0 && order.length > 0) {
+    const target = order[cursor % order.length]
+    units[target.index] += 1
+    remainUnits -= 1
+    cursor += 1
+  }
+
+  return units.map((value) => value * step)
+}
+
 const getTodayMatches = () => {
   const pending = getInvestments().filter((item) => item.status === 'pending' && !item.is_archived)
   if (pending.length === 0) return []
@@ -599,18 +659,19 @@ const generateRecommendations = (
   })
   const weightSum = allocationSeed.reduce((sum, value) => sum + value, 0)
   const normalizedWeights = allocationSeed.map((value) => (weightSum > 0 ? value / weightSum : 1 / allocationSeed.length))
-  const rawAmounts = normalizedWeights.map((weight) => Math.max(0, riskCap * weight))
-  const roundedAmounts = rawAmounts.map((value) => (value <= 0 ? 0 : Math.max(20, Math.round(value / 10) * 10)))
-  const roundedSum = roundedAmounts.reduce((sum, value) => sum + value, 0)
-  const normalizedAmounts =
-    roundedSum > 0 && roundedSum > riskCap
-      ? roundedAmounts.map((value) => Math.max(10, Math.round((value * riskCap) / roundedSum / 10) * 10))
-      : roundedAmounts
+  const allocatedAmounts = allocateAmountsWithinRiskCap(normalizedWeights, riskCap, 10)
+  const rankedWithAmounts = fallbackRanked.map((item, idx) => ({
+    ...item,
+    allocatedAmount: allocatedAmounts[idx] || 0,
+    allocatedWeight: normalizedWeights[idx] || 0,
+  }))
+  const materializedRanked = rankedWithAmounts.filter((item) => item.allocatedAmount > 0)
+  const outputRanked = materializedRanked.length > 0 ? materializedRanked : rankedWithAmounts.slice(0, 1)
 
-  const recommendations = fallbackRanked.map((item, idx) => {
+  const recommendations = outputRanked.map((item, idx) => {
     const rank = idx + 1
     const layer = getLayerByRank(rank)
-    const amount = normalizedAmounts[idx] || 0
+    const amount = item.allocatedAmount || 0
     const tierLabel = `T${rank}`
 
     return {
@@ -633,7 +694,7 @@ const generateRecommendations = (
       expectedRating: Number(item.p.toFixed(2)),
       coverageInjected: Boolean(item.coverageInjected),
       explain: {
-        weightPct: Number(((normalizedWeights[idx] || 0) * 100).toFixed(1)),
+        weightPct: Number((item.allocatedWeight * 100).toFixed(1)),
         confAvg: Number(item.confAvg.toFixed(2)),
         calibGainPp: Number(((item.p - item.rawP) * 100).toFixed(1)),
         riskPenaltySharePct: Number(
@@ -767,6 +828,7 @@ export default function ComboPage({ openModal }) {
     () => displayedCandidates.filter((_, idx) => checkedMatches[idx]),
     [checkedMatches, displayedCandidates],
   )
+  const candidateComboCount = useMemo(() => countCandidateCombos(selectedMatches.length, 5), [selectedMatches.length])
 
   const displayedRecommendations = useMemo(
     () => (showAllRecommendations ? recommendations : recommendations.slice(0, 3)),
@@ -1085,7 +1147,7 @@ export default function ComboPage({ openModal }) {
       window.alert('请先勾选比赛。')
       return
     }
-    const combos = Math.max(0, 2 ** selectedMatches.length - 1)
+    const combos = candidateComboCount
     window.alert(`已勾选 ${selectedMatches.length} 场，可生成 ${combos} 个候选组合。`)
   }
 
@@ -1171,7 +1233,7 @@ export default function ComboPage({ openModal }) {
           <p><strong>1. 输入处理</strong>：录入今日 n 场比赛参数（Conf, Mode, TYS, FID, FSE, Odds），系统构建候选组合池（2ⁿ-1 种非空组合）。</p>
           <p><strong>2. Calibration 校准层</strong>：引入时间近因权重（最近样本 1.4x / 中期样本 1.15x）+ REP 方向性权重（低随机性上调、高随机性降权），修正 Conf 偏差。</p>
           <p><strong>3. 预期收益计算</strong>：每个组合的期望收益 μ = ∏(校准胜率ᵢ) × ∏(Oddsᵢ) - 1。</p>
-          <p><strong>4. 风险评估</strong>：σ = √(p(1-p)) 作为波动性代理；Sharpe = μ/σ 作为稳定性指标。</p>
+          <p><strong>4. 风险评估</strong>：按二项收益分布计算波动性 σ（赢时收益=Odds-1，输时=-1）；Sharpe = μ/σ 作为稳定性指标。</p>
           <p><strong>5. Risk Preference 加权</strong>：效用函数 U = α × μ - (1-α) × σ，α 由滑杆控制（0=稳健，100=激进）。</p>
           <p><strong>6. 组合策略</strong>：可选「勾选优先 / 阈值优先 / 软惩罚」。勾选优先会自动补位，确保手动勾选场次进入推荐。</p>
           <p><strong>7. Portfolio 分配</strong>：对 Top 组合按效用打分分配仓位，约束总仓位不超过风控上限（Risk Cap）。</p>
@@ -1294,7 +1356,7 @@ export default function ComboPage({ openModal }) {
             <p className="text-[11px] text-stone-400 mt-2">
               近因 n={calibrationContext.n} · Conf×{calibrationContext.multipliers.conf.toFixed(2)} · FSE×
               {calibrationContext.multipliers.fse.toFixed(2)} · 策略 {activeStrategyMeta.label} · 候选组合{' '}
-              {generationSummary.candidateCombos || Math.max(0, 2 ** selectedMatches.length - 1)}
+              {generationSummary.candidateCombos || candidateComboCount}
             </p>
           </div>
 
