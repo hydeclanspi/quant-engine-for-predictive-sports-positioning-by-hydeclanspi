@@ -324,7 +324,7 @@ const COMBO_STRATEGY_OPTIONS = [
     desc: '不过度一刀切，对不达标项做分数惩罚后继续参与排序。',
   },
 ]
-const DEFAULT_COMBO_STRATEGY = COMBO_STRATEGY_OPTIONS[0].value
+const DEFAULT_COMBO_STRATEGY = 'softPenalty'
 
 const normalizeMode = (mode) => (mode === '常规-激进' ? '常规-杠杆' : mode || '常规')
 
