@@ -75,7 +75,7 @@ const DEFAULT_TEAM_PROFILES = [
   { teamId: 'realmadrid', teamName: '皇马', abbreviations: ['rma', 'real madrid', '皇马'], totalSamples: 19, avgRep: 0.41 },
 ]
 
-const TEAM_ALIAS_LIBRARY = [
+export const TEAM_ALIAS_LIBRARY = [
   // Premier League (full coverage + common aliases)
   { teamId: 'arsenal', teamName: '阿森纳', abbreviations: ['ars', 'afc', 'arsenal', 'gunners', '阿森纳'] },
   { teamId: 'astonvilla', teamName: '阿斯顿维拉', abbreviations: ['avl', 'villa', 'aston villa', '阿斯顿维拉', '维拉'] },
@@ -175,7 +175,7 @@ const mergeAliases = (...groups) => {
   return result
 }
 
-const getTeamDirectoryProfiles = (profiles = getTeamProfiles()) => {
+export const getTeamDirectoryProfiles = (profiles = getTeamProfiles()) => {
   const byName = new Map()
 
   TEAM_ALIAS_LIBRARY.forEach((profile) => {

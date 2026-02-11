@@ -16,6 +16,40 @@ const AJR_INPUT_MAX = 0.8
 const MONTE_CARLO_TARGET_RUNS = 100000
 const MONTE_CARLO_MIN_RUNS = 12000
 const MONTE_CARLO_OP_BUDGET = 6000000
+const ANALYTICS_CACHE_EVENT = 'dugou:data-changed'
+const ANALYTICS_CACHE_HANDLER_KEY = '__dugouAnalyticsCacheInvalidator__'
+
+const analyticsMemo = {
+  revision: 0,
+  modeKelly: new Map(),
+  dashboard: new Map(),
+  analysis: new Map(),
+  metrics: new Map(),
+}
+
+const clearAnalyticsMemo = () => {
+  analyticsMemo.modeKelly.clear()
+  analyticsMemo.dashboard.clear()
+  analyticsMemo.analysis.clear()
+  analyticsMemo.metrics.clear()
+}
+
+const bumpAnalyticsRevision = () => {
+  analyticsMemo.revision += 1
+  clearAnalyticsMemo()
+}
+
+const getRevisionCacheKey = (scope, suffix = '') => `${analyticsMemo.revision}|${scope}|${suffix}`
+
+if (typeof window !== 'undefined') {
+  const previousInvalidator = window[ANALYTICS_CACHE_HANDLER_KEY]
+  if (typeof previousInvalidator === 'function') {
+    window.removeEventListener(ANALYTICS_CACHE_EVENT, previousInvalidator)
+  }
+  const invalidator = () => bumpAnalyticsRevision()
+  window.addEventListener(ANALYTICS_CACHE_EVENT, invalidator)
+  window[ANALYTICS_CACHE_HANDLER_KEY] = invalidator
+}
 
 export const normalizeAjrForModel = (value, fallback = Number.NaN) => {
   const parsed = toNumber(value, Number.NaN)
@@ -735,6 +769,10 @@ export const getKellyDivisorBacktest = (divisors = KELLY_DIVISOR_CANDIDATES) => 
 }
 
 export const getDashboardSnapshot = (periodKey = '2w') => {
+  const cacheKey = getRevisionCacheKey('dashboard', periodKey)
+  const cached = analyticsMemo.dashboard.get(cacheKey)
+  if (cached) return cached
+
   const config = getSystemConfig()
   const allInvestments = getActiveInvestments()
   const range = getPeriodRange(periodKey)
@@ -1012,7 +1050,7 @@ export const getDashboardSnapshot = (periodKey = '2w') => {
   const streaks = calcStreakSummary(settledPeriod)
   const momentum = calcMomentumSummary(settledPeriod)
 
-  return {
+  const snapshot = {
     periodInvestments: periodInvestments.length,
     settledPeriod: settledPeriod.length,
     pendingPeriod: periodInvestments.length - settledPeriod.length,
@@ -1044,6 +1082,9 @@ export const getDashboardSnapshot = (periodKey = '2w') => {
       }))
       .slice(0, 120),
   }
+
+  analyticsMemo.dashboard.set(cacheKey, snapshot)
+  return snapshot
 }
 
 const normalizeTeamName = (teamName, aliasMap) => {
@@ -1285,6 +1326,10 @@ export const getKellyDivisorMatrix = () => {
 }
 
 export const getModeKellyRecommendations = () => {
+  const cacheKey = getRevisionCacheKey('modeKelly')
+  const cached = analyticsMemo.modeKelly.get(cacheKey)
+  if (cached) return cached
+
   const config = getSystemConfig()
   const investments = getSettledInvestments(getActiveInvestments())
   const globalRowsSource = toKellySimulationRowsFromInvestments(investments, config)
@@ -1301,7 +1346,7 @@ export const getModeKellyRecommendations = () => {
     grouped.get(key).push(item)
   })
 
-  return [...grouped.entries()].map(([mode, items]) => {
+  const recommendations = [...grouped.entries()].map(([mode, items]) => {
     const sourceRows = toKellySimulationRowsFromInvestments(items, config)
     const pick = pickKellyDivisor(
       sourceRows,
@@ -1319,6 +1364,9 @@ export const getModeKellyRecommendations = () => {
       reliability: pick.reliability,
     }
   })
+
+  analyticsMemo.modeKelly.set(cacheKey, recommendations)
+  return recommendations
 }
 
 const calcStdDev = (values) => {
@@ -2306,6 +2354,10 @@ const calcStreaks = (settledInvestments) => {
 }
 
 export const getAnalysisSnapshot = (periodKey = 'all') => {
+  const cacheKey = getRevisionCacheKey('analysis', periodKey)
+  const cached = analyticsMemo.analysis.get(cacheKey)
+  if (cached) return cached
+
   const range = getPeriodRange(periodKey)
   const investments = getActiveInvestments().filter((item) => inRange(item.created_at, range))
   const settled = getSettledInvestments(investments)
@@ -2466,15 +2518,22 @@ export const getAnalysisSnapshot = (periodKey = 'all') => {
     }))
     .sort((a, b) => b.samples - a.samples || b.roi - a.roi)
 
-  return {
+  const snapshot = {
     strategyData,
     modeData,
     confData,
     entryTypeData,
   }
+
+  analyticsMemo.analysis.set(cacheKey, snapshot)
+  return snapshot
 }
 
 export const getMetricsSnapshot = (periodKey = 'all') => {
+  const cacheKey = getRevisionCacheKey('metrics', periodKey)
+  const cached = analyticsMemo.metrics.get(cacheKey)
+  if (cached) return cached
+
   const config = getSystemConfig()
   const range = getPeriodRange(periodKey)
   const investments = getActiveInvestments().filter((item) => inRange(item.created_at, range))
@@ -2842,7 +2901,7 @@ export const getMetricsSnapshot = (periodKey = 'all') => {
     fse_vs_return: calcPearson(corrPairs.fseReturn.x, corrPairs.fseReturn.y),
   }
 
-  return {
+  const snapshot = {
     headline: {
       totalInvestments: settled.length,
       totalInputs,
@@ -2888,6 +2947,9 @@ export const getMetricsSnapshot = (periodKey = 'all') => {
     correlations,
     matchRows,
   }
+
+  analyticsMemo.metrics.set(cacheKey, snapshot)
+  return snapshot
 }
 
 // ============================================================================

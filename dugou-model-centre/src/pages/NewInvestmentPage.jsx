@@ -12,6 +12,7 @@ import {
   estimateEntryAnchorOdds,
   solveKellyFractionByAtomicDistribution,
 } from '../lib/atomicParlay'
+import { parseNaturalInput } from '../lib/naturalInputParser'
 
 const MODE_OPTIONS = ['常规', '常规-稳', '常规-杠杆', '半彩票半保险', '保险产品', '赌一把']
 
@@ -219,6 +220,9 @@ export default function NewInvestmentPage() {
   const [profilesVersion, setProfilesVersion] = useState(0)
   const [historyPrefillApplied, setHistoryPrefillApplied] = useState({})
   const [historyFloatDismissed, setHistoryFloatDismissed] = useState({})
+  const [quickInputText, setQuickInputText] = useState('')
+  const [quickInputOpen, setQuickInputOpen] = useState(false)
+  const [quickInputResult, setQuickInputResult] = useState(null)
   const [systemConfig] = useState(() => getSystemConfig())
 
   const teamProfiles = useMemo(() => getTeamProfiles(), [profilesVersion])
@@ -756,6 +760,27 @@ export default function NewInvestmentPage() {
     return { newInvestment, normalizedMatches }
   }
 
+  const handleQuickInput = () => {
+    if (!quickInputText.trim()) return
+    const result = parseNaturalInput(quickInputText)
+    setQuickInputResult(result)
+    if (result.matches.length === 0) return
+
+    // Apply parsed matches to form
+    const newSize = Math.min(5, result.matches.length)
+    setParlaySize(newSize)
+    setMatches(
+      result.matches.slice(0, 5).map((draft) => ({
+        ...createEmptyMatch(),
+        ...draft,
+        // strip internal _nlMeta from form state
+      })),
+    )
+    setActualInput(newSize === 1 ? '180' : '80')
+    setHistoryPrefillApplied({})
+    setHistoryFloatDismissed({})
+  }
+
   const persistCurrentInvestment = () => {
     const payload = buildInvestmentPayload()
     if (!payload) return null
@@ -783,6 +808,67 @@ export default function NewInvestmentPage() {
       <div className="mb-8">
         <h2 className="text-2xl font-semibold text-stone-800 font-display">新建投资</h2>
         <p className="text-stone-400 text-sm mt-1">录入比赛信息与预测参数</p>
+      </div>
+
+      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-4 mb-4">
+        <button
+          onClick={() => setQuickInputOpen((prev) => !prev)}
+          className="flex items-center gap-2 text-sm text-stone-600 hover:text-amber-600 transition-colors w-full"
+        >
+          {quickInputOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          <span className="font-medium">Quick Input</span>
+          <span className="text-[11px] text-stone-400">自然语言快捷录入</span>
+        </button>
+
+        {quickInputOpen && (
+          <div className="mt-3 space-y-2">
+            <textarea
+              value={quickInputText}
+              onChange={(e) => setQuickInputText(e.target.value)}
+              placeholder={'示例：伯恩茅斯胜/平曼联 conf3.5 odds8.1 fse0.9\n或：arsenal W, chelsea D, conf 55 60, odds 1.8 3.2'}
+              rows={3}
+              className="input-glow w-full px-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400 resize-none"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleQuickInput}
+                disabled={!quickInputText.trim()}
+                className="px-4 py-1.5 rounded-lg text-xs font-medium bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                解析并填入
+              </button>
+              {quickInputText.trim() && (
+                <button
+                  onClick={() => { setQuickInputText(''); setQuickInputResult(null) }}
+                  className="px-3 py-1.5 rounded-lg text-xs text-stone-500 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+                >
+                  清空
+                </button>
+              )}
+            </div>
+
+            {quickInputResult && (
+              <div className="mt-2 space-y-1">
+                {quickInputResult.matches.length > 0 && (
+                  <p className="text-[11px] text-emerald-600">
+                    已识别 {quickInputResult.matches.length} 场比赛
+                    {quickInputResult.confidence >= 0.7 ? '' : ' (部分字段可能需要手动补充)'}
+                  </p>
+                )}
+                {quickInputResult.diagnostics.map((d, i) => (
+                  <p
+                    key={i}
+                    className={`text-[11px] ${
+                      d.level === 'error' ? 'text-rose-500' : d.level === 'warning' ? 'text-amber-600' : 'text-stone-400'
+                    }`}
+                  >
+                    {d.message}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden">
