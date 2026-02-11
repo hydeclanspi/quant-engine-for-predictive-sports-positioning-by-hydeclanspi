@@ -626,19 +626,63 @@ const toFiniteNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+const parsePercentText = (value, fallback = Number.NaN) => {
+  if (typeof value !== 'string') return fallback
+  const cleaned = value.replace('%', '').trim()
+  const parsed = Number(cleaned)
+  if (!Number.isFinite(parsed)) return fallback
+  return parsed / 100
+}
+
 const normalizeHistoryRecommendation = (row, index = 0) => {
   const fallbackRank = index + 1
   const subset = Array.isArray(row?.subset) ? row.subset.filter(Boolean) : []
   const legs = Math.max(1, Number.parseInt(row?.legs || subset.length || 1, 10) || subset.length || 1)
   const amount = Math.max(0, Math.round(toFiniteNumber(row?.amount, 0)))
-  const expectedReturn = toFiniteNumber(row?.expectedReturn, 0)
-  const hitProbability = clamp(toFiniteNumber(row?.hitProbability ?? row?.p, 0), 0, 1)
-  const profitWinProbability = clamp(toFiniteNumber(row?.profitWinProbability, 0), 0, 1)
-  const combinedOdds = Math.max(1.01, toFiniteNumber(row?.combinedOdds ?? row?.odds, 1.01))
+  const explainSource = row?.explain && typeof row.explain === 'object' ? row.explain : {}
+
+  const derivedFromAtomic = (() => {
+    if (subset.length === 0) return null
+    const profiles = subset
+      .map((item) => (item && item.atomicProfile && Array.isArray(item.atomicProfile.states) ? item.atomicProfile : null))
+      .filter(Boolean)
+    if (profiles.length !== subset.length) return null
+    return combineAtomicMatchProfiles(profiles)
+  })()
+
+  const expectedReturn = (() => {
+    const direct = toFiniteNumber(row?.expectedReturn, Number.NaN)
+    if (Number.isFinite(direct)) return direct
+    const fromEvText = parsePercentText(row?.ev, Number.NaN)
+    if (Number.isFinite(fromEvText)) return fromEvText
+    if (derivedFromAtomic) return toFiniteNumber(derivedFromAtomic.expectedReturn, 0)
+    return 0
+  })()
+
+  const hitProbability = (() => {
+    const direct = toFiniteNumber(row?.hitProbability ?? row?.p, Number.NaN)
+    if (Number.isFinite(direct)) return clamp(direct, 0, 1)
+    const fromText = parsePercentText(row?.winRate, Number.NaN)
+    if (Number.isFinite(fromText)) return clamp(fromText, 0, 1)
+    if (derivedFromAtomic) return clamp(toFiniteNumber(derivedFromAtomic.hitProbability, 0), 0, 1)
+    return 0
+  })()
+
+  const profitWinProbability = (() => {
+    const direct = toFiniteNumber(row?.profitWinProbability, Number.NaN)
+    if (Number.isFinite(direct)) return clamp(direct, 0, 1)
+    const fromExplain = toFiniteNumber(explainSource.profitWinPct, Number.NaN)
+    if (Number.isFinite(fromExplain)) return clamp(fromExplain / 100, 0, 1)
+    const fromText = parsePercentText(row?.profitWinRate, Number.NaN)
+    if (Number.isFinite(fromText)) return clamp(fromText, 0, 1)
+    if (derivedFromAtomic) return clamp(toFiniteNumber(derivedFromAtomic.profitWinProbability, 0), 0, 1)
+    return clamp(hitProbability, 0, 1)
+  })()
+
+  const combinedOdds = Math.max(1.01, toFiniteNumber(row?.combinedOdds ?? row?.odds, derivedFromAtomic?.equivalentOdds ?? 1.01))
   const expectedRating = clamp(toFiniteNumber(row?.expectedRating, hitProbability), 0, 1)
   const layer = row?.layer || getLayerByRank(fallbackRank)
   const tier = row?.tier || `T${fallbackRank}`
-  const explainSource = row?.explain && typeof row.explain === 'object' ? row.explain : {}
 
   return {
     ...row,
@@ -2484,6 +2528,11 @@ export default function ComboPage({ openModal }) {
             <p className="text-[10px] text-sky-600/80 mt-2">
               该机制只影响打分，不做硬筛选，不会强行锁死总赔率或固定配比。
             </p>
+            <div className="mt-2.5 rounded-lg border border-sky-100 bg-white/70 px-2.5 py-2 text-[10px] text-stone-500 space-y-1">
+              <p>操作解释：先选预设（平衡/稳健底盘/杠杆推进）定义你的大方向。</p>
+              <p>γ（结构引导强度）：0 附近几乎不干预，越高越偏向你设定的角色结构。</p>
+              <p>逐场角色按钮用于“点杀”某场风格；没把握就用“自动”。</p>
+            </div>
           </div>
 
           <div className="flex gap-3 mt-6">
