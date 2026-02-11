@@ -7,7 +7,6 @@ import {
   BarChart3,
   History,
   ChevronDown,
-  Settings,
   TrendingUp,
   FileText,
   Flag,
@@ -59,6 +58,16 @@ const PAGE_TITLES = {
   '/history/teams': 'Team Archive',
   '/params': 'Console',
 }
+
+const ConsoleIcon = ({ size = 14, className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden="true">
+    <rect x="2.25" y="3" width="15.5" height="13.5" rx="3" stroke="currentColor" strokeWidth="1.4" />
+    <path d="M5.8 7.2H14.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    <path d="M5.8 10H10.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    <path d="M5.8 12.8H12.8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    <path d="M13.7 10L14.9 11.2L16.6 8.9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
 
 export default function ModernTopBar() {
   const [openDropdown, setOpenDropdown] = useState(null)
@@ -212,7 +221,7 @@ export default function ModernTopBar() {
           onClick={() => navigate('/params')}
           className={`mn-settings-link ${location.pathname === '/params' ? 'mn-settings-link-active' : ''}`}
         >
-          <Settings size={14} strokeWidth={1.5} />
+          <ConsoleIcon size={14} />
           <span>Console</span>
         </button>
       </div>

@@ -5,7 +5,7 @@ import TimeRangePicker from '../components/TimeRangePicker'
 import { getSystemConfig, saveSystemConfig, addCapitalInjection } from '../lib/localData'
 import { downloadWorkbook } from '../lib/excel'
 import * as XLSX from 'xlsx'
-import { Wallet, TrendingUp, Target, BarChart3 } from 'lucide-react'
+import { Wallet, TrendingUp, BarChart3 } from 'lucide-react'
 
 const PERIOD_LABELS = {
   '1w': '近一周',
@@ -19,6 +19,16 @@ const CHART_OPTIONS = [
   { key: 'conf', label: 'Conf 相关性走势' },
   { key: 'rating', label: 'Judgmental Rating 准确度走势' },
 ]
+
+const HitRateIcon = ({ size = 18, className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden="true">
+    <path d="M3.8 16.2L16.2 3.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <path d="M11.9 3.8H16.2V8.1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M4 16H7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <path d="M9 16H12.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <path d="M13.7 16H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+)
 
 const toSigned = (value, digits = 1, suffix = '') => {
   const num = Number(value || 0)
@@ -927,7 +937,7 @@ export default function DashboardPage({ openModal }) {
             value: toPercent(snapshot.hitRatePeriod),
             change: `${toSigned(snapshot.hitRateDelta, 1, '%')} vs 上周期`,
             positive: snapshot.hitRateDelta >= 0,
-            IconComp: Target,
+            IconComp: HitRateIcon,
             onClick: openHitRateModal,
           },
           {

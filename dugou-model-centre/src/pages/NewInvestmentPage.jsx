@@ -817,7 +817,7 @@ export default function NewInvestmentPage() {
         >
           {quickInputOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           <span className="font-medium">Quick Input</span>
-          <span className="ml-1 px-1.5 py-[1px] rounded border border-indigo-200 bg-indigo-50 text-[9px] font-semibold uppercase tracking-[0.1em] text-indigo-500">Beta</span>
+          <span className="ml-1 px-[5px] py-[0.5px] rounded border border-indigo-200 bg-indigo-50 text-[7.5px] font-semibold uppercase tracking-[0.08em] text-indigo-500">Beta</span>
           <span className="text-[11px] text-stone-400 ml-1">自然语言快捷录入</span>
         </button>
 

@@ -65,6 +65,44 @@ const BACKUP_CADENCE_HOURS = {
   two_months: 24 * 60,
 }
 
+const EMPTY_KELLY_BACKTEST = {
+  divisors: [],
+  globalRows: [],
+  globalBest: null,
+  modeRecommendations: [],
+}
+
+const EMPTY_CALIBRATION_CONTEXT = {
+  sampleCount: 0,
+  n: 0,
+  multipliers: { conf: 1, fse: 1 },
+  effectiveRecencyWeight: 1,
+  bands: [],
+  repBuckets: [],
+  regression: { slope: 1, intercept: 0, r2: 0, rmse: 0 },
+  regressionMultiplier: 1,
+  regressionReliability: 0,
+  scatterData: [],
+}
+
+const EMPTY_MODEL_VALIDATION = {
+  ready: false,
+  minimumSamples: 24,
+  sampleCount: 0,
+  trainSamples: 0,
+  testSamples: 0,
+  stability: 'insufficient',
+  message: '模型验证计算中...',
+  brier: { testRaw: 0, testCalibrated: 0, gainPct: 0, drift: 0 },
+  logLoss: { testRaw: 0, testCalibrated: 0, gainPct: 0 },
+  strategy: {
+    raw: { roi: 0, maxDrawdown: 0, samples: 0, runs: 0 },
+    calibrated: { roi: 0, maxDrawdown: 0, samples: 0, runs: 0 },
+  },
+  walkForward: [],
+  positiveWalkForward: 0,
+}
+
 const normalizeBackupCadence = (value) => {
   const key = String(value || '').trim()
   return Object.prototype.hasOwnProperty.call(BACKUP_CADENCE_HOURS, key) ? key : 'half_week'
@@ -1039,6 +1077,22 @@ export default function ParamsPage({ openModal }) {
   const [dataVersion, setDataVersion] = useState(0)
   const [nowTick, setNowTick] = useState(() => Date.now())
   const [pendingKellyAdjustment, setPendingKellyAdjustment] = useState(null)
+  const [analyticsData, setAnalyticsData] = useState(() => ({
+    ratingRows: [],
+    modeKellyRows: [],
+    kellyMatrix: [],
+    kellyBacktest: EMPTY_KELLY_BACKTEST,
+    calibrationContext: EMPTY_CALIBRATION_CONTEXT,
+    modelValidation: EMPTY_MODEL_VALIDATION,
+  }))
+  const [analyticsProgress, setAnalyticsProgress] = useState(() => ({
+    rating: false,
+    kelly: false,
+    calibration: false,
+    validation: false,
+    phase: '等待计算',
+    error: '',
+  }))
   const excelInputRef = useRef(null)
   const jsonInputRef = useRef(null)
   const [jsonStatus, setJsonStatus] = useState('')
@@ -1057,14 +1111,119 @@ export default function ParamsPage({ openModal }) {
     return () => window.clearInterval(timer)
   }, [])
 
-  const ratingRows = useMemo(() => getExpectedVsActualRows(240), [dataVersion])
-  const modeKellyRows = useMemo(() => getModeKellyRecommendations(), [dataVersion])
-  const kellyMatrix = useMemo(() => getKellyDivisorMatrix(), [dataVersion])
-  const kellyBacktest = useMemo(() => getKellyDivisorBacktest(), [dataVersion])
-  const calibrationContext = useMemo(() => getPredictionCalibrationContext(), [dataVersion])
-  const modelValidation = useMemo(() => getModelValidationSnapshot(), [dataVersion])
+  useEffect(() => {
+    let cancelled = false
+    const tasks = []
+    const scheduleTask = (task) => {
+      if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+        const idleId = window.requestIdleCallback(
+          () => {
+            if (!cancelled) task()
+          },
+          { timeout: 120 },
+        )
+        tasks.push({ type: 'idle', id: idleId })
+        return
+      }
+      const timeoutId = window.setTimeout(() => {
+        if (!cancelled) task()
+      }, 0)
+      tasks.push({ type: 'timeout', id: timeoutId })
+    }
+    const failPhase = (phase, error) => {
+      console.error(`[ParamsPage] ${phase} 计算失败`, error)
+      if (cancelled) return
+      setAnalyticsProgress((prev) => ({ ...prev, phase: `${phase} 失败`, error: `${phase} 计算失败，请刷新重试` }))
+    }
+
+    setAnalyticsProgress({
+      rating: false,
+      kelly: false,
+      calibration: false,
+      validation: false,
+      phase: '基础指标计算中...',
+      error: '',
+    })
+    setAnalyticsData((prev) => ({
+      ...prev,
+      modelValidation: {
+        ...EMPTY_MODEL_VALIDATION,
+        message: '模型验证计算中...',
+      },
+    }))
+
+    scheduleTask(() => {
+      try {
+        const ratingRows = getExpectedVsActualRows(240)
+        const modeKellyRows = getModeKellyRecommendations()
+        if (cancelled) return
+        setAnalyticsData((prev) => ({ ...prev, ratingRows, modeKellyRows }))
+        setAnalyticsProgress((prev) => ({ ...prev, rating: true, phase: 'Kelly 回测计算中...' }))
+      } catch (error) {
+        failPhase('基础指标', error)
+        return
+      }
+
+      scheduleTask(() => {
+        try {
+          const kellyMatrix = getKellyDivisorMatrix()
+          const kellyBacktest = getKellyDivisorBacktest()
+          if (cancelled) return
+          setAnalyticsData((prev) => ({ ...prev, kellyMatrix, kellyBacktest }))
+          setAnalyticsProgress((prev) => ({ ...prev, kelly: true, phase: '时间近因与校准计算中...' }))
+        } catch (error) {
+          failPhase('Kelly 回测', error)
+          return
+        }
+
+        scheduleTask(() => {
+          try {
+            const calibrationContext = getPredictionCalibrationContext()
+            if (cancelled) return
+            setAnalyticsData((prev) => ({ ...prev, calibrationContext }))
+            setAnalyticsProgress((prev) => ({ ...prev, calibration: true, phase: '模型收口验证计算中...' }))
+          } catch (error) {
+            failPhase('时间近因机制', error)
+            return
+          }
+
+          scheduleTask(() => {
+            try {
+              const modelValidation = getModelValidationSnapshot()
+              if (cancelled) return
+              setAnalyticsData((prev) => ({ ...prev, modelValidation }))
+              setAnalyticsProgress((prev) => ({
+                ...prev,
+                validation: true,
+                phase: '计算完成',
+                error: '',
+              }))
+            } catch (error) {
+              failPhase('模型收口验证', error)
+            }
+          })
+        })
+      })
+    })
+
+    return () => {
+      cancelled = true
+      tasks.forEach((task) => {
+        if (task.type === 'idle' && typeof window !== 'undefined' && typeof window.cancelIdleCallback === 'function') {
+          window.cancelIdleCallback(task.id)
+          return
+        }
+        window.clearTimeout(task.id)
+      })
+    }
+  }, [dataVersion])
+
+  const { ratingRows, modeKellyRows, kellyMatrix, kellyBacktest, calibrationContext, modelValidation } = analyticsData
+  const isAnalyticsComputing =
+    !analyticsProgress.error &&
+    !(analyticsProgress.rating && analyticsProgress.kelly && analyticsProgress.calibration && analyticsProgress.validation)
   const hasKellyBacktest = useMemo(
-    () => kellyBacktest.globalRows.some((row) => row.samples > 0),
+    () => (kellyBacktest.globalRows || []).some((row) => row.samples > 0),
     [kellyBacktest.globalRows],
   )
   const recommendedKellyDivisor = useMemo(() => {
@@ -1074,6 +1233,11 @@ export default function ParamsPage({ openModal }) {
     const weightedSum = modeKellyRows.reduce((sum, row) => sum + (row.kellyDivisor || 4) * (row.samples || 0), 0)
     return Number((weightedSum / totalSamples).toFixed(1))
   }, [modeKellyRows])
+  const ratingFitScore = useMemo(() => {
+    if (!analyticsProgress.rating || ratingRows.length === 0) return null
+    const fit = ratingRows.reduce((sum, row) => sum + (1 - Math.abs(row.diff)), 0) / Math.max(ratingRows.length, 1)
+    return Number(fit.toFixed(2))
+  }, [analyticsProgress.rating, ratingRows])
   const settledInvestments = useMemo(
     () =>
       getInvestments().filter(
@@ -1472,6 +1636,18 @@ export default function ParamsPage({ openModal }) {
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-stone-800 font-display">参数后台</h2>
         <p className="text-stone-400 text-sm mt-1">系统参数、动态校准系数与 Kelly 分母历史校准</p>
+        <div className="mt-2 flex items-center gap-2">
+          {isAnalyticsComputing && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[11px]">
+              {analyticsProgress.phase || '指标计算中...'}
+            </span>
+          )}
+          {analyticsProgress.error && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200 text-[11px]">
+              {analyticsProgress.error}
+            </span>
+          )}
+        </div>
       </div>
 
       <div onClick={openRatingModal} className="glow-card bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 rounded-2xl p-6 border border-amber-200 mb-6 cursor-pointer">
@@ -1486,9 +1662,11 @@ export default function ParamsPage({ openModal }) {
           </div>
           <div className="text-right">
             <div className="text-4xl font-bold text-amber-600">
-              {(ratingRows.reduce((sum, row) => sum + (1 - Math.abs(row.diff)), 0) / Math.max(ratingRows.length, 1)).toFixed(2)}
+              {ratingFitScore !== null ? ratingFitScore.toFixed(2) : '--'}
             </div>
-            <p className="text-sm text-emerald-600 mt-1">样本 {ratingRows.length}</p>
+            <p className="text-sm text-emerald-600 mt-1">
+              {analyticsProgress.rating ? `样本 ${ratingRows.length}` : '样本计算中...'}
+            </p>
           </div>
         </div>
       </div>
@@ -1735,7 +1913,9 @@ export default function ParamsPage({ openModal }) {
           </button>
         </div>
 
-        {!hasKellyBacktest ? (
+        {!analyticsProgress.kelly ? (
+          <p className="text-sm text-stone-500">Kelly 回测计算中，请稍候...</p>
+        ) : !hasKellyBacktest ? (
           <p className="text-sm text-stone-500">暂无可回测样本，请先完成至少 1 笔结算。</p>
         ) : (
           <div className="overflow-x-auto">
@@ -1841,45 +2021,52 @@ export default function ParamsPage({ openModal }) {
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <span className="text-amber-500">⌛</span> 时间近因机制
           </h3>
-          <span className="text-xs text-stone-400">样本 {calibrationContext.sampleCount} · n={calibrationContext.n}</span>
+          <span className="text-xs text-stone-400">
+            {analyticsProgress.calibration ? `样本 ${calibrationContext.sampleCount} · n=${calibrationContext.n}` : '计算中...'}
+          </span>
         </div>
-
-        <div className="grid grid-cols-3 gap-3">
-          {calibrationContext.bands.map((band) => (
-            <div key={band.key} className="p-3 bg-stone-50 rounded-xl border border-stone-200/70">
-              <p className="text-xs text-stone-400">{band.label}</p>
-              <p className="mt-1 text-sm font-semibold text-stone-700">
-                权重 ×{band.weight.toFixed(2)} <span className="text-xs font-normal text-stone-400">· {band.samples} 场</span>
-              </p>
+        {!analyticsProgress.calibration ? (
+          <p className="text-sm text-stone-500">时间近因与球队校准计算中，请稍候...</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-3">
+              {calibrationContext.bands.map((band) => (
+                <div key={band.key} className="p-3 bg-stone-50 rounded-xl border border-stone-200/70">
+                  <p className="text-xs text-stone-400">{band.label}</p>
+                  <p className="mt-1 text-sm font-semibold text-stone-700">
+                    权重 ×{band.weight.toFixed(2)} <span className="text-xs font-normal text-stone-400">· {band.samples} 场</span>
+                  </p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <div className="grid grid-cols-2 gap-3 mt-3">
-          <div className="p-3 bg-amber-50 rounded-xl border border-amber-200">
-            <p className="text-xs text-amber-700">Conf 近因校准</p>
-            <p className="mt-1 text-lg font-semibold text-amber-700">×{calibrationContext.multipliers.conf.toFixed(2)}</p>
-          </div>
-          <div className="p-3 bg-sky-50 rounded-xl border border-sky-200">
-            <p className="text-xs text-sky-700">FSE 近因校准</p>
-            <p className="mt-1 text-lg font-semibold text-sky-700">×{calibrationContext.multipliers.fse.toFixed(2)}</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3 mt-3">
-          {calibrationContext.repBuckets.map((bucket) => (
-            <div key={bucket.key} className="p-2.5 rounded-lg border border-stone-200 text-xs text-stone-500 bg-white">
-              <p>{bucket.label}</p>
-              <p className="mt-1 text-stone-700">
-                ×{bucket.weight.toFixed(2)} · {bucket.samples} 场
-              </p>
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200">
+                <p className="text-xs text-amber-700">Conf 近因校准</p>
+                <p className="mt-1 text-lg font-semibold text-amber-700">×{calibrationContext.multipliers.conf.toFixed(2)}</p>
+              </div>
+              <div className="p-3 bg-sky-50 rounded-xl border border-sky-200">
+                <p className="text-xs text-sky-700">FSE 近因校准</p>
+                <p className="mt-1 text-lg font-semibold text-sky-700">×{calibrationContext.multipliers.fse.toFixed(2)}</p>
+              </div>
             </div>
-          ))}
-        </div>
 
-        <p className="text-[11px] text-stone-400 mt-3">
-          已启用 REP 方向性降噪：低随机性样本上调权重，高随机性样本降权，避免“运气样本”放大误导。
-        </p>
+            <div className="grid grid-cols-3 gap-3 mt-3">
+              {calibrationContext.repBuckets.map((bucket) => (
+                <div key={bucket.key} className="p-2.5 rounded-lg border border-stone-200 text-xs text-stone-500 bg-white">
+                  <p>{bucket.label}</p>
+                  <p className="mt-1 text-stone-700">
+                    ×{bucket.weight.toFixed(2)} · {bucket.samples} 场
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-[11px] text-stone-400 mt-3">
+              已启用 REP 方向性降噪：低随机性样本上调权重，高随机性样本降权，避免“运气样本”放大误导。
+            </p>
+          </>
+        )}
       </div>
 
       <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
@@ -2276,7 +2463,9 @@ export default function ParamsPage({ openModal }) {
           <span className={`text-xs px-2 py-1 rounded border ${modelValidationMeta.badge}`}>{modelValidationMeta.label}</span>
         </div>
 
-        {!modelValidation.ready ? (
+        {!analyticsProgress.validation ? (
+          <p className="text-sm text-stone-500">模型收口验证计算中，请稍候...</p>
+        ) : !modelValidation.ready ? (
           <p className="text-sm text-stone-500">{modelValidation.message || '暂无验证结果。'}</p>
         ) : (
           <>
