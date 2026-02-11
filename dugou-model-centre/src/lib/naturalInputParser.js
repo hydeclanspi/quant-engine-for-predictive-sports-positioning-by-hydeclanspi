@@ -1,12 +1,13 @@
 /**
  * Natural Input Parser — rule-based NL understanding for match quick-entry.
  *
- * Accepts free text like:
- *   "伯恩茅斯胜/平曼联，conf3.5，odds8.1，FSE0.9"
- *   "arsenal W, chelsea D, conf 55 60, odds 1.8 3.2"
+ * Supported syntax examples:
+ *   "伯恩茅斯胜/平曼联 conf3.5 odds8.1 fse0.9"
+ *   "ars w che, conf 0.9, 2.32/4.3 odds"
+ *   "ars w/-1 d che, conf 0.9, 2.32/4.3 odds"
  *   "热刺胜/平 赌一把 odds4.5 conf35 tys:H fid0.75"
- *
- * Returns an array of match drafts compatible with createEmptyMatch().
+ *   "liv 3-1 mci, tys 0.9, 0.7, fse 0.2/0.4"
+ *   "1.32 odds ars w che remark 我觉得必赢"
  */
 
 import { getTeamDirectoryProfiles } from './localData'
@@ -40,9 +41,18 @@ const snapFid = (v) => {
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 
+// Single-char / short entry tokens that the team scanner should NOT consume
+// These need to be recognized when they sit alone between two teams: "ars w che"
+const ENTRY_TOKENS_SHORT = new Set([
+  'w', 'd', 'l', 'h', 'a', 'x',
+  '胜', '平', '负', '主', '客',
+  'win', 'draw', 'lose', 'home', 'away',
+  '主胜', '客胜', '平局',
+])
+
 /* ── Stage 1: Normalize ───────────────────────────────────────────────── */
 
-const normalize = (text) =>
+const normalizeText = (text) =>
   String(text || '')
     .replace(/，/g, ',')
     .replace(/；/g, ';')
@@ -56,14 +66,14 @@ const normalize = (text) =>
     .replace(/\s+/g, ' ')
     .trim()
 
-/* ── Stage 2: Extract parameters ──────────────────────────────────────── */
+/* ── Stage 2: Extract & strip parameters ──────────────────────────────── */
 
 const normalizeConfValue = (raw) => {
   const num = Number.parseFloat(raw)
   if (!Number.isFinite(num) || num < 0) return null
   if (num <= 1.0) return { value: Math.round(num * 100), warning: null }
   if (num >= 10 && num <= 100) return { value: Math.round(num), warning: null }
-  // 1 < num < 10 — ambiguous range. "3.5" → treat as 0.35 → 35
+  // 1 < num < 10 — "3.5" → treat as 0.35 → 35
   const reconstructed = Math.round(num * 10)
   if (reconstructed >= 10 && reconstructed <= 95) {
     return { value: reconstructed, warning: `conf${raw} → ${reconstructed}%` }
@@ -79,12 +89,40 @@ const normalizeFseValue = (raw) => {
   return null
 }
 
+// Split a value-group string like "0.2/0.4" or "0.2,0.4" or "0.2 0.4" into number strings
+const splitValueGroup = (str) =>
+  String(str || '')
+    .split(/[/,\s]+/)
+    .map((s) => s.trim())
+    .filter((s) => s && /^\d+(?:\.\d+)?$/.test(s))
+
 const extractParameters = (text) => {
-  const params = { conf: [], odds: [], fse: [], fid: [], tys: [], mode: null }
+  const params = {
+    conf: [],
+    odds: [],          // flat list of odds values
+    oddsGroups: [],    // per-match groups, each group is an array (for multi-entry linking)
+    fse_home: [],
+    fse_away: [],
+    fse_global: [],    // when no h/a specified, will be distributed later
+    fid: [],
+    tys_home: [],
+    tys_away: [],
+    tys_global: [],
+    mode: null,
+    remark: '',
+  }
   const warnings = []
   let cleaned = text
 
-  // Mode — check longest first
+  // ── Remark / 备注 — grab everything after the keyword ──
+  const remarkRe = /\b(?:remark|备注|note)[:\s]*(.*)/i
+  const remarkMatch = cleaned.match(remarkRe)
+  if (remarkMatch) {
+    params.remark = remarkMatch[1].trim()
+    cleaned = cleaned.slice(0, remarkMatch.index).trim()
+  }
+
+  // ── Mode ──
   for (const mode of MODE_OPTIONS_SORTED) {
     const idx = cleaned.toLowerCase().indexOf(mode.toLowerCase())
     if (idx !== -1) {
@@ -104,71 +142,132 @@ const extractParameters = (text) => {
     }
   }
 
-  // Keyword-value pairs: conf, odds, fse, fid
-  // Match keyword + optional separator + first number, then greedily consume trailing bare numbers
-  const kvPatterns = [
-    { key: 'conf', re: /\bconf[:\s]*(\d+(?:\.\d+)?)/gi },
-    { key: 'odds', re: /\bodds[:\s]*(\d+(?:\.\d+)?)/gi },
-    { key: 'fse',  re: /\bfse[:\s]*(\d+(?:\.\d+)?)/gi },
-    { key: 'fid',  re: /\bfid[:\s]*(\d+(?:\.\d+)?)/gi },
-  ]
+  // ── FSE with home/away ──
+  // "fse h 0.8" or "fse home 0.2" or "fsea0.3"
+  const fseHRe = /\bfse[\s_-]*(?:h|home|主)[:\s]*(\d+(?:\.\d+)?)/gi
+  const fseARe = /\bfse[\s_-]*(?:a|away|客)[:\s]*(\d+(?:\.\d+)?)/gi
+  let fseM
+  while ((fseM = fseHRe.exec(cleaned)) !== null) {
+    const v = normalizeFseValue(fseM[1])
+    if (v !== null) params.fse_home.push(v)
+  }
+  cleaned = cleaned.replace(fseHRe, ' ')
+  while ((fseM = fseARe.exec(cleaned)) !== null) {
+    const v = normalizeFseValue(fseM[1])
+    if (v !== null) params.fse_away.push(v)
+  }
+  cleaned = cleaned.replace(fseARe, ' ')
 
-  for (const { key, re } of kvPatterns) {
-    let m
-    while ((m = re.exec(cleaned)) !== null) {
-      const values = [m[1]]
-      // Look ahead for trailing bare numbers separated by spaces/commas
-      const afterPos = m.index + m[0].length
-      const afterText = cleaned.slice(afterPos)
-      const trailingMatch = afterText.match(/^[\s,]*(\d+(?:\.\d+)?)(?:[\s,]+(\d+(?:\.\d+)?))?(?:[\s,]+(\d+(?:\.\d+)?))?(?:[\s,]+(\d+(?:\.\d+)?))?/)
-      if (trailingMatch) {
-        for (let i = 1; i <= 4; i++) {
-          if (trailingMatch[i]) values.push(trailingMatch[i])
-        }
-      }
+  // ── FSE global (no h/a) — supports "fse 0.2/0.4" or "fse 0.2, 0.4" ──
+  const fseGlobalRe = /\bfse[:\s]*([\d./,\s]+)/gi
+  while ((fseM = fseGlobalRe.exec(cleaned)) !== null) {
+    const vals = splitValueGroup(fseM[1])
+    for (const v of vals) {
+      const n = normalizeFseValue(v)
+      if (n !== null) params.fse_global.push(n)
+    }
+  }
+  cleaned = cleaned.replace(/\bfse[:\s]*[\d./,\s]+/gi, ' ')
 
-      if (key === 'conf') {
-        for (const v of values) {
-          const parsed = normalizeConfValue(v)
-          if (parsed) {
-            params.conf.push(parsed.value)
-            if (parsed.warning) warnings.push(parsed.warning)
-          }
-        }
-      } else if (key === 'odds') {
-        for (const v of values) {
-          const n = Number.parseFloat(v)
-          if (Number.isFinite(n) && n > 1) params.odds.push(n)
-        }
-      } else if (key === 'fse') {
-        for (const v of values) {
-          const n = normalizeFseValue(v)
-          if (n !== null) params.fse.push(n)
-        }
-      } else if (key === 'fid') {
-        for (const v of values) {
-          const n = Number.parseFloat(v)
-          if (Number.isFinite(n)) params.fid.push(snapFid(n))
-        }
+  // ── TYS with home/away ──
+  const tysHRe = /\btys[\s_-]*(?:h|home|主)[:\s]*([smlhSMLH])/gi
+  const tysARe = /\btys[\s_-]*(?:a|away|客)[:\s]*([smlhSMLH])/gi
+  let tysM
+  while ((tysM = tysHRe.exec(cleaned)) !== null) {
+    const v = tysM[1].toUpperCase()
+    if (TYS_SET.has(v)) params.tys_home.push(v)
+  }
+  cleaned = cleaned.replace(tysHRe, ' ')
+  while ((tysM = tysARe.exec(cleaned)) !== null) {
+    const v = tysM[1].toUpperCase()
+    if (TYS_SET.has(v)) params.tys_away.push(v)
+  }
+  cleaned = cleaned.replace(tysARe, ' ')
+
+  // ── TYS global ──
+  const tysGlobalRe = /\btys[:\s]*([smlhSMLH])(?:[\s/,]+([smlhSMLH]))?/gi
+  while ((tysM = tysGlobalRe.exec(cleaned)) !== null) {
+    const v1 = tysM[1].toUpperCase()
+    if (TYS_SET.has(v1)) params.tys_global.push(v1)
+    if (tysM[2]) {
+      const v2 = tysM[2].toUpperCase()
+      if (TYS_SET.has(v2)) params.tys_global.push(v2)
+    }
+  }
+  cleaned = cleaned.replace(/\btys[:\s]*[smlhSMLH](?:[\s/,]+[smlhSMLH])?/gi, ' ')
+
+  // ── Conf — both "conf 0.9" and "0.9 conf" ──
+  // Forward: conf <values>
+  const confFwdRe = /\bconf[:\s]*([\d./,\s]+)/gi
+  let cM
+  while ((cM = confFwdRe.exec(cleaned)) !== null) {
+    for (const v of splitValueGroup(cM[1])) {
+      const parsed = normalizeConfValue(v)
+      if (parsed) {
+        params.conf.push(parsed.value)
+        if (parsed.warning) warnings.push(parsed.warning)
       }
     }
-
-    // Strip all matched keyword spans (including trailing numbers) from cleaned text
-    cleaned = cleaned.replace(new RegExp(`\\b${key}[:\\s]*[\\d.,\\s]+`, 'gi'), ' ')
   }
-
-  // TYS — pattern tys:H or tys H or tysH
-  const tysRe = /\btys[:\s]*([smlhSMLH])\b/gi
-  let tysMatch
-  while ((tysMatch = tysRe.exec(cleaned)) !== null) {
-    const v = tysMatch[1].toUpperCase()
-    if (TYS_SET.has(v)) params.tys.push(v)
+  cleaned = cleaned.replace(confFwdRe, ' ')
+  // Reverse: <values> conf
+  const confRevRe = /([\d./,\s]+)\s*\bconf\b/gi
+  while ((cM = confRevRe.exec(cleaned)) !== null) {
+    for (const v of splitValueGroup(cM[1])) {
+      const parsed = normalizeConfValue(v)
+      if (parsed) {
+        params.conf.push(parsed.value)
+        if (parsed.warning) warnings.push(parsed.warning)
+      }
+    }
   }
-  cleaned = cleaned.replace(/\btys[:\s]*[smlhSMLH]\b/gi, ' ')
+  cleaned = cleaned.replace(confRevRe, ' ')
 
-  // Clean up leftover whitespace
+  // ── Odds — both "odds 2.32/4.3" and "2.32/4.3 odds" and "1.32 odds" ──
+  // Forward: odds <values>
+  const oddsFwdRe = /\bodds[:\s]*([\d./,\s]+)/gi
+  let oM
+  while ((oM = oddsFwdRe.exec(cleaned)) !== null) {
+    const group = []
+    for (const v of splitValueGroup(oM[1])) {
+      const n = Number.parseFloat(v)
+      if (Number.isFinite(n) && n >= 1) { params.odds.push(n); group.push(n) }
+    }
+    if (group.length > 0) params.oddsGroups.push(group)
+  }
+  cleaned = cleaned.replace(oddsFwdRe, ' ')
+  // Reverse: <values> odds
+  const oddsRevRe = /([\d./,\s]+)\s*\bodds\b/gi
+  while ((oM = oddsRevRe.exec(cleaned)) !== null) {
+    const group = []
+    for (const v of splitValueGroup(oM[1])) {
+      const n = Number.parseFloat(v)
+      if (Number.isFinite(n) && n >= 1) { params.odds.push(n); group.push(n) }
+    }
+    if (group.length > 0) params.oddsGroups.push(group)
+  }
+  cleaned = cleaned.replace(oddsRevRe, ' ')
+
+  // ── FID — "fid 0.6" or "0.6 fid" ──
+  const fidFwdRe = /\bfid[:\s]*([\d./,\s]+)/gi
+  let fM
+  while ((fM = fidFwdRe.exec(cleaned)) !== null) {
+    for (const v of splitValueGroup(fM[1])) {
+      const n = Number.parseFloat(v)
+      if (Number.isFinite(n)) params.fid.push(snapFid(n))
+    }
+  }
+  cleaned = cleaned.replace(fidFwdRe, ' ')
+  const fidRevRe = /([\d./,\s]+)\s*\bfid\b/gi
+  while ((fM = fidRevRe.exec(cleaned)) !== null) {
+    for (const v of splitValueGroup(fM[1])) {
+      const n = Number.parseFloat(v)
+      if (Number.isFinite(n)) params.fid.push(snapFid(n))
+    }
+  }
+  cleaned = cleaned.replace(fidRevRe, ' ')
+
   cleaned = cleaned.replace(/\s+/g, ' ').trim()
-
   return { params, warnings, contentText: cleaned }
 }
 
@@ -197,9 +296,7 @@ const buildAliasDictionary = (profiles) => {
       })
     }
   }
-  // Sort by alias length descending — longest match first
   entries.sort((a, b) => b.len - a.len)
-  // Dedupe by lowercased alias
   const seen = new Set()
   return entries.filter((e) => {
     if (seen.has(e.aliasLower)) return false
@@ -222,9 +319,9 @@ const isLatinAlphanumeric = (ch) => /[a-zA-Z0-9]/.test(ch)
 const isWordBoundary = (text, start, end) => {
   const before = start > 0 ? text[start - 1] : ''
   const after = end < text.length ? text[end] : ''
-  const beforeBlocks = !before || !isLatinAlphanumeric(before)
-  const afterBlocks = !after || !isLatinAlphanumeric(after)
-  return beforeBlocks && afterBlocks
+  const beforeOk = !before || !isLatinAlphanumeric(before)
+  const afterOk = !after || !isLatinAlphanumeric(after)
+  return beforeOk && afterOk
 }
 
 const scanTeamNames = (text, dict) => {
@@ -236,26 +333,29 @@ const scanTeamNames = (text, dict) => {
     let matched = false
     for (const entry of dict) {
       if (pos + entry.len > lower.length) continue
-      if (lower.startsWith(entry.aliasLower, pos)) {
-        // Word boundary check for short pure-Latin aliases to avoid "new" matching in "news" etc.
-        if (entry.len <= 4 && /^[a-z]+$/i.test(entry.alias)) {
-          if (!isWordBoundary(text, pos, pos + entry.len)) continue
-        }
-        // Multi-word latin aliases need boundary too
-        if (/^[a-z\s]+$/i.test(entry.alias) && entry.alias.includes(' ')) {
-          if (!isWordBoundary(text, pos, pos + entry.len)) continue
-        }
-        results.push({
-          teamId: entry.teamId,
-          teamName: entry.teamName,
-          alias: entry.alias,
-          start: pos,
-          end: pos + entry.len,
-        })
-        pos += entry.len
-        matched = true
-        break
+      if (!lower.startsWith(entry.aliasLower, pos)) continue
+
+      // Skip if this "alias" is actually an entry token (single-char like w/d/l)
+      if (ENTRY_TOKENS_SHORT.has(entry.aliasLower)) continue
+
+      // Word boundary for short Latin aliases
+      if (entry.len <= 4 && /^[a-z]+$/i.test(entry.alias)) {
+        if (!isWordBoundary(text, pos, pos + entry.len)) continue
       }
+      if (/^[a-z\s]+$/i.test(entry.alias) && entry.alias.includes(' ')) {
+        if (!isWordBoundary(text, pos, pos + entry.len)) continue
+      }
+
+      results.push({
+        teamId: entry.teamId,
+        teamName: entry.teamName,
+        alias: entry.alias,
+        start: pos,
+        end: pos + entry.len,
+      })
+      pos += entry.len
+      matched = true
+      break
     }
     if (!matched) pos++
   }
@@ -265,11 +365,7 @@ const scanTeamNames = (text, dict) => {
 
 /* ── Stage 4: Extract residuals & parse entries ───────────────────────── */
 
-const VERSUS_RE = /^(vs|v|对阵|对|-|×)$/i
-
-// Known single-char entry tokens that can stick to a team name
-const ENTRY_SINGLE_CHARS = new Set(['胜', '平', '负', '主', '客'])
-const ENTRY_TWO_CHARS = ['主胜', '客胜', '平局', '客负']
+const VERSUS_RE = /^(vs|v|对阵|对|×)$/i
 
 const parseGapAsEntries = (gapText) => {
   if (!gapText || !gapText.trim()) return { entries: [], isVersus: false, unknown: [] }
@@ -278,17 +374,35 @@ const parseGapAsEntries = (gapText) => {
 
   if (VERSUS_RE.test(cleaned)) return { entries: [], isVersus: true, unknown: [] }
 
-  // Split on "/" for multi-entry (胜/平)
-  const parts = cleaned.split(/[/]/).map((s) => s.trim()).filter(Boolean)
+  // Split on "/" for multi-entry (胜/平, w/d, w/-1 d)
+  // But also handle space-separated tokens: "w d" → two entries
+  // Strategy: first split on "/" then split each part on spaces
+  const slashParts = cleaned.split(/\//).map((s) => s.trim()).filter(Boolean)
   const entries = []
   const unknown = []
 
-  for (const part of parts) {
+  for (const part of slashParts) {
+    // Each slash-part might contain space-separated tokens: "-1 d" → one handicap entry
+    // Try the whole part first
     const semantic = parseEntrySemantic(part)
     if (semantic.marketType !== 'other') {
       entries.push({ name: semantic.name, semantic })
-    } else {
-      unknown.push(part)
+      continue
+    }
+    // Try splitting on spaces
+    const spaceParts = part.split(/\s+/).filter(Boolean)
+    let anyParsed = false
+    for (const sp of spaceParts) {
+      const sem = parseEntrySemantic(sp)
+      if (sem.marketType !== 'other') {
+        entries.push({ name: sem.name, semantic: sem })
+        anyParsed = true
+      } else {
+        unknown.push(sp)
+      }
+    }
+    if (!anyParsed && spaceParts.length > 0) {
+      // None parsed individually either
     }
   }
 
@@ -326,43 +440,52 @@ const segmentMatches = (segments) => {
 
     if (seg.type === 'team') {
       const home = seg
-      // Look for gap + team pattern (two teams with entry/versus between them)
+      // Look for gap + team (two teams with entry/versus between)
       if (i + 2 < segments.length && segments[i + 1].type === 'gap' && segments[i + 2].type === 'team') {
         const gap = parseGapAsEntries(segments[i + 1].text)
         if (gap.entries.length > 0 || gap.isVersus) {
-          // Two teams form one match
           const away = segments[i + 2]
-          matches.push({
+          const match = {
             home: { teamId: home.teamId, teamName: home.teamName, alias: home.alias },
             away: { teamId: away.teamId, teamName: away.teamName, alias: away.alias },
             entries: gap.entries,
             rawEntryText: segments[i + 1].text,
-          })
+          }
           i += 3
-          // Check for trailing entry after the away team
+          // trailing entry after away team
           if (i < segments.length && segments[i].type === 'gap') {
             const trailing = parseGapAsEntries(segments[i].text)
-            if (trailing.entries.length > 0 && matches.length > 0) {
-              // Add trailing entries to the last match
-              const last = matches[matches.length - 1]
-              last.entries.push(...trailing.entries)
-              last.rawEntryText = (last.rawEntryText || '') + ' ' + segments[i].text
+            if (trailing.entries.length > 0) {
+              match.entries.push(...trailing.entries)
+              match.rawEntryText = (match.rawEntryText || '') + ' ' + segments[i].text
               i++
             }
           }
+          matches.push(match)
           continue
         }
       }
 
-      // Look for adjacent gap with entry (single team + entry)
+      // Team immediately followed by another team (no gap) — "ars che" → one match
+      if (i + 1 < segments.length && segments[i + 1].type === 'team') {
+        const away = segments[i + 1]
+        matches.push({
+          home: { teamId: home.teamId, teamName: home.teamName, alias: home.alias },
+          away: { teamId: away.teamId, teamName: away.teamName, alias: away.alias },
+          entries: [],
+          rawEntryText: '',
+        })
+        i += 2
+        continue
+      }
+
+      // Single team + trailing gap with entry
       if (i + 1 < segments.length && segments[i + 1].type === 'gap') {
         const gap = parseGapAsEntries(segments[i + 1].text)
         if (gap.entries.length > 0) {
-          // Check if entry implies home/away position
           const firstEntry = gap.entries[0]
           const isAway = firstEntry.semantic?.semanticKey === 'lose' ||
             firstEntry.name === '客胜' || firstEntry.name === '客'
-
           matches.push({
             home: isAway ? null : { teamId: home.teamId, teamName: home.teamName, alias: home.alias },
             away: isAway ? { teamId: home.teamId, teamName: home.teamName, alias: home.alias } : null,
@@ -374,7 +497,7 @@ const segmentMatches = (segments) => {
         }
       }
 
-      // Bare team, no entry
+      // Bare team
       matches.push({
         home: { teamId: home.teamId, teamName: home.teamName, alias: home.alias },
         away: null,
@@ -386,11 +509,8 @@ const segmentMatches = (segments) => {
     }
 
     if (seg.type === 'gap') {
-      // Leading gap before any team — might contain entries for the first team
-      // Or stray text. Try to parse entries.
       const gap = parseGapAsEntries(seg.text)
       if (gap.entries.length > 0 && i + 1 < segments.length && segments[i + 1].type === 'team') {
-        // Entry before a team — e.g., "主胜 阿森纳" → entry belongs to next team
         const nextTeam = segments[i + 1]
         const firstEntry = gap.entries[0]
         const isAway = firstEntry.semantic?.semanticKey === 'lose' ||
@@ -404,7 +524,6 @@ const segmentMatches = (segments) => {
         i += 2
         continue
       }
-      // Skip unrecognized gap text
       i++
       continue
     }
@@ -421,34 +540,132 @@ const assignParameters = (matches, params) => {
   const n = matches.length
   if (n === 0) return
 
-  const assignArray = (arr, setter) => {
+  // Helper: assign single-value or per-match array
+  const assignSimple = (arr, setter) => {
     if (!arr || arr.length === 0) return
     if (arr.length === 1) {
-      // Global — apply to all
       matches.forEach((m) => setter(m, arr[0]))
     } else {
-      // Per-match
-      matches.forEach((m, i) => {
-        if (i < arr.length) setter(m, arr[i])
-      })
+      matches.forEach((m, i) => { if (i < arr.length) setter(m, arr[i]) })
     }
   }
 
-  assignArray(params.conf, (m, v) => { m.conf = clamp(v, 0, 100) })
-  assignArray(params.odds, (m, v) => {
-    // Assign odds to the first entry, or create one
-    if (m.entries.length > 0) {
-      m.entries[0].assignedOdds = v
-    } else {
-      m.assignedOdds = v
-    }
-  })
-  assignArray(params.fse, (m, v) => { m.fse = clamp(v, 0, 100) })
-  assignArray(params.fid, (m, v) => { m.fid = v })
-  assignArray(params.tys, (m, v) => { m.tys = v })
+  // ── Conf ──
+  assignSimple(params.conf, (m, v) => { m.conf = clamp(v, 0, 100) })
 
+  // ── FID ──
+  assignSimple(params.fid, (m, v) => { m.fid = v })
+
+  // ── Mode ──
   if (params.mode) {
     matches.forEach((m) => { m.mode = params.mode })
+  }
+
+  // ── Remark ──
+  if (params.remark) {
+    matches.forEach((m) => { m.remark = params.remark })
+  }
+
+  // ── FSE (home/away aware) ──
+  // Priority: explicit h/a > global paired values
+  if (params.fse_home.length > 0 || params.fse_away.length > 0) {
+    assignSimple(params.fse_home, (m, v) => { m.fse_home = clamp(v, 0, 100) })
+    assignSimple(params.fse_away, (m, v) => { m.fse_away = clamp(v, 0, 100) })
+  } else if (params.fse_global.length > 0) {
+    // If 2 values per match → first=home, second=away
+    // If 2 values total and 1 match → [home, away]
+    // If 1 value total → apply to both
+    const fg = params.fse_global
+    if (fg.length === 1) {
+      matches.forEach((m) => { m.fse_home = clamp(fg[0], 0, 100); m.fse_away = clamp(fg[0], 0, 100) })
+    } else if (fg.length === 2 && n === 1) {
+      // 2 values, 1 match → home/away
+      matches[0].fse_home = clamp(fg[0], 0, 100)
+      matches[0].fse_away = clamp(fg[1], 0, 100)
+    } else if (fg.length === n * 2) {
+      // Exactly 2 per match
+      matches.forEach((m, i) => {
+        m.fse_home = clamp(fg[i * 2], 0, 100)
+        m.fse_away = clamp(fg[i * 2 + 1], 0, 100)
+      })
+    } else if (fg.length >= 2 && fg.length % 2 === 0) {
+      // Even number, pair them up
+      const pairs = Math.min(Math.floor(fg.length / 2), n)
+      for (let i = 0; i < pairs; i++) {
+        matches[i].fse_home = clamp(fg[i * 2], 0, 100)
+        matches[i].fse_away = clamp(fg[i * 2 + 1], 0, 100)
+      }
+    } else {
+      // Odd or unmatched — apply each to both sides per match
+      assignSimple(fg, (m, v) => { m.fse_home = clamp(v, 0, 100); m.fse_away = clamp(v, 0, 100) })
+    }
+  }
+
+  // ── TYS (home/away aware) ──
+  if (params.tys_home.length > 0 || params.tys_away.length > 0) {
+    assignSimple(params.tys_home, (m, v) => { m.tys_home = v })
+    assignSimple(params.tys_away, (m, v) => { m.tys_away = v })
+  } else if (params.tys_global.length > 0) {
+    const tg = params.tys_global
+    if (tg.length === 1) {
+      matches.forEach((m) => { m.tys_home = tg[0]; m.tys_away = tg[0] })
+    } else if (tg.length === 2 && n === 1) {
+      matches[0].tys_home = tg[0]
+      matches[0].tys_away = tg[1]
+    } else if (tg.length === n * 2) {
+      matches.forEach((m, i) => {
+        m.tys_home = tg[i * 2]
+        m.tys_away = tg[i * 2 + 1]
+      })
+    } else if (tg.length >= 2 && tg.length % 2 === 0) {
+      const pairs = Math.min(Math.floor(tg.length / 2), n)
+      for (let i = 0; i < pairs; i++) {
+        matches[i].tys_home = tg[i * 2]
+        matches[i].tys_away = tg[i * 2 + 1]
+      }
+    } else {
+      assignSimple(tg, (m, v) => { m.tys_home = v; m.tys_away = v })
+    }
+  }
+
+  // ── Odds — link to entries per-match ──
+  // oddsGroups contains parsed groups. If a group has N values and the match has N entries,
+  // link them 1:1. Otherwise fall back to assigning first odds to first entry.
+  if (params.oddsGroups.length > 0) {
+    // Distribute groups to matches
+    const groups = params.oddsGroups
+    matches.forEach((m, mi) => {
+      // Determine which odds group belongs to this match
+      let group = null
+      if (groups.length === 1) {
+        group = groups[0] // single group → apply to first match (or all if 1 match)
+        if (n > 1 && mi > 0) group = null // only first match gets it unless values match
+      } else if (mi < groups.length) {
+        group = groups[mi]
+      }
+
+      if (!group || group.length === 0) return
+
+      if (m.entries.length > 0) {
+        // Try to link odds to entries by position
+        m.entries.forEach((e, ei) => {
+          if (ei < group.length) {
+            e.assignedOdds = group[ei]
+          }
+        })
+      } else {
+        m.assignedOdds = group[0]
+      }
+    })
+  } else if (params.odds.length > 0) {
+    // Flat odds list — assign per match
+    assignSimple(params.odds, (m, v) => {
+      if (m.entries.length > 0) {
+        m.entries[0].assignedOdds = v
+      } else {
+        m.assignedOdds = v
+      }
+    })
   }
 }
 
@@ -456,11 +673,9 @@ const assignParameters = (matches, params) => {
 
 const buildMatchDraft = (parsed) => {
   const entries = parsed.entries.length > 0
-    ? parsed.entries.map((e, i) => ({
+    ? parsed.entries.map((e) => ({
         name: e.name || '',
-        odds: i === 0
-          ? String(e.assignedOdds || parsed.assignedOdds || '')
-          : '',
+        odds: String(e.assignedOdds || ''),
       }))
     : [{ name: '', odds: String(parsed.assignedOdds || '') }]
 
@@ -470,12 +685,12 @@ const buildMatchDraft = (parsed) => {
     entries,
     conf: parsed.conf ?? 50,
     mode: parsed.mode || '常规',
-    tys_home: parsed.tys || 'M',
-    tys_away: parsed.tys || 'M',
+    tys_home: parsed.tys_home || 'M',
+    tys_away: parsed.tys_away || 'M',
     fid: parsed.fid || '0.4',
-    fse_home: parsed.fse ?? 50,
-    fse_away: parsed.fse ?? 50,
-    note: '',
+    fse_home: parsed.fse_home ?? 50,
+    fse_away: parsed.fse_away ?? 50,
+    note: parsed.remark || '',
     _nlMeta: {
       homeResolution: parsed.home ? { teamId: parsed.home.teamId, alias: parsed.home.alias } : null,
       awayResolution: parsed.away ? { teamId: parsed.away.teamId, alias: parsed.away.alias } : null,
@@ -488,20 +703,11 @@ const buildMatchDraft = (parsed) => {
 
 const scoreParse = (matches, diagnostics) => {
   if (matches.length === 0) return 0
-  let score = 0.3 // base for having at least one match
-
-  const hasTeams = matches.every((m) => m.homeTeam || m.awayTeam)
-  if (hasTeams) score += 0.25
-
-  const hasEntries = matches.every((m) => m.entries.some((e) => e.name))
-  if (hasEntries) score += 0.2
-
-  const bothTeams = matches.every((m) => m.homeTeam && m.awayTeam)
-  if (bothTeams) score += 0.15
-
-  const noWarnings = diagnostics.filter((d) => d.level === 'warning').length === 0
-  if (noWarnings) score += 0.1
-
+  let score = 0.3
+  if (matches.every((m) => m.homeTeam || m.awayTeam)) score += 0.25
+  if (matches.every((m) => m.entries.some((e) => e.name))) score += 0.2
+  if (matches.every((m) => m.homeTeam && m.awayTeam)) score += 0.15
+  if (diagnostics.filter((d) => d.level === 'warning').length === 0) score += 0.1
   return Math.min(1, score)
 }
 
@@ -513,16 +719,14 @@ export const parseNaturalInput = (rawText) => {
     return { matches: [], diagnostics: [{ level: 'info', message: '输入为空' }], confidence: 0, rawInput: rawText || '' }
   }
 
-  // Stage 1: Normalize
-  const normalized = normalize(rawText)
+  // Stage 1
+  const normalized = normalizeText(rawText)
 
-  // Stage 2: Extract parameters
+  // Stage 2
   const { params, warnings: paramWarnings, contentText } = extractParameters(normalized)
-  for (const w of paramWarnings) {
-    diagnostics.push({ level: 'warning', message: w })
-  }
+  for (const w of paramWarnings) diagnostics.push({ level: 'warning', message: w })
 
-  // Stage 3: Greedy team scan
+  // Stage 3
   const dict = getAliasDictionary()
   const teamHits = scanTeamNames(contentText, dict)
 
@@ -531,10 +735,10 @@ export const parseNaturalInput = (rawText) => {
     return { matches: [], diagnostics, confidence: 0, rawInput: rawText }
   }
 
-  // Stage 4: Extract residual segments
+  // Stage 4
   const segments = extractSegments(contentText, teamHits)
 
-  // Stage 5: Segment into matches
+  // Stage 5
   const rawMatches = segmentMatches(segments)
 
   if (rawMatches.length === 0) {
@@ -542,13 +746,13 @@ export const parseNaturalInput = (rawText) => {
     return { matches: [], diagnostics, confidence: 0.1, rawInput: rawText }
   }
 
-  // Stage 6: Assign parameters
+  // Stage 6
   assignParameters(rawMatches, params)
 
-  // Stage 7: Build drafts
+  // Stage 7
   const matches = rawMatches.map(buildMatchDraft)
 
-  // Stage 8: Diagnostics
+  // Stage 8
   matches.forEach((m, idx) => {
     if (!m.homeTeam && !m.awayTeam) {
       diagnostics.push({ level: 'error', message: `比赛 ${idx + 1}: 缺少球队`, matchIndex: idx })
@@ -564,6 +768,5 @@ export const parseNaturalInput = (rawText) => {
   })
 
   const confidence = scoreParse(matches, diagnostics)
-
   return { matches, diagnostics, confidence, rawInput: rawText }
 }
