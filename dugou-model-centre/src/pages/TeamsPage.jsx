@@ -133,13 +133,18 @@ const normalizeSeries = (series) => {
 const buildAliasMap = (profiles) => {
   const map = new Map()
   profiles.forEach((profile) => {
+    const canonicalName = normalize(profile.teamName) === '西汉姆' ? '西汉姆联' : profile.teamName
     const aliases = [profile.teamName, ...(profile.abbreviations || [])]
-    aliases.forEach((alias) => map.set(normalize(alias), profile.teamName))
+    aliases.forEach((alias) => map.set(normalize(alias), canonicalName))
   })
   return map
 }
 
-const normalizeTeamName = (teamName, aliasMap) => aliasMap.get(normalize(teamName)) || String(teamName || '').trim()
+const normalizeTeamName = (teamName, aliasMap) => {
+  const resolved = aliasMap.get(normalize(teamName)) || String(teamName || '').trim()
+  if (normalize(resolved) === '西汉姆') return '西汉姆联'
+  return resolved
+}
 
 const getTeamLeague = (teamName) => {
   const normalizedName = String(teamName || '').trim()

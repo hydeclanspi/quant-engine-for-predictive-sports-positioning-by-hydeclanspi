@@ -1108,7 +1108,9 @@ export const getDashboardSnapshot = (periodKey = '2w') => {
 
 const normalizeTeamName = (teamName, aliasMap) => {
   const key = normalize(teamName)
-  return aliasMap.get(key) || String(teamName || '').trim()
+  const resolved = aliasMap.get(key) || String(teamName || '').trim()
+  if (normalize(resolved) === '西汉姆') return '西汉姆联'
+  return resolved
 }
 
 const buildAliasMap = (profiles) => {
@@ -1165,7 +1167,7 @@ export const getTeamsSnapshot = (query = '', periodKey = 'all') => {
   }
 
   profiles.forEach((profile) => {
-    ensureTeam(profile.teamName)
+    ensureTeam(normalizeTeamName(profile.teamName, aliasMap))
   })
 
   investments.forEach((investment) => {

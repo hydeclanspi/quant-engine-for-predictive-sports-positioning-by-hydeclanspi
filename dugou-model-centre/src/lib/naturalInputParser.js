@@ -367,6 +367,34 @@ const scanTeamNames = (text, dict) => {
 
 const VERSUS_RE = /^(vs|v|对阵|对|×)$/i
 
+const SHORT_OUTCOME_TOKEN_MAP = new Map([
+  ['w', 'win'],
+  ['h', 'win'],
+  ['home', 'win'],
+  ['win', 'win'],
+  ['d', 'draw'],
+  ['x', 'draw'],
+  ['draw', 'draw'],
+  ['l', 'lose'],
+  ['a', 'lose'],
+  ['away', 'lose'],
+  ['lose', 'lose'],
+])
+
+const getCanonicalEntryName = (rawToken, semantic) => {
+  if (!semantic || semantic.marketType !== 'result') return semantic?.name || String(rawToken || '')
+  const key = String(rawToken || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '')
+  const mapped = SHORT_OUTCOME_TOKEN_MAP.get(key)
+  if (mapped) return mapped
+  if (semantic.semanticKey === 'win') return 'win'
+  if (semantic.semanticKey === 'draw') return 'draw'
+  if (semantic.semanticKey === 'lose') return 'lose'
+  return semantic.name || String(rawToken || '')
+}
+
 const parseGapAsEntries = (gapText) => {
   if (!gapText || !gapText.trim()) return { entries: [], isVersus: false, unknown: [] }
   const cleaned = gapText.replace(/^[\s,;.]+|[\s,;.]+$/g, '').trim()
@@ -386,7 +414,7 @@ const parseGapAsEntries = (gapText) => {
     // Try the whole part first
     const semantic = parseEntrySemantic(part)
     if (semantic.marketType !== 'other') {
-      entries.push({ name: semantic.name, semantic })
+      entries.push({ name: getCanonicalEntryName(part, semantic), semantic })
       continue
     }
     // Try splitting on spaces
@@ -395,7 +423,7 @@ const parseGapAsEntries = (gapText) => {
     for (const sp of spaceParts) {
       const sem = parseEntrySemantic(sp)
       if (sem.marketType !== 'other') {
-        entries.push({ name: sem.name, semantic: sem })
+        entries.push({ name: getCanonicalEntryName(sp, sem), semantic: sem })
         anyParsed = true
       } else {
         unknown.push(sp)
