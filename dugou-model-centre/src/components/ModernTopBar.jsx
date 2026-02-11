@@ -57,7 +57,7 @@ const PAGE_TITLES = {
   '/dashboard/metrics': 'Metrics',
   '/history': 'History',
   '/history/teams': 'Team Archive',
-  '/params': 'Settings',
+  '/params': 'Console',
 }
 
 export default function ModernTopBar() {
@@ -207,13 +207,13 @@ export default function ModernTopBar() {
           <div className="mn-status-dot-core" />
         </div>
 
-        {/* Settings — direct nav link (replaces gear icon dropdown) */}
+        {/* Console — direct nav link (replaces gear icon dropdown) */}
         <button
           onClick={() => navigate('/params')}
           className={`mn-settings-link ${location.pathname === '/params' ? 'mn-settings-link-active' : ''}`}
         >
           <Settings size={14} strokeWidth={1.5} />
-          <span>Settings</span>
+          <span>Console</span>
         </button>
       </div>
     </header>

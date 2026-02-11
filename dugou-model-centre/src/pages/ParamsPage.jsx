@@ -1465,6 +1465,8 @@ export default function ParamsPage({ openModal }) {
     }
   }
 
+  const currentLayoutMode = config.layoutMode || 'modern'
+
   return (
     <div className="page-shell page-content-wide">
       <div className="mb-6">
@@ -2521,7 +2523,7 @@ export default function ParamsPage({ openModal }) {
               window.dispatchEvent(new CustomEvent('dugou:layout-changed', { detail: { mode: 'modern' } }))
             }}
             className={`p-4 rounded-xl border-2 transition-all text-left ${
-              config.layoutMode === 'modern'
+              currentLayoutMode === 'modern'
                 ? 'border-neutral-900 bg-neutral-50'
                 : 'border-stone-200 hover:border-stone-300 bg-stone-50'
             }`}
@@ -2532,7 +2534,7 @@ export default function ParamsPage({ openModal }) {
                 <div className="flex-1 bg-neutral-50" />
               </div>
               <span className="text-sm font-medium text-stone-700">Modern</span>
-              {config.layoutMode === 'modern' && (
+              {currentLayoutMode === 'modern' && (
                 <span className="text-[10px] px-2 py-0.5 bg-neutral-900 text-white rounded-full ml-auto">Active</span>
               )}
             </div>
@@ -2546,7 +2548,7 @@ export default function ParamsPage({ openModal }) {
               window.dispatchEvent(new CustomEvent('dugou:layout-changed', { detail: { mode: 'topbar' } }))
             }}
             className={`p-4 rounded-xl border-2 transition-all text-left ${
-              (config.layoutMode || 'topbar') === 'topbar'
+              currentLayoutMode === 'topbar'
                 ? 'border-amber-400 bg-amber-50/50'
                 : 'border-stone-200 hover:border-stone-300 bg-stone-50'
             }`}
@@ -2557,7 +2559,7 @@ export default function ParamsPage({ openModal }) {
                 <div className="flex-1 bg-stone-100" />
               </div>
               <span className="text-sm font-medium text-stone-700">Topbar</span>
-              {(config.layoutMode || 'topbar') === 'topbar' && (
+              {currentLayoutMode === 'topbar' && (
                 <span className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full ml-auto">Active</span>
               )}
             </div>
@@ -2571,7 +2573,7 @@ export default function ParamsPage({ openModal }) {
               window.dispatchEvent(new CustomEvent('dugou:layout-changed', { detail: { mode: 'sidebar' } }))
             }}
             className={`p-4 rounded-xl border-2 transition-all text-left ${
-              config.layoutMode === 'sidebar'
+              currentLayoutMode === 'sidebar'
                 ? 'border-amber-400 bg-amber-50/50'
                 : 'border-stone-200 hover:border-stone-300 bg-stone-50'
             }`}
@@ -2582,7 +2584,7 @@ export default function ParamsPage({ openModal }) {
                 <div className="flex-1 bg-stone-100" />
               </div>
               <span className="text-sm font-medium text-stone-700">Sidebar</span>
-              {config.layoutMode === 'sidebar' && (
+              {currentLayoutMode === 'sidebar' && (
                 <span className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full ml-auto">Active</span>
               )}
             </div>
