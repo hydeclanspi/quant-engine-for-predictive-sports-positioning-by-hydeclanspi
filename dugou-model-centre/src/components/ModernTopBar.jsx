@@ -6,18 +6,13 @@ import {
   Clock,
   BarChart3,
   History,
-  SlidersHorizontal,
   ChevronDown,
   Settings,
   TrendingUp,
   FileText,
   Flag,
-  Upload,
-  Download,
-  Dot,
 } from 'lucide-react'
-import { exportDataBundle, getInvestments, importDataBundle } from '../lib/localData'
-import { exportDataBundleAsExcel } from '../lib/excel'
+import { getInvestments } from '../lib/localData'
 
 /* ──────────────────────────────────────────────────
    Modern Navigation — Vercel/Linear design language
@@ -50,7 +45,6 @@ const NAV_ITEMS = [
       { id: 'teams', path: '/history/teams', label: 'Teams', Icon: Flag },
     ],
   },
-  { id: 'params', path: '/params', label: 'Settings', Icon: SlidersHorizontal },
 ]
 
 const PAGE_TITLES = {
@@ -68,11 +62,8 @@ const PAGE_TITLES = {
 
 export default function ModernTopBar() {
   const [openDropdown, setOpenDropdown] = useState(null)
-  const [showSettings, setShowSettings] = useState(false)
   const [dataVersion, setDataVersion] = useState(0)
   const dropdownRef = useRef(null)
-  const settingsRef = useRef(null)
-  const importInputRef = useRef(null)
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -85,7 +76,6 @@ export default function ModernTopBar() {
   useEffect(() => {
     const handleClick = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setOpenDropdown(null)
-      if (settingsRef.current && !settingsRef.current.contains(e.target)) setShowSettings(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
@@ -93,7 +83,6 @@ export default function ModernTopBar() {
 
   useEffect(() => {
     setOpenDropdown(null)
-    setShowSettings(false)
   }, [location.pathname])
 
   const stats = useMemo(() => {
@@ -122,52 +111,29 @@ export default function ModernTopBar() {
 
   const pageTitle = PAGE_TITLES[location.pathname] || ''
 
-  /* Data management */
-  const handleExport = () => {
-    const bundle = exportDataBundle()
-    const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json;charset=utf-8' })
-    const href = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = href
-    a.download = `dugou-backup-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(href)
-    setShowSettings(false)
-  }
-
-  const handleExportExcel = () => {
-    exportDataBundleAsExcel('dugou-data')
-    setShowSettings(false)
-  }
-
-  const handleImportFile = async (event) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-    try {
-      const text = await file.text()
-      const parsed = JSON.parse(text)
-      const shouldMerge = window.confirm('导入模式：点击「确定」= 合并；点击「取消」= 覆盖当前数据。')
-      const ok = importDataBundle(parsed, shouldMerge ? 'merge' : 'replace')
-      if (!ok) { window.alert('导入失败：文件结构不正确。'); return }
-      window.alert(shouldMerge ? '导入成功（合并模式）' : '导入成功（覆盖模式）')
-      setDataVersion((prev) => prev + 1)
-    } catch { window.alert('导入失败') }
-    finally { event.target.value = '' }
-  }
-
   return (
     <header className="mn-bar">
       {/* ── Brand ── */}
       <button className="mn-brand" onClick={() => navigate('/new')}>
         <div className="mn-brand-mark">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <rect x="0.5" y="0.5" width="19" height="19" rx="5" stroke="#6366f1" strokeWidth="1.2" />
-            <rect x="4" y="4" width="12" height="12" rx="3" fill="#6366f1" opacity="0.1" />
-            <rect x="6.5" y="6.5" width="7" height="7" rx="2" fill="url(#mnBrandGrad)" />
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            <rect x="0.5" y="0.5" width="21" height="21" rx="6" stroke="url(#mnBorderGrad)" strokeWidth="1.3" />
+            <rect x="4" y="4" width="14" height="14" rx="3.5" fill="url(#mnMidGrad)" opacity="0.12" />
+            <rect x="6.5" y="6.5" width="9" height="9" rx="2.5" fill="url(#mnCoreGrad)" />
             <defs>
-              <linearGradient id="mnBrandGrad" x1="6.5" y1="6.5" x2="13.5" y2="13.5" gradientUnits="userSpaceOnUse">
+              <linearGradient id="mnBorderGrad" x1="0" y1="0" x2="22" y2="22" gradientUnits="userSpaceOnUse">
                 <stop stopColor="#6366f1" />
-                <stop offset="1" stopColor="#f59e0b" />
+                <stop offset="0.5" stopColor="#f59e0b" />
+                <stop offset="1" stopColor="#f97316" />
+              </linearGradient>
+              <linearGradient id="mnMidGrad" x1="4" y1="4" x2="18" y2="18" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#6366f1" />
+                <stop offset="1" stopColor="#fbbf24" />
+              </linearGradient>
+              <linearGradient id="mnCoreGrad" x1="6.5" y1="6.5" x2="15.5" y2="15.5" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#f59e0b" />
+                <stop offset="0.6" stopColor="#f97316" />
+                <stop offset="1" stopColor="#6366f1" />
               </linearGradient>
             </defs>
           </svg>
@@ -241,42 +207,14 @@ export default function ModernTopBar() {
           <div className="mn-status-dot-core" />
         </div>
 
-        {/* Settings — to the right of status dot */}
-        <div className="relative" ref={settingsRef}>
-          <input ref={importInputRef} type="file" accept=".json" onChange={handleImportFile} className="hidden" />
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className={`mn-icon-btn ${showSettings ? 'mn-icon-btn-active' : ''}`}
-          >
-            <Settings size={15} strokeWidth={1.5} />
-          </button>
-
-          {showSettings && (
-            <div className="mn-dropdown mn-dropdown-right">
-              <div className="mn-dropdown-label">Navigation</div>
-              <button onClick={() => { navigate('/params'); setShowSettings(false) }} className="mn-dropdown-item">
-                <SlidersHorizontal size={13} strokeWidth={1.5} />
-                <span>Settings</span>
-              </button>
-              <div className="mn-dropdown-sep" />
-              <div className="mn-dropdown-label">Data</div>
-              <button onClick={() => importInputRef.current?.click()} className="mn-dropdown-item">
-                <Upload size={13} strokeWidth={1.5} />
-                <span>Import JSON</span>
-              </button>
-              <button onClick={handleExport} className="mn-dropdown-item">
-                <Download size={13} strokeWidth={1.5} />
-                <span>Export Backup</span>
-              </button>
-              <button onClick={handleExportExcel} className="mn-dropdown-item">
-                <Download size={13} strokeWidth={1.5} />
-                <span>Export Excel</span>
-              </button>
-              <div className="mn-dropdown-sep" />
-              <div className="mn-dropdown-footer">v6.1 · airy</div>
-            </div>
-          )}
-        </div>
+        {/* Settings — direct nav link (replaces gear icon dropdown) */}
+        <button
+          onClick={() => navigate('/params')}
+          className={`mn-settings-link ${location.pathname === '/params' ? 'mn-settings-link-active' : ''}`}
+        >
+          <Settings size={14} strokeWidth={1.5} />
+          <span>Settings</span>
+        </button>
       </div>
     </header>
   )

@@ -1040,6 +1040,8 @@ export default function ParamsPage({ openModal }) {
   const [nowTick, setNowTick] = useState(() => Date.now())
   const [pendingKellyAdjustment, setPendingKellyAdjustment] = useState(null)
   const excelInputRef = useRef(null)
+  const jsonInputRef = useRef(null)
+  const [jsonStatus, setJsonStatus] = useState('')
 
   useEffect(() => {
     const refresh = () => {
@@ -1388,6 +1390,39 @@ export default function ParamsPage({ openModal }) {
     setExcelStatus(mode === 'merge' ? '已合并导入' : '已覆盖导入')
     setTimeout(() => setExcelStatus(''), 1600)
     setDataVersion((prev) => prev + 1)
+  }
+
+  /* ── JSON Data Import/Export ── */
+  const handleJsonExport = () => {
+    const bundle = exportDataBundle()
+    const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json;charset=utf-8' })
+    const href = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = href
+    a.download = `dugou-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(href)
+    setJsonStatus('已导出 JSON')
+    setTimeout(() => setJsonStatus(''), 1600)
+  }
+
+  const handleJsonImportFile = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      const parsed = JSON.parse(text)
+      const shouldMerge = window.confirm('导入模式：点击「确定」= 合并；点击「取消」= 覆盖当前数据。')
+      const ok = importDataBundle(parsed, shouldMerge ? 'merge' : 'replace')
+      if (!ok) { setJsonStatus('导入失败：文件结构不正确'); return }
+      setJsonStatus(shouldMerge ? '已合并导入 JSON' : '已覆盖导入 JSON')
+      setTimeout(() => setJsonStatus(''), 1600)
+      setDataVersion((prev) => prev + 1)
+    } catch {
+      setJsonStatus('导入失败')
+    } finally {
+      event.target.value = ''
+    }
   }
 
   const handleToggleCloudSync = () => {
@@ -2036,6 +2071,25 @@ export default function ParamsPage({ openModal }) {
             </div>
           </div>
         )}
+      </div>
+
+      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-medium text-stone-700 flex items-center gap-2">
+            <span className="text-amber-500">📦</span> JSON 数据备份
+          </h3>
+          {jsonStatus && <span className="text-xs text-emerald-600">{jsonStatus}</span>}
+        </div>
+        <p className="text-xs text-stone-400 mb-4">完整数据快照（含所有投资记录、系统配置、球队数据）的 JSON 格式导入导出。</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <button onClick={handleJsonExport} className="btn-secondary btn-hover">
+            导出 JSON Backup
+          </button>
+          <input ref={jsonInputRef} type="file" accept=".json" onChange={handleJsonImportFile} className="hidden" />
+          <button onClick={() => jsonInputRef.current?.click()} className="btn-primary btn-hover">
+            导入 JSON
+          </button>
+        </div>
       </div>
 
       <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">

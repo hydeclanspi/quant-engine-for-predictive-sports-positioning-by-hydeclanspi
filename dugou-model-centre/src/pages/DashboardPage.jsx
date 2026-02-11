@@ -5,6 +5,7 @@ import TimeRangePicker from '../components/TimeRangePicker'
 import { getSystemConfig, saveSystemConfig, addCapitalInjection } from '../lib/localData'
 import { downloadWorkbook } from '../lib/excel'
 import * as XLSX from 'xlsx'
+import { Wallet, TrendingUp, Target, BarChart3 } from 'lucide-react'
 
 const PERIOD_LABELS = {
   '1w': '近一周',
@@ -892,9 +893,9 @@ export default function DashboardPage({ openModal }) {
         <div className="glow-card bg-white rounded-2xl p-5 border border-stone-100">
           <div className="flex items-center justify-between mb-3">
             <span className="text-stone-400 text-xs uppercase tracking-wide">蓄水池余额</span>
-            <span className="text-amber-400 text-lg">◐</span>
+            <Wallet size={18} strokeWidth={1.5} className="text-amber-500" />
           </div>
-          <div className="text-2xl font-semibold text-stone-800 cursor-pointer" onClick={openBalanceModal}>{toRmb(snapshot.poolBalance)}</div>
+          <div className="text-2xl font-semibold text-amber-600 cursor-pointer" onClick={openBalanceModal}>{toRmb(snapshot.poolBalance)}</div>
           <div className="flex items-center justify-between mt-1">
             <span className={`text-xs ${snapshot.roiDelta >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
               {toSigned(snapshot.roiDelta, 1, '%')} vs 上周期
@@ -918,7 +919,7 @@ export default function DashboardPage({ openModal }) {
             value: toSigned(snapshot.roiPeriod, 1, '%'),
             change: `${toSigned(snapshot.roiDelta, 1, '%')} vs 上周期`,
             positive: snapshot.roiPeriod >= 0,
-            icon: '◈',
+            IconComp: TrendingUp,
             onClick: openRoiModal,
           },
           {
@@ -926,7 +927,7 @@ export default function DashboardPage({ openModal }) {
             value: toPercent(snapshot.hitRatePeriod),
             change: `${toSigned(snapshot.hitRateDelta, 1, '%')} vs 上周期`,
             positive: snapshot.hitRateDelta >= 0,
-            icon: '◉',
+            IconComp: Target,
             onClick: openHitRateModal,
           },
           {
@@ -934,7 +935,7 @@ export default function DashboardPage({ openModal }) {
             value: snapshot.ratingFit.toFixed(2),
             change: `${toSigned(snapshot.ratingFitDelta, 2)} vs 上周期`,
             positive: snapshot.ratingFitDelta >= 0,
-            icon: '❖',
+            IconComp: BarChart3,
             onClick: openRatingModal,
           },
         ].map((metric) => (
@@ -945,9 +946,9 @@ export default function DashboardPage({ openModal }) {
           >
             <div className="flex items-center justify-between mb-3">
               <span className="text-stone-400 text-xs uppercase tracking-wide">{metric.label}</span>
-              <span className="text-amber-400 text-lg">{metric.icon}</span>
+              <metric.IconComp size={18} strokeWidth={1.5} className="text-amber-500" />
             </div>
-            <div className="text-2xl font-semibold text-stone-800">{metric.value}</div>
+            <div className={`text-2xl font-semibold ${metric.positive ? 'text-stone-800' : 'text-rose-500'}`}>{metric.value}</div>
             <div className={`text-xs mt-1 ${metric.positive ? 'text-emerald-500' : 'text-rose-500'}`}>{metric.change}</div>
           </div>
         ))}
