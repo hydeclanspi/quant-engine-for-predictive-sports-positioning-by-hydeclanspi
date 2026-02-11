@@ -221,7 +221,7 @@ export default function NewInvestmentPage() {
   const [historyPrefillApplied, setHistoryPrefillApplied] = useState({})
   const [historyFloatDismissed, setHistoryFloatDismissed] = useState({})
   const [quickInputText, setQuickInputText] = useState('')
-  const [quickInputOpen, setQuickInputOpen] = useState(true)
+  const [quickInputOpen, setQuickInputOpen] = useState(false)
   const [quickInputResult, setQuickInputResult] = useState(null)
   const [systemConfig] = useState(() => getSystemConfig())
 
@@ -817,7 +817,8 @@ export default function NewInvestmentPage() {
         >
           {quickInputOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           <span className="font-medium">Quick Input</span>
-          <span className="text-[11px] text-stone-400">自然语言快捷录入</span>
+          <span className="ml-1 px-1.5 py-[1px] rounded border border-indigo-200 bg-indigo-50 text-[9px] font-semibold uppercase tracking-[0.1em] text-indigo-500">Beta</span>
+          <span className="text-[11px] text-stone-400 ml-1">自然语言快捷录入</span>
         </button>
 
         {quickInputOpen && (
@@ -825,7 +826,7 @@ export default function NewInvestmentPage() {
             <textarea
               value={quickInputText}
               onChange={(e) => setQuickInputText(e.target.value)}
-              placeholder={'示例：伯恩茅斯胜/平曼联 conf3.5 odds8.1 fse0.9\n或：arsenal W, chelsea D, conf 55 60, odds 1.8 3.2'}
+              placeholder={'示例：利兹联win/平拜仁 conf3.5 odds7.4 fse0.72\n或：arsenal W, chelsea D, conf 55 60, odds 1.8 3.2'}
               rows={3}
               className="input-glow w-full px-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400 resize-none"
             />

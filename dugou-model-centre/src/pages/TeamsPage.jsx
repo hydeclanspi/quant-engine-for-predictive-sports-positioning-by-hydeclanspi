@@ -282,7 +282,7 @@ export default function TeamsPage() {
         <p className="text-stone-400 text-sm mt-1">球队维度：样本量 / ROI / AJR-Conf 走势</p>
       </div>
 
-      <div className="glow-card bg-white rounded-2xl p-4 border border-stone-100 mb-6">
+      <div className="glow-card bg-white rounded-2xl p-4 border border-stone-100 mb-6 relative z-30">
         <div className="flex items-center gap-4">
           <div className="flex-1 relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
@@ -298,14 +298,14 @@ export default function TeamsPage() {
             value={timePeriod}
             onChange={setTimePeriod}
             options={PERIOD_LABELS}
-            variant="jelly"
+            variant="default"
             buttonClassName="whitespace-nowrap"
           />
           <TimeRangePicker
             value={leagueFilter}
             onChange={setLeagueFilter}
             options={leagueOptions}
-            variant="jelly"
+            variant="default"
             buttonClassName="whitespace-nowrap"
           />
           <div className="text-sm text-stone-400">共 {teams.length} 支球队</div>
@@ -321,17 +321,17 @@ export default function TeamsPage() {
               setTeamHistoryPage(1)
             }}
             className={`glow-card bg-white rounded-2xl p-5 border cursor-pointer transition-all lift-card ${
-              selectedTeam?.name === team.name ? 'border-amber-300 bg-amber-50/30' : 'border-stone-100'
+              selectedTeam?.name === team.name ? 'border-indigo-300 bg-indigo-50/20' : 'border-stone-100'
             }`}
           >
             <div className="flex items-center justify-between mb-3">
-              <div>
+              <div className="flex items-center gap-2">
                 <span className="font-medium text-stone-800">{team.name}</span>
-                <span className="inline-flex items-center ml-2 px-1.5 py-[1px] rounded-md border border-amber-200 bg-gradient-to-b from-amber-50 to-orange-50 text-[9px] font-semibold tracking-[0.08em] text-amber-700">
+                <span className="inline-flex items-center px-1.5 py-[2px] rounded-full bg-stone-100 text-[9px] font-semibold tracking-[0.06em] text-stone-500 border border-stone-200/60">
                   {team.abbr}
                 </span>
               </div>
-              <span className="text-xs text-stone-400">{team.totalSamples} 场</span>
+              <span className="text-[11px] text-stone-400 tabular-nums">{team.totalSamples} 场</span>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div>
@@ -361,7 +361,7 @@ export default function TeamsPage() {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <h3 className="font-medium text-stone-800">{selectedTeam.name} · 详细档案</h3>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-md border border-amber-200 bg-gradient-to-b from-amber-50 to-orange-50 text-[10px] font-semibold tracking-[0.12em] text-amber-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_1px_3px_rgba(245,158,11,0.18)]">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200/60 text-[10px] font-semibold tracking-[0.08em] text-indigo-600">
                   {selectedTeam.abbr}
                 </span>
               </div>
@@ -379,7 +379,7 @@ export default function TeamsPage() {
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <h4 className="text-sm font-medium text-stone-600 mb-3">ROI 走势</h4>
-                <div className="h-40 rounded-xl border border-amber-100 bg-gradient-to-b from-amber-50/60 to-white px-3 py-2">
+                <div className="h-40 rounded-xl border border-indigo-100 bg-gradient-to-b from-indigo-50/40 to-white px-3 py-2">
                   <svg viewBox="0 0 100 48" className="w-full h-[118px]">
                     {(() => {
                       const series = normalizeSeries(selectedTeamDetail.roiSeries)
@@ -399,18 +399,18 @@ export default function TeamsPage() {
                         <>
                           <defs>
                             <linearGradient id="teamRoiLineLg" x1="0%" y1="0%" x2="100%" y2="0%">
-                              <stop offset="0%" stopColor="#f59e0b" />
-                              <stop offset="100%" stopColor="#f97316" />
+                              <stop offset="0%" stopColor="#818cf8" />
+                              <stop offset="100%" stopColor="#6366f1" />
                             </linearGradient>
                           </defs>
-                          <line x1="8" y1="42" x2="92" y2="42" stroke="#fed7aa" strokeWidth="0.45" />
-                          <line x1="8" y1="30" x2="92" y2="30" stroke="#fdba74" strokeWidth="0.35" strokeDasharray="1.2 1.8" />
+                          <line x1="8" y1="42" x2="92" y2="42" stroke="#e0e7ff" strokeWidth="0.45" />
+                          <line x1="8" y1="30" x2="92" y2="30" stroke="#c7d2fe" strokeWidth="0.35" strokeDasharray="1.2 1.8" />
                           <polyline fill="none" stroke="url(#teamRoiLineLg)" strokeWidth="1.2" points={line} />
                           {points.map((p, idx) => (
                             <g key={idx}>
-                              <circle cx={p.x} cy={p.y} r="1.15" fill="#f97316" />
+                              <circle cx={p.x} cy={p.y} r="1.15" fill="#6366f1" />
                               {idx === points.length - 1 && (
-                                <text x={p.x - 3} y={p.y - 3.2} fontSize="3.1" fill="#c2410c">{`ROI ${p.value.toFixed(1)}%`}</text>
+                                <text x={p.x - 3} y={p.y - 3.2} fontSize="3.1" fill="#4338ca">{`ROI ${p.value.toFixed(1)}%`}</text>
                               )}
                             </g>
                           ))}

@@ -241,7 +241,7 @@ export default function ModernTopBar() {
           <div className="mn-status-dot-core" />
         </div>
 
-        {/* Settings */}
+        {/* Settings — to the right of status dot */}
         <div className="relative" ref={settingsRef}>
           <input ref={importInputRef} type="file" accept=".json" onChange={handleImportFile} className="hidden" />
           <button
@@ -253,6 +253,12 @@ export default function ModernTopBar() {
 
           {showSettings && (
             <div className="mn-dropdown mn-dropdown-right">
+              <div className="mn-dropdown-label">Navigation</div>
+              <button onClick={() => { navigate('/params'); setShowSettings(false) }} className="mn-dropdown-item">
+                <SlidersHorizontal size={13} strokeWidth={1.5} />
+                <span>Settings</span>
+              </button>
+              <div className="mn-dropdown-sep" />
               <div className="mn-dropdown-label">Data</div>
               <button onClick={() => importInputRef.current?.click()} className="mn-dropdown-item">
                 <Upload size={13} strokeWidth={1.5} />
@@ -267,7 +273,7 @@ export default function ModernTopBar() {
                 <span>Export Excel</span>
               </button>
               <div className="mn-dropdown-sep" />
-              <div className="mn-dropdown-footer">v6.0 · airy</div>
+              <div className="mn-dropdown-footer">v6.1 · airy</div>
             </div>
           )}
         </div>

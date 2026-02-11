@@ -2138,75 +2138,79 @@ export default function ComboPage({ openModal }) {
             )}
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             {displayedCandidates.map((item, i) => {
               const hasManualRole = Object.prototype.hasOwnProperty.call(matchRoleOverrides, item.key)
               const effectiveRole = normalizeRoleTag(matchRoleOverrides[item.key] || item.autoRole)
+              const activeRoleMeta = MATCH_ROLE_OPTIONS.find((r) => r.value === effectiveRole)
 
               return (
                 <div
                   key={item.key}
-                  className="flex items-center justify-between p-4 rounded-xl bg-stone-50 border border-stone-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all cursor-pointer lift-card"
+                  className="group flex items-center gap-3 p-3 rounded-xl border border-stone-100 hover:border-indigo-200 bg-white hover:bg-indigo-50/20 transition-all cursor-pointer"
                 >
-                  <div className="flex items-center gap-3">
-                    <div onClick={() => toggleCheck(i)} className={`custom-checkbox ${checkedMatches[i] ? 'checked' : ''}`} />
-                    <div>
-                      <p className="text-sm font-medium text-stone-700">{item.match}</p>
-                      <p className="text-xs text-stone-400">
-                        Conf <span className="font-medium text-stone-500">{item.conf.toFixed(2)}</span> · Odds{' '}
-                        <span className="font-medium italic text-stone-500">{item.odds.toFixed(2)}</span>
-                      </p>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                        <span className="text-[10px] text-stone-400">角色</span>
-                        {MATCH_ROLE_OPTIONS.map((role) => {
-                          const active = effectiveRole === role.value
-                          return (
-                            <button
-                              key={`${item.key}-${role.value}`}
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                setMatchRoleOverrides((prev) => ({
-                                  ...prev,
-                                  [item.key]: role.value,
-                                }))
-                              }}
-                              className={`px-1.5 py-0.5 rounded-md border text-[10px] transition-colors ${
-                                active
-                                  ? role.tone
-                                  : 'bg-white text-stone-400 border-stone-200 hover:border-stone-300'
-                              }`}
-                            >
-                              {role.label}
-                            </button>
-                          )
-                        })}
-                        <button
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            setMatchRoleOverrides((prev) => {
-                              if (!Object.prototype.hasOwnProperty.call(prev, item.key)) return prev
-                              const next = { ...prev }
-                              delete next[item.key]
-                              return next
-                            })
-                          }}
-                          className={`px-1.5 py-0.5 rounded-md border text-[10px] transition-colors ${
-                            hasManualRole
-                              ? 'bg-white text-stone-400 border-stone-200 hover:border-stone-300'
-                              : 'bg-sky-100 text-sky-700 border-sky-200'
-                          }`}
-                        >
-                          自动
-                        </button>
-                      </div>
+                  <div onClick={() => toggleCheck(i)} className={`custom-checkbox flex-shrink-0 ${checkedMatches[i] ? 'checked' : ''}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-stone-700 truncate">{item.match}</p>
+                      <span className={`px-1.5 py-[1px] rounded border text-[9px] font-medium flex-shrink-0 ${activeRoleMeta?.tone || 'bg-stone-100 text-stone-500 border-stone-200'}`}>
+                        {hasManualRole ? (activeRoleMeta?.label || '自动') : `⚡${activeRoleMeta?.label || '自动'}`}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5 text-xs text-stone-400">
+                      <span>Conf <span className="font-medium text-stone-500">{item.conf.toFixed(2)}</span></span>
+                      <span>Odds <span className="font-medium italic text-stone-500">{item.odds.toFixed(2)}</span></span>
+                      <span className={`font-medium ${item.adjustedEvPercent >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                        EV {formatPercent(item.adjustedEvPercent)}
+                      </span>
+                    </div>
+                    {/* Role selector — appears on hover */}
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                      {MATCH_ROLE_OPTIONS.map((role) => {
+                        const active = effectiveRole === role.value
+                        return (
+                          <button
+                            key={`${item.key}-${role.value}`}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              setMatchRoleOverrides((prev) => ({
+                                ...prev,
+                                [item.key]: role.value,
+                              }))
+                            }}
+                            className={`px-1.5 py-0.5 rounded-md border text-[10px] transition-colors ${
+                              active
+                                ? role.tone
+                                : 'bg-white text-stone-400 border-stone-200 hover:border-stone-300'
+                            }`}
+                          >
+                            {role.label}
+                          </button>
+                        )
+                      })}
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setMatchRoleOverrides((prev) => {
+                            if (!Object.prototype.hasOwnProperty.call(prev, item.key)) return prev
+                            const next = { ...prev }
+                            delete next[item.key]
+                            return next
+                          })
+                        }}
+                        className={`px-1.5 py-0.5 rounded-md border text-[10px] transition-colors ${
+                          hasManualRole
+                            ? 'bg-white text-stone-400 border-stone-200 hover:border-stone-300'
+                            : 'bg-sky-100 text-sky-700 border-sky-200'
+                        }`}
+                      >
+                        自动
+                      </button>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xs text-stone-400">Recom. Invest</span>
-                    <span className="block text-sm font-semibold text-stone-700">{item.suggestedAmount > 0 ? `${item.suggestedAmount} rmb` : '--'}</span>
-                    <span className={`text-[11px] ${item.adjustedEvPercent >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                      {formatPercent(item.adjustedEvPercent)}
-                    </span>
+                  <div className="text-right flex-shrink-0">
+                    <span className="block text-sm font-semibold text-stone-700">{item.suggestedAmount > 0 ? `${item.suggestedAmount}` : '--'}</span>
+                    <span className="text-[10px] text-stone-400">rmb</span>
                   </div>
                 </div>
               )
@@ -2360,9 +2364,9 @@ export default function ComboPage({ openModal }) {
             </div>
           </div>
 
-          <div className="mt-4 p-3.5 rounded-xl bg-violet-50/60 border border-violet-100">
+          <div className="mt-4 p-3.5 rounded-xl bg-teal-50/60 border border-teal-100">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-violet-700 font-medium">串关结构偏好</span>
+              <span className="text-xs text-teal-700 font-medium">串关结构偏好</span>
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() =>
@@ -2373,7 +2377,7 @@ export default function ComboPage({ openModal }) {
                       coverageEta: 0.2,
                     })
                   }
-                  className="px-2 py-1 rounded-md text-[11px] bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors"
+                  className="px-2 py-1 rounded-md text-[11px] bg-teal-100 text-teal-700 hover:bg-teal-200 transition-colors"
                 >
                   强串联
                 </button>
@@ -2454,17 +2458,17 @@ export default function ComboPage({ openModal }) {
                 <span className="text-[10px] text-stone-400">{comboStructure.coverageEta.toFixed(2)}（高=候选全覆盖）</span>
               </label>
             </div>
-            <p className="text-[10px] text-violet-500/70 mt-2">
+            <p className="text-[10px] text-teal-500/70 mt-2">
               β 提升多关串联的效用分；λ 控制 MMR 去重力度；η 给未覆盖候选加分。
             </p>
             {Object.keys(generationSummary.legsDistribution || {}).length > 0 && (
-              <div className="mt-2 pt-2 border-t border-violet-100">
-                <p className="text-[10px] text-violet-600 mb-1">上次生成关数分布</p>
+              <div className="mt-2 pt-2 border-t border-teal-100">
+                <p className="text-[10px] text-teal-600 mb-1">上次生成关数分布</p>
                 <div className="flex gap-2 flex-wrap">
                   {Object.entries(generationSummary.legsDistribution)
                     .sort(([a], [b]) => Number(a) - Number(b))
                     .map(([legs, count]) => (
-                      <span key={legs} className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 text-[10px]">
+                      <span key={legs} className="px-1.5 py-0.5 rounded bg-teal-100 text-teal-700 text-[10px]">
                         {legs}关×{count}
                       </span>
                     ))}

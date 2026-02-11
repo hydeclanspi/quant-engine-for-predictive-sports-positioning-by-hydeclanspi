@@ -1423,7 +1423,7 @@
   color: #1a1a2e;
 }
 
-/* ── Range slider — warm orange accent (brand color) ── */
+/* ── Range slider — soft lavender accent ── */
 .theme-modern input[type="range"] {
   background: #e8eaef;
   height: 6px;
@@ -1431,8 +1431,8 @@
 }
 
 .theme-modern input[type="range"]::-webkit-slider-thumb {
-  background: linear-gradient(135deg, #f59e0b, #f97316);
-  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.45);
+  background: linear-gradient(135deg, #a78bfa, #818cf8);
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.35);
   width: 18px;
   height: 18px;
 }
@@ -1798,7 +1798,17 @@
     0 24px 64px -16px rgba(0, 0, 0, 0.1);
 }
 
-/* ── Combo page section panels (violet/sky accent) ── */
+/* ── Combo page section panels ── */
+/* Teal for combo structure */
+.theme-modern .bg-teal-50\/60 {
+  background: rgba(240, 253, 250, 0.6);
+}
+
+.theme-modern .border-teal-100 {
+  border-color: #ccfbf1;
+}
+
+/* Keep violet for non-combo panels */
 .theme-modern .bg-violet-50\/60 {
   background: rgba(238, 242, 255, 0.6);
 }
@@ -1995,6 +2005,12 @@
 .theme-modern select:focus {
   border-color: #6366f1;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* ── TimeRangePicker active item — use stone, not amber ── */
+.theme-modern .bg-amber-50.text-amber-600 {
+  background: #f3f4f6;
+  color: #4b5563;
 }
 
 /* ── Textarea ── */
