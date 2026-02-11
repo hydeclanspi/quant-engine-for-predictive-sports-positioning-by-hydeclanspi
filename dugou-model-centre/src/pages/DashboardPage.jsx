@@ -20,6 +20,15 @@ const CHART_OPTIONS = [
   { key: 'rating', label: 'AJR 走势' },
 ]
 
+const TREND_VIEWBOX_WIDTH = 480
+const TREND_VIEWBOX_HEIGHT = 48
+const TREND_X_MIN = 20
+const TREND_X_MAX = 460
+const TREND_PLOT_TOP = 11
+const TREND_PLOT_BOTTOM = 38
+const TREND_BASELINE_Y = 42
+const TREND_MIDLINE_Y = 30
+
 const HitRateIcon = ({ size = 18, className = '' }) => (
   <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden="true">
     <path d="M3.8 16.2L16.2 3.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -100,23 +109,23 @@ const buildSmartReminder = (snapshot) => {
 
 const buildTrendGeometry = (series, minSpan = 1) => {
   if (!Array.isArray(series) || series.length === 0) {
-    return { points: [], line: '', labels: [], zeroY: 42, min: 0, max: 0 }
+    return { points: [], line: '', labels: [], zeroY: TREND_BASELINE_Y, min: 0, max: 0 }
   }
   const safeSeries = series.slice(-24)
   const values = safeSeries.map((item) => Number(item.value || 0))
   const min = Math.min(...values)
   const max = Math.max(...values)
   const span = Math.max(max - min, minSpan)
-  const step = safeSeries.length > 1 ? 84 / (safeSeries.length - 1) : 0
+  const step = safeSeries.length > 1 ? (TREND_X_MAX - TREND_X_MIN) / (safeSeries.length - 1) : 0
   const points = safeSeries.map((item, idx) => {
     const value = Number(item.value || 0)
-    const x = 8 + idx * step
-    const y = 38 - ((value - min) / span) * 27
+    const x = TREND_X_MIN + idx * step
+    const y = TREND_PLOT_BOTTOM - ((value - min) / span) * (TREND_PLOT_BOTTOM - TREND_PLOT_TOP)
     return { x, y, value }
   })
   const line = points.map((p) => `${p.x},${p.y}`).join(' ')
-  const rawZeroY = 38 - ((0 - min) / span) * 27
-  const zeroY = Math.max(11, Math.min(42, rawZeroY))
+  const rawZeroY = TREND_PLOT_BOTTOM - ((0 - min) / span) * (TREND_PLOT_BOTTOM - TREND_PLOT_TOP)
+  const zeroY = Math.max(TREND_PLOT_TOP, Math.min(TREND_BASELINE_Y, rawZeroY))
   return {
     points,
     line,
@@ -1323,19 +1332,19 @@ export default function DashboardPage({ openModal }) {
           <span className="text-xs text-stone-400">{PERIOD_LABELS[timePeriod]} · {chartSeries.length} 个样本点</span>
         </div>
         <div className={`h-44 rounded-xl border px-3 py-2 ${chartTheme.panelClass}`}>
-          <svg viewBox="0 0 100 48" className="w-full h-[118px]">
+          <svg viewBox={`0 0 ${TREND_VIEWBOX_WIDTH} ${TREND_VIEWBOX_HEIGHT}`} className="w-full h-[126px]">
             <defs>
               <linearGradient id={lineGradientId} x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" stopColor={chartTheme.lineFrom} />
                 <stop offset="100%" stopColor={chartTheme.lineTo} />
               </linearGradient>
             </defs>
-            <line x1="8" y1="42" x2="92" y2="42" stroke={chartTheme.baseLine} strokeWidth="0.45" />
-            <line x1="8" y1="30" x2="92" y2="30" stroke={chartTheme.midLine} strokeWidth="0.35" strokeDasharray="1.2 1.8" />
+            <line x1={TREND_X_MIN} y1={TREND_BASELINE_Y} x2={TREND_X_MAX} y2={TREND_BASELINE_Y} stroke={chartTheme.baseLine} strokeWidth="0.45" />
+            <line x1={TREND_X_MIN} y1={TREND_MIDLINE_Y} x2={TREND_X_MAX} y2={TREND_MIDLINE_Y} stroke={chartTheme.midLine} strokeWidth="0.35" strokeDasharray="1.2 1.8" />
             {chartKey === 'rating' && (
               <>
-                <line x1="8" y1={sparkline.zeroY} x2="92" y2={sparkline.zeroY} stroke={chartTheme.zeroLine} strokeWidth="0.5" strokeDasharray="1.4 1.8" />
-                <text x="9" y={sparkline.zeroY - 1.8} fontSize="2.8" fill={chartTheme.valueColor}>50</text>
+                <line x1={TREND_X_MIN} y1={sparkline.zeroY} x2={TREND_X_MAX} y2={sparkline.zeroY} stroke={chartTheme.zeroLine} strokeWidth="0.5" strokeDasharray="1.4 1.8" />
+                <text x={TREND_X_MIN + 1} y={sparkline.zeroY - 1.8} fontSize="2.8" fill={chartTheme.valueColor}>50</text>
               </>
             )}
             <polyline
@@ -1351,7 +1360,7 @@ export default function DashboardPage({ openModal }) {
             ))}
             {sparkline.points.length > 0 && chartKey !== 'rating' && (
               <text
-                x={Math.max(8, sparkline.points[sparkline.points.length - 1].x - 10)}
+                x={Math.max(TREND_X_MIN, sparkline.points[sparkline.points.length - 1].x - 34)}
                 y={Math.max(8, sparkline.points[sparkline.points.length - 1].y - 3)}
                 fontSize="3.1"
                 fill={chartTheme.valueColor}
