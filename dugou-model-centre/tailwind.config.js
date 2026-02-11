@@ -46,11 +46,15 @@ export default {
         'glow-lg': '0 0 0 1px rgba(251, 191, 36, 0.4), 0 12px 40px -10px rgba(251, 191, 36, 0.3)',
         'lift': '0 8px 30px -12px rgba(0, 0, 0, 0.12)',
         'card': '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05)',
+        'topbar': '0 1px 3px -1px rgba(0, 0, 0, 0.06)',
+        'dropdown': '0 12px 40px -10px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.03)',
       },
       animation: {
         'fade-in': 'fadeIn 0.2s ease-out',
         'slide-up': 'slideUp 0.3s ease-out',
         'glow-pulse': 'glowPulse 2s ease-in-out infinite',
+        'page-enter': 'pageEnter 150ms ease-out',
+        'dropdown-enter': 'dropdownEnter 120ms ease-out',
       },
       keyframes: {
         fadeIn: {
@@ -64,6 +68,14 @@ export default {
         glowPulse: {
           '0%, 100%': { boxShadow: '0 0 0 0 rgba(251, 191, 36, 0.4)' },
           '50%': { boxShadow: '0 0 0 8px rgba(251, 191, 36, 0)' },
+        },
+        pageEnter: {
+          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        dropdownEnter: {
+          '0%': { opacity: '0', transform: 'translateY(-4px) scale(0.98)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
         },
       },
     },

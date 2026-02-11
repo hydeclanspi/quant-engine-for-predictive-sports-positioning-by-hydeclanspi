@@ -17,11 +17,35 @@ import TeamsPage from './pages/TeamsPage'
 import AnalysisPage from './pages/AnalysisPage'
 import MetricsPage from './pages/MetricsPage'
 
+import { getSystemConfig } from './lib/localData'
+
+const LAYOUT_KEY = 'dugou:layout-mode'
+
 function App() {
+  const [layoutMode, setLayoutMode] = useState(() => {
+    // Priority: localStorage cache > systemConfig > default
+    const cached = localStorage.getItem(LAYOUT_KEY)
+    if (cached === 'sidebar' || cached === 'topbar') return cached
+    const config = getSystemConfig()
+    return config.layoutMode || 'topbar'
+  })
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [modalData, setModalData] = useState(null)
   const mainScrollRef = useRef(null)
   const location = useLocation()
+
+  // Listen for layout mode changes from ParamsPage
+  useEffect(() => {
+    const onLayoutChange = (e) => {
+      const mode = e.detail?.mode
+      if (mode === 'topbar' || mode === 'sidebar') {
+        setLayoutMode(mode)
+        localStorage.setItem(LAYOUT_KEY, mode)
+      }
+    }
+    window.addEventListener('dugou:layout-changed', onLayoutChange)
+    return () => window.removeEventListener('dugou:layout-changed', onLayoutChange)
+  }, [])
 
   // Glow card mouse tracking effect
   useEffect(() => {
@@ -49,35 +73,54 @@ function App() {
   const openModal = (data) => setModalData(data)
   const closeModal = () => setModalData(null)
 
+  const pageRoutes = (
+    <Routes>
+      <Route path="/" element={<NewInvestmentPage openModal={openModal} />} />
+      <Route path="/new" element={<NewInvestmentPage openModal={openModal} />} />
+      <Route path="/combo" element={<ComboPage openModal={openModal} />} />
+      <Route path="/settle" element={<SettlePage openModal={openModal} />} />
+      <Route path="/dashboard" element={<DashboardPage openModal={openModal} />} />
+      <Route path="/dashboard/analysis" element={<AnalysisPage openModal={openModal} />} />
+      <Route path="/dashboard/metrics" element={<MetricsPage openModal={openModal} />} />
+      <Route path="/history" element={<HistoryPage openModal={openModal} />} />
+      <Route path="/history/teams" element={<TeamsPage openModal={openModal} />} />
+      <Route path="/params" element={<ParamsPage openModal={openModal} />} />
+    </Routes>
+  )
+
+  /* ── Topbar layout (default) ── */
+  if (layoutMode === 'topbar') {
+    return (
+      <div className="flex flex-col h-screen bg-stone-100/50">
+        <TopBar />
+        <main
+          ref={mainScrollRef}
+          className="flex-1 overflow-auto custom-scrollbar min-w-0"
+        >
+          <div key={location.pathname} className="page-enter">
+            {pageRoutes}
+          </div>
+        </main>
+        {modalData && <Modal data={modalData} onClose={closeModal} />}
+      </div>
+    )
+  }
+
+  /* ── Sidebar layout (legacy) ── */
   return (
     <div className="flex h-screen bg-stone-100/50">
-      <Sidebar 
-        collapsed={sidebarCollapsed} 
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} 
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
-      
       <main
         ref={mainScrollRef}
         className="flex-1 overflow-auto custom-scrollbar min-w-0"
       >
-        {/* Top Header Bar — C2 Ligature Connect (scrolls with content) */}
-        <TopBar />
-
-        {/* Page Content — below the header bar */}
-        <Routes>
-          <Route path="/" element={<NewInvestmentPage openModal={openModal} />} />
-          <Route path="/new" element={<NewInvestmentPage openModal={openModal} />} />
-          <Route path="/combo" element={<ComboPage openModal={openModal} />} />
-          <Route path="/settle" element={<SettlePage openModal={openModal} />} />
-          <Route path="/dashboard" element={<DashboardPage openModal={openModal} />} />
-          <Route path="/dashboard/analysis" element={<AnalysisPage openModal={openModal} />} />
-          <Route path="/dashboard/metrics" element={<MetricsPage openModal={openModal} />} />
-          <Route path="/history" element={<HistoryPage openModal={openModal} />} />
-          <Route path="/history/teams" element={<TeamsPage openModal={openModal} />} />
-          <Route path="/params" element={<ParamsPage openModal={openModal} />} />
-        </Routes>
+        <div key={location.pathname} className="page-enter">
+          {pageRoutes}
+        </div>
       </main>
-
       {modalData && <Modal data={modalData} onClose={closeModal} />}
     </div>
   )

@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 /* ========================================
-   hydecaside · QCTE — Global Styles
+   DUGOU · Model Centre — Global Styles
+   Premium Visual System v2.0
    ======================================== */
 
 /* Base Styles */
@@ -65,14 +66,16 @@
     @apply scale-[0.98];
   }
 
-  /* Primary Button */
+  /* Primary Button — Signature Gradient (3-stop) */
   .btn-primary {
-    @apply px-5 py-2.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl text-sm font-medium;
+    @apply px-5 py-2.5 text-white rounded-xl text-sm font-medium;
+    background: linear-gradient(135deg, #f59e0b 0%, #f97316 50%, #ef4444 100%);
     box-shadow: 0 4px 14px -4px rgba(251, 191, 36, 0.4);
   }
 
   .btn-primary:hover {
     box-shadow: 0 6px 20px -4px rgba(251, 191, 36, 0.5);
+    filter: brightness(1.05);
   }
 
   /* Secondary Button */
@@ -90,7 +93,7 @@
     box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.15);
   }
 
-  /* Sidebar Item */
+  /* Sidebar Item (legacy — kept for compatibility) */
   .sidebar-item {
     @apply transition-all duration-200;
   }
@@ -101,7 +104,7 @@
 
   /* Custom Scrollbar */
   .custom-scrollbar::-webkit-scrollbar {
-    @apply w-2 h-2;
+    @apply w-1.5 h-1.5;
   }
 
   .custom-scrollbar::-webkit-scrollbar-track {
@@ -109,17 +112,17 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-stone-300 rounded;
+    @apply bg-stone-200/80 rounded-full;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-stone-400;
+    @apply bg-stone-300;
   }
 }
 
 /* Utility Styles */
 @layer utilities {
-  /* Fluid page container: avoids fixed-width dead space on large/zoomed-out screens */
+  /* Fluid page container */
   .page-shell {
     padding: clamp(14px, 1.8vw, 32px);
   }
@@ -236,7 +239,27 @@
   }
 }
 
-/* Animation Classes */
+/* ============================================================
+   Page Enter Animation (Proposal 6a)
+   ============================================================ */
+.page-enter {
+  animation: pageEnter 150ms ease-out;
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================
+   Animation Classes
+   ============================================================ */
 .animate-fade-in {
   animation: fadeIn 0.2s ease-out;
 }
@@ -345,26 +368,15 @@
 
 @media (prefers-reduced-motion: reduce) {
   .history-float-wrap,
-  .history-float-enter {
+  .history-float-enter,
+  .page-enter {
     animation: none;
   }
 }
 
 
 /* ============================================================
-   Sidebar Brand — Solo C19 Logo (Proposal 1)
-   ============================================================ */
-
-.sidebar-brand-solo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px 16px;
-  border-bottom: 1px solid rgba(231, 229, 228, 0.4);
-}
-
-/* ============================================================
-   C19 Golden Frame — Sidebar Brand Logo (48px)
+   C19 Golden Frame — Sidebar Brand Logo (48px original)
    ============================================================ */
 
 @property --c19-border-angle {
@@ -373,7 +385,6 @@
   inherits: false;
 }
 
-/* C19 base structure — 48px, light background */
 .c19-logo {
   width: 48px;
   height: 48px;
@@ -440,11 +451,61 @@
   line-height: 1.3;
 }
 
-/* A3: Shimmer Sweep at 0.85x speed */
+/* ── C19 Small variant (for topbar — 32px) ── */
+.c19-logo-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  position: relative;
+  background: white;
+  box-shadow: 0 1px 8px -2px rgba(0,0,0,0.08);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease;
+}
+
+.c19-logo-sm:hover {
+  box-shadow: 0 2px 12px -2px rgba(251,191,36,0.25);
+}
+
+.c19-logo-border-sm {
+  border-radius: 9px;
+  border-width: 1.5px;
+}
+
+.c19-logo-inner-sm {
+  inset: 5px;
+  border-radius: 5px;
+}
+
+.c19-logo-content-sm {
+  gap: 0;
+}
+
+.c19-logo-content-sm .c19-t-sm {
+  font-size: 7px;
+  letter-spacing: 1.8px;
+  padding-left: 1.8px;
+  line-height: 1.2;
+}
+
+.c19-logo-content-sm .c19-dot-sm {
+  width: 2px;
+  height: 2px;
+}
+
+.c19-logo-content-sm .c19-b-sm {
+  font-size: 7px;
+  letter-spacing: 1.8px;
+  padding-left: 1.8px;
+  line-height: 1.2;
+}
+
+/* Shimmer */
 .c19-logo-shimmer {
   position: absolute;
   inset: 0;
-  border-radius: 13px;
+  border-radius: inherit;
   z-index: 10;
   overflow: hidden;
   pointer-events: none;
@@ -473,8 +534,9 @@
   60%, 100% { left: 160%; }
 }
 
-/* A4: Frame Draw entrance */
-.c19-entrance .c19-logo-border {
+/* Entrance draw animation */
+.c19-entrance .c19-logo-border,
+.c19-entrance .c19-logo-border-sm {
   border: none;
   background: none;
 }
@@ -482,7 +544,7 @@
 .c19-draw-border {
   position: absolute;
   inset: 0;
-  border-radius: 13px;
+  border-radius: inherit;
   overflow: hidden;
 }
 
@@ -503,30 +565,41 @@
   animation-delay: 0.2s;
 }
 
+.c19-draw-border-sm svg rect {
+  stroke: url(#c19DrawGradSm);
+  stroke-width: 1.5;
+  stroke-dasharray: 152;
+  stroke-dashoffset: 152;
+}
+
 @keyframes c19-draw {
   to { stroke-dashoffset: 0; }
 }
 
-.c19-entrance .c19-logo-inner {
+.c19-entrance .c19-logo-inner,
+.c19-entrance .c19-logo-inner-sm {
   opacity: 0;
   animation: c19-reveal 0.4s ease forwards;
   animation-delay: 1.2s;
 }
 
-.c19-entrance .c19-t {
+.c19-entrance .c19-t,
+.c19-entrance .c19-t-sm {
   opacity: 0;
   animation: c19-text-in 0.4s ease forwards;
   animation-delay: 1.4s;
 }
 
-.c19-entrance .c19-dot {
+.c19-entrance .c19-dot,
+.c19-entrance .c19-dot-sm {
   opacity: 0;
   transform: scale(0);
   animation: c19-dot-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
   animation-delay: 1.6s;
 }
 
-.c19-entrance .c19-b {
+.c19-entrance .c19-b,
+.c19-entrance .c19-b-sm {
   opacity: 0;
   animation: c19-text-in 0.4s ease forwards;
   animation-delay: 1.8s;
@@ -552,63 +625,251 @@
 
 
 /* ============================================================
-   TopBar — Slim Atmosphere Layer (Proposal 1+3)
+   TopBar v2 — Primary Navigation Bar
+   Premium horizontal navigation with glassmorphism
    ============================================================ */
 
-.topbar {
+.topbar-v2 {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 32px;
-  height: 44px;
+  height: 56px;
+  padding: 0 20px;
+  gap: 0;
   border-bottom: 1px solid rgba(231, 229, 228, 0.5);
-  background: linear-gradient(180deg, #fafaf9, rgba(250,250,249,0.3));
-  position: relative;
-}
-
-.topbar-left {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-  min-width: 0;
-}
-
-.topbar-page-label {
-  font-family: 'Space Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: #78716c;
-  font-weight: 700;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  position: sticky;
+  top: 0;
+  z-index: 40;
   flex-shrink: 0;
 }
 
-.topbar-subtitle {
+/* ── Brand section ── */
+.topbar-v2-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 10px;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.topbar-v2-brand:hover {
+  background: rgba(245, 245, 244, 0.6);
+}
+
+.topbar-v2-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.topbar-v2-brand-name {
+  font-family: 'Sora', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 2.5px;
+  color: #292524;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.topbar-v2-brand-sub {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: #a8a29e;
+  line-height: 1.2;
+}
+
+/* ── Vertical divider ── */
+.topbar-v2-divider {
+  width: 1px;
+  height: 24px;
+  background: linear-gradient(180deg, transparent, #e7e5e4, transparent);
+  margin: 0 16px;
+  flex-shrink: 0;
+}
+
+/* ── Navigation ── */
+.topbar-v2-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.topbar-v2-nav-group {
+  position: relative;
+}
+
+.topbar-v2-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 450;
+  color: #78716c;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.topbar-v2-nav-item:hover {
+  color: #44403c;
+  background: rgba(245, 245, 244, 0.7);
+}
+
+.topbar-v2-nav-active {
+  color: #292524;
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(231, 229, 228, 0.5);
+  box-shadow: 0 1px 3px -1px rgba(0,0,0,0.06);
+}
+
+.topbar-v2-nav-icon {
+  color: #a8a29e;
+  transition: color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.topbar-v2-nav-icon-active {
+  color: #f59e0b;
+}
+
+.topbar-v2-nav-label {
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+.topbar-v2-chevron {
+  color: #a8a29e;
+  transition: transform 0.2s ease;
+  margin-left: -2px;
+}
+
+.topbar-v2-chevron-open {
+  transform: rotate(180deg);
+}
+
+/* Badge */
+.topbar-v2-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  color: #78716c;
+  font-weight: 500;
+}
+
+.topbar-v2-badge-highlight {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+/* ── Dropdown ── */
+.topbar-v2-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 200px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(231, 229, 228, 0.6);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow:
+    0 12px 40px -10px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
+  animation: dropdownEnter 120ms ease-out;
+  z-index: 50;
+}
+
+@keyframes dropdownEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.topbar-v2-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: #57534e;
+  transition: all 0.12s ease;
+}
+
+.topbar-v2-dropdown-item:hover {
+  background: rgba(245, 245, 244, 0.8);
+  color: #292524;
+}
+
+.topbar-v2-dropdown-active {
+  color: #292524;
+  background: #fffbeb;
+}
+
+.topbar-v2-dropdown-active:hover {
+  background: #fef3c7;
+}
+
+.topbar-v2-dropdown-divider {
+  height: 1px;
+  background: #f5f5f4;
+  margin: 4px 8px;
+}
+
+/* ── Right section ── */
+.topbar-v2-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.topbar-v2-context-hint {
   font-family: 'DM Sans', sans-serif;
   font-size: 11px;
   color: #a8a29e;
   letter-spacing: 0.1px;
-  font-weight: 400;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 280px;
 }
 
-.topbar-subtitle-accent {
-  color: #d97706;
-  font-weight: 500;
+@media (max-width: 1100px) {
+  .topbar-v2-context-hint {
+    display: none;
+  }
 }
 
-/* Thin gradient line — right side atmospheric accent */
-.topbar-gradient-line {
-  width: 48px;
+/* Gradient accent line */
+.topbar-v2-accent-line {
+  width: 40px;
   height: 2px;
   border-radius: 1px;
   overflow: hidden;
   flex-shrink: 0;
 }
 
-.topbar-gradient-line-inner {
+.topbar-v2-accent-line-inner {
   width: 100%;
   height: 100%;
   border-radius: 1px;
@@ -623,4 +884,103 @@
 @keyframes topbar-gradient-shift {
   0% { background-position: 0% 0; }
   100% { background-position: 200% 0; }
+}
+
+/* Icon button */
+.topbar-v2-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: #a8a29e;
+  transition: all 0.15s ease;
+}
+
+.topbar-v2-icon-btn:hover {
+  color: #57534e;
+  background: rgba(245, 245, 244, 0.7);
+}
+
+.topbar-v2-icon-btn-active {
+  color: #44403c;
+  background: rgba(245, 245, 244, 0.9);
+}
+
+/* Settings dropdown */
+.topbar-v2-settings-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 180px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(231, 229, 228, 0.6);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow:
+    0 12px 40px -10px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
+  animation: dropdownEnter 120ms ease-out;
+  z-index: 50;
+}
+
+.topbar-v2-settings-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #a8a29e;
+  padding: 6px 12px 4px;
+  font-weight: 500;
+}
+
+.topbar-v2-settings-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #57534e;
+  transition: all 0.12s ease;
+}
+
+.topbar-v2-settings-item:hover {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.topbar-v2-settings-divider {
+  height: 1px;
+  background: #f5f5f4;
+  margin: 4px 8px;
+}
+
+.topbar-v2-settings-version {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  color: #d6d3d1;
+  padding: 4px 12px 6px;
+  text-align: center;
+}
+
+
+/* ============================================================
+   Legacy sidebar brand (kept in case sidebar is re-enabled)
+   ============================================================ */
+.sidebar-brand-solo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  border-bottom: 1px solid rgba(231, 229, 228, 0.4);
+}
+
+/* Legacy topbar (no longer used — kept for reference) */
+.topbar {
+  display: none;
 }

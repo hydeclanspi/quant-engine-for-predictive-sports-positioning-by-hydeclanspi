@@ -2449,6 +2449,67 @@ export default function ParamsPage({ openModal }) {
           系数 &gt; 1 代表该因子提升判断质量；系数 &lt; 1 代表该因子应下调权重。
         </p>
       </div>
+
+      {/* Layout Mode Toggle */}
+      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mt-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-medium text-stone-700 flex items-center gap-2">
+            <span className="text-amber-500">⬡</span> 界面布局
+          </h3>
+          <span className="text-xs text-stone-400">Navigation Layout Preference</span>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <button
+            onClick={() => {
+              saveSystemConfig({ layoutMode: 'topbar' })
+              localStorage.setItem('dugou:layout-mode', 'topbar')
+              window.dispatchEvent(new CustomEvent('dugou:layout-changed', { detail: { mode: 'topbar' } }))
+            }}
+            className={`p-4 rounded-xl border-2 transition-all text-left ${
+              (config.layoutMode || 'topbar') === 'topbar'
+                ? 'border-amber-400 bg-amber-50/50'
+                : 'border-stone-200 hover:border-stone-300 bg-stone-50'
+            }`}
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-stone-200 flex flex-col overflow-hidden">
+                <div className="h-2 bg-amber-400 w-full" />
+                <div className="flex-1 bg-stone-100" />
+              </div>
+              <span className="text-sm font-medium text-stone-700">Topbar</span>
+              {(config.layoutMode || 'topbar') === 'topbar' && (
+                <span className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full ml-auto">Active</span>
+              )}
+            </div>
+            <p className="text-xs text-stone-400">Horizontal navigation at the top. Modern, spacious layout with more content area.</p>
+          </button>
+          <button
+            onClick={() => {
+              saveSystemConfig({ layoutMode: 'sidebar' })
+              localStorage.setItem('dugou:layout-mode', 'sidebar')
+              window.dispatchEvent(new CustomEvent('dugou:layout-changed', { detail: { mode: 'sidebar' } }))
+            }}
+            className={`p-4 rounded-xl border-2 transition-all text-left ${
+              config.layoutMode === 'sidebar'
+                ? 'border-amber-400 bg-amber-50/50'
+                : 'border-stone-200 hover:border-stone-300 bg-stone-50'
+            }`}
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-stone-200 flex overflow-hidden">
+                <div className="w-2 bg-amber-400 h-full" />
+                <div className="flex-1 bg-stone-100" />
+              </div>
+              <span className="text-sm font-medium text-stone-700">Sidebar</span>
+              {config.layoutMode === 'sidebar' && (
+                <span className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full ml-auto">Active</span>
+              )}
+            </div>
+            <p className="text-xs text-stone-400">Vertical navigation on the left. Classic layout with collapsible sidebar.</p>
+          </button>
+        </div>
+        <p className="text-[11px] text-stone-400 mt-3 text-center">Layout changes take effect immediately.</p>
+      </div>
     </div>
   )
 }
