@@ -776,7 +776,8 @@ export default function NewInvestmentPage() {
         // strip internal _nlMeta from form state
       })),
     )
-    setActualInput(newSize === 1 ? '180' : '80')
+    const parsedInput = Number.parseInt(String(result.actualInput || ''), 10)
+    setActualInput(Number.isFinite(parsedInput) && parsedInput > 0 ? String(parsedInput) : (newSize === 1 ? '180' : '80'))
     setHistoryPrefillApplied({})
     setHistoryFloatDismissed({})
   }
@@ -826,7 +827,7 @@ export default function NewInvestmentPage() {
             <textarea
               value={quickInputText}
               onChange={(e) => setQuickInputText(e.target.value)}
-              placeholder={'示例：利兹联win/平拜仁 conf3.5 odds7.4 fse0.72\n或：arsenal W, chelsea D, conf 55 60, odds 1.8 3.2'}
+              placeholder={'示例：利兹联 win/平 拜仁, conf 3.5, odds 7.4, fse 0.72, mode 半, input 180\n或：arsenal W, chelsea D, conf 55 60, odds 1.8 3.2, mode 常规-稳'}
               rows={3}
               className="input-glow w-full px-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400 resize-none"
             />

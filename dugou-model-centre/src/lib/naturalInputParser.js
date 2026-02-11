@@ -24,7 +24,22 @@ const MODE_ALIASES = new Map([
   ['gamble', '赌一把'], ['赌', '赌一把'],
   ['insurance', '保险产品'], ['保险', '保险产品'],
   ['half', '半彩票半保险'],
+  ['半', '半彩票半保险'], ['半保险半常规', '半彩票半保险'],
 ])
+
+const escapeRegex = (value) => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const isAsciiToken = (value) => /^[a-z0-9_-]+$/i.test(String(value || ''))
+const resolveModeToken = (raw) => {
+  const token = String(raw || '').trim()
+  if (!token) return null
+  for (const mode of MODE_OPTIONS_SORTED) {
+    if (token.toLowerCase() === mode.toLowerCase()) return mode
+  }
+  const normalized = token.toLowerCase()
+  const aliasMatched = MODE_ALIASES.get(normalized)
+  if (aliasMatched) return aliasMatched
+  return null
+}
 
 const TYS_SET = new Set(['S', 'M', 'L', 'H'])
 
@@ -109,6 +124,7 @@ const extractParameters = (text) => {
     tys_away: [],
     tys_global: [],
     mode: null,
+    actualInput: null,
     remark: '',
   }
   const warnings = []
@@ -123,6 +139,14 @@ const extractParameters = (text) => {
   }
 
   // ── Mode ──
+  const modeKeywordRe = /\b(?:mode|模式)[:=\s]*([^\s,;]+)/gi
+  let modeM
+  while ((modeM = modeKeywordRe.exec(cleaned)) !== null) {
+    const resolved = resolveModeToken(modeM[1])
+    if (resolved) params.mode = resolved
+  }
+  cleaned = cleaned.replace(modeKeywordRe, ' ')
+
   for (const mode of MODE_OPTIONS_SORTED) {
     const idx = cleaned.toLowerCase().indexOf(mode.toLowerCase())
     if (idx !== -1) {
@@ -133,7 +157,9 @@ const extractParameters = (text) => {
   }
   if (!params.mode) {
     for (const [alias, mode] of MODE_ALIASES) {
-      const re = new RegExp(`\\b${alias}\\b`, 'i')
+      const re = isAsciiToken(alias)
+        ? new RegExp(`\\b${escapeRegex(alias)}\\b`, 'i')
+        : new RegExp(escapeRegex(alias), 'i')
       if (re.test(cleaned)) {
         params.mode = mode
         cleaned = cleaned.replace(re, ' ')
@@ -141,6 +167,21 @@ const extractParameters = (text) => {
       }
     }
   }
+
+  // ── Actual Input amount — "input 180" / "实际投资 180" / "180 input" ──
+  const amountForwardRe = /\b(?:input|inputs|invest|stake|bet|投入|下注|实际投资|投资额)[:\s]*([0-9]+(?:\.[0-9]+)?)/gi
+  let amountM
+  while ((amountM = amountForwardRe.exec(cleaned)) !== null) {
+    const n = Number.parseFloat(amountM[1])
+    if (Number.isFinite(n) && n > 0) params.actualInput = Math.max(1, Math.round(n))
+  }
+  cleaned = cleaned.replace(amountForwardRe, ' ')
+  const amountReverseRe = /([0-9]+(?:\.[0-9]+)?)\s*(?:input|inputs|invest|stake|bet)\b/gi
+  while ((amountM = amountReverseRe.exec(cleaned)) !== null) {
+    const n = Number.parseFloat(amountM[1])
+    if (Number.isFinite(n) && n > 0) params.actualInput = Math.max(1, Math.round(n))
+  }
+  cleaned = cleaned.replace(amountReverseRe, ' ')
 
   // ── FSE with home/away ──
   // "fse h 0.8" or "fse home 0.2" or "fsea0.3"
@@ -744,7 +785,7 @@ const scoreParse = (matches, diagnostics) => {
 export const parseNaturalInput = (rawText) => {
   const diagnostics = []
   if (!rawText || !rawText.trim()) {
-    return { matches: [], diagnostics: [{ level: 'info', message: '输入为空' }], confidence: 0, rawInput: rawText || '' }
+    return { matches: [], diagnostics: [{ level: 'info', message: '输入为空' }], confidence: 0, rawInput: rawText || '', actualInput: null }
   }
 
   // Stage 1
@@ -760,7 +801,7 @@ export const parseNaturalInput = (rawText) => {
 
   if (teamHits.length === 0) {
     diagnostics.push({ level: 'error', message: '未识别到任何球队名称' })
-    return { matches: [], diagnostics, confidence: 0, rawInput: rawText }
+    return { matches: [], diagnostics, confidence: 0, rawInput: rawText, actualInput: params.actualInput }
   }
 
   // Stage 4
@@ -771,7 +812,7 @@ export const parseNaturalInput = (rawText) => {
 
   if (rawMatches.length === 0) {
     diagnostics.push({ level: 'error', message: '无法组合出有效比赛' })
-    return { matches: [], diagnostics, confidence: 0.1, rawInput: rawText }
+    return { matches: [], diagnostics, confidence: 0.1, rawInput: rawText, actualInput: params.actualInput }
   }
 
   // Stage 6
@@ -796,5 +837,5 @@ export const parseNaturalInput = (rawText) => {
   })
 
   const confidence = scoreParse(matches, diagnostics)
-  return { matches, diagnostics, confidence, rawInput: rawText }
+  return { matches, diagnostics, confidence, rawInput: rawText, actualInput: params.actualInput }
 }
