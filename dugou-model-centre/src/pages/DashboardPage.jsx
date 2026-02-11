@@ -286,6 +286,67 @@ export default function DashboardPage({ openModal }) {
 
   const confDetailRows = useMemo(() => snapshot.confDetail, [snapshot.confDetail])
   const topAdvantageRows = useMemo(() => snapshot.advantage.top, [snapshot.advantage.top])
+  const repSummary = useMemo(() => {
+    const rows = repCards.filter((row) => row.samples > 0)
+    if (rows.length === 0) return null
+    const best = [...rows].sort((a, b) => b.roi - a.roi || b.hitRate - a.hitRate)[0]
+    const weakest = [...rows].sort((a, b) => a.roi - b.roi || a.hitRate - b.hitRate)[0]
+    const low = repCards.find((row) => row.key === 'low')
+    const high = repCards.find((row) => row.key === 'high')
+    const riskGap = Number(((high?.roi || 0) - (low?.roi || 0)).toFixed(1))
+    const action =
+      riskGap <= -8
+        ? '高随机样本拖累明显，当前建议优先低/中随机性赛事。'
+        : riskGap >= 8
+          ? '高随机样本回报领先，可保留小比例杠杆仓位。'
+          : '三档随机性差异不大，维持均衡配置并继续观察。'
+    return { best, weakest, riskGap, action }
+  }, [repCards])
+  const confSummary = useMemo(() => {
+    const rows = confDetailRows.filter((row) => row.samples > 0)
+    if (rows.length === 0) return null
+    const totalSamples = rows.reduce((sum, row) => sum + row.samples, 0)
+    const weightedDiff =
+      totalSamples > 0 ? rows.reduce((sum, row) => sum + row.diff * row.samples, 0) / totalSamples : 0
+    const mae =
+      totalSamples > 0 ? rows.reduce((sum, row) => sum + Math.abs(row.diff) * row.samples, 0) / totalSamples : 0
+    const stable = [...rows].sort((a, b) => Math.abs(a.diff) - Math.abs(b.diff) || b.samples - a.samples)[0]
+    const drift = [...rows].sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff) || b.samples - a.samples)[0]
+    const bestEdge = [...rows].sort((a, b) => b.roi - a.roi || b.hitRate - a.hitRate)[0]
+    const note =
+      weightedDiff > 0.03
+        ? '整体 AJR 高于 Conf，模型偏保守，可在高质量样本轻微上调。'
+        : weightedDiff < -0.03
+          ? '整体 AJR 低于 Conf，模型偏激进，建议下调高置信仓位。'
+          : '整体校准接近中性，优先按具体区间做微调。'
+    return { weightedDiff, mae, stable, drift, bestEdge, note }
+  }, [confDetailRows])
+  const repMixRows = useMemo(() => {
+    const rows = repCards.filter((row) => row.samples > 0)
+    const totalSamples = rows.reduce((sum, row) => sum + row.samples, 0)
+    if (totalSamples <= 0) return []
+    return rows
+      .map((row) => ({
+        ...row,
+        share: row.samples / totalSamples,
+        bandTone:
+          row.key === 'low' ? 'bg-emerald-400' : row.key === 'mid' ? 'bg-amber-400' : 'bg-rose-400',
+        tip: row.roi >= 8 ? '保持主仓' : row.roi >= 0 ? '维持观察' : '建议降权',
+      }))
+      .sort((a, b) => b.share - a.share)
+  }, [repCards])
+  const confPriorityRows = useMemo(
+    () =>
+      confDetailRows
+        .filter((row) => row.samples > 0)
+        .map((row) => ({
+          ...row,
+          absDiff: Math.abs(row.diff),
+          steer: row.diff >= 0 ? '偏低估' : '偏高估',
+        }))
+        .sort((a, b) => b.absDiff - a.absDiff || b.samples - a.samples),
+    [confDetailRows],
+  )
 
   const downloadFile = (filename, content, mimeType) => {
     const blob = new Blob([content], { type: mimeType })
@@ -1030,7 +1091,10 @@ export default function DashboardPage({ openModal }) {
         )}
 
         <div className="grid grid-cols-3 gap-4">
-          <div onClick={openRepModal} className="glow-card bg-white rounded-2xl p-5 border border-stone-100 cursor-pointer">
+          <div
+            onClick={openRepModal}
+            className="glow-card bg-white rounded-2xl p-5 border border-stone-100 cursor-pointer h-full flex flex-col"
+          >
             <div className="flex items-center justify-between mb-3">
               <div>
                 <div className="flex items-center gap-2.5">
@@ -1052,6 +1116,58 @@ export default function DashboardPage({ openModal }) {
                   </div>
                 )
               })}
+            </div>
+            <div className="mt-3 pt-3 border-t border-stone-100 space-y-2 flex-1 flex flex-col">
+              {repSummary ? (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg border border-emerald-100 bg-emerald-50/45 p-2">
+                      <p className="text-[10px] text-stone-400">最优随机层</p>
+                      <p className="text-xs font-medium text-emerald-700">{repSummary.best.label}</p>
+                      <p className="text-[11px] text-emerald-600">
+                        ROI {toSigned(repSummary.best.roi, 1, '%')} · Hit {repSummary.best.hitRate.toFixed(0)}%
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-rose-100 bg-rose-50/45 p-2">
+                      <p className="text-[10px] text-stone-400">最弱随机层</p>
+                      <p className="text-xs font-medium text-rose-600">{repSummary.weakest.label}</p>
+                      <p className="text-[11px] text-rose-500">
+                        ROI {toSigned(repSummary.weakest.roi, 1, '%')} · Hit {repSummary.weakest.hitRate.toFixed(0)}%
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-stone-500">
+                    <span>高随机 vs 低随机 ROI 差</span>
+                    <span className={`font-medium ${repSummary.riskGap >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                      {toSigned(repSummary.riskGap, 1, '%')}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-stone-500 leading-5">{repSummary.action}</p>
+                </>
+              ) : (
+                <p className="text-[11px] text-stone-400">当前窗口暂无 REP 细分样本。</p>
+              )}
+              {repMixRows.length > 0 && (
+                <div className="mt-1.5 rounded-xl border border-stone-100 bg-stone-50/70 p-2.5 space-y-2">
+                  <p className="text-[10px] uppercase tracking-[0.12em] text-stone-400">样本结构 / 处理优先级</p>
+                  {repMixRows.map((row) => (
+                    <div key={row.key} className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-stone-500">{row.label}</span>
+                        <span className="font-medium text-stone-700">
+                          {toPercent(row.share * 100, 0)} · {row.tip}
+                        </span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-white overflow-hidden">
+                        <div
+                          className={`h-full ${row.bandTone}`}
+                          style={{ width: `${Math.max(8, Math.round(row.share * 100))}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <p className="text-[10px] text-stone-400 mt-3">通过 REP 加权过滤随机因素，帮助区分运气波动与判断质量。</p>
           </div>
@@ -1089,7 +1205,10 @@ export default function DashboardPage({ openModal }) {
             </div>
           </div>
 
-          <div onClick={openConfModal} className="glow-card bg-white rounded-2xl p-5 border border-stone-100 cursor-pointer">
+          <div
+            onClick={openConfModal}
+            className="glow-card bg-white rounded-2xl p-5 border border-stone-100 cursor-pointer h-full flex flex-col"
+          >
             <h3 className="font-medium text-stone-700 mb-4">Conf 校准曲线</h3>
             <div className="space-y-2.5">
               {snapshot.confCalibration.map((row) => (
@@ -1104,6 +1223,68 @@ export default function DashboardPage({ openModal }) {
                   <span className="text-xs text-stone-600 w-12">{row.actual.toFixed(2)}</span>
                 </div>
               ))}
+            </div>
+            <div className="mt-3 pt-3 border-t border-stone-100 space-y-2 flex-1 flex flex-col">
+              {confSummary ? (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg border border-sky-100 bg-sky-50/45 p-2">
+                      <p className="text-[10px] text-stone-400">最稳定区间</p>
+                      <p className="text-xs font-medium text-sky-700">{confSummary.stable.label}</p>
+                      <p className="text-[11px] text-sky-600">{toSigned(confSummary.stable.diff * 100, 1, 'pp')}</p>
+                    </div>
+                    <div className="rounded-lg border border-amber-100 bg-amber-50/45 p-2">
+                      <p className="text-[10px] text-stone-400">偏差最大区间</p>
+                      <p className="text-xs font-medium text-amber-700">{confSummary.drift.label}</p>
+                      <p className="text-[11px] text-amber-600">{toSigned(confSummary.drift.diff * 100, 1, 'pp')}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-stone-500">
+                    <span>整体偏差 (AJR-Conf)</span>
+                    <span className={`font-medium ${confSummary.weightedDiff >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                      {toSigned(confSummary.weightedDiff * 100, 1, 'pp')}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-stone-500">
+                    <span>平均绝对偏差</span>
+                    <span className="font-medium text-stone-700">{(confSummary.mae * 100).toFixed(1)}pp</span>
+                  </div>
+                  <p className="text-[11px] text-stone-500 leading-5">
+                    {confSummary.note} 最优收益区间：{confSummary.bestEdge.label}（ROI {toSigned(confSummary.bestEdge.roi, 1, '%')}）。
+                  </p>
+                </>
+              ) : (
+                <p className="text-[11px] text-stone-400">当前窗口暂无 Conf 校准样本。</p>
+              )}
+              {confPriorityRows.length > 0 && (
+                <div className="mt-1.5 rounded-xl border border-stone-100 bg-stone-50/70 p-2.5 space-y-2">
+                  <p className="text-[10px] uppercase tracking-[0.12em] text-stone-400">校准优先级</p>
+                  {confPriorityRows.slice(0, 3).map((row) => {
+                    const emphasisClass = row.diff >= 0 ? 'text-emerald-600' : 'text-rose-500'
+                    const barClass = row.diff >= 0 ? 'bg-emerald-400' : 'bg-rose-400'
+                    return (
+                      <div key={row.label} className="space-y-1">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-stone-500">{row.label}</span>
+                          <span className={`font-medium ${emphasisClass}`}>
+                            {row.steer} {toSigned(row.diff * 100, 1, 'pp')}
+                          </span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-white overflow-hidden">
+                          <div
+                            className={`h-full ${barClass}`}
+                            style={{ width: `${Math.max(10, Math.min(100, Math.round(row.absDiff * 340)))}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-stone-400">
+                          <span>{row.samples} 场</span>
+                          <span>ROI {toSigned(row.roi, 1, '%')}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
             <p className="text-xs text-stone-400 mt-3 text-center">定义：比较赛前 Conf 与赛后 AJR 的长期偏差。</p>
           </div>
