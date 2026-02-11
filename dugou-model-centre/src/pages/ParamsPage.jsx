@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BarChart3, LayoutDashboard, SlidersHorizontal, TrendingUp, Wallet } from 'lucide-react'
+import {
+  BarChart3,
+  Clock3,
+  Cloud,
+  Database,
+  FileSpreadsheet,
+  LayoutDashboard,
+  LineChart,
+  ShieldCheck,
+  SlidersHorizontal,
+  TrendingUp,
+  Wallet,
+} from 'lucide-react'
 import {
   computeAdaptiveWeightSuggestions,
   getExpectedVsActualRows,
@@ -105,7 +117,7 @@ const EMPTY_MODEL_VALIDATION = {
 }
 
 const ConsoleCardIcon = ({ IconComp }) => (
-  <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-amber-200 bg-gradient-to-b from-amber-50 to-white text-amber-600 shadow-[0_1px_2px_rgba(245,158,11,0.14),inset_0_1px_0_rgba(255,255,255,0.86)]">
+  <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-indigo-200 bg-gradient-to-b from-indigo-50 via-violet-50 to-white text-indigo-600 shadow-[0_1px_2px_rgba(99,102,241,0.16),inset_0_1px_0_rgba(255,255,255,0.88)]">
     <IconComp size={14} strokeWidth={1.7} />
   </span>
 )
@@ -1998,7 +2010,7 @@ export default function ParamsPage({ openModal }) {
       <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
-            <span className="text-amber-500">✶</span> 赛前评分权重
+            <ConsoleCardIcon IconComp={SlidersHorizontal} /> 赛前评分权重
           </h3>
           <span className="text-xs text-stone-400">用于新建投资与智能组合的评分计算链路</span>
         </div>
@@ -2026,7 +2038,7 @@ export default function ParamsPage({ openModal }) {
       <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
-            <span className="text-amber-500">⌛</span> 时间近因机制
+            <ConsoleCardIcon IconComp={Clock3} /> 时间近因机制
           </h3>
           <span className="text-xs text-stone-400">
             {analyticsProgress.calibration ? `样本 ${calibrationContext.sampleCount} · n=${calibrationContext.n}` : '计算中...'}
@@ -2079,7 +2091,7 @@ export default function ParamsPage({ openModal }) {
       <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
-            <span className="text-amber-500">☁</span> 云端同步（Supabase）
+            <ConsoleCardIcon IconComp={Cloud} /> 云端同步（Supabase）
           </h3>
           <span className="text-xs text-stone-400">{syncStatus.enabled ? '已启用' : '未启用'}</span>
         </div>
@@ -2141,7 +2153,7 @@ export default function ParamsPage({ openModal }) {
       <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
-            <span className="text-amber-500">⬇</span> Excel 数据进出
+            <ConsoleCardIcon IconComp={FileSpreadsheet} /> Excel 数据进出
           </h3>
           {excelStatus && <span className="text-xs text-emerald-600">{excelStatus}</span>}
         </div>
@@ -2272,7 +2284,7 @@ export default function ParamsPage({ openModal }) {
       <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
-            <span className="text-amber-500">📦</span> JSON 数据备份
+            <ConsoleCardIcon IconComp={Database} /> JSON 数据备份
           </h3>
           {jsonStatus && <span className="text-xs text-emerald-600">{jsonStatus}</span>}
         </div>
@@ -2291,7 +2303,7 @@ export default function ParamsPage({ openModal }) {
       <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
-            <span className="text-amber-500">📈</span> 回归分析校准
+            <ConsoleCardIcon IconComp={LineChart} /> 回归分析校准
           </h3>
           <span className="text-xs text-stone-400 px-2 py-1 bg-amber-50 border border-amber-200 rounded">
             加权线性回归 · 应用于实际计算
@@ -2465,7 +2477,7 @@ export default function ParamsPage({ openModal }) {
       <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
-            <span className="text-amber-500">◎</span> 模型收口验证
+            <ConsoleCardIcon IconComp={ShieldCheck} /> 模型收口验证
           </h3>
           <span className={`text-xs px-2 py-1 rounded border ${modelValidationMeta.badge}`}>{modelValidationMeta.label}</span>
         </div>
