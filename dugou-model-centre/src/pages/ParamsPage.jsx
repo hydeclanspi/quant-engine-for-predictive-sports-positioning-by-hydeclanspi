@@ -2458,7 +2458,33 @@ export default function ParamsPage({ openModal }) {
           </h3>
           <span className="text-xs text-stone-400">Navigation Layout Preference</span>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
+          {/* Modern */}
+          <button
+            onClick={() => {
+              saveSystemConfig({ layoutMode: 'modern' })
+              localStorage.setItem('dugou:layout-mode', 'modern')
+              window.dispatchEvent(new CustomEvent('dugou:layout-changed', { detail: { mode: 'modern' } }))
+            }}
+            className={`p-4 rounded-xl border-2 transition-all text-left ${
+              config.layoutMode === 'modern'
+                ? 'border-neutral-900 bg-neutral-50'
+                : 'border-stone-200 hover:border-stone-300 bg-stone-50'
+            }`}
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-md bg-white border border-neutral-200 flex flex-col overflow-hidden">
+                <div className="h-[5px] bg-neutral-900 w-full" />
+                <div className="flex-1 bg-neutral-50" />
+              </div>
+              <span className="text-sm font-medium text-stone-700">Modern</span>
+              {config.layoutMode === 'modern' && (
+                <span className="text-[10px] px-2 py-0.5 bg-neutral-900 text-white rounded-full ml-auto">Active</span>
+              )}
+            </div>
+            <p className="text-xs text-stone-400">Vercel-inspired. Clean monochrome, sharp typography, system-native feel.</p>
+          </button>
+          {/* Topbar */}
           <button
             onClick={() => {
               saveSystemConfig({ layoutMode: 'topbar' })
@@ -2481,8 +2507,9 @@ export default function ParamsPage({ openModal }) {
                 <span className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full ml-auto">Active</span>
               )}
             </div>
-            <p className="text-xs text-stone-400">Horizontal navigation at the top. Modern, spacious layout with more content area.</p>
+            <p className="text-xs text-stone-400">Glassmorphism topbar with warm amber accents and brand logo.</p>
           </button>
+          {/* Sidebar */}
           <button
             onClick={() => {
               saveSystemConfig({ layoutMode: 'sidebar' })
@@ -2505,7 +2532,7 @@ export default function ParamsPage({ openModal }) {
                 <span className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full ml-auto">Active</span>
               )}
             </div>
-            <p className="text-xs text-stone-400">Vertical navigation on the left. Classic layout with collapsible sidebar.</p>
+            <p className="text-xs text-stone-400">Collapsible sidebar with vertical navigation. Classic layout.</p>
           </button>
         </div>
         <p className="text-[11px] text-stone-400 mt-3 text-center">Layout changes take effect immediately.</p>

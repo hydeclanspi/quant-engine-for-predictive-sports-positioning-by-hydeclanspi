@@ -984,3 +984,462 @@
 .topbar {
   display: none;
 }
+
+
+/* ============================================================
+   MODERN THEME — "mn-" prefix
+   Vercel · Linear · Notion design language
+
+   Design DNA:
+   - Near-monochrome with surgical accent pops
+   - #000 nav text, not warm stone
+   - 1px borders, never 2px
+   - System-native popover feel
+   - Extreme whitespace discipline
+   - Single accent color: blue-600 (#2563eb) for active states
+   - No gradients in navigation — save drama for content
+   ============================================================ */
+
+/* ── Modern TopBar ── */
+.mn-bar {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 16px;
+  gap: 0;
+  border-bottom: 1px solid #e5e5e5;
+  background: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  flex-shrink: 0;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+/* Brand */
+.mn-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 4px;
+  border-radius: 6px;
+  transition: background-color 0.12s ease;
+  flex-shrink: 0;
+  color: #171717;
+}
+
+.mn-brand:hover {
+  background: #f5f5f5;
+}
+
+.mn-brand-mark {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #171717;
+}
+
+.mn-brand-name {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.3px;
+  color: #171717;
+}
+
+/* Breadcrumb separator */
+.mn-sep {
+  color: #d4d4d4;
+  font-size: 16px;
+  font-weight: 300;
+  margin: 0 6px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+/* Page title */
+.mn-page-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #737373;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+
+/* Navigation */
+.mn-nav {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.mn-nav-group {
+  position: relative;
+}
+
+.mn-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 450;
+  color: #737373;
+  transition: all 0.1s ease;
+  white-space: nowrap;
+}
+
+.mn-nav-item:hover {
+  color: #171717;
+  background: #f5f5f5;
+}
+
+.mn-nav-active {
+  color: #171717;
+  font-weight: 500;
+}
+
+/* Active indicator — subtle bottom bar like Vercel tabs */
+.mn-nav-active::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 10px;
+  right: 10px;
+  height: 2px;
+  background: #171717;
+  border-radius: 2px 2px 0 0;
+}
+
+.mn-chevron {
+  color: #a3a3a3;
+  transition: transform 0.15s ease;
+  margin-left: -1px;
+}
+
+.mn-chevron-open {
+  transform: rotate(180deg);
+}
+
+/* Badge — minimal pill */
+.mn-badge {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  min-width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border-radius: 99px;
+  background: #171717;
+  color: #fff;
+  line-height: 1;
+}
+
+/* Dropdown — system-native popover */
+.mn-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 180px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.07),
+    0 10px 20px -2px rgba(0, 0, 0, 0.04);
+  animation: mnDropIn 100ms ease-out;
+  z-index: 50;
+}
+
+.mn-dropdown-right {
+  left: auto;
+  right: 0;
+}
+
+@keyframes mnDropIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mn-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 5px;
+  font-size: 13px;
+  color: #525252;
+  transition: all 0.08s ease;
+}
+
+.mn-dropdown-item:hover {
+  background: #f5f5f5;
+  color: #171717;
+}
+
+.mn-dropdown-active {
+  color: #171717;
+  font-weight: 500;
+  background: #fafafa;
+}
+
+.mn-dropdown-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #a3a3a3;
+  padding: 6px 10px 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mn-dropdown-sep {
+  height: 1px;
+  background: #f0f0f0;
+  margin: 4px 6px;
+}
+
+.mn-dropdown-footer {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: #d4d4d4;
+  padding: 4px 10px 6px;
+  text-align: center;
+}
+
+/* Right section */
+.mn-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 12px;
+  flex-shrink: 0;
+}
+
+/* Status dot — alive pulse (like Vercel deployment status) */
+.mn-status-dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+}
+
+.mn-status-dot-ping {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: mnPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.mn-status-dot-core {
+  position: absolute;
+  inset: 1px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+@keyframes mnPing {
+  0% { transform: scale(1); opacity: 0.75; }
+  75%, 100% { transform: scale(2); opacity: 0; }
+}
+
+/* Icon button */
+.mn-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  color: #a3a3a3;
+  transition: all 0.1s ease;
+}
+
+.mn-icon-btn:hover {
+  color: #525252;
+  background: #f5f5f5;
+}
+
+.mn-icon-btn-active {
+  color: #171717;
+  background: #f0f0f0;
+}
+
+
+/* ============================================================
+   Modern Theme Overrides — .theme-modern scope
+   Transforms all existing components to match the
+   Vercel/Linear aesthetic when modern layout is active
+   ============================================================ */
+
+.theme-modern {
+  background: #fafafa;
+  color: #171717;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Cards — sharp, clean, no glow */
+.theme-modern .glow-card {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e5e5e5;
+  box-shadow: none;
+}
+
+.theme-modern .glow-card:hover {
+  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.06);
+  border-color: #d4d4d4;
+}
+
+.theme-modern .glow-card::after {
+  display: none;
+}
+
+/* Lift card */
+.theme-modern .lift-card:hover {
+  box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.08);
+}
+
+/* Primary button — solid black (Vercel style) */
+.theme-modern .btn-primary {
+  background: #171717;
+  color: #fff;
+  border-radius: 8px;
+  font-weight: 500;
+  box-shadow: none;
+  border: 1px solid #171717;
+  padding: 8px 16px;
+}
+
+.theme-modern .btn-primary:hover {
+  background: #262626;
+  box-shadow: none;
+  filter: none;
+}
+
+/* Secondary button — ghost style */
+.theme-modern .btn-secondary {
+  border: 1px solid #e5e5e5;
+  color: #525252;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.theme-modern .btn-secondary:hover {
+  border-color: #d4d4d4;
+  background: #fafafa;
+  color: #171717;
+}
+
+/* Input focus — blue ring (not amber) */
+.theme-modern .input-glow:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+/* Scrollbar — thinner, more subtle */
+.theme-modern .custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.theme-modern .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.theme-modern .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Font display — use sans instead of serif in modern */
+.theme-modern .font-display {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+/* Range slider — monochrome */
+.theme-modern input[type="range"] {
+  background: #e5e5e5;
+}
+
+.theme-modern input[type="range"]::-webkit-slider-thumb {
+  background: #171717;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+/* Checkbox — monochrome */
+.theme-modern .custom-checkbox {
+  border-color: #d4d4d4;
+}
+
+.theme-modern .custom-checkbox:hover {
+  border-color: #171717;
+}
+
+.theme-modern .custom-checkbox.checked {
+  border-color: #171717;
+  background: #171717;
+  box-shadow: none;
+}
+
+.theme-modern .custom-checkbox.checked::after {
+  border-color: #fff;
+}
+
+/* Note cell — neutral hover */
+.theme-modern .note-cell:hover {
+  color: #2563eb;
+}
+
+/* Page shell — slightly wider in modern */
+.theme-modern .page-content-fluid {
+  width: min(100%, clamp(980px, 85vw, 1440px));
+}
+
+.theme-modern .page-content-wide {
+  width: min(100%, clamp(1080px, 90vw, 1600px));
+}
+
+/* History float panel — cleaner in modern */
+.theme-modern .history-float-panel {
+  border-color: #e5e5e5;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 8px 30px -12px rgba(0, 0, 0, 0.12);
+}
+
+.theme-modern .history-float-panel::before,
+.theme-modern .history-float-panel::after {
+  display: none;
+}
+
+.theme-modern .history-float-item:hover {
+  box-shadow: 0 4px 12px -6px rgba(0, 0, 0, 0.1);
+}
+
+/* Chart bar — neutral */
+.theme-modern .chart-bar:hover {
+  filter: brightness(1.05);
+}

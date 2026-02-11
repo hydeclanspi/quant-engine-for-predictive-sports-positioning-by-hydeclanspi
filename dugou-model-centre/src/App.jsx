@@ -4,6 +4,7 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 // Components
 import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
+import ModernTopBar from './components/ModernTopBar'
 import Modal from './components/Modal'
 
 // Pages
@@ -20,14 +21,14 @@ import MetricsPage from './pages/MetricsPage'
 import { getSystemConfig } from './lib/localData'
 
 const LAYOUT_KEY = 'dugou:layout-mode'
+const VALID_MODES = ['topbar', 'sidebar', 'modern']
 
 function App() {
   const [layoutMode, setLayoutMode] = useState(() => {
-    // Priority: localStorage cache > systemConfig > default
     const cached = localStorage.getItem(LAYOUT_KEY)
-    if (cached === 'sidebar' || cached === 'topbar') return cached
+    if (VALID_MODES.includes(cached)) return cached
     const config = getSystemConfig()
-    return config.layoutMode || 'topbar'
+    return VALID_MODES.includes(config.layoutMode) ? config.layoutMode : 'topbar'
   })
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [modalData, setModalData] = useState(null)
@@ -38,7 +39,7 @@ function App() {
   useEffect(() => {
     const onLayoutChange = (e) => {
       const mode = e.detail?.mode
-      if (mode === 'topbar' || mode === 'sidebar') {
+      if (VALID_MODES.includes(mode)) {
         setLayoutMode(mode)
         localStorage.setItem(LAYOUT_KEY, mode)
       }
@@ -87,6 +88,24 @@ function App() {
       <Route path="/params" element={<ParamsPage openModal={openModal} />} />
     </Routes>
   )
+
+  /* ── Modern layout — Vercel/Linear design language ── */
+  if (layoutMode === 'modern') {
+    return (
+      <div className="flex flex-col h-screen theme-modern">
+        <ModernTopBar />
+        <main
+          ref={mainScrollRef}
+          className="flex-1 overflow-auto custom-scrollbar min-w-0"
+        >
+          <div key={location.pathname} className="page-enter">
+            {pageRoutes}
+          </div>
+        </main>
+        {modalData && <Modal data={modalData} onClose={closeModal} />}
+      </div>
+    )
+  }
 
   /* ── Topbar layout (default) ── */
   if (layoutMode === 'topbar') {
