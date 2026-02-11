@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { BarChart3, LayoutDashboard, SlidersHorizontal, TrendingUp, Wallet } from 'lucide-react'
 import {
   computeAdaptiveWeightSuggestions,
   getExpectedVsActualRows,
@@ -102,6 +103,12 @@ const EMPTY_MODEL_VALIDATION = {
   walkForward: [],
   positiveWalkForward: 0,
 }
+
+const ConsoleCardIcon = ({ IconComp }) => (
+  <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-amber-200 bg-gradient-to-b from-amber-50 to-white text-amber-600 shadow-[0_1px_2px_rgba(245,158,11,0.14),inset_0_1px_0_rgba(255,255,255,0.86)]">
+    <IconComp size={14} strokeWidth={1.7} />
+  </span>
+)
 
 const normalizeBackupCadence = (value) => {
   const key = String(value || '').trim()
@@ -1654,7 +1661,7 @@ export default function ParamsPage({ openModal }) {
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-amber-600 text-lg">❖</span>
+              <ConsoleCardIcon IconComp={BarChart3} />
               <span className="text-xs text-amber-600 font-medium uppercase">Core Metric</span>
             </div>
             <h3 className="text-xl font-semibold text-stone-800">Expected vs Actual Judgmental Rating</h3>
@@ -1674,7 +1681,7 @@ export default function ParamsPage({ openModal }) {
       <div className="grid grid-cols-2 gap-6 mb-6">
         <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
           <h3 className="font-medium text-stone-700 mb-4 flex items-center gap-2">
-            <span className="text-amber-500">◐</span> 资金与风控
+            <ConsoleCardIcon IconComp={Wallet} /> 资金与风控
           </h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl">
@@ -1750,7 +1757,7 @@ export default function ParamsPage({ openModal }) {
 
         <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
           <h3 className="font-medium text-stone-700 mb-4 flex items-center gap-2">
-            <span className="text-amber-500">◈</span> Kelly 参数
+            <ConsoleCardIcon IconComp={TrendingUp} /> Kelly 参数
           </h3>
           <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
             <div className="flex items-center justify-between mb-2">
@@ -2560,7 +2567,7 @@ export default function ParamsPage({ openModal }) {
       <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
-            <span className="text-amber-500">◇</span> 动态校准系数
+            <ConsoleCardIcon IconComp={SlidersHorizontal} /> 动态校准系数
           </h3>
           <span className="text-xs text-stone-400 px-2 py-1 bg-stone-100 rounded">只读 · 随历史样本自动更新</span>
         </div>
@@ -2699,7 +2706,7 @@ export default function ParamsPage({ openModal }) {
       <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mt-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
-            <span className="text-amber-500">⬡</span> 界面布局
+            <ConsoleCardIcon IconComp={LayoutDashboard} /> 界面布局
           </h3>
           <span className="text-xs text-stone-400">Navigation Layout Preference</span>
         </div>
