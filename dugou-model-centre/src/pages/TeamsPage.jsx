@@ -115,8 +115,10 @@ const getAJRColor = (ajr) => {
   if (!Number.isFinite(value)) return 'text-stone-400'
   if (value >= 0.8) return 'text-emerald-700'
   if (value >= 0.7) return 'text-emerald-600'
-  if (value >= 0.6) return 'text-emerald-500'
-  return 'text-green-400'
+  if (value >= 0.6) return 'text-teal-500'
+  if (value >= 0.4) return 'text-teal-400'
+  if (value >= 0.2) return 'text-emerald-300'
+  return 'text-emerald-200'
 }
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value))

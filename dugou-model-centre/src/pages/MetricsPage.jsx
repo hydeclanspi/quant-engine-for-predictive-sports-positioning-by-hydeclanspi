@@ -40,8 +40,10 @@ const getAJRColor = (value) => {
   if (!Number.isFinite(ajr)) return 'text-stone-400'
   if (ajr >= 0.8) return 'text-emerald-700'
   if (ajr >= 0.7) return 'text-emerald-600'
-  if (ajr >= 0.6) return 'text-emerald-500'
-  return 'text-green-400'
+  if (ajr >= 0.6) return 'text-teal-500'
+  if (ajr >= 0.4) return 'text-teal-400'
+  if (ajr >= 0.2) return 'text-emerald-300'
+  return 'text-emerald-200'
 }
 
 const getCorrelationTone = (value) => {
