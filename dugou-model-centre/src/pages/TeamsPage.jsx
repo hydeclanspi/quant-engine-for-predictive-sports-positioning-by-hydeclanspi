@@ -298,14 +298,14 @@ export default function TeamsPage() {
             value={timePeriod}
             onChange={setTimePeriod}
             options={PERIOD_LABELS}
-            variant="default"
+            variant="aqua"
             buttonClassName="whitespace-nowrap"
           />
           <TimeRangePicker
             value={leagueFilter}
             onChange={setLeagueFilter}
             options={leagueOptions}
-            variant="default"
+            variant="aqua"
             buttonClassName="whitespace-nowrap"
           />
           <div className="text-sm text-stone-400">共 {teams.length} 支球队</div>
