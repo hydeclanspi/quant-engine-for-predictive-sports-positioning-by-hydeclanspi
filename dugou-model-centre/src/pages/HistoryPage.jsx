@@ -300,12 +300,25 @@ const buildRow = (item) => {
     odds: Number(match.odds || 0).toFixed(2),
     oddsValue: Number.parseFloat(match.odds),
     conf: typeof match.conf === 'number' ? Number(match.conf).toFixed(2) : '-',
-    ajr: typeof match.match_rating === 'number' ? Number(match.match_rating).toFixed(2) : '-',
+    ajr: toFixedOrDash(match.match_rating, 2),
     ajrValue: Number.parseFloat(match.match_rating),
     status: getMatchStatus(match),
     preNote: match.note || '-',
     postNote: match.post_note || '-',
   }))
+
+  const matchAjrValues = matchRows.map((entry) => entry.ajrValue).filter((value) => Number.isFinite(value))
+  const avgMatchAjr =
+    matchAjrValues.length > 0
+      ? matchAjrValues.reduce((sum, value) => sum + value, 0) / matchAjrValues.length
+      : Number.NaN
+  const investmentAjr = Number.parseFloat(item.actual_rating)
+  const displayAjrValue =
+    parlaySize > 1
+      ? avgMatchAjr
+      : Number.isFinite(investmentAjr)
+        ? investmentAjr
+        : avgMatchAjr
 
   return {
     id: item.id,
@@ -322,7 +335,7 @@ const buildRow = (item) => {
     results: parlaySize > 1 ? `${comboHitCount}/${parlaySize}` : results,
     odds: Number(item.combined_odds || 0).toFixed(2),
     conf: parlaySize > 1 ? '-' : Number(item.expected_rating || 0).toFixed(2),
-    ajr: parlaySize > 1 ? '-' : typeof item.actual_rating === 'number' ? item.actual_rating.toFixed(2) : '-',
+    ajr: Number.isFinite(displayAjrValue) ? displayAjrValue.toFixed(2) : '-',
     inputs: Number(item.inputs || 0),
     status,
     isArchived: Boolean(item.is_archived),
@@ -783,8 +796,8 @@ export default function HistoryPage() {
                         <div className="truncate">{renderOutcomeText(row.results)}</div>
                       )}
                     </td>
-                    <td className={`px-3 py-2.5 font-semibold ${row.parlaySize > 1 ? 'text-stone-300' : getAJRColor(row.ajr)}`}>
-                      {row.parlaySize > 1 ? '—' : row.ajr}
+                    <td className={`px-3 py-2.5 font-semibold ${row.ajr === '-' ? 'text-stone-300' : getAJRColor(row.ajr)}`}>
+                      {row.ajr === '-' ? '—' : row.ajr}
                     </td>
                     <td
                       className={`px-3 py-2.5 font-semibold ${
