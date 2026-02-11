@@ -17,7 +17,7 @@ const PERIOD_LABELS = {
 const CHART_OPTIONS = [
   { key: 'fund', label: '资金走势' },
   { key: 'conf', label: 'Conf 相关性走势' },
-  { key: 'rating', label: 'Judgmental Rating 准确度走势' },
+  { key: 'rating', label: 'AJR 走势' },
 ]
 
 const HitRateIcon = ({ size = 18, className = '' }) => (
@@ -98,22 +98,32 @@ const buildSmartReminder = (snapshot) => {
   }
 }
 
-const buildSparklinePoints = (series) => {
-  if (!Array.isArray(series) || series.length === 0) return { line: '', area: '' }
+const buildTrendGeometry = (series, minSpan = 1) => {
+  if (!Array.isArray(series) || series.length === 0) {
+    return { points: [], line: '', labels: [], zeroY: 42, min: 0, max: 0 }
+  }
   const safeSeries = series.slice(-24)
   const values = safeSeries.map((item) => Number(item.value || 0))
   const min = Math.min(...values)
   const max = Math.max(...values)
-  const range = max - min || 1
-  const points = safeSeries.map((item, index) => {
-    const x = 10 + (index / Math.max(safeSeries.length - 1, 1)) * 380
-    const y = 72 - ((Number(item.value || 0) - min) / range) * 52
-    return `${x},${y}`
+  const span = Math.max(max - min, minSpan)
+  const step = safeSeries.length > 1 ? 84 / (safeSeries.length - 1) : 0
+  const points = safeSeries.map((item, idx) => {
+    const value = Number(item.value || 0)
+    const x = 8 + idx * step
+    const y = 38 - ((value - min) / span) * 27
+    return { x, y, value }
   })
+  const line = points.map((p) => `${p.x},${p.y}`).join(' ')
+  const rawZeroY = 38 - ((0 - min) / span) * 27
+  const zeroY = Math.max(11, Math.min(42, rawZeroY))
   return {
-    line: points.join(' '),
-    area: `${points.join(' ')} 390,100 10,100`,
+    points,
+    line,
     labels: safeSeries.map((item) => item.label || '--'),
+    zeroY,
+    min,
+    max,
   }
 }
 
@@ -135,7 +145,7 @@ export default function DashboardPage({ openModal }) {
   const [timePeriod, setTimePeriod] = useState('2w')
   const [showChartPicker, setShowChartPicker] = useState(false)
   const [showExportPicker, setShowExportPicker] = useState(false)
-  const [chartKey, setChartKey] = useState('fund')
+  const [chartKey, setChartKey] = useState('rating')
   const [showSmartReminder, setShowSmartReminder] = useState(false)
   const [showInjectModal, setShowInjectModal] = useState(false)
   const [injectAmount, setInjectAmount] = useState('')
@@ -202,12 +212,12 @@ export default function DashboardPage({ openModal }) {
         .map((row, idx, arr) => {
           const start = Math.max(0, idx - 3)
           const windowRows = arr.slice(start, idx + 1)
-          const fit =
-            windowRows.reduce((sum, item) => sum + (1 - Math.abs(item.diff)), 0) /
+          const ajrAvg =
+            windowRows.reduce((sum, item) => sum + Number(item.actual_rating || 0), 0) /
             Math.max(windowRows.length, 1)
           return {
             label: row.dateLabel,
-            value: Number((Math.max(0, fit) * 100).toFixed(2)),
+            value: Number((Math.max(0, ajrAvg) * 100).toFixed(2)),
           }
         })
       return rolling
@@ -218,7 +228,47 @@ export default function DashboardPage({ openModal }) {
     }))
   }, [chartKey, snapshot.confCalibration, snapshot.ratingRows, snapshot.timeline])
 
-  const sparkline = useMemo(() => buildSparklinePoints(chartSeries), [chartSeries])
+  const sparkline = useMemo(
+    () => buildTrendGeometry(chartSeries, chartKey === 'rating' ? 0.02 : chartKey === 'conf' ? 2 : 10),
+    [chartKey, chartSeries],
+  )
+  const chartTheme = useMemo(() => {
+    if (chartKey === 'rating') {
+      return {
+        panelClass: 'border-sky-100 bg-gradient-to-b from-sky-50/60 to-white',
+        lineFrom: '#38bdf8',
+        lineTo: '#2563eb',
+        baseLine: '#e0f2fe',
+        midLine: '#bae6fd',
+        zeroLine: '#7dd3fc',
+        point: (value) => (value >= 50 ? '#0284c7' : '#0ea5e9'),
+        valueColor: '#0369a1',
+      }
+    }
+    if (chartKey === 'conf') {
+      return {
+        panelClass: 'border-amber-100 bg-gradient-to-b from-amber-50/70 to-white',
+        lineFrom: '#fbbf24',
+        lineTo: '#f97316',
+        baseLine: '#fde68a',
+        midLine: '#fcd34d',
+        zeroLine: '#fbbf24',
+        point: () => '#f59e0b',
+        valueColor: '#b45309',
+      }
+    }
+    return {
+      panelClass: 'border-indigo-100 bg-gradient-to-b from-indigo-50/40 to-white',
+      lineFrom: '#818cf8',
+      lineTo: '#6366f1',
+      baseLine: '#e0e7ff',
+      midLine: '#c7d2fe',
+      zeroLine: '#a5b4fc',
+      point: () => '#6366f1',
+      valueColor: '#4338ca',
+    }
+  }, [chartKey])
+  const lineGradientId = `dashboardLineLg-${chartKey}`
   const smartReminder = useMemo(() => buildSmartReminder(snapshot), [snapshot])
   const smartReminderLine = useMemo(() => {
     if (!smartReminder.meta) return smartReminder.message
@@ -1091,30 +1141,45 @@ export default function DashboardPage({ openModal }) {
           </div>
           <span className="text-xs text-stone-400">{PERIOD_LABELS[timePeriod]} · {chartSeries.length} 个样本点</span>
         </div>
-        <div className="h-44 relative">
-          <svg viewBox="0 0 400 100" className="w-full h-full" preserveAspectRatio="none">
-            {[0, 25, 50, 75, 100].map((y) => (
-              <line key={y} x1="0" y1={y} x2="400" y2={y} stroke="#f5f5f4" strokeWidth="1" />
-            ))}
+        <div className={`h-44 rounded-xl border px-3 py-2 ${chartTheme.panelClass}`}>
+          <svg viewBox="0 0 100 48" className="w-full h-[118px]">
+            <defs>
+              <linearGradient id={lineGradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor={chartTheme.lineFrom} />
+                <stop offset="100%" stopColor={chartTheme.lineTo} />
+              </linearGradient>
+            </defs>
+            <line x1="8" y1="42" x2="92" y2="42" stroke={chartTheme.baseLine} strokeWidth="0.45" />
+            <line x1="8" y1="30" x2="92" y2="30" stroke={chartTheme.midLine} strokeWidth="0.35" strokeDasharray="1.2 1.8" />
+            {chartKey === 'rating' && (
+              <>
+                <line x1="8" y1={sparkline.zeroY} x2="92" y2={sparkline.zeroY} stroke={chartTheme.zeroLine} strokeWidth="0.5" strokeDasharray="1.4 1.8" />
+                <text x="9" y={sparkline.zeroY - 1.8} fontSize="2.8" fill={chartTheme.valueColor}>50</text>
+              </>
+            )}
             <polyline
               fill="none"
-              stroke="url(#lineGrad)"
-              strokeWidth="2.5"
+              stroke={`url(#${lineGradientId})`}
+              strokeWidth={chartKey === 'rating' ? '1' : '1.2'}
               strokeLinecap="round"
               strokeLinejoin="round"
               points={sparkline.line}
             />
-            <polygon fill="url(#areaGrad)" points={sparkline.area} />
-            <defs>
-              <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#fbbf24" />
-                <stop offset="100%" stopColor="#f97316" />
-              </linearGradient>
-              <linearGradient id="areaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="rgba(251,191,36,0.2)" />
-                <stop offset="100%" stopColor="rgba(251,191,36,0)" />
-              </linearGradient>
-            </defs>
+            {sparkline.points.map((p, idx) => (
+              <circle key={`${chartKey}-${idx}`} cx={p.x} cy={p.y} r={idx === sparkline.points.length - 1 ? '1.15' : '0.95'} fill={chartTheme.point(p.value)} />
+            ))}
+            {sparkline.points.length > 0 && chartKey !== 'rating' && (
+              <text
+                x={Math.max(8, sparkline.points[sparkline.points.length - 1].x - 10)}
+                y={Math.max(8, sparkline.points[sparkline.points.length - 1].y - 3)}
+                fontSize="3.1"
+                fill={chartTheme.valueColor}
+              >
+                {chartKey === 'fund'
+                  ? `¥${Math.round(sparkline.points[sparkline.points.length - 1].value)}`
+                  : `${sparkline.points[sparkline.points.length - 1].value.toFixed(1)}%`}
+              </text>
+            )}
           </svg>
         </div>
         <div className="flex justify-between mt-2 px-2 text-xs text-stone-400">
