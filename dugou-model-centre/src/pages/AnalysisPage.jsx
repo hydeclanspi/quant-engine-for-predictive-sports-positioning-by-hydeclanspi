@@ -1147,6 +1147,33 @@ export default function AnalysisPage({ openModal }) {
         <div className="space-y-4">
           <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
             <div className="flex items-center justify-between mb-4">
+              <h3 className="font-medium text-stone-700">最优组合发现</h3>
+              <span className="text-xs text-stone-400">点选某个配置查看近期记录</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {deepData.comboRows.map((row) => (
+                <div
+                  key={row.combo}
+                  onClick={() => openComboHistoryDetail(row.combo)}
+                  className="p-4 rounded-xl bg-stone-50 hover:bg-amber-50 transition-all cursor-pointer lift-card border border-stone-100"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-stone-700">{row.combo}</span>
+                    <span className={`text-lg font-semibold ${row.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                      {signed(row.roi, 1, '%')}
+                    </span>
+                  </div>
+                  <div className="flex gap-3 text-xs text-stone-500">
+                    <span>{row.samples} 样本</span>
+                    <span>命中率 {row.hitRate.toFixed(1)}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+            <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium text-stone-700">不同 Position 表现对比</h3>
               <span className="text-xs text-stone-400">点选某个 Position 查看历史</span>
             </div>
@@ -1176,33 +1203,6 @@ export default function AnalysisPage({ openModal }) {
                     <span>{item.samples} 样本</span>
                     <span>命中率 {item.hitRate.toFixed(1)}%</span>
                     <span>平均赔率 {item.avgOdds.toFixed(2)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium text-stone-700">最优组合发现</h3>
-              <span className="text-xs text-stone-400">点选某个配置查看近期记录</span>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {deepData.comboRows.map((row) => (
-                <div
-                  key={row.combo}
-                  onClick={() => openComboHistoryDetail(row.combo)}
-                  className="p-4 rounded-xl bg-stone-50 hover:bg-amber-50 transition-all cursor-pointer lift-card border border-stone-100"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-stone-700">{row.combo}</span>
-                    <span className={`text-lg font-semibold ${row.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                      {signed(row.roi, 1, '%')}
-                    </span>
-                  </div>
-                  <div className="flex gap-3 text-xs text-stone-500">
-                    <span>{row.samples} 样本</span>
-                    <span>命中率 {row.hitRate.toFixed(1)}%</span>
                   </div>
                 </div>
               ))}
