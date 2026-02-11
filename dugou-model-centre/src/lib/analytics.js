@@ -25,6 +25,11 @@ const analyticsMemo = {
   dashboard: new Map(),
   analysis: new Map(),
   metrics: new Map(),
+  expectedVsActual: new Map(),
+  kellyMatrix: new Map(),
+  kellyBacktest: new Map(),
+  calibrationContext: new Map(),
+  modelValidation: new Map(),
 }
 
 const clearAnalyticsMemo = () => {
@@ -32,6 +37,11 @@ const clearAnalyticsMemo = () => {
   analyticsMemo.dashboard.clear()
   analyticsMemo.analysis.clear()
   analyticsMemo.metrics.clear()
+  analyticsMemo.expectedVsActual.clear()
+  analyticsMemo.kellyMatrix.clear()
+  analyticsMemo.kellyBacktest.clear()
+  analyticsMemo.calibrationContext.clear()
+  analyticsMemo.modelValidation.clear()
 }
 
 const bumpAnalyticsRevision = () => {
@@ -714,6 +724,12 @@ const pickKellyDivisor = (rows, config, fallbackDivisor = 4, divisors = KELLY_DI
 }
 
 export const getKellyDivisorBacktest = (divisors = KELLY_DIVISOR_CANDIDATES) => {
+  const divisorsKey =
+    Array.isArray(divisors) && divisors.length > 0 ? divisors.map((value) => Number(value)).join(',') : 'default'
+  const cacheKey = getRevisionCacheKey('kellyBacktest', divisorsKey)
+  const cached = analyticsMemo.kellyBacktest.get(cacheKey)
+  if (cached) return cached
+
   const config = getSystemConfig()
   const investments = getSettledInvestments(getActiveInvestments()).sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
@@ -760,12 +776,15 @@ export const getKellyDivisorBacktest = (divisors = KELLY_DIVISOR_CANDIDATES) => 
     }
   })
 
-  return {
+  const snapshot = {
     divisors,
     globalRows,
     globalBest,
     modeRecommendations,
   }
+
+  analyticsMemo.kellyBacktest.set(cacheKey, snapshot)
+  return snapshot
 }
 
 export const getDashboardSnapshot = (periodKey = '2w') => {
@@ -1234,15 +1253,23 @@ export const getTeamsSnapshot = (query = '', periodKey = 'all') => {
 }
 
 export const getExpectedVsActualRows = (limit = 120) => {
+  const safeLimit = Math.max(1, Number.parseInt(limit, 10) || 120)
+  const cacheKey = getRevisionCacheKey('expectedVsActual', safeLimit)
+  const cached = analyticsMemo.expectedVsActual.get(cacheKey)
+  if (cached) return cached
+
   const investments = getSettledInvestments(getActiveInvestments())
-  return getRatingRowsFromInvestments(investments)
+  const rows = getRatingRowsFromInvestments(investments)
     .map((row) => ({
       ...row,
       dateLabel: formatDate(row.date),
       diff: Number((row.actual_rating - row.expected_rating).toFixed(2)),
     }))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, limit)
+    .slice(0, safeLimit)
+
+  analyticsMemo.expectedVsActual.set(cacheKey, rows)
+  return rows
 }
 
 const getConfBucket = (conf) => {
@@ -1258,6 +1285,10 @@ const getOddsBucket = (odds) => {
 }
 
 export const getKellyDivisorMatrix = () => {
+  const cacheKey = getRevisionCacheKey('kellyMatrix')
+  const cached = analyticsMemo.kellyMatrix.get(cacheKey)
+  if (cached) return cached
+
   const config = getSystemConfig()
   const investments = getSettledInvestments(getActiveInvestments())
   const globalRowsSource = toKellySimulationRowsFromInvestments(investments, config)
@@ -1300,7 +1331,7 @@ export const getKellyDivisorMatrix = () => {
     })
   })
 
-  return [...rows.values()]
+  const matrix = [...rows.values()]
     .map((row) => {
       const roi = calcRoi(row.profit, row.inputs)
       const hitRate = row.samples > 0 ? (row.hits / row.samples) * 100 : 0
@@ -1323,6 +1354,9 @@ export const getKellyDivisorMatrix = () => {
       }
     })
     .sort((a, b) => b.samples - a.samples)
+
+  analyticsMemo.kellyMatrix.set(cacheKey, matrix)
+  return matrix
 }
 
 export const getModeKellyRecommendations = () => {
@@ -1890,6 +1924,10 @@ const evaluateBlendWalkForward = (rows, config, teamProfiles) => {
 }
 
 export const getPredictionCalibrationContext = () => {
+  const cacheKey = getRevisionCacheKey('calibrationContext')
+  const cached = analyticsMemo.calibrationContext.get(cacheKey)
+  if (cached) return cached
+
   const config = getSystemConfig()
   const teamProfiles = getTeamProfiles()
   const settled = getSettledInvestments(getActiveInvestments())
@@ -2004,7 +2042,7 @@ export const getPredictionCalibrationContext = () => {
     return probability
   }
 
-  return {
+  const context = {
     sampleCount,
     n,
     multipliers: {
@@ -2042,6 +2080,9 @@ export const getPredictionCalibrationContext = () => {
     },
     calibrateProbabilityForMatch,
   }
+
+  analyticsMemo.calibrationContext.set(cacheKey, context)
+  return context
 }
 
 const toCalibrationMatchRows = (rows) =>
@@ -2188,12 +2229,16 @@ const evaluateWalkForward = (rows) => {
 }
 
 export const getModelValidationSnapshot = () => {
+  const cacheKey = getRevisionCacheKey('modelValidation')
+  const cached = analyticsMemo.modelValidation.get(cacheKey)
+  if (cached) return cached
+
   const config = getSystemConfig()
   const rows = getBinaryOutcomeRows()
   const minimumSamples = 24
 
   if (rows.length < minimumSamples) {
-    return {
+    const insufficient = {
       ready: false,
       minimumSamples,
       sampleCount: rows.length,
@@ -2203,6 +2248,8 @@ export const getModelValidationSnapshot = () => {
       message: `样本不足：需至少 ${minimumSamples} 场已结算且含命中信息。`,
       walkForward: [],
     }
+    analyticsMemo.modelValidation.set(cacheKey, insufficient)
+    return insufficient
   }
 
   const splitIndex = Math.min(rows.length - 8, Math.max(12, Math.floor(rows.length * 0.7)))
@@ -2242,7 +2289,7 @@ export const getModelValidationSnapshot = () => {
   if (drift > 0.03 || brierGainPct < -2) stability = 'risk'
   else if (drift > 0.015 || brierGainPct < 1) stability = 'watch'
 
-  return {
+  const snapshot = {
     ready: true,
     minimumSamples,
     sampleCount: rows.length,
@@ -2290,6 +2337,9 @@ export const getModelValidationSnapshot = () => {
     walkForward,
     positiveWalkForward,
   }
+
+  analyticsMemo.modelValidation.set(cacheKey, snapshot)
+  return snapshot
 }
 
 const getFineConfBucket = (conf) => {
