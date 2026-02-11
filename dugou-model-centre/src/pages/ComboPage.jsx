@@ -190,6 +190,122 @@ const parlayBonusFn = (legs, parlayBeta = 0.12) => {
   return parlayBeta * (Math.sqrt(legs - 1) - 0.15)
 }
 
+/* ── 方案D: Confidence tier classification ─────────────────────────────── */
+const CONF_TIER_THRESHOLDS = { tier1: 0.72, tier2: 0.55 }
+
+const classifyConfidenceTier = (conf) => {
+  const c = clamp(Number(conf) || 0, 0, 1)
+  if (c >= CONF_TIER_THRESHOLDS.tier1) return 'tier_1' // Strong insight — anchor
+  if (c >= CONF_TIER_THRESHOLDS.tier2) return 'tier_2' // Medium insight — extender
+  return 'tier_3' // Weak insight — speculative only
+}
+
+/* ── 方案B: Marginal Sharpe decay gate ─────────────────────────────────── */
+const calcMarginalSharpeForLeg = (currentSubset, candidateLeg, systemConfig, calibrationContext) => {
+  // Compute the Sharpe of the current combo, then the Sharpe with the candidate added.
+  // If the marginal Sharpe (delta EV / delta sigma) is below threshold, reject.
+  if (currentSubset.length === 0) return { marginalSharpe: Infinity, shouldAdd: true }
+
+  const buildProfileForSubset = (subset) => {
+    const profiles = subset.map((item) => {
+      if (item.atomicProfile) return item.atomicProfile
+      const fallbackOdds = Math.max(1.01, Number(item.odds) || 2.5)
+      const unionProb = calcAdjustedProbability(item, systemConfig, calibrationContext)
+      return buildAtomicLegProfile(item, unionProb, fallbackOdds)
+    })
+    return combineAtomicMatchProfiles(profiles)
+  }
+
+  const beforeCombo = buildProfileForSubset(currentSubset)
+  const afterCombo = buildProfileForSubset([...currentSubset, candidateLeg])
+  const evBefore = Number(beforeCombo.expectedReturn || 0)
+  const evAfter = Number(afterCombo.expectedReturn || 0)
+  const sigmaBefore = Math.sqrt(Math.max(beforeCombo.variance || 0, 0.0001))
+  const sigmaAfter = Math.sqrt(Math.max(afterCombo.variance || 0, 0.0001))
+
+  const deltaEv = evAfter - evBefore
+  const deltaSigma = sigmaAfter - sigmaBefore
+  if (deltaSigma <= 0.001) return { marginalSharpe: deltaEv > 0 ? 10 : -10, shouldAdd: deltaEv > 0 }
+  const marginalSharpe = deltaEv / deltaSigma
+  return { marginalSharpe, shouldAdd: marginalSharpe > 0.15 }
+}
+
+/* ── 方案A+C+D+E: Fault-tolerant covering + layered hedging generation ── */
+const generateFaultTolerantCombos = (selectedMatches, systemConfig, calibrationContext) => {
+  // 1. Classify each match by confidence tier
+  const tieredMatches = selectedMatches.map((m) => ({
+    ...m,
+    confTier: classifyConfidenceTier(m.conf),
+  }))
+
+  const tier1 = tieredMatches.filter((m) => m.confTier === 'tier_1')
+  const tier2 = tieredMatches.filter((m) => m.confTier === 'tier_2')
+  const tier3 = tieredMatches.filter((m) => m.confTier === 'tier_3')
+  const strongMatches = [...tier1, ...tier2] // tier_1 + tier_2
+
+  const result = []
+  const addedSigs = new Set()
+  const tryAdd = (subset, tag) => {
+    if (subset.length === 0) return
+    const sig = subset.map((m) => m.key).sort().join('|')
+    if (addedSigs.has(sig)) return
+    addedSigs.add(sig)
+    result.push({ subset, layerTag: tag })
+  }
+
+  // ── Layer 1 (Core / Anchor): 2串1 from tier_1 matches only ──
+  // These are your strongest insights — high hit rate, anchor profit
+  if (tier1.length >= 2) {
+    const pairs = buildSubsets(tier1, 2).filter((s) => s.length === 2)
+    pairs.forEach((pair) => tryAdd(pair, 'core'))
+  }
+  // If only 1 tier_1 match, pair it with the best tier_2
+  if (tier1.length === 1 && tier2.length >= 1) {
+    tier2.slice(0, 3).forEach((t2) => tryAdd([tier1[0], t2], 'core'))
+  }
+
+  // ── Layer 2 (Satellite / Extension): 3串1 from strong matches ──
+  // Core anchors + 1 extension from tier_2
+  if (strongMatches.length >= 3) {
+    const triples = buildSubsets(strongMatches, 3).filter((s) => s.length === 3)
+    triples.forEach((triple) => tryAdd(triple, 'satellite'))
+  }
+
+  // ── Fault-tolerant covering: C(N, N-1) for strong matches ──
+  // If you have N strong matches, generate all (N-1)-subsets so that
+  // missing any single match still has a surviving ticket
+  if (strongMatches.length >= 3 && strongMatches.length <= 6) {
+    for (let skip = 0; skip < strongMatches.length; skip++) {
+      const subset = strongMatches.filter((_, i) => i !== skip)
+      if (subset.length >= 2 && subset.length <= 5) {
+        tryAdd(subset, 'covering')
+      }
+    }
+  }
+
+  // ── Layer 3 (Moonshot): Only if tier_3 matches exist, combine with strong anchors ──
+  // Rule: max 1 tier_3 per ticket, never tier_3 + tier_3
+  if (tier3.length > 0 && tier1.length >= 1) {
+    tier3.forEach((t3) => {
+      // Marginal Sharpe gate: only add t3 if it doesn't destroy the Sharpe
+      const bestPair = tier1.length >= 2 ? tier1.slice(0, 2) : (tier2.length >= 1 ? [tier1[0], tier2[0]] : tier1.slice(0, 1))
+      if (bestPair.length >= 1) {
+        const gate = calcMarginalSharpeForLeg(bestPair, t3, systemConfig, calibrationContext)
+        if (gate.shouldAdd) {
+          tryAdd([...bestPair, t3], 'moonshot')
+        }
+      }
+    })
+  }
+
+  // ── Full combo (all strong): if 4+ strong matches, generate the full parlay too ──
+  if (strongMatches.length >= 4 && strongMatches.length <= 5) {
+    tryAdd(strongMatches, 'moonshot')
+  }
+
+  return { combos: result, tiers: { tier1, tier2, tier3 }, tieredMatches }
+}
+
 /* ── Entry family: identify match families for diversification (思路6) ── */
 const buildMatchFamilyKey = (item) => `${item.homeTeam}__${item.awayTeam}`
 
@@ -1241,7 +1357,27 @@ const generateRecommendations = (
   const maxSubsetSize = Math.min(5, selectedMatches.length)
   const subsets = buildSubsets(selectedMatches, maxSubsetSize)
 
-  const scoredAll = subsets.map((subset) => {
+  // ── 方案A+C+D+E: Generate fault-tolerant covering combos ──
+  const ftResult = generateFaultTolerantCombos(selectedMatches, systemConfig, calibrationContext)
+  const ftSubsets = ftResult.combos.map((c) => c.subset)
+  const ftLayerTagMap = new Map()
+  ftResult.combos.forEach((c) => {
+    const sig = c.subset.map((m) => m.key).sort().join('|')
+    ftLayerTagMap.set(sig, c.layerTag)
+  })
+
+  // Merge: add fault-tolerant combos that aren't already in the power-set
+  const existingSigs = new Set(subsets.map((s) => s.map((m) => m.key).sort().join('|')))
+  const mergedSubsets = [...subsets]
+  ftSubsets.forEach((fts) => {
+    const sig = fts.map((m) => m.key).sort().join('|')
+    if (!existingSigs.has(sig)) {
+      mergedSubsets.push(fts)
+      existingSigs.add(sig)
+    }
+  })
+
+  const scoredAll = mergedSubsets.map((subset) => {
     const legs = subset.length
     const adjustedProfiles = subset.map((item) => {
       if (item.atomicProfile) return item.atomicProfile
@@ -1274,7 +1410,24 @@ const generateRecommendations = (
     const familyDiv = calcEntryFamilyDiversity(subset)
     const familyBonus = (familyDiv - 0.5) * 0.04 // small bonus for diverse entries within families
     const roleSignal = calcRoleStructureSignal(subset, roleTargets, roleMixStrength)
+
+    // ── 方案D: Confidence tier scoring ──
+    const confTiers = subset.map((item) => classifyConfidenceTier(item.conf))
+    const tier3Count = confTiers.filter((t) => t === 'tier_3').length
+    const tier1Count = confTiers.filter((t) => t === 'tier_1').length
+    // Penalty for multiple weak insights in same combo
+    const tierPenalty = tier3Count >= 2 ? 0.12 * (tier3Count - 1) : 0
+    // Bonus for strong anchor presence
+    const tierAnchorBonus = tier1Count >= 1 ? 0.03 * Math.min(tier1Count, 2) : 0
+
+    // ── Layer tag from fault-tolerant generation ──
+    const subsetSig = subset.map((m) => m.key).sort().join('|')
+    const ftLayerTag = ftLayerTagMap.get(subsetSig) || null
+    // Covering combos get a small utility boost (they provide insurance value)
+    const coveringBonus = ftLayerTag === 'covering' ? 0.04 : 0
+
     const utility = rewardTerm - riskPenalty + pBonus + familyBonus + roleSignal.bonus
+      - tierPenalty + tierAnchorBonus + coveringBonus
     const corr = calcSubsetSourceCorrelation(subset)
     const confAvg = subset.reduce((sum, item) => sum + clamp(item.conf, 0.05, 0.95), 0) / Math.max(legs, 1)
     return {
@@ -1300,6 +1453,14 @@ const generateRecommendations = (
       roleDiversity: roleSignal.diversity,
       corr,
       confAvg,
+      // New fields for tier and fault-tolerance
+      confTiers,
+      tier3Count,
+      tier1Count,
+      tierPenalty,
+      tierAnchorBonus,
+      ftLayerTag,
+      coveringBonus,
     }
   })
 
@@ -1386,9 +1547,17 @@ const generateRecommendations = (
   const materializedRanked = rankedWithAmounts.filter((item) => item.allocatedAmount > 0)
   const outputRanked = materializedRanked.length > 0 ? materializedRanked : rankedWithAmounts.slice(0, 1)
 
+  const FT_LAYER_TO_DISPLAY = {
+    core: '主推',
+    satellite: '次推',
+    covering: '次推',
+    moonshot: '博冷',
+  }
+
   const recommendations = outputRanked.map((item, idx) => {
     const rank = idx + 1
-    const layer = getLayerByRank(rank)
+    // Use fault-tolerant layer tag if available, otherwise fall back to rank-based
+    const layer = (item.ftLayerTag && FT_LAYER_TO_DISPLAY[item.ftLayerTag]) || getLayerByRank(rank)
     const amount = item.allocatedAmount || 0
     const tierLabel = `T${rank}`
 
@@ -1427,6 +1596,11 @@ const generateRecommendations = (
         roleMixBonus: Number((item.roleMixBonus || 0).toFixed(3)),
         roleSignature: item.roleSignature || '--',
         thresholdPass: item.ev >= minEv && item.p >= minWinRate && item.corr <= maxCorr,
+        ftLayerTag: item.ftLayerTag || null,
+        confTierSummary: item.confTiers ? item.confTiers.join('/') : '--',
+        tierPenalty: Number((item.tierPenalty || 0).toFixed(3)),
+        tierAnchorBonus: Number((item.tierAnchorBonus || 0).toFixed(3)),
+        coveringBonus: Number((item.coveringBonus || 0).toFixed(3)),
       },
     }
   })
@@ -2881,7 +3055,7 @@ export default function ComboPage({ openModal }) {
           <div className="space-y-2">
             {planHistory.slice(0, 8).map((item) => (
               <div key={item.id} className="rounded-xl border border-stone-100 bg-stone-50/70 px-3 py-2.5">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-sm text-stone-700 truncate">
                       {item.selectedLabel}
@@ -2891,13 +3065,15 @@ export default function ComboPage({ openModal }) {
                       {new Date(item.createdAt).toLocaleString()} · Risk {item.riskPref}% · 候选 {item.candidateCombos}
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right min-w-[156px] pt-0.5">
                     <p className="text-xs text-stone-500">EV / Invest</p>
-                    <p className="text-sm font-semibold text-stone-700">{formatPercent(item.expectedReturnPercent)} / {item.totalInvest} rmb</p>
+                    <p className="text-sm font-semibold text-stone-700 whitespace-nowrap tabular-nums">
+                      {formatPercent(item.expectedReturnPercent)} / {item.totalInvest} rmb
+                    </p>
                   </div>
                   <button
                     onClick={() => restorePlanFromHistory(item)}
-                    className="px-2.5 py-1 rounded-lg text-xs border border-stone-200 text-stone-600 hover:border-amber-300 hover:text-amber-700 hover:bg-amber-50 transition-colors"
+                    className="px-2.5 py-1 rounded-lg text-xs border border-stone-200 text-stone-600 hover:border-amber-300 hover:text-amber-700 hover:bg-amber-50 transition-colors self-start"
                   >
                     恢复
                   </button>
