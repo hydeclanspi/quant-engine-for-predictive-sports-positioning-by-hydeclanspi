@@ -42,7 +42,6 @@ const NAV_ITEMS = [
     path: '/history',
     label: '历史记录',
     Icon: History,
-    showBadge: 'total',
     children: [
       { id: 'teams', path: '/history/teams', label: '球队档案馆', Icon: Flag },
     ],

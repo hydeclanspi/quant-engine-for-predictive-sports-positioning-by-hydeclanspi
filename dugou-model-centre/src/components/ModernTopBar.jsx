@@ -38,7 +38,6 @@ const NAV_ITEMS = [
     path: '/history',
     label: 'History',
     Icon: History,
-    showBadge: 'total',
     children: [
       { id: 'history-main', path: '/history', label: 'Records', Icon: History },
       { id: 'teams', path: '/history/teams', label: 'Teams', Icon: Flag },
