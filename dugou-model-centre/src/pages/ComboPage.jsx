@@ -621,6 +621,63 @@ const getLayerByRank = (rank) => {
   return '博冷'
 }
 
+const toFiniteNumber = (value, fallback = 0) => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+const normalizeHistoryRecommendation = (row, index = 0) => {
+  const fallbackRank = index + 1
+  const subset = Array.isArray(row?.subset) ? row.subset.filter(Boolean) : []
+  const legs = Math.max(1, Number.parseInt(row?.legs || subset.length || 1, 10) || subset.length || 1)
+  const amount = Math.max(0, Math.round(toFiniteNumber(row?.amount, 0)))
+  const expectedReturn = toFiniteNumber(row?.expectedReturn, 0)
+  const hitProbability = clamp(toFiniteNumber(row?.hitProbability ?? row?.p, 0), 0, 1)
+  const profitWinProbability = clamp(toFiniteNumber(row?.profitWinProbability, 0), 0, 1)
+  const combinedOdds = Math.max(1.01, toFiniteNumber(row?.combinedOdds ?? row?.odds, 1.01))
+  const expectedRating = clamp(toFiniteNumber(row?.expectedRating, hitProbability), 0, 1)
+  const layer = row?.layer || getLayerByRank(fallbackRank)
+  const tier = row?.tier || `T${fallbackRank}`
+  const explainSource = row?.explain && typeof row.explain === 'object' ? row.explain : {}
+
+  return {
+    ...row,
+    id: String(row?.id || `history-${fallbackRank}`),
+    rank: Number.parseInt(row?.rank || fallbackRank, 10) || fallbackRank,
+    tier,
+    layer,
+    tierLabel: row?.tierLabel || `${tier} ${layer}`,
+    combo: String(row?.combo || buildComboTitle(subset) || `组合 ${fallbackRank}`),
+    legs,
+    amount,
+    allocation: row?.allocation || `${amount} rmb`,
+    ev: row?.ev || formatPercent(expectedReturn * 100),
+    winRate: row?.winRate || `${Math.round(hitProbability * 100)}%`,
+    profitWinRate: row?.profitWinRate || `${Math.round(profitWinProbability * 100)}%`,
+    sharpe: row?.sharpe || toFiniteNumber(row?.utility, 0).toFixed(2),
+    sigma: toFiniteNumber(row?.sigma, 0),
+    utility: toFiniteNumber(row?.utility, 0),
+    expectedReturn,
+    subset,
+    combinedOdds,
+    expectedRating,
+    coverageInjected: Boolean(row?.coverageInjected),
+    explain: {
+      weightPct: toFiniteNumber(explainSource.weightPct, 0),
+      confAvg: toFiniteNumber(explainSource.confAvg, 0.5),
+      calibGainPp: toFiniteNumber(explainSource.calibGainPp, 0),
+      profitWinPct: toFiniteNumber(explainSource.profitWinPct, profitWinProbability * 100),
+      riskPenaltySharePct: toFiniteNumber(explainSource.riskPenaltySharePct, 0),
+      corr: toFiniteNumber(explainSource.corr, 0),
+      parlayBonus: toFiniteNumber(explainSource.parlayBonus, 0),
+      familyDiversity: toFiniteNumber(explainSource.familyDiversity, 1),
+      roleMixBonus: toFiniteNumber(explainSource.roleMixBonus, 0),
+      roleSignature: String(explainSource.roleSignature || '--'),
+      thresholdPass: typeof explainSource.thresholdPass === 'boolean' ? explainSource.thresholdPass : true,
+    },
+  }
+}
+
 const calcRecommendedAmount = (probability, odds, systemConfig, riskCap) => {
   if (!Number.isFinite(probability) || !Number.isFinite(odds) || odds <= 1) return 0
   const p = clamp(probability, 0.05, 0.95)
@@ -1781,6 +1838,7 @@ export default function ComboPage({ openModal }) {
     const safeRecommendations = historyRow.recommendations
       .filter((item) => item && typeof item === 'object')
       .slice(0, 20)
+      .map((item, idx) => normalizeHistoryRecommendation(item, idx))
     setRecommendations(safeRecommendations)
     setRankingRows(safeRecommendations)
     setLayerSummary(Array.isArray(historyRow.layerSummary) ? historyRow.layerSummary : [])
