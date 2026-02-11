@@ -327,7 +327,7 @@ export default function TeamsPage() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="font-medium text-stone-800">{team.name}</span>
-                <span className="inline-flex items-center px-1.5 py-[2px] rounded-full bg-stone-100 text-[9px] font-semibold tracking-[0.06em] text-stone-500 border border-stone-200/60">
+                <span className="team-abbr-glass px-1.5 py-[2px] text-[9px] tracking-[0.06em]">
                   {team.abbr}
                 </span>
               </div>
@@ -361,7 +361,7 @@ export default function TeamsPage() {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <h3 className="font-medium text-stone-800">{selectedTeam.name} · 详细档案</h3>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200/60 text-[10px] font-semibold tracking-[0.08em] text-indigo-600">
+                <span className="team-abbr-glass px-2.5 py-0.5 text-[10px] tracking-[0.08em]">
                   {selectedTeam.abbr}
                 </span>
               </div>
