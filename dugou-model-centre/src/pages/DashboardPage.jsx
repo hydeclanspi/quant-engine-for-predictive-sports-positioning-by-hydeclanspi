@@ -813,7 +813,7 @@ export default function DashboardPage({ openModal }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-stone-800 font-display">Dashboard</h2>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 mt-1.5">
             <TimeRangePicker value={timePeriod} onChange={setTimePeriod} options={PERIOD_LABELS} align="left" />
             <span className="text-stone-400 text-sm">· 投资 {snapshot.periodInvestments} 笔</span>
           </div>

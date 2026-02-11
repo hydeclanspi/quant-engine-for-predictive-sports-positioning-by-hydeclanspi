@@ -1004,11 +1004,13 @@
 .mn-bar {
   display: flex;
   align-items: center;
-  height: 48px;
-  padding: 0 16px;
+  height: 52px;
+  padding: 0 24px;
   gap: 0;
-  border-bottom: 1px solid #e5e5e5;
-  background: #fff;
+  border-bottom: 1px solid #eef0f4;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
   position: sticky;
   top: 0;
   z-index: 40;
@@ -1063,10 +1065,11 @@
 .mn-page-title {
   font-size: 13px;
   font-weight: 500;
-  color: #737373;
+  color: #525252;
   white-space: nowrap;
   flex-shrink: 0;
-  margin-right: 8px;
+  margin-right: 12px;
+  letter-spacing: -0.1px;
 }
 
 /* Navigation */
@@ -1085,13 +1088,13 @@
 .mn-nav-item {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
-  border-radius: 6px;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 8px;
   font-size: 13px;
   font-weight: 450;
   color: #737373;
-  transition: all 0.1s ease;
+  transition: all 0.12s ease;
   white-space: nowrap;
 }
 
@@ -1101,11 +1104,11 @@
 }
 
 .mn-nav-active {
-  color: #171717;
+  color: #1a1a2e;
   font-weight: 500;
 }
 
-/* Active indicator — subtle bottom bar like Vercel tabs */
+/* Active indicator — accent bottom bar */
 .mn-nav-active::after {
   content: '';
   position: absolute;
@@ -1113,7 +1116,7 @@
   left: 10px;
   right: 10px;
   height: 2px;
-  background: #171717;
+  background: linear-gradient(90deg, #6366f1, #818cf8);
   border-radius: 2px 2px 0 0;
 }
 
@@ -1127,7 +1130,7 @@
   transform: rotate(180deg);
 }
 
-/* Badge — minimal pill */
+/* Badge — accent pill */
 .mn-badge {
   font-family: 'DM Sans', system-ui, sans-serif;
   font-size: 10px;
@@ -1139,24 +1142,26 @@
   justify-content: center;
   padding: 0 4px;
   border-radius: 99px;
-  background: #171717;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
   color: #fff;
   line-height: 1;
 }
 
-/* Dropdown — system-native popover */
+/* Dropdown — refined popover */
 .mn-dropdown {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
-  min-width: 180px;
-  background: #fff;
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
-  padding: 4px;
+  min-width: 190px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid #eef0f4;
+  border-radius: 12px;
+  padding: 5px;
   box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.07),
-    0 10px 20px -2px rgba(0, 0, 0, 0.04);
+    0 4px 6px -1px rgba(0, 0, 0, 0.06),
+    0 12px 28px -4px rgba(0, 0, 0, 0.08);
   animation: mnDropIn 100ms ease-out;
   z-index: 50;
 }
@@ -1182,22 +1187,22 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 7px 10px;
-  border-radius: 5px;
+  padding: 8px 12px;
+  border-radius: 8px;
   font-size: 13px;
   color: #525252;
-  transition: all 0.08s ease;
+  transition: all 0.1s ease;
 }
 
 .mn-dropdown-item:hover {
-  background: #f5f5f5;
-  color: #171717;
+  background: #f5f5ff;
+  color: #1a1a2e;
 }
 
 .mn-dropdown-active {
-  color: #171717;
+  color: #4f46e5;
   font-weight: 500;
-  background: #fafafa;
+  background: #eef2ff;
 }
 
 .mn-dropdown-label {
@@ -1243,8 +1248,8 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: #22c55e;
-  animation: mnPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  background: #6366f1;
+  animation: mnPing 2.5s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
 .mn-status-dot-core {
@@ -1277,157 +1282,196 @@
 }
 
 .mn-icon-btn-active {
-  color: #171717;
-  background: #f0f0f0;
+  color: #4f46e5;
+  background: #eef2ff;
 }
 
 
 /* ============================================================
    Modern Theme Overrides — .theme-modern scope
-   Transforms all existing components to match the
-   Vercel/Linear aesthetic when modern layout is active
+   v3.0 — "Airy Professional" redesign
+
+   Design DNA:
+   - Generous whitespace, centered content, breathing room
+   - Warm neutral palette (#f8f9fa base) with accent color pops
+   - Blue-indigo primary accent (Google/Tencent inspired)
+   - Orange-amber secondary accent (brand continuity)
+   - Soft shadows, rounded corners (16px cards)
+   - Relaxed typography with balanced line-height
    ============================================================ */
 
 .theme-modern {
-  background: #fafafa;
-  color: #171717;
+  background: #f7f8fa;
+  color: #1a1a2e;
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Cards — sharp, clean, no glow */
+/* ── Page layout — generous, centered, airy ── */
+.theme-modern .page-shell {
+  padding: clamp(24px, 3vw, 48px) clamp(20px, 4vw, 56px);
+}
+
+.theme-modern .page-content-fluid {
+  width: min(100%, 1120px);
+  margin: 0 auto;
+}
+
+.theme-modern .page-content-wide {
+  width: min(100%, 1320px);
+  margin: 0 auto;
+}
+
+/* ── Cards — elevated, airy, soft shadows ── */
 .theme-modern .glow-card {
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid #e5e5e5;
-  box-shadow: none;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.03),
+    0 4px 16px -4px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
 }
 
 .theme-modern .glow-card:hover {
-  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.06);
-  border-color: #d4d4d4;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    0 8px 32px -8px rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
 }
 
 .theme-modern .glow-card::after {
   display: none;
 }
 
-/* Lift card */
+/* Lift card — subtle elevation shift */
 .theme-modern .lift-card:hover {
-  box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    0 12px 40px -12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
 }
 
-/* Primary button — solid black (Vercel style) */
+/* ── Primary button — indigo gradient (Google-inspired) ── */
 .theme-modern .btn-primary {
-  background: #171717;
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #818cf8 100%);
   color: #fff;
-  border-radius: 8px;
-  font-weight: 500;
-  box-shadow: none;
-  border: 1px solid #171717;
-  padding: 8px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  box-shadow: 0 4px 14px -4px rgba(99, 102, 241, 0.4);
+  border: none;
+  padding: 9px 20px;
+  letter-spacing: -0.1px;
 }
 
 .theme-modern .btn-primary:hover {
-  background: #262626;
-  box-shadow: none;
-  filter: none;
+  box-shadow: 0 6px 20px -4px rgba(99, 102, 241, 0.55);
+  filter: brightness(1.06);
+  background: linear-gradient(135deg, #4338ca 0%, #4f46e5 50%, #6366f1 100%);
 }
 
-/* Secondary button — ghost style */
+/* ── Secondary button — clean outline ── */
 .theme-modern .btn-secondary {
-  border: 1px solid #e5e5e5;
-  color: #525252;
-  border-radius: 8px;
+  border: 1px solid #e2e4e9;
+  color: #4b5563;
+  border-radius: 10px;
   background: #fff;
+  font-weight: 500;
 }
 
 .theme-modern .btn-secondary:hover {
-  border-color: #d4d4d4;
-  background: #fafafa;
-  color: #171717;
+  border-color: #c7d0dd;
+  background: #f8f9fb;
+  color: #1a1a2e;
+  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.06);
 }
 
-/* Input focus — blue ring (not amber) */
+/* ── Input focus — soft blue ring ── */
+.theme-modern .input-glow {
+  border-color: #e2e4e9;
+  border-radius: 10px;
+}
+
 .theme-modern .input-glow:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
-/* Scrollbar — thinner, more subtle */
+/* ── Scrollbar — subtle, thin ── */
 .theme-modern .custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
 }
 
 .theme-modern .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.09);
+  border-radius: 5px;
 }
 
 .theme-modern .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.18);
 }
 
-/* Font display — use sans instead of serif in modern */
+/* ── Font display — modern sans ── */
 .theme-modern .font-display {
   font-family: 'DM Sans', system-ui, sans-serif;
   font-weight: 700;
   letter-spacing: -0.5px;
+  color: #1a1a2e;
 }
 
-/* Range slider — monochrome */
+/* ── Range slider — warm orange accent (brand color) ── */
 .theme-modern input[type="range"] {
-  background: #e5e5e5;
+  background: #e8eaef;
+  height: 6px;
+  border-radius: 3px;
 }
 
 .theme-modern input[type="range"]::-webkit-slider-thumb {
-  background: #171717;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.45);
+  width: 18px;
+  height: 18px;
 }
 
-/* Checkbox — monochrome */
+/* ── Checkbox — indigo accent ── */
 .theme-modern .custom-checkbox {
-  border-color: #d4d4d4;
+  border-color: #d1d5db;
+  border-radius: 6px;
 }
 
 .theme-modern .custom-checkbox:hover {
-  border-color: #171717;
+  border-color: #6366f1;
 }
 
 .theme-modern .custom-checkbox.checked {
-  border-color: #171717;
-  background: #171717;
-  box-shadow: none;
+  border-color: #6366f1;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.25);
 }
 
 .theme-modern .custom-checkbox.checked::after {
   border-color: #fff;
 }
 
-/* Note cell — neutral hover */
+/* ── Note cell — accent hover ── */
 .theme-modern .note-cell:hover {
-  color: #2563eb;
+  color: #6366f1;
 }
 
-/* Page shell — slightly wider in modern */
-.theme-modern .page-content-fluid {
-  width: min(100%, clamp(980px, 85vw, 1440px));
-}
-
-.theme-modern .page-content-wide {
-  width: min(100%, clamp(1080px, 90vw, 1600px));
-}
-
-/* History float panel — cleaner in modern */
+/* ── History float panel — refined glass ── */
 .theme-modern .history-float-panel {
-  border-color: #e5e5e5;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 8px 30px -12px rgba(0, 0, 0, 0.12);
+  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border-radius: 14px;
+  box-shadow:
+    0 8px 30px -12px rgba(0, 0, 0, 0.14),
+    0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
 .theme-modern .history-float-panel::before,
@@ -1436,10 +1480,541 @@
 }
 
 .theme-modern .history-float-item:hover {
-  box-shadow: 0 4px 12px -6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 14px -6px rgba(99, 102, 241, 0.18);
+  border-color: rgba(99, 102, 241, 0.2) !important;
 }
 
-/* Chart bar — neutral */
+/* ── Chart bar — subtle ── */
 .theme-modern .chart-bar:hover {
-  filter: brightness(1.05);
+  filter: brightness(1.06);
+}
+
+/* ── Modern accent utilities for pages ── */
+
+/* Headings in modern should be darker, bolder */
+.theme-modern h2 {
+  color: #1a1a2e;
+  letter-spacing: -0.3px;
+}
+
+.theme-modern p,
+.theme-modern span {
+  /* Slightly warmer text for body */
+}
+
+/* Override stone-based text colors for modern warm neutrals */
+.theme-modern .text-stone-800 {
+  color: #1a1a2e;
+}
+
+.theme-modern .text-stone-600 {
+  color: #4b5563;
+}
+
+.theme-modern .text-stone-500 {
+  color: #6b7280;
+}
+
+.theme-modern .text-stone-400 {
+  color: #9ca3af;
+}
+
+.theme-modern .text-stone-300 {
+  color: #d1d5db;
+}
+
+/* Override amber accent to indigo in button contexts */
+.theme-modern .text-amber-600 {
+  color: #f59e0b; /* Keep amber for data values — brand warmth */
+}
+
+.theme-modern .bg-amber-100 {
+  background: #eef2ff;
+}
+
+.theme-modern .text-amber-700 {
+  color: #4338ca;
+}
+
+.theme-modern .border-amber-200 {
+  border-color: #c7d2fe;
+}
+
+/* Quick option buttons in modern — indigo tones */
+.theme-modern .bg-amber-100.text-amber-700 {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.theme-modern .border-amber-200 {
+  border-color: #c7d2fe;
+}
+
+/* Section backgrounds — softer gradient */
+.theme-modern .bg-stone-50\/50,
+.theme-modern .bg-stone-50 {
+  background: #f8f9fb;
+}
+
+/* Gradient section bar in cards */
+.theme-modern .bg-gradient-to-r {
+  background: linear-gradient(to right, #f8f9fb, #f0f2ff) !important;
+}
+
+/* Borders — lighter, cleaner */
+.theme-modern .border-stone-100 {
+  border-color: #eef0f4;
+}
+
+.theme-modern .border-stone-200 {
+  border-color: #e2e4e9;
+}
+
+/* Portfolio size buttons — indigo active state */
+.theme-modern .bg-gradient-to-br.from-amber-400.to-orange-400 {
+  background: linear-gradient(135deg, #6366f1, #818cf8) !important;
+  box-shadow: 0 4px 14px -4px rgba(99, 102, 241, 0.4) !important;
+}
+
+.theme-modern .shadow-orange-200\/40 {
+  box-shadow: 0 4px 14px -4px rgba(99, 102, 241, 0.4);
+}
+
+/* Number badge — warm amber for data, keep brand identity */
+.theme-modern .w-6.h-6.rounded-lg.bg-amber-100 {
+  background: #eef2ff;
+}
+
+.theme-modern .w-6.h-6.rounded-lg.bg-amber-100 span {
+  color: #6366f1;
+}
+
+/* ── Modern spacing rhythm for content areas ── */
+.theme-modern .space-y-6 > * + * {
+  margin-top: 1.75rem;
+}
+
+.theme-modern .space-y-5 > * + * {
+  margin-top: 1.5rem;
+}
+
+.theme-modern .mb-4 {
+  margin-bottom: 1.25rem;
+}
+
+.theme-modern .mb-8 {
+  margin-bottom: 2.5rem;
+}
+
+.theme-modern .p-6 {
+  padding: 1.75rem;
+}
+
+.theme-modern .px-6 {
+  padding-left: 1.75rem;
+  padding-right: 1.75rem;
+}
+
+.theme-modern .py-4 {
+  padding-top: 1.15rem;
+  padding-bottom: 1.15rem;
+}
+
+.theme-modern .py-5 {
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+
+.theme-modern .p-4 {
+  padding: 1.15rem;
+}
+
+/* ── Dropdown overrides — lighter, cleaner ── */
+.theme-modern .topbar-v2-dropdown,
+.theme-modern .topbar-v2-settings-dropdown {
+  border-color: #e2e4e9;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 12px 24px -4px rgba(0, 0, 0, 0.08);
+}
+
+/* ── Colorful stat accents ── */
+/* Green for positive results */
+.theme-modern .text-emerald-600 {
+  color: #059669;
+}
+
+.theme-modern .text-emerald-700 {
+  color: #047857;
+}
+
+/* Rose for negative/warnings — slightly softer */
+.theme-modern .text-rose-500 {
+  color: #f43f5e;
+}
+
+.theme-modern .text-rose-600 {
+  color: #e11d48;
+}
+
+/* Blue for info/links */
+.theme-modern .text-sky-600 {
+  color: #0284c7;
+}
+
+.theme-modern .text-blue-600 {
+  color: #2563eb;
+}
+
+.theme-modern .text-blue-700 {
+  color: #1d4ed8;
+}
+
+/* Violet for special markers */
+.theme-modern .text-violet-600 {
+  color: #7c3aed;
+}
+
+/* ============================================================
+   Modern Theme — Premium Interactions & Layout v3.1
+   ============================================================ */
+
+/* ── Dashboard metric cards — elevated, with left accent ── */
+.theme-modern .grid.grid-cols-4 > .glow-card {
+  padding: 1.5rem;
+  border-radius: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-modern .grid.grid-cols-4 > .glow-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12%;
+  bottom: 12%;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, #6366f1, #818cf8);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.theme-modern .grid.grid-cols-4 > .glow-card:hover::before {
+  opacity: 1;
+}
+
+/* ── Tables — refined professional look ── */
+.theme-modern table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.theme-modern thead tr {
+  border-bottom: 2px solid #eef0f4 !important;
+}
+
+.theme-modern thead th {
+  font-weight: 600;
+  color: #6b7280;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.theme-modern tbody tr {
+  border-bottom-color: #f3f4f6 !important;
+  transition: background-color 0.15s ease;
+}
+
+.theme-modern tbody tr:hover {
+  background: #f8f9fb !important;
+}
+
+.theme-modern tbody td {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+/* ── Tabs — pill style with indigo accent ── */
+.theme-modern .bg-amber-100.text-amber-700.font-medium {
+  background: #eef2ff !important;
+  color: #4f46e5 !important;
+  box-shadow: 0 1px 3px rgba(99, 102, 241, 0.12);
+}
+
+.theme-modern .bg-stone-100.text-stone-500 {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.theme-modern .bg-stone-100.text-stone-500:hover {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+/* ── Analysis position rows — enhanced hover ── */
+.theme-modern .lift-card {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theme-modern .lift-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.04),
+    0 10px 24px -8px rgba(99, 102, 241, 0.12);
+}
+
+/* ── Inner section cards (bg-stone-50) — refined ── */
+.theme-modern .rounded-xl.bg-stone-50,
+.theme-modern .p-4.rounded-xl.bg-stone-50,
+.theme-modern .p-3.rounded-xl.bg-stone-50 {
+  background: #f8f9fb;
+  border-color: #eef0f4;
+}
+
+.theme-modern .rounded-xl.bg-stone-50:hover {
+  background: #f0f2ff;
+}
+
+/* ── Progress bars / calibration bars — indigo ── */
+.theme-modern .bg-gradient-to-r.from-amber-300.to-orange-400 {
+  background: linear-gradient(to right, #818cf8, #6366f1) !important;
+}
+
+/* ── Evidence Brief / Smart Reminder bar ── */
+.theme-modern .backdrop-blur-sm {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: #eef0f4 !important;
+}
+
+/* ── Modals — premium glass ── */
+.theme-modern .fixed.inset-0 .bg-white {
+  border-radius: 20px;
+  box-shadow:
+    0 8px 32px -8px rgba(0, 0, 0, 0.15),
+    0 24px 64px -16px rgba(0, 0, 0, 0.1);
+}
+
+/* ── Combo page section panels (violet/sky accent) ── */
+.theme-modern .bg-violet-50\/60 {
+  background: rgba(238, 242, 255, 0.6);
+}
+
+.theme-modern .border-violet-100 {
+  border-color: #e0e7ff;
+}
+
+.theme-modern .bg-sky-50\/60 {
+  background: rgba(240, 249, 255, 0.6);
+}
+
+.theme-modern .border-sky-100 {
+  border-color: #e0f2fe;
+}
+
+/* ── Inject button and small accent buttons ── */
+.theme-modern .bg-amber-500 {
+  background: #6366f1;
+}
+
+.theme-modern .bg-amber-500:hover {
+  background: #4f46e5;
+}
+
+/* ── Link text — indigo instead of amber ── */
+.theme-modern .text-amber-500 {
+  color: #6366f1;
+}
+
+.theme-modern .text-amber-500:hover {
+  color: #4f46e5;
+}
+
+.theme-modern .hover\:text-amber-600:hover {
+  color: #4f46e5;
+}
+
+/* ── Hover background accents ── */
+.theme-modern .hover\:bg-amber-50:hover {
+  background: #f5f3ff;
+}
+
+.theme-modern .hover\:border-amber-300:hover {
+  border-color: #c7d2fe;
+}
+
+.theme-modern .hover\:border-amber-200:hover {
+  border-color: #c7d2fe;
+}
+
+/* ── Combo strategy buttons active state ── */
+.theme-modern .border-amber-300.bg-amber-100.text-amber-700 {
+  border-color: #c7d2fe !important;
+  background: #eef2ff !important;
+  color: #4338ca !important;
+}
+
+/* ── Sparklines / Charts — indigo gradient ── */
+.theme-modern svg linearGradient stop[stop-color="rgba(251,191,36,0.2)"],
+.theme-modern svg stop[stopColor="rgba(251,191,36,0.2)"] {
+  stop-color: rgba(99, 102, 241, 0.15);
+}
+
+/* ── "View all" links ── */
+.theme-modern .text-xs.text-amber-600 {
+  color: #6366f1;
+}
+
+.theme-modern .text-xs.text-amber-600:hover {
+  color: #4f46e5;
+}
+
+/* ── Rounded pill tags/badges ── */
+.theme-modern .rounded-full.bg-amber-100.text-amber-700 {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.theme-modern .rounded-full.bg-amber-200.text-amber-700 {
+  background: #ddd6fe;
+  color: #5b21b6;
+}
+
+/* ── Status dots — keep semantic colors but softer ── */
+.theme-modern .bg-amber-400 {
+  background: #f59e0b;
+}
+
+.theme-modern .bg-emerald-400 {
+  background: #34d399;
+}
+
+.theme-modern .bg-rose-400 {
+  background: #fb7185;
+}
+
+/* ── Quick option buttons hover ── */
+.theme-modern .hover\:bg-stone-200:hover {
+  background: #e8eaef;
+}
+
+/* ── Best badge ── */
+.theme-modern .bg-emerald-200.text-emerald-700 {
+  background: #d1fae5;
+  color: #047857;
+}
+
+/* ── Portfolio size button hover ── */
+.theme-modern .hover\:border-amber-300:hover {
+  border-color: #a5b4fc;
+}
+
+.theme-modern .hover\:text-amber-600:hover {
+  color: #4f46e5;
+}
+
+/* ── Form sections separator ── */
+.theme-modern .border-l-2.border-amber-100 {
+  border-color: #c7d2fe;
+}
+
+/* ── FSE suggestion pills ── */
+.theme-modern .border-sky-300.bg-sky-100.text-sky-700 {
+  border-color: #a5b4fc;
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.theme-modern .border-sky-200\/80.bg-sky-50\/90.text-sky-700 {
+  border-color: #c7d2fe;
+  background: #f0f0ff;
+  color: #4338ca;
+}
+
+/* ── Empty state and placeholders ── */
+.theme-modern .py-8.text-center .text-stone-400 {
+  color: #9ca3af;
+}
+
+/* ── Animations refinement ── */
+.theme-modern .animate-fade-in {
+  animation: mnFadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes mnFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Subtle page transition override ── */
+.theme-modern .page-enter {
+  animation: mnPageEnter 250ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes mnPageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── Focus visible ring (keyboard nav) ── */
+.theme-modern button:focus-visible,
+.theme-modern input:focus-visible,
+.theme-modern select:focus-visible,
+.theme-modern textarea:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+/* ── Selection highlight ── */
+.theme-modern ::selection {
+  background: rgba(99, 102, 241, 0.15);
+  color: #1a1a2e;
+}
+
+/* ── Select/dropdown native elements ── */
+.theme-modern select {
+  border-radius: 10px;
+  border-color: #e2e4e9;
+}
+
+.theme-modern select:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* ── Textarea ── */
+.theme-modern textarea {
+  border-radius: 12px;
+}
+
+/* ── Responsive spacing — wider screens get more air ── */
+@media (min-width: 1440px) {
+  .theme-modern .page-shell {
+    padding: 48px 64px;
+  }
+}
+
+@media (min-width: 1680px) {
+  .theme-modern .page-shell {
+    padding: 56px 80px;
+  }
+
+  .theme-modern .page-content-wide {
+    width: min(100%, 1440px);
+  }
 }

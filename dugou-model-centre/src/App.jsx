@@ -28,7 +28,7 @@ function App() {
     const cached = localStorage.getItem(LAYOUT_KEY)
     if (VALID_MODES.includes(cached)) return cached
     const config = getSystemConfig()
-    return VALID_MODES.includes(config.layoutMode) ? config.layoutMode : 'topbar'
+    return VALID_MODES.includes(config.layoutMode) ? config.layoutMode : 'modern'
   })
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [modalData, setModalData] = useState(null)
@@ -92,7 +92,7 @@ function App() {
   /* ── Modern layout — Vercel/Linear design language ── */
   if (layoutMode === 'modern') {
     return (
-      <div className="flex flex-col h-screen theme-modern">
+      <div className="flex flex-col h-screen theme-modern" style={{ background: '#f7f8fa' }}>
         <ModernTopBar />
         <main
           ref={mainScrollRef}

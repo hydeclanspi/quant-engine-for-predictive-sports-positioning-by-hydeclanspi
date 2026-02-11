@@ -221,7 +221,7 @@ export default function NewInvestmentPage() {
   const [historyPrefillApplied, setHistoryPrefillApplied] = useState({})
   const [historyFloatDismissed, setHistoryFloatDismissed] = useState({})
   const [quickInputText, setQuickInputText] = useState('')
-  const [quickInputOpen, setQuickInputOpen] = useState(false)
+  const [quickInputOpen, setQuickInputOpen] = useState(true)
   const [quickInputResult, setQuickInputResult] = useState(null)
   const [systemConfig] = useState(() => getSystemConfig())
 
@@ -807,10 +807,10 @@ export default function NewInvestmentPage() {
     <div className="page-shell page-content-fluid">
       <div className="mb-8">
         <h2 className="text-2xl font-semibold text-stone-800 font-display">新建投资</h2>
-        <p className="text-stone-400 text-sm mt-1">录入比赛信息与预测参数</p>
+        <p className="text-stone-400 text-sm mt-1.5 leading-relaxed">录入比赛信息与预测参数 · Record match predictions & calibration parameters</p>
       </div>
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-4 mb-4">
+      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-4 mb-5">
         <button
           onClick={() => setQuickInputOpen((prev) => !prev)}
           className="flex items-center gap-2 text-sm text-stone-600 hover:text-amber-600 transition-colors w-full"
@@ -872,7 +872,7 @@ export default function NewInvestmentPage() {
       </div>
 
       <div className="glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden">
-        <div className="px-6 py-4 border-b border-stone-100 bg-stone-50/50">
+        <div className="px-6 py-5 border-b border-stone-100 bg-stone-50/50">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-4 flex-nowrap min-w-0">
               <span className="text-sm text-stone-600 whitespace-nowrap">Portfolio Construction</span>
@@ -1399,7 +1399,7 @@ export default function NewInvestmentPage() {
           })}
         </div>
 
-        <div className="px-6 py-5 bg-gradient-to-r from-stone-50 to-orange-50/30 border-t border-stone-100">
+        <div className="px-6 py-6 bg-gradient-to-r from-stone-50 to-orange-50/30 border-t border-stone-100">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-6">
               <div>

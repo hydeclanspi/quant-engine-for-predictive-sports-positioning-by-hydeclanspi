@@ -160,10 +160,16 @@ export default function ModernTopBar() {
       {/* ── Brand ── */}
       <button className="mn-brand" onClick={() => navigate('/new')}>
         <div className="mn-brand-mark">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <rect x="0.5" y="0.5" width="17" height="17" rx="4" stroke="currentColor" strokeWidth="1" />
-            <rect x="4" y="4" width="10" height="10" rx="2" fill="currentColor" opacity="0.15" />
-            <rect x="6" y="6" width="6" height="6" rx="1.5" fill="currentColor" />
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <rect x="0.5" y="0.5" width="19" height="19" rx="5" stroke="#6366f1" strokeWidth="1.2" />
+            <rect x="4" y="4" width="12" height="12" rx="3" fill="#6366f1" opacity="0.1" />
+            <rect x="6.5" y="6.5" width="7" height="7" rx="2" fill="url(#mnBrandGrad)" />
+            <defs>
+              <linearGradient id="mnBrandGrad" x1="6.5" y1="6.5" x2="13.5" y2="13.5" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#6366f1" />
+                <stop offset="1" stopColor="#f59e0b" />
+              </linearGradient>
+            </defs>
           </svg>
         </div>
         <span className="mn-brand-name">dugou</span>
@@ -174,6 +180,9 @@ export default function ModernTopBar() {
 
       {/* ── Page context ── */}
       <span className="mn-page-title">{pageTitle}</span>
+
+      {/* ── Separator ── */}
+      <div className="h-4 w-px bg-gradient-to-b from-transparent via-neutral-200 to-transparent mx-2 flex-shrink-0" />
 
       {/* ── Nav ── */}
       <nav className="mn-nav" ref={dropdownRef}>
@@ -258,7 +267,7 @@ export default function ModernTopBar() {
                 <span>Export Excel</span>
               </button>
               <div className="mn-dropdown-sep" />
-              <div className="mn-dropdown-footer">v5.8</div>
+              <div className="mn-dropdown-footer">v6.0 · airy</div>
             </div>
           )}
         </div>
