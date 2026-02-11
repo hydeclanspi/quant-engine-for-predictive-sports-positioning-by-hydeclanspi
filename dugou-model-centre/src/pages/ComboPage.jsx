@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Info, Plus, Sparkles, XCircle } from 'lucide-react'
 import { bumpTeamSamples, getInvestments, getSystemConfig, saveInvestment } from '../lib/localData'
@@ -589,6 +589,30 @@ const readComboPlanHistory = () => {
 const writeComboPlanHistory = (history) => {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(COMBO_PLAN_HISTORY_KEY, JSON.stringify(history))
+}
+
+const collectHistoryMatchKeys = (historyRow) => {
+  const keys = new Set()
+  if (!historyRow || typeof historyRow !== 'object') return keys
+
+  if (historyRow.selectedRoleMap && typeof historyRow.selectedRoleMap === 'object') {
+    Object.keys(historyRow.selectedRoleMap).forEach((key) => {
+      const clean = String(key || '').trim()
+      if (clean) keys.add(clean)
+    })
+  }
+
+  if (Array.isArray(historyRow.recommendations)) {
+    historyRow.recommendations.forEach((recommendation) => {
+      const subset = Array.isArray(recommendation?.subset) ? recommendation.subset : []
+      subset.forEach((match) => {
+        if (!match || match.investmentId == null || match.matchIndex == null) return
+        keys.add(`${match.investmentId}-${match.matchIndex}`)
+      })
+    })
+  }
+
+  return keys
 }
 
 const getLayerByRank = (rank) => {
@@ -1356,6 +1380,7 @@ const generateRecommendations = (
 
 export default function ComboPage({ openModal }) {
   const navigate = useNavigate()
+  const restoreCheckedKeysRef = useRef(null)
   const [dataVersion, setDataVersion] = useState(0)
   const [dismissedCount, setDismissedCount] = useState(() => readDismissedCandidateKeys().size)
   const [planHistory, setPlanHistory] = useState(() => readComboPlanHistory())
@@ -1609,6 +1634,14 @@ export default function ComboPage({ openModal }) {
   }, [dataVersion])
 
   useEffect(() => {
+    const pendingKeys = Array.isArray(restoreCheckedKeysRef.current) ? restoreCheckedKeysRef.current : null
+    if (pendingKeys) {
+      const keySet = new Set(pendingKeys.map((key) => String(key)))
+      const nextChecked = displayedCandidates.map((row) => keySet.has(String(row.key)))
+      setCheckedMatches(nextChecked.some(Boolean) ? nextChecked : displayedCandidates.map(() => true))
+      restoreCheckedKeysRef.current = null
+      return
+    }
     setCheckedMatches(displayedCandidates.map(() => true))
   }, [displayedCandidates])
 
@@ -1710,6 +1743,24 @@ export default function ComboPage({ openModal }) {
 
   const restorePlanFromHistory = (historyRow) => {
     if (!historyRow || !Array.isArray(historyRow.recommendations)) return
+    clearAnalysisFilter()
+    setAnalysisFilter(null)
+
+    const historyMatchKeys = collectHistoryMatchKeys(historyRow)
+    if (historyMatchKeys.size > 0) {
+      const dismissed = readDismissedCandidateKeys()
+      let changed = false
+      historyMatchKeys.forEach((key) => {
+        if (dismissed.delete(String(key))) changed = true
+      })
+      if (changed) {
+        writeDismissedCandidateKeys(dismissed)
+        setDismissedCount(dismissed.size)
+      }
+      restoreCheckedKeysRef.current = [...historyMatchKeys]
+      setTodayMatches(getTodayMatches())
+    }
+
     setRiskPref(Number(historyRow.riskPref || 50))
     if (historyRow.comboStrategy) {
       setComboStrategy(historyRow.comboStrategy)
@@ -1727,8 +1778,11 @@ export default function ComboPage({ openModal }) {
       })
       setMatchRoleOverrides(nextRoleMap)
     }
-    setRecommendations(historyRow.recommendations)
-    setRankingRows(historyRow.recommendations)
+    const safeRecommendations = historyRow.recommendations
+      .filter((item) => item && typeof item === 'object')
+      .slice(0, 20)
+    setRecommendations(safeRecommendations)
+    setRankingRows(safeRecommendations)
     setLayerSummary(Array.isArray(historyRow.layerSummary) ? historyRow.layerSummary : [])
     setGenerationSummary({
       totalInvest: Number(historyRow.totalInvest || 0),
@@ -1745,8 +1799,8 @@ export default function ComboPage({ openModal }) {
     setShowAllRecommendations(false)
 
     const nextSelected = {}
-    if (historyRow.recommendations[0]) {
-      nextSelected[historyRow.recommendations[0].id] = true
+    if (safeRecommendations[0]) {
+      nextSelected[safeRecommendations[0].id] = true
     }
     setSelectedRecommendationIds(nextSelected)
   }
