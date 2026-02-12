@@ -3550,10 +3550,10 @@ export default function ComboPage({ openModal }) {
             </div>
           ) : (
             <div className="space-y-1.5">
-              <div className="flex items-center justify-end mb-1">
+              <div className="flex items-center justify-end -mt-1 mb-1.5">
                 <button
                   onClick={toggleExpandAllQuickComboDetails}
-                  className="text-[10px] px-2 py-1 rounded-md border border-indigo-200/70 bg-white/70 text-indigo-600 hover:bg-indigo-50/70 transition-colors"
+                  className="text-[10px] px-2 py-1 rounded-md border border-emerald-200/70 bg-emerald-50/55 text-emerald-700 hover:bg-emerald-50/75 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_6px_18px_-14px_rgba(16,185,129,0.55)] transition-colors"
                 >
                   {quickPreviewRecommendations.length > 0 &&
                   quickPreviewRecommendations.every((_, idx) => expandedComboIdxSet.has(idx))
