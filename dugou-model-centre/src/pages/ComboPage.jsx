@@ -55,6 +55,9 @@ const MATCH_ROLE_COMPACT_LABEL = {
   neutral_soft: '中-守',
 }
 
+const RECOMMENDATION_OUTPUT_COUNT = 15
+const QUICK_PREVIEW_RECOMMENDATION_COUNT = 8
+
 const MATCH_ROLE_TILT_MAP = {
   stable: 0.18,
   lever: 0.24,
@@ -1710,6 +1713,10 @@ const generateRecommendations = (
   teamBias = null, // Map<teamName, number> — positive = boost, negative = penalize
 ) => {
   if (selectedMatches.length === 0) return null
+  const recommendationCount = RECOMMENDATION_OUTPUT_COUNT
+  const stratifiedCap = Math.max(18, recommendationCount + 6)
+  const mmrCap = Math.max(14, recommendationCount + 4)
+  const universeCap = Math.max(14, recommendationCount + 2)
 
   const alpha = clamp(riskPref / 100, 0, 1)
   const minEv = Number(qualityFilter?.minEvPercent || 0) / 100
@@ -1948,18 +1955,18 @@ const generateRecommendations = (
   }
 
   // ── 思路3: Stratified selection by legs count ──
-  const stratifiedPool = stratifiedSelect(preparedRanked, 18, minLegs)
+  const stratifiedPool = stratifiedSelect(preparedRanked, stratifiedCap, minLegs)
 
   // ── MMR reranking for final diversity ──
   const mmrPool = mmrRerank(
     stratifiedPool,
     mmrLambda,
-    14,
+    mmrCap,
     comboStrategy !== 'thresholdStrict' ? targetKeys : null,
     coverageEta,
   )
 
-  const maxUniverse = Math.min(14, mmrPool.length)
+  const maxUniverse = Math.min(universeCap, mmrPool.length)
   const universe = mmrPool.slice(0, maxUniverse)
   const maxWeight = clamp(0.32 + alpha * 0.45, 0.32, 0.78)
   const weights = optimizePortfolioWeights(universe, alpha, maxWeight)
@@ -1969,20 +1976,20 @@ const generateRecommendations = (
     weight: Number.isFinite(weights[idx]) ? weights[idx] : 0,
   }))
   let selectedRanked = weightedUniverse
-    .filter((item, idx) => item.weight >= 0.045 || idx < 10)
+    .filter((item, idx) => item.weight >= 0.045 || idx < recommendationCount)
     .sort((a, b) => b.weight - a.weight || b.utility - a.utility)
-    .slice(0, 10)
+    .slice(0, recommendationCount)
 
   // Legacy coverage injection as final safety net (lightweight, only fills gaps)
   if (comboStrategy !== 'thresholdStrict') {
-    selectedRanked = ensureCoverageInRanked(selectedRanked, weightedUniverse, selectedMatches, 10).ranked
+    selectedRanked = ensureCoverageInRanked(selectedRanked, weightedUniverse, selectedMatches, recommendationCount).ranked
   }
   const concentrationPool = dedupeRankedBySignature(
     [...weightedUniverse].sort((a, b) => b.weight - a.weight || b.utility - a.utility),
   )
   // Max concentration: no single match may appear in more than 60% of combos
   // This prevents the single-point-of-failure scenario (e.g., 切尔西 miss kills ALL combos)
-  selectedRanked = rebalanceMatchConcentration(selectedRanked, concentrationPool, 10, 0.60)
+  selectedRanked = rebalanceMatchConcentration(selectedRanked, concentrationPool, recommendationCount, 0.60)
 
   const fallbackRanked = selectedRanked.length > 0 ? selectedRanked : weightedUniverse.slice(0, Math.min(3, weightedUniverse.length))
   const allocationSeed = fallbackRanked.map((item) => {
@@ -1992,7 +1999,7 @@ const generateRecommendations = (
   })
   const weightSum = allocationSeed.reduce((sum, value) => sum + value, 0)
   const normalizedWeights = allocationSeed.map((value) => (weightSum > 0 ? value / weightSum : 1 / allocationSeed.length))
-  const allocatedAmounts = allocateAmountsWithinRiskCap(normalizedWeights, riskCap, 10)
+  const allocatedAmounts = allocateAmountsWithinRiskCap(normalizedWeights, riskCap, recommendationCount)
   const rankedWithAmounts = fallbackRanked.map((item, idx) => ({
     ...item,
     allocatedAmount: allocatedAmounts[idx] || 0,
@@ -2143,6 +2150,7 @@ export default function ComboPage({ openModal }) {
   const [matchRoleOverrides, setMatchRoleOverrides] = useState({})
   const [showRiskProbe, setShowRiskProbe] = useState(false)
   const [showAllRecommendations, setShowAllRecommendations] = useState(false)
+  const [showAllQuickRecommendations, setShowAllQuickRecommendations] = useState(false)
   const [selectedRecommendationIds, setSelectedRecommendationIds] = useState({})
   const [showDeepRefresh, setShowDeepRefresh] = useState(false)
   const [lessTeams, setLessTeams] = useState(new Set())
@@ -2237,6 +2245,14 @@ export default function ComboPage({ openModal }) {
   const displayedRecommendations = useMemo(
     () => (showAllRecommendations ? recommendations : recommendations.slice(0, 3)),
     [recommendations, showAllRecommendations],
+  )
+
+  const quickPreviewRecommendations = useMemo(
+    () =>
+      showAllQuickRecommendations
+        ? recommendations
+        : recommendations.slice(0, QUICK_PREVIEW_RECOMMENDATION_COUNT),
+    [recommendations, showAllQuickRecommendations],
   )
 
   const selectedRecommendations = useMemo(
@@ -2452,6 +2468,7 @@ export default function ComboPage({ openModal }) {
       legsDistribution: {},
     })
     setShowAllRecommendations(false)
+    setShowAllQuickRecommendations(false)
   }
 
   const pushPlanHistory = (generated, selectedRows, pref) => {
@@ -2547,6 +2564,7 @@ export default function ComboPage({ openModal }) {
         : {},
     })
     setShowAllRecommendations(false)
+    setShowAllQuickRecommendations(false)
 
     setSelectedRecommendationIds({})
   }
@@ -2633,12 +2651,13 @@ export default function ComboPage({ openModal }) {
       ftTiers: generated.ftTiers || null,
     })
     setShowAllRecommendations(false)
+    setShowAllQuickRecommendations(false)
     pushPlanHistory(generated, selectedMatches, riskPref)
 
     setSelectedRecommendationIds({})
 
     // Auto-run Monte Carlo simulation on the generated package
-    const mc = runPortfolioMonteCarlo(generated.recommendations.slice(0, 8))
+    const mc = runPortfolioMonteCarlo(generated.recommendations.slice(0, RECOMMENDATION_OUTPUT_COUNT))
     setMcSimResult(mc)
 
     // Auto-run portfolio allocation optimizer
@@ -2680,9 +2699,10 @@ export default function ComboPage({ openModal }) {
       dynParams: generated.dynParams || null, ftTiers: generated.ftTiers || null,
     })
     setShowAllRecommendations(false)
+    setShowAllQuickRecommendations(false)
     setSelectedRecommendationIds({})
     // Auto-run MC on the new package
-    const mc = runPortfolioMonteCarlo(generated.recommendations.slice(0, 8))
+    const mc = runPortfolioMonteCarlo(generated.recommendations.slice(0, RECOMMENDATION_OUTPUT_COUNT))
     setMcSimResult(mc)
     // Auto-run portfolio allocation optimizer
     const allocations = optimizePortfolioAllocations(generated.recommendations, 10)
@@ -3499,7 +3519,7 @@ export default function ComboPage({ openModal }) {
             </div>
           ) : (
             <div className="space-y-1.5">
-              {recommendations.slice(0, 8).map((item, idx) => {
+              {quickPreviewRecommendations.map((item, idx) => {
                 const selected = Boolean(selectedRecommendationIds[item.id])
                 const expanded = expandedComboIdx === idx
                 const layerTag = item.explain?.ftLayerTag
@@ -3615,8 +3635,18 @@ export default function ComboPage({ openModal }) {
                   </div>
                 )
               })}
-              {recommendations.length > 8 && (
-                <p className="text-[10px] text-stone-400 text-center pt-1">+{recommendations.length - 8} 更多方案（详见下方展开）</p>
+              {recommendations.length > QUICK_PREVIEW_RECOMMENDATION_COUNT && (
+                <button
+                  onClick={() => {
+                    setShowAllQuickRecommendations((prev) => !prev)
+                    setExpandedComboIdx(null)
+                  }}
+                  className="w-full pt-1 text-[10px] text-center text-indigo-500 hover:text-indigo-600"
+                >
+                  {showAllQuickRecommendations
+                    ? `收起到前 ${QUICK_PREVIEW_RECOMMENDATION_COUNT} 场 ▲`
+                    : `一键展开全部 ${recommendations.length} 场 ▼`}
+                </button>
               )}
             </div>
           )}
