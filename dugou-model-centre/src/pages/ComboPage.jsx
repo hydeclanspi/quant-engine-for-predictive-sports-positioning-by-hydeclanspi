@@ -2801,31 +2801,50 @@ export default function ComboPage({ openModal }) {
 
   const openAlgoModal = () => {
     openModal({
-      title: 'Portfolio Optimization 算法说明',
+      title: 'Portfolio Optimization 算法说明 v4.4',
           content: (
-        <div className="text-sm text-stone-600 space-y-4">
+        <div className="text-sm text-stone-600 space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+          <p className="font-semibold text-indigo-600 text-xs tracking-wide">— 基础架构 (v1–v3) —</p>
           <p><strong>1. 输入处理</strong>：录入今日 n 场比赛参数（Conf, Mode, TYS, FID, FSE, Odds），系统构建候选组合池（最多到 5 关，且按最小关数筛选，候选数为 ΣC(n,k)）。</p>
-          <p><strong>2. Calibration 校准层</strong>：引入时间近因权重 + REP 方向性权重，先做 Conf 回归校准，再叠加球队层级偏差校准（小样本自动收缩）。</p>
-          <p><strong>3. 市场先验融合</strong>：将模型概率与 Odds 隐含概率做动态融合；球队样本越可靠，越偏向模型；球队可靠度不足时自动向市场先验回归。</p>
-          <p><strong>4. 滚动回测护栏</strong>：使用 walk-forward 窗口评估 Brier / LogLoss / ROI，策略层采用 Bootstrap Monte Carlo 回测，动态调节 market lean，抑制过拟合。</p>
-          <p><strong>5. 原子结果建模</strong>：同场多 Entry 先拆成原子状态（含 miss），按分支权重与赔率计算每个原子收益，再做跨场联合分布，避免调和平均带来的失真。</p>
-          <p><strong>6. 预期收益与风险</strong>：直接由联合分布求 E[R] / Var[R]，再得 Sharpe，同时输出命中概率与盈利概率（profit win rate），覆盖单 Entry 与多 Entry 串联情形。</p>
-          <p><strong>7. Risk Preference 加权</strong>：效用函数 U = α × μ - (1-α) × σ，α 由滑杆控制（0=稳健，100=激进）。</p>
-          <p><strong>8. 组合策略</strong>：可选「勾选优先 / 阈值优先 / 软惩罚」。软惩罚对阈值外方案降分但不直接淘汰。</p>
-          <p><strong>9. 角色结构软约束</strong>：支持“稳/杠杆/中性双档”逐场自定义，并以软约束项参与打分，不做硬性赔率或配比锁定。</p>
-          <p><strong>10. Portfolio 分配</strong>：对 Top 组合按效用打分分配仓位，约束总仓位不超过风控上限（Risk Cap）。</p>
-          <p><strong>11. 串关偏好 (Parlay Bonus)</strong>：在效用函数中加入 β·√(legs-1) 项，天然提升多关串联的优先级；β 由「串关偏好」滑杆控制。</p>
-          <p><strong>12. 分层选优 (Stratified Selection)</strong>：按关数分层（2/3/4/5关），每层按效用取 Top-K，跨层配额确保结构多样。</p>
-          <p><strong>13. MMR 去重排序</strong>：使用 Maximal Marginal Relevance 算法，每选一个方案时同时考虑其效用和与已选方案的差异度，避免"前几名都带同一场"。</p>
-          <p><strong>14. 覆盖动态加分</strong>：对候选中尚未被充分覆盖的场次，自动提升包含该场次的组合分数，随覆盖增加自然衰减。</p>
-          <p><strong>15. Entry Family 多样化</strong>：同一场比赛的多个 entry（如曼联胜/平/double）被识别为一个 family，鼓励 family 内 entry 多样化。</p>
-          <p className="mt-2 font-semibold text-stone-700">v4.0 — 容错串关引擎</p>
-          <p><strong>16. Conf×Odds 交叉校准</strong>：按赔率分桶（低/中/高/超高赔），分析历史 Conf 在每个赔率区间的系统性偏差（过度自信/保守），通过收缩估计修正。</p>
-          <p><strong>17. 置信度梯度分层</strong>：每场按 Conf 分为强洞察（≥0.72）、中洞察（≥0.55）、弱洞察。强洞察作锚点，弱洞察限制 ≤1场/票且禁止两个弱洞察同票。</p>
-          <p><strong>18. 容错覆盖设计</strong>：对 N 场强洞察生成 C(N, N-1) 全覆盖子集。4中3时仍有存活票。</p>
-          <p><strong>19. 边际 Sharpe 门控</strong>：每增加一腿前计算边际 Sharpe（ΔEV/Δσ），低于阈值的弱腿被拒绝。</p>
-          <p><strong>20. 分层对冲架构</strong>：锚定层（2串1→回本）、扩展层（3串1→利润）、容错覆盖层（保险）、博冷层（小注尾部）。</p>
-          <p><strong>21. 输出</strong>：上方可勾选方案直接采纳；下方提供单组合排序与分层下注建议，标注层级与置信度梯度。</p>
+          <p><strong>2. 复合校准管线 (Composite Calibration)</strong>：线性回归校准 + Pool-Adjacent-Violators 保序回归 (PAV) 混合输出。保序回归权重由模型可靠度自适应控制（最高 60%），确保概率单调性与小样本稳健性兼顾。叠加球队层级偏差收缩校准。</p>
+          <p><strong>3. 自学习情境因子 (Learned Context Factors)</strong>：MODE / TYS / FID / FSE 四维因子不再采用硬编码先验，而由历史命中率经 Shrinkage Estimation（K=12）自动学习。FSE 连续因子使用分位数分桶 + 分段线性插值。样本不足时自动降级至先验映射表。</p>
+          <p><strong>4. 市场先验融合</strong>：模型概率与 Odds 隐含概率做动态融合；球队样本越可靠，越偏向模型；可靠度不足时自动向市场先验回归。</p>
+          <p><strong>5. Walk-Forward 反馈回路</strong>：滚动窗口评估 Brier / LogLoss / ROI，自动微调 Kelly 除数（±15%）、Odds 融合权重（±0.015）、置信度阈值（±0.03）。Bootstrap Monte Carlo 回测动态调节 market lean，抑制过拟合。</p>
+          <p><strong>6. 原子结果建模</strong>：同场多 Entry 先拆成原子状态（含 miss），按分支权重与赔率计算每个原子收益，再做跨场联合分布。多 Entry 使用联合概率 P = 1 - Π(1 - pᵢ)，避免条目剥离。</p>
+          <p><strong>7. 预期收益与风险</strong>：联合分布直接求 E[R] / Var[R] / Sharpe，同时输出命中概率与盈利概率，覆盖单 Entry 与多 Entry 串联。</p>
+          <p><strong>8. 纯分数 Kelly 仓位</strong>：f* = (p·b - q) / b / kellyDivisor，不使用任何经验提升因子。Kelly 除数由 Walk-Forward 反馈自动调节。</p>
+          <p><strong>9. Risk Preference 加权</strong>：效用函数 U = α × μ - (1-α) × σ，α 由滑杆控制（0=稳健，100=激进）。</p>
+          <p><strong>10. 组合策略</strong>：可选「勾选优先 / 阈值优先 / 软惩罚」。软惩罚对阈值外方案降分但不直接淘汰。</p>
+          <p><strong>11. 角色结构软约束</strong>：支持"稳/杠杆/中性双档"逐场自定义，以软约束项参与打分。</p>
+          <p><strong>12. Portfolio 分配</strong>：Top 组合按效用打分分配仓位，约束总仓位 ≤ Risk Cap。</p>
+          <p><strong>13. 串关偏好 (Parlay Bonus)</strong>：效用函数加入 β·√(legs-1) 项，β 由串关偏好滑杆控制。</p>
+
+          <p className="font-semibold text-indigo-600 text-xs tracking-wide mt-2">— v4.0 容错串关引擎 —</p>
+          <p><strong>14. Conf×Odds 交叉校准</strong>：按赔率分桶（低/中/高/超高赔），分析历史 Conf 在每个赔率区间的系统性偏差，通过收缩估计修正。</p>
+          <p><strong>15. 四级置信度梯度</strong>：强洞察（≥0.72）→ 中洞察（≥0.55）→ 弱洞察（≥0.40）→ 极弱（＜0.40）。阈值由动态回测自动调节（Walk-Forward tierShift ±0.03）。</p>
+          <p><strong>16. 容错覆盖设计</strong>：N 场非极弱场次生成 C(N, N-1) + 强势场次 C(N, N-2) 全覆盖子集，"5中4""4中3"仍有存活票。</p>
+          <p><strong>17. 边际 Sharpe 门控</strong>：每增一腿前计算 ΔEV/Δσ，低于动态阈值（由回测优化器输出）的弱腿被拒绝。</p>
+          <p><strong>18. 分层对冲架构</strong>：锚定层（2串1→回本）、扩展层（3串1→利润）、容错覆盖层（保险）、博冷层（小注尾部）。</p>
+          <p><strong>19. 动态回测参数优化器</strong>：<code>backtestDynamicParams</code> 分析历史 Conf vs 实际结果散点，自动调优：弱腿惩罚系数、锚定加分、覆盖加分、Sharpe 阈值、弱腿上限、置信度阈值。输出回测可信度评分（0–1）。</p>
+
+          <p className="font-semibold text-indigo-600 text-xs tracking-wide mt-2">— v4.3 模型审计修复 —</p>
+          <p><strong>20. 保序回归校准 (Isotonic Regression)</strong>：Pool-Adjacent-Violators 算法实现非参数、保单调性概率校准。与线性回归按可靠度加权混合（最高 60% 保序权重）。报告 Brier 改善度指标。</p>
+          <p><strong>21. Entry 相关性矩阵</strong>：从历史结算多腿组合中构建 Entry 类型两两 Phi 系数矩阵（收缩估计 K=10）。正相关 → 联合概率上修（{'>'} 独立乘积），负相关 → 下修。组合评分中以 ±4% 幅度修正联合概率。</p>
+          <p><strong>22. Per-Match EJR 追踪</strong>：逐场记录 EJR（Conf）vs AJR（Match Rating）的 delta / MAE / RMSE，按 Mode 拆分准确率，持续监控模型预测偏差。</p>
+
+          <p className="font-semibold text-indigo-600 text-xs tracking-wide mt-2">— v4.4 Conf-Surplus 与分散化 —</p>
+          <p><strong>23. Conf-Surplus 反共识信号</strong>：<code>surplus = conf - (1/odds × 0.95)</code>，评估模型置信度相对于去水后市场隐含概率的超额。edge 分级：strong_edge（+12pp）→ moderate_edge（+4pp）→ neutral → negative_edge。Surplus 正向加分融入效用函数（avg × 0.15 + 最大 surplus ≥ 12pp 额外 +3%），鼓励"反共识但高信心"的高赔率投注。</p>
+          <p><strong>24. 锚定分散化惩罚</strong>：MMR 重排序引入锚定共享惩罚——若多个候选组合共享同一最高信心场次（锚定场），后续复用该场的组合受 12% × (复用次/已选数) 惩罚，避免"全军覆没"单点故障。</p>
+          <p><strong>25. 场次集中度硬上限</strong>：单场出现频率不超过输出组合总数的 60%（由 78% 下调），强制分散风险。</p>
+          <p><strong>26. 浓度惩罚强化</strong>：通用 MMR 浓度罚项 +0.5×使用比，与锚定惩罚叠加，确保输出组合在场次维度充分多样化。</p>
+
+          <p className="font-semibold text-indigo-600 text-xs tracking-wide mt-2">— 智能组合包 —</p>
+          <p><strong>27. Portfolio Allocation 优化器</strong>：枚举 2–5 方案子集，按复合效用打分（EV 35% + 覆盖率 30% + 独立性 20% + 层级多样 10% + 信心分层多样 5%）。每个候选子集跑 10k 次 Mini Monte Carlo 评估盈利概率 / 中位收益 / VaR₉₅。去重后输出 Top-10 投资组合建议（默认展示 6 个）。</p>
+          <p><strong>28. 50k Monte Carlo 引擎</strong>：seeded xorshift32 PRNG，逐组合 Bernoulli 采样（使用校准后概率 <code>calibratedP</code>），5 桶 P&L 直方图可视化，输出盈利概率 / 中位 / 95%VaR / 均值 / 最大收益 / 全亏概率。</p>
+          <p><strong>29. Soft Refresh / Deep Refresh</strong>：Soft Refresh 对 riskPref / mmrLambda / parlayBeta 添加微小 jitter（±4 / ±0.06 / ±0.03），输出"同源但不同"方案。Deep Refresh 收集用户偏好（"少/多一点"球队倾向），以 ±0.12 效用修正注入生成管线。</p>
+          <p><strong>30. 分层选优 + MMR 去重</strong>：按关数分层（2/3/4/5关）每层 Top-K，Maximal Marginal Relevance 同时考虑效用和差异度。覆盖动态加分 + Entry Family 多样化。</p>
+
+          <p className="text-[11px] text-stone-400 mt-3 pt-2 border-t border-stone-100">DuGou Portfolio Optimization Engine v4.4 · Composite Calibration + PAV Isotonic + Learned Context Factors + Walk-Forward Feedback + Entry Correlation + Conf-Surplus + Anchor Diversification + Portfolio Allocation Optimizer + Monte Carlo Simulation</p>
         </div>
       ),
     })
@@ -2885,7 +2904,6 @@ export default function ComboPage({ openModal }) {
 
           <div className="space-y-2">
             {displayedCandidates.map((item, i) => {
-              const hasManualRole = Object.prototype.hasOwnProperty.call(matchRoleOverrides, item.key)
               const effectiveRole = normalizeRoleTag(matchRoleOverrides[item.key] || item.autoRole)
               const activeRoleMeta = MATCH_ROLE_OPTIONS.find((r) => r.value === effectiveRole)
 
@@ -2920,7 +2938,7 @@ export default function ComboPage({ openModal }) {
                   </div>
                   <div className="flex-shrink-0">
                     <select
-                      value={hasManualRole ? effectiveRole : 'auto'}
+                      value={effectiveRole}
                       onClick={(event) => event.stopPropagation()}
                       onChange={(event) => {
                         event.stopPropagation()
@@ -2949,7 +2967,7 @@ export default function ComboPage({ openModal }) {
                     </select>
                   </div>
                   <div className="text-right flex-shrink-0 min-w-[102px]">
-                    <span className="block text-base font-bold tabular-nums text-stone-700">
+                    <span className="block text-sm font-bold tabular-nums text-stone-700">
                       {item.suggestedAmount > 0 ? `${item.suggestedAmount} rmb` : '-- rmb'}
                     </span>
                   </div>
@@ -3458,6 +3476,18 @@ export default function ComboPage({ openModal }) {
                     )}
                   </div>
                 ))}
+                {portfolioAllocations.length > 6 && (
+                  <button
+                    onClick={() => setShowAllPortfolios(v => !v)}
+                    className="w-full mt-1 py-1 rounded-lg text-[10px] font-medium text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50/60 transition-all flex items-center justify-center gap-1"
+                  >
+                    {showAllPortfolios ? (
+                      <>收起 <svg className="w-2.5 h-2.5" viewBox="0 0 12 12" fill="none"><path d="M3 7.5l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg></>
+                    ) : (
+                      <>展开更多 (+{portfolioAllocations.length - 6}) <svg className="w-2.5 h-2.5" viewBox="0 0 12 12" fill="none"><path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg></>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -3953,14 +3983,19 @@ export default function ComboPage({ openModal }) {
 
       <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium text-stone-700">Portfolio Optimization 算法说明</h3>
-          <button onClick={openAlgoModal} className="text-xs text-amber-600 hover:text-amber-700 flex items-center gap-1">
+          <h3 className="font-medium text-stone-700">Portfolio Optimization 算法说明 <span className="text-[10px] font-normal text-indigo-400 ml-1">v4.4</span></h3>
+          <button onClick={openAlgoModal} className="text-xs text-indigo-500 hover:text-indigo-700 flex items-center gap-1">
             <Info size={12} /> 展开详情
           </button>
         </div>
-        <p className="text-sm text-stone-500">
-          基于 Markowitz 均值-方差模型，结合原子结果建模与 Kelly 准则优化多资产配置。v4.0 新增容错串关引擎：Conf×Odds 交叉校准 → 置信度梯度分层 → C(N,N-1) 容错覆盖 → 边际 Sharpe 门控 → 分层对冲架构（锚定/扩展/容错/博冷），实现"4中3不归零"。
+        <p className="text-sm text-stone-500 leading-relaxed">
+          基于 Markowitz 均值-方差框架，融合复合概率校准管线（线性回归 + PAV 保序回归自适应混合）、自学习情境因子（Shrinkage K=12）、Walk-Forward 反馈回路（自动调参 Kelly/Odds权重/阈值），构建多资产联合分布并以纯分数 Kelly 准则优化仓位。v4.0 容错引擎实现四级置信度梯度 + C(N,N-1) 容错覆盖 + 边际 Sharpe 门控 + 分层对冲架构。v4.3 引入 Entry 相关性矩阵（Phi 系数修正联合概率）与 Per-Match EJR 追踪。v4.4 新增 Conf-Surplus 反共识信号（评估 conf 相对市场隐含概率的超额优势）+ 锚定分散化惩罚（避免单点故障全军覆没）+ Portfolio Allocation 优化器（枚举子集 × Mini MC × 复合效用）+ 50k Monte Carlo 模拟引擎。
         </p>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {['复合校准','保序回归','自学习因子','Walk-Forward','原子建模','Kelly准则','容错覆盖','Sharpe门控','Conf-Surplus','锚定分散化','Entry相关性','Monte Carlo','Portfolio优化'].map(tag => (
+            <span key={tag} className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-indigo-50 text-indigo-500 border border-indigo-100/60">{tag}</span>
+          ))}
+        </div>
       </div>
 
       <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mt-6">
