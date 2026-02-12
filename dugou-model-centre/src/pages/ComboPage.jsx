@@ -1746,6 +1746,13 @@ const generateRecommendations = (
     legsDistribution[k] = (legsDistribution[k] || 0) + 1
   })
 
+  const ftTierCounts = Object.fromEntries(
+    Object.entries(ftResult.tiers || {}).map(([tier, rows]) => [
+      tier,
+      Array.isArray(rows) ? rows.length : Number(rows) || 0,
+    ]),
+  )
+
   return {
     recommendations,
     rankingRows: recommendations,
@@ -1759,7 +1766,7 @@ const generateRecommendations = (
     uncoveredMatches: ensureCoverageInRanked(recommendations, [], selectedMatches, recommendations.length).uncoveredCount,
     legsDistribution,
     dynParams,
-    ftTiers: ftResult.tiers,
+    ftTiers: ftTierCounts,
   }
 }
 
