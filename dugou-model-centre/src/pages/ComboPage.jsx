@@ -3976,7 +3976,7 @@ export default function ComboPage({ openModal }) {
                       {new Date(item.createdAt).toLocaleString()} · Risk {item.riskPref}% · 候选 {item.candidateCombos}
                     </p>
                   </div>
-                  <div className="w-[170px] justify-self-end text-right">
+                  <div className="w-[170px] justify-self-end mr-3 text-right">
                     <p className="text-xs text-stone-500">EV / Invest</p>
                     <p className="text-sm font-semibold text-stone-700 whitespace-nowrap tabular-nums">
                       {formatPercent(item.expectedReturnPercent)} / {item.totalInvest} rmb
