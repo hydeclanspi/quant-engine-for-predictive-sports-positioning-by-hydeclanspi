@@ -3066,112 +3066,13 @@ export default function ComboPage({ openModal }) {
             </p>
           </div>
 
-          <div className="mt-4 p-3.5 rounded-xl bg-stone-50 border border-stone-100">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-stone-500">质量阈值过滤（生成前）</span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() =>
-                    setQualityFilter({
-                      minEvPercent: 2,
-                      minWinRate: 45,
-                      maxCorr: 0.65,
-                    })
-                  }
-                  className="px-2 py-1 rounded-md text-[11px] bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
-                >
-                  一键强化过滤
-                </button>
-                <button
-                  onClick={() =>
-                    setQualityFilter({
-                      minEvPercent: 0,
-                      minWinRate: 5,
-                      maxCorr: 0.85,
-                    })
-                  }
-                  className="px-2 py-1 rounded-md text-[11px] bg-stone-200 text-stone-600 hover:bg-stone-300 transition-colors"
-                >
-                  重置
-                </button>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <label className="text-[11px] text-stone-500">
-                最小 EV %
-                <input
-                  type="number"
-                  step="0.5"
-                  value={qualityFilter.minEvPercent}
-                  onChange={(event) =>
-                    setQualityFilter((prev) => ({
-                      ...prev,
-                      minEvPercent: Number.parseFloat(event.target.value) || 0,
-                    }))
-                  }
-                  className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-stone-200 text-xs text-right"
-                />
-              </label>
-              <label className="text-[11px] text-stone-500">
-                最小胜率 %
-                <input
-                  type="number"
-                  step="1"
-                  min="0"
-                  max="100"
-                  value={qualityFilter.minWinRate}
-                  onChange={(event) =>
-                    setQualityFilter((prev) => ({
-                      ...prev,
-                      minWinRate: clamp(Number.parseInt(event.target.value || '0', 10), 0, 100),
-                    }))
-                  }
-                  className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-stone-200 text-xs text-right"
-                />
-              </label>
-              <label className="text-[11px] text-stone-500">
-                最大相关性
-                <input
-                  type="number"
-                  step="0.05"
-                  min="0"
-                  max="1"
-                  value={qualityFilter.maxCorr}
-                  onChange={(event) =>
-                    setQualityFilter((prev) => ({
-                      ...prev,
-                      maxCorr: clamp(Number.parseFloat(event.target.value || '0'), 0, 1),
-                    }))
-                  }
-                  className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-stone-200 text-xs text-right"
-                />
-              </label>
-            </div>
-            <p className="text-[11px] text-stone-400 mt-2">
-              相关性基于“同源注单集中度”（HHI）估计；值越大，组合越可能同涨同跌。
-            </p>
-            <div className="mt-3">
-              <p className="text-[11px] text-stone-500 mb-1.5">组合生成策略</p>
-              <div className="grid grid-cols-3 gap-2">
-                {COMBO_STRATEGY_OPTIONS.map((option) => {
-                  const selected = comboStrategy === option.value
-                  return (
-                    <button
-                      key={option.value}
-                      onClick={() => setComboStrategy(option.value)}
-                      className={`px-2 py-1.5 rounded-lg text-[11px] border transition-colors ${
-                        selected
-                          ? 'border-amber-300 bg-amber-100 text-amber-700'
-                          : 'border-stone-200 bg-white text-stone-600 hover:border-amber-200 hover:text-amber-700'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  )
-                })}
-              </div>
-              <p className="text-[11px] text-stone-400 mt-1.5">{activeStrategyMeta.desc}</p>
-            </div>
+          <div className="flex gap-3 mt-4">
+            <button onClick={handleGenerate} className="flex-1 btn-primary btn-hover">
+              生成最优组合
+            </button>
+            <button onClick={handleConfirmChecked} className="flex-1 btn-secondary btn-hover">
+              确认投资已勾选
+            </button>
           </div>
 
           <div className="mt-4 p-3.5 rounded-xl bg-teal-50/60 border border-teal-100">
@@ -3287,6 +3188,114 @@ export default function ComboPage({ openModal }) {
             )}
           </div>
 
+          <div className="mt-4 p-3.5 rounded-xl bg-stone-50 border border-stone-100">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-stone-500">质量阈值过滤（生成前）</span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() =>
+                    setQualityFilter({
+                      minEvPercent: 2,
+                      minWinRate: 45,
+                      maxCorr: 0.65,
+                    })
+                  }
+                  className="px-2 py-1 rounded-md text-[11px] bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
+                >
+                  一键强化过滤
+                </button>
+                <button
+                  onClick={() =>
+                    setQualityFilter({
+                      minEvPercent: 0,
+                      minWinRate: 5,
+                      maxCorr: 0.85,
+                    })
+                  }
+                  className="px-2 py-1 rounded-md text-[11px] bg-stone-200 text-stone-600 hover:bg-stone-300 transition-colors"
+                >
+                  重置
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <label className="text-[11px] text-stone-500">
+                最小 EV %
+                <input
+                  type="number"
+                  step="0.5"
+                  value={qualityFilter.minEvPercent}
+                  onChange={(event) =>
+                    setQualityFilter((prev) => ({
+                      ...prev,
+                      minEvPercent: Number.parseFloat(event.target.value) || 0,
+                    }))
+                  }
+                  className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-stone-200 text-xs text-right"
+                />
+              </label>
+              <label className="text-[11px] text-stone-500">
+                最小胜率 %
+                <input
+                  type="number"
+                  step="1"
+                  min="0"
+                  max="100"
+                  value={qualityFilter.minWinRate}
+                  onChange={(event) =>
+                    setQualityFilter((prev) => ({
+                      ...prev,
+                      minWinRate: clamp(Number.parseInt(event.target.value || '0', 10), 0, 100),
+                    }))
+                  }
+                  className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-stone-200 text-xs text-right"
+                />
+              </label>
+              <label className="text-[11px] text-stone-500">
+                最大相关性
+                <input
+                  type="number"
+                  step="0.05"
+                  min="0"
+                  max="1"
+                  value={qualityFilter.maxCorr}
+                  onChange={(event) =>
+                    setQualityFilter((prev) => ({
+                      ...prev,
+                      maxCorr: clamp(Number.parseFloat(event.target.value || '0'), 0, 1),
+                    }))
+                  }
+                  className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-stone-200 text-xs text-right"
+                />
+              </label>
+            </div>
+            <p className="text-[11px] text-stone-400 mt-2">
+              相关性基于“同源注单集中度”（HHI）估计；值越大，组合越可能同涨同跌。
+            </p>
+            <div className="mt-3">
+              <p className="text-[11px] text-stone-500 mb-1.5">组合生成策略</p>
+              <div className="grid grid-cols-3 gap-2">
+                {COMBO_STRATEGY_OPTIONS.map((option) => {
+                  const selected = comboStrategy === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      onClick={() => setComboStrategy(option.value)}
+                      className={`px-2 py-1.5 rounded-lg text-[11px] border transition-colors ${
+                        selected
+                          ? 'border-amber-300 bg-amber-100 text-amber-700'
+                          : 'border-stone-200 bg-white text-stone-600 hover:border-amber-200 hover:text-amber-700'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="text-[11px] text-stone-400 mt-1.5">{activeStrategyMeta.desc}</p>
+            </div>
+          </div>
+
           <div className="mt-4 p-3.5 rounded-xl bg-sky-50/60 border border-sky-100">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-sky-700 font-medium">角色结构引导（软约束）</span>
@@ -3347,15 +3356,6 @@ export default function ComboPage({ openModal }) {
               <p>γ（结构引导强度）：0 附近几乎不干预，越高越偏向你设定的角色结构。</p>
               <p>逐场角色按钮用于“点杀”某场风格；没把握就用“自动”。</p>
             </div>
-          </div>
-
-          <div className="flex gap-3 mt-6">
-            <button onClick={handleGenerate} className="flex-1 btn-primary btn-hover">
-              生成最优组合
-            </button>
-            <button onClick={handleConfirmChecked} className="flex-1 btn-secondary btn-hover">
-              确认投资已勾选
-            </button>
           </div>
         </div>
 
