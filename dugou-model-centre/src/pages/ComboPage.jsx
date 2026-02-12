@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Info, Plus, Sparkles, XCircle } from 'lucide-react'
+import { Info, Plus, RefreshCw, SlidersHorizontal, Sparkles, XCircle } from 'lucide-react'
 import { bumpTeamSamples, getInvestments, getSystemConfig, saveInvestment } from '../lib/localData'
 import { getPredictionCalibrationContext } from '../lib/analytics'
 import {
@@ -309,6 +309,86 @@ const backtestDynamicParams = (calibrationContext) => {
     backtestReliability: Number(reliability.toFixed(3)),
     bucketHitRates: hitRates.map((r) => r !== null ? Number(r.toFixed(3)) : null),
     hitRateGap: Number(gap.toFixed(3)),
+  }
+}
+
+/* ── Monte Carlo portfolio simulation ──────────────────────────────── */
+const runPortfolioMonteCarlo = (packageItems, iterations = 50000) => {
+  if (!packageItems || packageItems.length === 0) return null
+
+  // Build per-combo probability and payout data
+  const combos = packageItems.map((item) => {
+    const legProbs = item.subset.map((m) => {
+      const raw = Number(m.calibratedP ?? m.conf ?? 0.5)
+      return Math.max(0.01, Math.min(0.99, raw))
+    })
+    const odds = Math.max(1.01, Number(item.combinedOdds || item.odds || 2.0))
+    const stake = Number(item.amount || 10)
+    return { legProbs, odds, stake }
+  })
+
+  // Seeded PRNG (xorshift32) for reproducibility
+  let seed = 2654435761
+  combos.forEach((c) => { c.legProbs.forEach((p) => { seed ^= Math.round(p * 1e6) }) })
+  const rand = () => { seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5; return (seed >>> 0) / 4294967296 }
+
+  const pnls = new Float64Array(iterations)
+  let profitCount = 0
+  let allLoseCount = 0
+
+  for (let i = 0; i < iterations; i++) {
+    let totalPnl = 0
+    let anyWin = false
+    for (let c = 0; c < combos.length; c++) {
+      const combo = combos[c]
+      let allHit = true
+      for (let l = 0; l < combo.legProbs.length; l++) {
+        if (rand() >= combo.legProbs[l]) { allHit = false; break }
+      }
+      if (allHit) {
+        totalPnl += combo.stake * (combo.odds - 1)
+        anyWin = true
+      } else {
+        totalPnl -= combo.stake
+      }
+    }
+    pnls[i] = totalPnl
+    if (totalPnl > 0) profitCount++
+    if (!anyWin) allLoseCount++
+  }
+
+  // Sort for percentile calculations
+  const sorted = Float64Array.from(pnls).sort()
+  const median = sorted[Math.floor(iterations * 0.5)]
+  const var95 = sorted[Math.floor(iterations * 0.05)]
+  const mean = pnls.reduce((s, v) => s + v, 0) / iterations
+  const maxPnl = sorted[iterations - 1]
+  const minPnl = sorted[0]
+
+  // Histogram buckets (5 buckets)
+  const range = maxPnl - minPnl
+  const bucketWidth = range > 0 ? range / 5 : 1
+  const histogram = Array.from({ length: 5 }, (_, i) => ({
+    min: minPnl + i * bucketWidth,
+    max: minPnl + (i + 1) * bucketWidth,
+    count: 0,
+  }))
+  for (let i = 0; i < iterations; i++) {
+    const idx = Math.min(4, Math.floor((pnls[i] - minPnl) / bucketWidth))
+    histogram[idx].count++
+  }
+  const maxBucketCount = Math.max(1, ...histogram.map((b) => b.count))
+
+  return {
+    iterations,
+    profitProb: profitCount / iterations,
+    allLoseProb: allLoseCount / iterations,
+    median: Math.round(median * 100) / 100,
+    var95: Math.round(var95 * 100) / 100,
+    mean: Math.round(mean * 100) / 100,
+    maxPnl: Math.round(maxPnl * 100) / 100,
+    minPnl: Math.round(minPnl * 100) / 100,
+    histogram: histogram.map((b) => ({ ...b, pct: b.count / maxBucketCount })),
   }
 }
 
@@ -939,11 +1019,13 @@ const normalizeHistoryRecommendation = (row, index = 0) => {
 const calcRecommendedAmount = (probability, odds, systemConfig, riskCap) => {
   if (!Number.isFinite(probability) || !Number.isFinite(odds) || odds <= 1) return 0
   const p = clamp(probability, 0.05, 0.95)
-  const kelly = (p * odds - 1) / (odds - 1)
+  // Pure Kelly criterion: f* = (p × b - q) / b where b = odds - 1, q = 1 - p
+  const b = odds - 1
+  const kelly = (p * b - (1 - p)) / b
   if (!Number.isFinite(kelly) || kelly <= 0) return 0
-  const base = Number(systemConfig.initialCapital || 0) * (kelly / Math.max(1, Number(systemConfig.kellyDivisor || 4)))
-  const confLift = 0.88 + p * 0.24
-  const raw = Math.max(0, base * confLift)
+  // Fractional Kelly: divide by kellyDivisor (default 4 = 25% Kelly)
+  const fraction = kelly / Math.max(1, Number(systemConfig.kellyDivisor || 4))
+  const raw = Math.max(0, Number(systemConfig.initialCapital || 0) * fraction)
   if (raw <= 0) return 0
   const rounded = Math.round(raw / 10) * 10
   return Math.max(20, Math.min(riskCap, rounded))
@@ -1086,16 +1168,15 @@ const calcAdjustedProbability = (match, systemConfig, calibrationContext) => {
   const fidFactor = FID_FACTOR_MAP[match.fid] || 1
   const fseMatch = Math.sqrt(clamp(match.fseHome, 0.05, 1) * clamp(match.fseAway, 0.05, 1))
   const fseFactor = clamp((0.88 + fseMatch * 0.24) * fseMultiplier, 0.72, 1.35)
-  const confSignal = clamp(conf / 0.5, 0.15, 1.95)
-
-  const weightedLift =
-    confSignal ** getFactorWeight(systemConfig.weightConf, 0.45) *
+  // Context-factor lift (mode, TYS, FID, FSE — everything EXCEPT conf itself)
+  const contextLift =
     modeFactor ** getFactorWeight(systemConfig.weightMode, 0.16) *
     tysFactor ** getFactorWeight(systemConfig.weightTys, 0.12) *
     fidFactor ** getFactorWeight(systemConfig.weightFid, 0.14) *
     fseFactor ** getFactorWeight(systemConfig.weightFse, 0.07)
 
-  const baseProbability = clamp(0.5 * weightedLift, 0.05, 0.95)
+  // baseProbability = calibrated conf × context lift (conf is the foundation, not 0.5)
+  const baseProbability = clamp(conf * contextLift, 0.05, 0.95)
   const anchorOdds = estimateEntryAnchorOdds(match.entries, Number(match.odds) || Number(systemConfig.defaultOdds || 2.5))
   if (typeof calibrationContext?.calibrateProbabilityForMatch !== 'function') return baseProbability
   return clamp(
@@ -1431,6 +1512,7 @@ const generateRecommendations = (
   comboStrategy = DEFAULT_COMBO_STRATEGY,
   comboStructure = null,
   rolePreference = null,
+  teamBias = null, // Map<teamName, number> — positive = boost, negative = penalize
 ) => {
   if (selectedMatches.length === 0) return null
 
@@ -1481,13 +1563,18 @@ const generateRecommendations = (
 
   const scoredAll = mergedSubsets.map((subset) => {
     const legs = subset.length
-    const adjustedProfiles = subset.map((item) => {
+    // Annotate each leg with calibrated probability for downstream MC simulation
+    const annotatedSubset = subset.map((item) => {
+      if (item.calibratedP !== undefined) return item
+      const cp = calcAdjustedProbability(item, systemConfig, calibrationContext)
+      return { ...item, calibratedP: cp }
+    })
+    const adjustedProfiles = annotatedSubset.map((item) => {
       if (item.atomicProfile) return item.atomicProfile
       const fallbackOdds = Math.max(1.01, Number(item.odds) || 2.5)
-      const unionProbability = calcAdjustedProbability(item, systemConfig, calibrationContext)
-      return buildAtomicLegProfile(item, unionProbability, fallbackOdds)
+      return buildAtomicLegProfile(item, item.calibratedP, fallbackOdds)
     })
-    const rawProfiles = subset.map((item) => {
+    const rawProfiles = annotatedSubset.map((item) => {
       if (item.rawAtomicProfile) return item.rawAtomicProfile
       const fallbackOdds = Math.max(1.01, Number(item.odds) || 2.5)
       const unionProbability = clamp(Number(item.conf) || 0.5, 0.05, 0.95)
@@ -1498,7 +1585,7 @@ const generateRecommendations = (
     const p = clamp(Number(adjustedCombo.hitProbability || 0), 0, 1)
     const profitWinProbability = clamp(Number(adjustedCombo.profitWinProbability || 0), 0, 1)
     const rawP = clamp(Number(rawCombo.hitProbability || 0), 0, 1)
-    const fallbackOdds = subset.reduce((prod, item) => prod * Math.max(1.01, Number(item.odds) || 1.01), 1)
+    const fallbackOdds = annotatedSubset.reduce((prod, item) => prod * Math.max(1.01, Number(item.odds) || 1.01), 1)
     const odds = Math.max(1.01, Number(adjustedCombo.equivalentOdds || fallbackOdds))
     const ev = Number(adjustedCombo.expectedReturn || 0)
     const variance = Math.max(0, Number(adjustedCombo.variance || 0))
@@ -1507,12 +1594,12 @@ const generateRecommendations = (
     const rewardTerm = alpha * ev
     const riskPenalty = (1 - alpha) * sigma
     const pBonus = parlayBonusFn(legs, parlayBeta)
-    const familyDiv = calcEntryFamilyDiversity(subset)
+    const familyDiv = calcEntryFamilyDiversity(annotatedSubset)
     const familyBonus = (familyDiv - 0.5) * 0.04
-    const roleSignal = calcRoleStructureSignal(subset, roleTargets, roleMixStrength)
+    const roleSignal = calcRoleStructureSignal(annotatedSubset, roleTargets, roleMixStrength)
 
     // ── 方案D: Confidence tier scoring with dynamic params ──
-    const confTiers = subset.map((item) => classifyConfidenceTier(item.conf, dynThresholds))
+    const confTiers = annotatedSubset.map((item) => classifyConfidenceTier(item.conf, dynThresholds))
     const weakCount = confTiers.filter((t) => t === 'tier_3' || t === 'tier_4').length
     const tier1Count = confTiers.filter((t) => t === 'tier_1').length
     const tier3Count = confTiers.filter((t) => t === 'tier_3').length
@@ -1527,19 +1614,30 @@ const generateRecommendations = (
     const tierAnchorBonus = tier1Count >= 1 ? dynParams.tierAnchorBonus * Math.min(tier1Count, 3) : 0
 
     // ── Layer tag from fault-tolerant generation ──
-    const subsetSig = subset.map((m) => m.key).sort().join('|')
+    const subsetSig = annotatedSubset.map((m) => m.key).sort().join('|')
     const ftLayerTag = ftLayerTagMap.get(subsetSig) || null
     const coveringBonus = ftLayerTag === 'covering' ? dynParams.coveringBonus : 0
 
     // Hard penalty for combos that violate tier constraints
     const hardConstraintPenalty = exceedsWeakCap ? 0.5 : 0
 
+    // Team bias modifier (deep refresh)
+    let teamBiasBonus = 0
+    if (teamBias && teamBias.size > 0) {
+      annotatedSubset.forEach((m) => {
+        const home = m.homeTeam || ''
+        const away = m.awayTeam || ''
+        if (teamBias.has(home)) teamBiasBonus += teamBias.get(home)
+        if (teamBias.has(away)) teamBiasBonus += teamBias.get(away)
+      })
+    }
+
     const utility = rewardTerm - riskPenalty + pBonus + familyBonus + roleSignal.bonus
-      - tierPenalty + tierAnchorBonus + coveringBonus - hardConstraintPenalty
-    const corr = calcSubsetSourceCorrelation(subset)
-    const confAvg = subset.reduce((sum, item) => sum + clamp(item.conf, 0.05, 0.95), 0) / Math.max(legs, 1)
+      - tierPenalty + tierAnchorBonus + coveringBonus - hardConstraintPenalty + teamBiasBonus
+    const corr = calcSubsetSourceCorrelation(annotatedSubset)
+    const confAvg = annotatedSubset.reduce((sum, item) => sum + clamp(item.conf, 0.05, 0.95), 0) / Math.max(legs, 1)
     return {
-      subset,
+      subset: annotatedSubset,
       legs,
       p,
       profitWinProbability,
@@ -1795,6 +1893,10 @@ export default function ComboPage({ openModal }) {
   const [showRiskProbe, setShowRiskProbe] = useState(false)
   const [showAllRecommendations, setShowAllRecommendations] = useState(false)
   const [selectedRecommendationIds, setSelectedRecommendationIds] = useState({})
+  const [showDeepRefresh, setShowDeepRefresh] = useState(false)
+  const [lessTeams, setLessTeams] = useState(new Set())
+  const [moreTeams, setMoreTeams] = useState(new Set())
+  const [mcSimResult, setMcSimResult] = useState(null)
   const [generationSummary, setGenerationSummary] = useState({
     totalInvest: 0,
     expectedReturnPercent: 0,
@@ -2268,6 +2370,10 @@ export default function ComboPage({ openModal }) {
       nextSelected[generated.recommendations[0].id] = true
     }
     setSelectedRecommendationIds(nextSelected)
+
+    // Auto-run Monte Carlo simulation on the generated package
+    const mc = runPortfolioMonteCarlo(generated.recommendations.slice(0, 8))
+    setMcSimResult(mc)
   }
 
   const handleConfirmChecked = () => {
@@ -2278,6 +2384,69 @@ export default function ComboPage({ openModal }) {
     const combos = candidateComboCount
     window.alert(`已勾选 ${selectedMatches.length} 场，可生成 ${combos} 个候选组合。`)
   }
+
+  // Core re-generate with optional overrides
+  const regenerateWithOverrides = (overrides = {}) => {
+    if (selectedMatches.length === 0) return
+    const jRisk = overrides.riskPref ?? riskPref
+    const jStructure = overrides.comboStructure ?? comboStructure
+    const bias = overrides.teamBias ?? null
+    const generated = generateRecommendations(
+      selectedMatches, jRisk, riskCap, systemConfig, calibrationContext,
+      qualityFilter, comboStrategy, jStructure, rolePreference, bias,
+    )
+    if (!generated) return
+    setRecommendations(generated.recommendations)
+    setRankingRows(generated.rankingRows)
+    setLayerSummary(generated.layerSummary)
+    setGenerationSummary({
+      totalInvest: generated.totalInvest, expectedReturnPercent: generated.expectedReturnPercent,
+      candidateCombos: generated.candidateCombos, qualifiedCombos: generated.qualifiedCombos,
+      filteredOutCombos: generated.filteredOutCombos, coverageInjectedCombos: generated.coverageInjectedCombos,
+      uncoveredMatches: generated.uncoveredMatches, legsDistribution: generated.legsDistribution || {},
+      dynParams: generated.dynParams || null, ftTiers: generated.ftTiers || null,
+    })
+    setShowAllRecommendations(false)
+    const nextSelected = {}
+    if (generated.recommendations[0]) nextSelected[generated.recommendations[0].id] = true
+    setSelectedRecommendationIds(nextSelected)
+    // Auto-run MC on the new package
+    const mc = runPortfolioMonteCarlo(generated.recommendations.slice(0, 8))
+    setMcSimResult(mc)
+  }
+
+  // Soft refresh: jitter coefficients for a different but still sound output
+  const handleSoftRefresh = () => {
+    if (selectedMatches.length === 0) return
+    const jitter = (v, range) => v + (Math.random() - 0.5) * 2 * range
+    regenerateWithOverrides({
+      riskPref: Math.round(clamp(jitter(riskPref, 4), 5, 95)),
+      comboStructure: {
+        ...comboStructure,
+        mmrLambda: clamp(jitter(comboStructure.mmrLambda, 0.06), 0.25, 0.85),
+        parlayBeta: clamp(jitter(comboStructure.parlayBeta, 0.03), 0, 0.35),
+      },
+    })
+  }
+
+  // Deep refresh: apply team bias and regenerate
+  const handleDeepRefreshCommit = () => {
+    const bias = new Map()
+    lessTeams.forEach((t) => bias.set(t, (bias.get(t) || 0) - 0.12))
+    moreTeams.forEach((t) => bias.set(t, (bias.get(t) || 0) + 0.12))
+    setShowDeepRefresh(false)
+    regenerateWithOverrides({ teamBias: bias })
+  }
+
+  // Extract unique team names from current candidates
+  const waitlistTeams = useMemo(() => {
+    const teams = new Set()
+    selectedMatches.forEach((m) => {
+      if (m.homeTeam) teams.add(m.homeTeam)
+      if (m.awayTeam) teams.add(m.awayTeam)
+    })
+    return [...teams].sort()
+  }, [selectedMatches])
 
   const handleAdopt = () => {
     const toAdopt = selectedRecommendations.length > 0 ? selectedRecommendations : recommendations.slice(0, 1)
@@ -2856,26 +3025,294 @@ export default function ComboPage({ openModal }) {
           </div>
         </div>
 
-        <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+        {/* ═══ 智能组合包 Hero Card ═══ */}
+        <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 relative">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium text-stone-700">推荐方案</h3>
-            <span className="text-xs text-stone-400">Top {recommendations.length}</span>
+            <div className="flex items-center gap-2">
+              <Sparkles size={16} className="text-indigo-500" />
+              <h3 className="font-medium text-stone-700">智能组合包</h3>
+              {recommendations.length > 0 && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-500 font-medium">
+                  {recommendations.length} 方案
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={handleSoftRefresh}
+                disabled={recommendations.length === 0}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="重新生成（微调系数）"
+              >
+                <RefreshCw size={14} />
+              </button>
+              <button
+                onClick={() => setShowDeepRefresh((v) => !v)}
+                disabled={waitlistTeams.length === 0}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="深度调整（球队偏好）"
+              >
+                <SlidersHorizontal size={14} />
+              </button>
+            </div>
           </div>
 
+          {/* Deep Refresh Floating Panel */}
+          {showDeepRefresh && (
+            <div className="absolute right-4 top-14 z-50 w-[320px] rounded-2xl border border-sky-200/60 bg-sky-50/80 backdrop-blur-xl shadow-2xl p-4 animate-fade-in">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-medium text-sky-700">球队偏好调整</p>
+                <button onClick={() => setShowDeepRefresh(false)} className="text-[11px] text-sky-400 hover:text-sky-600">关闭</button>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-[10px] font-semibold text-rose-400 uppercase tracking-wider mb-1.5">少一点</p>
+                  <div className="flex flex-wrap gap-1">
+                    {waitlistTeams.map((t) => (
+                      <button
+                        key={`less-${t}`}
+                        onClick={() => setLessTeams((prev) => { const next = new Set(prev); next.has(t) ? next.delete(t) : next.add(t); return next })}
+                        className={`px-2 py-1 rounded-lg text-[11px] transition-all ${
+                          lessTeams.has(t)
+                            ? 'bg-rose-500 text-white shadow-sm'
+                            : 'bg-white/70 border border-sky-200/60 text-stone-600 hover:border-rose-300'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-emerald-500 uppercase tracking-wider mb-1.5">多一点</p>
+                  <div className="flex flex-wrap gap-1">
+                    {waitlistTeams.map((t) => (
+                      <button
+                        key={`more-${t}`}
+                        onClick={() => setMoreTeams((prev) => { const next = new Set(prev); next.has(t) ? next.delete(t) : next.add(t); return next })}
+                        className={`px-2 py-1 rounded-lg text-[11px] transition-all ${
+                          moreTeams.has(t)
+                            ? 'bg-emerald-500 text-white shadow-sm'
+                            : 'bg-white/70 border border-sky-200/60 text-stone-600 hover:border-emerald-300'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={handleDeepRefreshCommit}
+                disabled={lessTeams.size === 0 && moreTeams.size === 0}
+                className="w-full mt-3 py-2 rounded-xl text-xs font-medium text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+              >
+                应用偏好并重新生成
+              </button>
+            </div>
+          )}
+
+          {/* Package List */}
+          {recommendations.length === 0 ? (
+            <div className="py-8 text-center">
+              <p className="text-sm text-stone-400">点击左侧「生成最优组合」查看推荐组合包</p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {recommendations.slice(0, 8).map((item, idx) => {
+                const selected = Boolean(selectedRecommendationIds[item.id])
+                const layerTag = item.explain?.ftLayerTag
+                const layerDot = layerTag === 'core' ? 'bg-emerald-400'
+                  : layerTag === 'covering' ? 'bg-teal-400'
+                  : layerTag === 'satellite' ? 'bg-sky-400'
+                  : layerTag === 'moonshot' ? 'bg-violet-400' : 'bg-stone-300'
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => toggleRecommendation(item.id)}
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer transition-all ${
+                      selected ? 'bg-indigo-50/70 border border-indigo-200' : 'bg-stone-50/50 border border-transparent hover:bg-stone-50'
+                    }`}
+                  >
+                    <span className="text-[11px] text-stone-400 font-mono w-4 shrink-0">{idx + 1}.</span>
+                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${layerDot}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] text-stone-700 truncate">{item.combo}</p>
+                      <div className="flex items-center gap-2 mt-0.5 text-[10px] text-stone-400">
+                        <span>{item.legs || item.subset.length}关</span>
+                        <span>×{(Number(item.combinedOdds || item.odds || 0)).toFixed(1)}</span>
+                        {item.explain?.confTierSummary && item.explain.confTierSummary !== '--' && (
+                          <span className="text-stone-500">{item.explain.confTierSummary}</span>
+                        )}
+                        {layerTag && (
+                          <span className={`px-1 py-px rounded text-[9px] font-medium ${
+                            layerTag === 'core' ? 'bg-emerald-100 text-emerald-600'
+                            : layerTag === 'covering' ? 'bg-teal-100 text-teal-600'
+                            : layerTag === 'satellite' ? 'bg-sky-100 text-sky-600'
+                            : 'bg-violet-100 text-violet-600'
+                          }`}>
+                            {layerTag === 'core' ? '锚定' : layerTag === 'covering' ? '容错' : layerTag === 'satellite' ? '扩展' : '博冷'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-[12px] font-semibold text-stone-700">{item.allocation}</p>
+                      <p className="text-[10px] text-emerald-600">{item.ev}</p>
+                    </div>
+                    <div className={`w-3.5 h-3.5 rounded border-2 shrink-0 transition-colors ${
+                      selected ? 'bg-indigo-500 border-indigo-500' : 'border-stone-300'
+                    }`}>
+                      {selected && (
+                        <svg viewBox="0 0 12 12" className="w-full h-full text-white">
+                          <path d="M3 6l2 2 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+              {recommendations.length > 8 && (
+                <p className="text-[10px] text-stone-400 text-center pt-1">+{recommendations.length - 8} 更多方案（详见下方展开）</p>
+              )}
+            </div>
+          )}
+
+          {/* Package Stats */}
+          {recommendations.length > 0 && (
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-lg bg-stone-50 p-2 text-center">
+                <p className="text-[10px] text-stone-400">总投入</p>
+                <p className="text-sm font-semibold text-stone-700">{generationSummary.totalInvest}<span className="text-[10px] font-normal text-stone-400 ml-0.5">rmb</span></p>
+              </div>
+              <div className="rounded-lg bg-stone-50 p-2 text-center">
+                <p className="text-[10px] text-stone-400">预期收益</p>
+                <p className="text-sm font-semibold text-emerald-600">{formatPercent(generationSummary.expectedReturnPercent)}</p>
+              </div>
+              <div className="rounded-lg bg-stone-50 p-2 text-center">
+                <p className="text-[10px] text-stone-400">回测可信度</p>
+                <p className={`text-sm font-semibold ${(generationSummary.dynParams?.backtestReliability || 0) >= 0.5 ? 'text-emerald-600' : 'text-amber-500'}`}>
+                  {((generationSummary.dynParams?.backtestReliability || 0) * 100).toFixed(0)}%
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Tier Distribution Pills */}
+          {generationSummary.ftTiers && (
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {Object.entries(generationSummary.ftTiers).map(([tier, matches]) => (
+                <span key={tier} className={`px-1.5 py-0.5 rounded text-[10px] ${CONF_TIER_TONES[tier] || 'bg-stone-100 text-stone-500'}`}>
+                  {CONF_TIER_LABELS[tier] || tier}: {Array.isArray(matches) ? matches.length : matches}场
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Monte Carlo Simulation Panel */}
+          {mcSimResult && (
+            <div className="mt-4 p-3 rounded-xl bg-gradient-to-br from-stone-50 to-indigo-50/30 border border-stone-100">
+              <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">
+                蒙特卡洛模拟 · {mcSimResult.iterations.toLocaleString()}次
+              </p>
+              <div className="grid grid-cols-3 gap-x-3 gap-y-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-stone-400">盈利概率</span>
+                  <span className={`font-semibold ${mcSimResult.profitProb >= 0.5 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                    {(mcSimResult.profitProb * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-stone-400">中位收益</span>
+                  <span className={`font-mono ${mcSimResult.median >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                    {mcSimResult.median >= 0 ? '+' : ''}{mcSimResult.median}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-stone-400">平均收益</span>
+                  <span className={`font-mono ${mcSimResult.mean >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                    {mcSimResult.mean >= 0 ? '+' : ''}{mcSimResult.mean}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-stone-400">95%VaR</span>
+                  <span className="text-rose-500 font-mono">{mcSimResult.var95}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-stone-400">最大收益</span>
+                  <span className="text-emerald-600 font-mono">+{mcSimResult.maxPnl}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-stone-400">全亏概率</span>
+                  <span className="text-rose-500 font-mono">{(mcSimResult.allLoseProb * 100).toFixed(1)}%</span>
+                </div>
+              </div>
+              {/* Mini Histogram */}
+              <div className="mt-2.5 flex items-end gap-0.5 h-8">
+                {mcSimResult.histogram.map((bucket, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                    <div
+                      className={`w-full rounded-sm transition-all ${bucket.min >= 0 ? 'bg-emerald-300' : 'bg-rose-300'}`}
+                      style={{ height: `${Math.max(2, bucket.pct * 100)}%` }}
+                    />
+                    <span className="text-[8px] text-stone-400 leading-none">
+                      {bucket.min >= 0 ? '+' : ''}{Math.round(bucket.min)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Adopt Preview (compact) */}
+          {adoptPreview.ready && (
+            <div className="mt-3 p-2.5 rounded-xl border border-stone-100 bg-white space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-stone-400">总暴露</span>
+                <span className="text-stone-700 font-medium">{Math.round(adoptPreview.totalInvest)} rmb</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-stone-400">集中度</span>
+                <span className={adoptPreview.concentration >= 0.45 ? 'text-rose-500' : 'text-emerald-600'}>
+                  {(adoptPreview.concentration * 100).toFixed(1)}%
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-stone-400">最坏回撤</span>
+                <span className={drawdownExceeded ? 'text-rose-600 font-semibold' : 'text-rose-500'}>
+                  -{Math.round(adoptPreview.worstLoss)} rmb ({adoptPreview.worstDrawdownPct.toFixed(1)}%)
+                </span>
+              </div>
+            </div>
+          )}
+
+          <button onClick={handleAdopt} className="w-full mt-4 btn-primary btn-hover">
+            采纳已选方案
+          </button>
+        </div>
+      </div>
+
+      {/* ═══ Detailed Recommendations (moved from hero) ═══ */}
+      {recommendations.length > 0 && (
+        <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-medium text-stone-700">方案详情</h3>
+            <span className="text-xs text-stone-400">Top {recommendations.length}</span>
+          </div>
           <div className="space-y-3">
             {displayedRecommendations.map((item) => {
               const selected = Boolean(selectedRecommendationIds[item.id])
               return (
                 <div
-                  key={item.id}
+                  key={`detail-${item.id}`}
                   onClick={() => toggleRecommendation(item.id)}
                   className={`p-4 rounded-xl border transition-all cursor-pointer lift-card ${
-                    selected ? 'border-amber-200 bg-amber-50/50' : 'border-stone-100 bg-stone-50'
+                    selected ? 'border-indigo-200 bg-indigo-50/40' : 'border-stone-100 bg-stone-50'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs font-medium ${selected ? 'text-amber-600' : 'text-stone-500'}`}>{item.tierLabel}</span>
+                      <span className={`text-xs font-medium ${selected ? 'text-indigo-600' : 'text-stone-500'}`}>{item.tierLabel}</span>
                       <span className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 text-[10px] font-medium">{item.legs || item.subset.length}关</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -2885,70 +3322,51 @@ export default function ComboPage({ openModal }) {
                   </div>
                   <p className="text-sm text-stone-700 mb-2">{item.combo}</p>
                   <div className="flex gap-4 text-xs text-stone-500">
-                    <span>预期收益: <span className="text-emerald-600 font-medium">{item.ev}</span></span>
-                    <span>Hit: <span className="italic font-semibold text-sky-600">{item.winRate}</span></span>
-                    <span>Profit: <span className="italic font-semibold text-indigo-600">{item.profitWinRate}</span></span>
-                    <span>Sharpe: <span className="italic font-semibold text-violet-600">{item.sharpe}</span></span>
+                    <span>EV: <span className="text-emerald-600 font-medium">{item.ev}</span></span>
+                    <span>Hit: <span className="font-semibold text-sky-600">{item.winRate}</span></span>
+                    <span>Profit: <span className="font-semibold text-indigo-600">{item.profitWinRate}</span></span>
+                    <span>Sharpe: <span className="font-semibold text-violet-600">{item.sharpe}</span></span>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                    <span className="px-2 py-0.5 rounded-full bg-stone-200/70 text-stone-600">Conf均值 {item.explain.confAvg.toFixed(2)}</span>
-                    <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">盈利率 {item.explain.profitWinPct.toFixed(1)}%</span>
-                    <span className={`px-2 py-0.5 rounded-full ${item.explain.calibGainPp >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-600'}`}>
-                      校准增益 {item.explain.calibGainPp >= 0 ? '+' : ''}{item.explain.calibGainPp.toFixed(1)}pp
+                  <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]">
+                    <span className="px-1.5 py-0.5 rounded-full bg-stone-200/70 text-stone-600">Conf {item.explain.confAvg.toFixed(2)}</span>
+                    <span className="px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">盈利 {item.explain.profitWinPct.toFixed(1)}%</span>
+                    <span className={`px-1.5 py-0.5 rounded-full ${item.explain.calibGainPp >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-600'}`}>
+                      校准 {item.explain.calibGainPp >= 0 ? '+' : ''}{item.explain.calibGainPp.toFixed(1)}pp
                     </span>
-                    <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">风险惩罚占比 {item.explain.riskPenaltySharePct.toFixed(0)}%</span>
-                    <span className="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">相关性 {item.explain.corr.toFixed(2)}</span>
-                    {item.explain.parlayBonus > 0 && (
-                      <span className="px-2 py-0.5 rounded-full bg-violet-50 text-violet-600">串关+{item.explain.parlayBonus.toFixed(3)}</span>
-                    )}
-                    {Math.abs(item.explain.roleMixBonus) > 0.0001 && (
-                      <span className={`px-2 py-0.5 rounded-full ${item.explain.roleMixBonus >= 0 ? 'bg-sky-100 text-sky-700' : 'bg-stone-200 text-stone-600'}`}>
-                        角色{item.explain.roleMixBonus >= 0 ? '+' : ''}{item.explain.roleMixBonus.toFixed(3)}
-                      </span>
-                    )}
-                    <span className="px-2 py-0.5 rounded-full bg-stone-200/70 text-stone-600">{item.explain.roleSignature}</span>
+                    <span className="px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700">相关 {item.explain.corr.toFixed(2)}</span>
                     {item.explain.ftLayerTag && (
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                      <span className={`px-1.5 py-0.5 rounded-full font-medium ${
                         item.explain.ftLayerTag === 'core' ? 'bg-emerald-100 text-emerald-700'
                         : item.explain.ftLayerTag === 'covering' ? 'bg-teal-100 text-teal-700'
                         : item.explain.ftLayerTag === 'satellite' ? 'bg-sky-100 text-sky-700'
                         : 'bg-violet-100 text-violet-700'
                       }`}>
-                        {item.explain.ftLayerTag === 'core' ? '锚定层'
-                        : item.explain.ftLayerTag === 'covering' ? '容错覆盖'
-                        : item.explain.ftLayerTag === 'satellite' ? '扩展层'
-                        : '博冷层'}
+                        {item.explain.ftLayerTag === 'core' ? '锚定层' : item.explain.ftLayerTag === 'covering' ? '容错覆盖' : item.explain.ftLayerTag === 'satellite' ? '扩展层' : '博冷层'}
                       </span>
                     )}
                     {item.explain.confTierSummary && item.explain.confTierSummary !== '--' && (
-                      <span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 text-[10px]">
-                        置信 {item.explain.confTierSummary}
-                      </span>
+                      <span className="px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-600">置信 {item.explain.confTierSummary}</span>
                     )}
                     {item.explain.tierPenalty > 0 && (
-                      <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-600">弱洞察惩罚 -{item.explain.tierPenalty}</span>
+                      <span className="px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-600">弱罚 -{item.explain.tierPenalty}</span>
                     )}
                     {item.explain.coveringBonus > 0 && (
-                      <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">容错+{item.explain.coveringBonus}</span>
+                      <span className="px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700">容错+{item.explain.coveringBonus}</span>
                     )}
                     {item.coverageInjected && (
-                      <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">覆盖补位</span>
-                    )}
-                    {!item.explain.thresholdPass && (
-                      <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-600">阈值外</span>
+                      <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">覆盖补位</span>
                     )}
                   </div>
                 </div>
               )
             })}
           </div>
-
           {recommendations.length > 3 && !showAllRecommendations && (
             <button
               onClick={() => setShowAllRecommendations(true)}
-              className="w-full mt-2.5 py-1.5 text-[13px] text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all"
+              className="w-full mt-2.5 py-1.5 text-[13px] text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
             >
-              展开查看全部 {recommendations.length} 个方案 ▼
+              展开全部 {recommendations.length} 个方案 ▼
             </button>
           )}
           {recommendations.length > 3 && showAllRecommendations && (
@@ -2960,145 +3378,31 @@ export default function ComboPage({ openModal }) {
             </button>
           )}
 
-          <div className="mt-4 p-4 rounded-xl bg-stone-50 border border-stone-100 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-stone-500">总投资（全部推荐）</span>
-              <span className="font-semibold">{generationSummary.totalInvest} rmb</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-stone-500">组合预期收益（全部推荐）</span>
-              <span className="font-semibold text-emerald-600">{formatPercent(generationSummary.expectedReturnPercent)}</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-stone-400">阈值通过 / 候选总数</span>
-              <span className="text-stone-600 font-medium">
-                {generationSummary.qualifiedCombos} / {generationSummary.candidateCombos}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-stone-400">被过滤组合</span>
-              <span className="text-stone-500">{generationSummary.filteredOutCombos}</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-stone-400">覆盖补位</span>
-              <span className="text-stone-500">{generationSummary.coverageInjectedCombos}</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-stone-400">未覆盖勾选场次</span>
-              <span className={generationSummary.uncoveredMatches > 0 ? 'text-rose-500' : 'text-emerald-600'}>
-                {generationSummary.uncoveredMatches}
-              </span>
-            </div>
-            <div className="pt-2 border-t border-stone-200">
-              <div className="flex justify-between text-xs">
-                <span className="text-stone-400">已选择方案</span>
-                <span className="text-stone-600 font-medium">{selectedSummary.count} / {recommendations.length}</span>
-              </div>
-              <div className="flex justify-between text-xs mt-1">
-                <span className="text-stone-400">已选投资</span>
-                <span className="text-stone-600 font-medium">{selectedSummary.totalInvest} rmb</span>
-              </div>
-              <div className="flex justify-between text-xs mt-1">
-                <span className="text-stone-400">已选预期收益</span>
-                <span className="text-emerald-600 font-medium">{selectedSummary.count > 0 ? formatPercent(selectedSummary.expectedReturnPercent) : '--'}</span>
-              </div>
-            </div>
-
+          {/* Generation Stats + Dynamic Params */}
+          <div className="mt-4 p-3.5 rounded-xl bg-stone-50 border border-stone-100 space-y-1.5 text-xs">
+            <div className="flex justify-between"><span className="text-stone-400">阈值通过 / 候选</span><span className="text-stone-600 font-medium">{generationSummary.qualifiedCombos} / {generationSummary.candidateCombos}</span></div>
+            <div className="flex justify-between"><span className="text-stone-400">被过滤</span><span className="text-stone-500">{generationSummary.filteredOutCombos}</span></div>
+            <div className="flex justify-between"><span className="text-stone-400">覆盖补位</span><span className="text-stone-500">{generationSummary.coverageInjectedCombos}</span></div>
+            <div className="flex justify-between"><span className="text-stone-400">未覆盖场次</span><span className={generationSummary.uncoveredMatches > 0 ? 'text-rose-500' : 'text-emerald-600'}>{generationSummary.uncoveredMatches}</span></div>
             {generationSummary.dynParams && (
-              <div className="pt-2 mt-2 border-t border-stone-200">
-                <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider mb-1.5">动态回测参数</p>
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-stone-400">弱腿惩罚系数</span>
-                    <span className="text-stone-600 font-mono text-[11px]">{generationSummary.dynParams.tierPenaltyPerWeakLeg?.toFixed(3)}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-stone-400">锚定加分</span>
-                    <span className="text-stone-600 font-mono text-[11px]">{generationSummary.dynParams.tierAnchorBonus?.toFixed(3)}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-stone-400">覆盖加分</span>
-                    <span className="text-stone-600 font-mono text-[11px]">{generationSummary.dynParams.coveringBonus?.toFixed(3)}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-stone-400">Sharpe阈值</span>
-                    <span className="text-stone-600 font-mono text-[11px]">{generationSummary.dynParams.marginalSharpeThreshold?.toFixed(3)}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-stone-400">弱腿上限/票</span>
-                    <span className="text-stone-600 font-mono text-[11px]">{generationSummary.dynParams.maxWeakLegsPerCombo}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-stone-400">回测可信度</span>
-                    <span className={`font-mono text-[11px] ${(generationSummary.dynParams.backtestReliability || 0) >= 0.5 ? 'text-emerald-600' : 'text-amber-500'}`}>
-                      {((generationSummary.dynParams.backtestReliability || 0) * 100).toFixed(0)}%
-                    </span>
-                  </div>
+              <div className="pt-2 mt-1 border-t border-stone-200 space-y-1">
+                <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider">动态回测参数</p>
+                <div className="grid grid-cols-3 gap-x-3 gap-y-1">
+                  <div className="flex justify-between"><span className="text-stone-400">弱腿罚</span><span className="font-mono text-stone-600">{generationSummary.dynParams.tierPenaltyPerWeakLeg?.toFixed(3)}</span></div>
+                  <div className="flex justify-between"><span className="text-stone-400">锚定</span><span className="font-mono text-stone-600">{generationSummary.dynParams.tierAnchorBonus?.toFixed(3)}</span></div>
+                  <div className="flex justify-between"><span className="text-stone-400">覆盖</span><span className="font-mono text-stone-600">{generationSummary.dynParams.coveringBonus?.toFixed(3)}</span></div>
+                  <div className="flex justify-between"><span className="text-stone-400">Sharpe</span><span className="font-mono text-stone-600">{generationSummary.dynParams.marginalSharpeThreshold?.toFixed(3)}</span></div>
+                  <div className="flex justify-between"><span className="text-stone-400">弱腿上限</span><span className="font-mono text-stone-600">{generationSummary.dynParams.maxWeakLegsPerCombo}</span></div>
+                  <div className="flex justify-between"><span className="text-stone-400">可信度</span><span className={`font-mono ${(generationSummary.dynParams.backtestReliability || 0) >= 0.5 ? 'text-emerald-600' : 'text-amber-500'}`}>{((generationSummary.dynParams.backtestReliability || 0) * 100).toFixed(0)}%</span></div>
                 </div>
                 {generationSummary.dynParams.confTierThresholds && (
-                  <div className="mt-1.5 text-[10px] text-stone-400">
-                    动态阈值: T1≥{generationSummary.dynParams.confTierThresholds.tier1?.toFixed(2)} | T2≥{generationSummary.dynParams.confTierThresholds.tier2?.toFixed(2)} | T3≥{generationSummary.dynParams.confTierThresholds.tier3?.toFixed(2)}
-                  </div>
+                  <p className="text-[9px] text-stone-400 mt-1">T1≥{generationSummary.dynParams.confTierThresholds.tier1?.toFixed(2)} | T2≥{generationSummary.dynParams.confTierThresholds.tier2?.toFixed(2)} | T3≥{generationSummary.dynParams.confTierThresholds.tier3?.toFixed(2)}</p>
                 )}
               </div>
             )}
-
-            {generationSummary.ftTiers && (
-              <div className="pt-2 mt-2 border-t border-stone-200">
-                <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider mb-1">容错层级分布</p>
-                <div className="flex flex-wrap gap-1.5 text-[10px]">
-                  {Object.entries(generationSummary.ftTiers).map(([tier, count]) => (
-                    <span key={tier} className={`px-1.5 py-0.5 rounded ${CONF_TIER_TONES[tier] || 'bg-stone-100 text-stone-500'}`}>
-                      {CONF_TIER_LABELS[tier] || tier}: {count}场
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
-
-          <div className="mt-3 p-4 rounded-xl border border-stone-100 bg-white">
-            <p className="text-xs text-stone-500 mb-2">采纳前模拟（按当前选择）</p>
-            {!adoptPreview.ready ? (
-              <p className="text-xs text-stone-400">先生成并选择方案后显示。</p>
-            ) : (
-              <div className="space-y-1.5 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-stone-400">总暴露</span>
-                  <span className="text-stone-700 font-medium">{Math.round(adoptPreview.totalInvest)} rmb</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-stone-400">单场最大暴露</span>
-                  <span className="text-stone-700">{Math.round(adoptPreview.maxSingleExposure)} rmb</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-stone-400">集中度</span>
-                  <span className={`${adoptPreview.concentration >= 0.45 ? 'text-rose-500' : 'text-emerald-600'}`}>
-                    {(adoptPreview.concentration * 100).toFixed(1)}%
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-stone-400">最坏回撤估计（全失手）</span>
-                  <span className={drawdownExceeded ? 'text-rose-600 font-semibold' : 'text-rose-500'}>
-                    -{Math.round(adoptPreview.worstLoss)} rmb ({adoptPreview.worstDrawdownPct.toFixed(1)}%)
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-stone-400">二次确认阈值</span>
-                  <span className={drawdownExceeded ? 'text-rose-600' : 'text-stone-600'}>
-                    {maxWorstDrawdownAlertPct.toFixed(1)}%
-                    {drawdownExceeded ? '（已超出）' : ''}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <button onClick={handleAdopt} className="w-full mt-4 btn-secondary btn-hover">
-            采纳已选方案
-          </button>
         </div>
-      </div>
+      )}
 
       <div className="combo-secondary-grid mb-6">
         <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
