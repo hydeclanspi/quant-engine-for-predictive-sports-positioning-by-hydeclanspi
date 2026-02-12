@@ -456,14 +456,14 @@ export default function NewInvestmentPage() {
     const fseMatch = Math.sqrt((match.fse_home / 100) * (match.fse_away / 100))
     const fseFactor = clamp((0.85 + fseMatch * 0.3) * fseMultiplier, 0.72, 1.35)
     const odds = calcMatchAnchorOdds(match.entries)
-    const confSignal = clamp(confBase / 0.5, 0.15, 1.95)
-    const weightedLift =
-      confSignal ** getFactorWeight(systemConfig.weightConf, 0.45) *
+    // Context-factor lift (mode, TYS, FID, FSE — everything EXCEPT conf itself)
+    const contextLift =
       modeFactor ** getFactorWeight(systemConfig.weightMode, 0.16) *
       tysFactor ** getFactorWeight(systemConfig.weightTys, 0.12) *
       fidFactor ** getFactorWeight(systemConfig.weightFid, 0.14) *
       fseFactor ** getFactorWeight(systemConfig.weightFse, 0.07)
-    const baseProbability = clamp(0.5 * weightedLift, 0.05, 0.95)
+    // baseProbability = calibrated conf × context lift (conf is the foundation, not 0.5)
+    const baseProbability = clamp(confBase * contextLift, 0.05, 0.95)
     if (typeof calibrationContext?.calibrateProbabilityForMatch !== 'function') return baseProbability
     return clamp(
       calibrationContext.calibrateProbabilityForMatch({

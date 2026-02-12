@@ -2156,6 +2156,28 @@ export const getPredictionCalibrationContext = () => {
   // ── Conf×Odds 交叉校准层 ──
   const confOddsCalibration = buildConfOddsCalibrationLayer(matchRows)
 
+  // ── FIX #1: Learned context factors ──
+  const learnedFactors = learnContextFactors()
+
+  // ── FIX #2: Isotonic regression calibration ──
+  const isotonicModel = buildIsotonicRegression()
+
+  // ── FIX #3: Walk-forward feedback ──
+  const walkForwardFeedback = computeWalkForwardFeedback()
+
+  // ── FIX #4: Entry correlation matrix ──
+  const entryCorrelation = buildEntryCorrelationMatrix()
+
+  // ── Composite calibrate function: linear → isotonic blend ──
+  const compositeCalibrate = (rawConf) => {
+    const linearCal = baseConfCalibrate(rawConf)
+    if (!isotonicModel.ready || isotonicModel.reliability < 0.2) return linearCal
+    const isoCal = isotonicModel.calibrate(rawConf)
+    // Blend: weight isotonic by its reliability (caps at 0.6 blend weight)
+    const isoWeight = clamp(isotonicModel.reliability * 0.6, 0, 0.6)
+    return clamp(linearCal * (1 - isoWeight) + isoCal * isoWeight, 0.02, 0.98)
+  }
+
   const calibrateProbabilityForMatch = (input = {}) => {
     const rawConf = toNumber(input.conf ?? input.rawConf, Number.NaN)
     const baseProbability = toNumber(input.baseProbability, Number.NaN)
@@ -2163,7 +2185,7 @@ export const getPredictionCalibrationContext = () => {
     const homeTeam = input.homeTeam || input.home_team || ''
     const awayTeam = input.awayTeam || input.away_team || ''
 
-    let probability = Number.isFinite(baseProbability) ? clamp(baseProbability, 0.02, 0.98) : baseConfCalibrate(rawConf)
+    let probability = Number.isFinite(baseProbability) ? clamp(baseProbability, 0.02, 0.98) : compositeCalibrate(rawConf)
 
     // Apply Conf×Odds bucket shift — corrects systematic conf bias at different odds tiers
     if (Number.isFinite(odds) && odds > 1 && confOddsCalibration.reliability > 0) {
@@ -2204,7 +2226,7 @@ export const getPredictionCalibrationContext = () => {
     regressionMultiplier: regressionData.calibrationMultiplier,
     regressionReliability: regressionData.regressionReliability,
     scatterData: regressionData.scatterData,
-    calibrate: regressionData.calibrate,
+    calibrate: compositeCalibrate,
     teamCalibration: {
       teamCount: teamCalibration.teamCount,
       defaultReliability: teamCalibration.defaultReliability,
@@ -2230,6 +2252,38 @@ export const getPredictionCalibrationContext = () => {
       walkForward: blendWalkForward,
     },
     calibrateProbabilityForMatch,
+    // FIX #1: Learned factors from historical data
+    learnedFactors: {
+      mode: learnedFactors.mode,
+      tys: learnedFactors.tys,
+      fid: learnedFactors.fid,
+      fse: learnedFactors.fse,
+      totalSamples: learnedFactors.totalSamples,
+      reliability: learnedFactors.reliability,
+      globalHitRate: learnedFactors.globalHitRate,
+    },
+    // FIX #2: Isotonic regression
+    isotonicRegression: {
+      ready: isotonicModel.ready,
+      reliability: isotonicModel.reliability,
+      brierImprovement: isotonicModel.brierImprovement || 0,
+      nodeCount: isotonicModel.nodes?.length || 0,
+      sampleCount: isotonicModel.sampleCount,
+    },
+    // FIX #3: Walk-forward feedback
+    walkForwardFeedback: {
+      ready: walkForwardFeedback.ready,
+      adjustments: walkForwardFeedback.adjustments || {},
+      diagnostics: walkForwardFeedback.diagnostics || {},
+    },
+    // FIX #4: Entry correlation
+    entryCorrelation: {
+      ready: entryCorrelation.ready,
+      avgCorrelation: entryCorrelation.avgCorrelation,
+      topPairs: (entryCorrelation.pairs || []).slice(0, 8),
+      sampleCount: entryCorrelation.sampleCount,
+      getCorrelation: entryCorrelation.getCorrelation,
+    },
   }
 
   analyticsMemo.calibrationContext.set(cacheKey, context)
@@ -3425,5 +3479,538 @@ export const computeAdaptiveWeightSuggestions = () => {
     baseScore: Number(baseScore.toFixed(4)),
     lastUpdateAt: adaptiveConfig.lastUpdateAt || null,
     updateCount: adaptiveConfig.updateCount || 0,
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FIX #1 — Learn Context Factors (MODE / TYS / FID / FSE) from historical data
+// Instead of hardcoded factor maps, compute multipliers from settled match outcomes.
+// Uses shrinkage estimation: factor = shrink * empirical + (1 - shrink) * prior(1.0)
+// ═══════════════════════════════════════════════════════════════
+
+export const learnContextFactors = () => {
+  const settled = getSettledInvestments(getActiveInvestments())
+  const matchRows = settled.flatMap((item) => splitInvestmentToMatches(item))
+  const minSamplesPerBucket = 5
+  const shrinkageK = 12 // higher = more conservative, stays closer to prior 1.0
+
+  // ── MODE factor learning ──
+  const modeStats = new Map()
+  matchRows.forEach((m) => {
+    const mode = normalizeMode(m.mode) || '常规'
+    if (!modeStats.has(mode)) modeStats.set(mode, { wins: 0, total: 0, confSum: 0 })
+    const row = modeStats.get(mode)
+    row.total += 1
+    row.confSum += toNumber(m.conf, 0.5)
+    if (m.is_correct === true) row.wins += 1
+  })
+  // Global baseline hit rate
+  const globalWins = matchRows.filter((m) => m.is_correct === true).length
+  const globalTotal = matchRows.filter((m) => typeof m.is_correct === 'boolean').length
+  const globalHitRate = globalTotal > 0 ? globalWins / globalTotal : 0.5
+
+  const learnedMode = {}
+  modeStats.forEach((stats, mode) => {
+    if (stats.total < minSamplesPerBucket || globalTotal === 0) {
+      learnedMode[mode] = 1.0
+      return
+    }
+    const hitRate = stats.wins / stats.total
+    const avgConf = stats.confSum / stats.total
+    // Empirical multiplier: how much better/worse than global baseline
+    const empiricalFactor = globalHitRate > 0 ? hitRate / globalHitRate : 1.0
+    // Shrinkage toward prior 1.0
+    const shrink = stats.total / (stats.total + shrinkageK)
+    const factor = shrink * empiricalFactor + (1 - shrink) * 1.0
+    learnedMode[mode] = Number(clamp(factor, 0.75, 1.3).toFixed(4))
+  })
+
+  // ── TYS factor learning ──
+  const tysValues = ['S', 'M', 'L', 'H']
+  const tysStats = new Map()
+  tysValues.forEach((v) => tysStats.set(v, { wins: 0, total: 0 }))
+  matchRows.forEach((m) => {
+    const home = m.tys_home || 'M'
+    const away = m.tys_away || 'M'
+    ;[home, away].forEach((tys) => {
+      const key = tysValues.includes(tys) ? tys : 'M'
+      const row = tysStats.get(key)
+      row.total += 1
+      if (m.is_correct === true) row.wins += 1
+    })
+  })
+  const learnedTys = {}
+  tysStats.forEach((stats, tys) => {
+    if (stats.total < minSamplesPerBucket || globalTotal === 0) {
+      learnedTys[tys] = 1.0
+      return
+    }
+    const hitRate = stats.wins / stats.total
+    const empiricalFactor = globalHitRate > 0 ? hitRate / globalHitRate : 1.0
+    const shrink = stats.total / (stats.total + shrinkageK)
+    learnedTys[tys] = Number(clamp(shrink * empiricalFactor + (1 - shrink) * 1.0, 0.8, 1.2).toFixed(4))
+  })
+
+  // ── FID factor learning (bucketized) ──
+  const fidBuckets = [
+    { key: '0', range: [0, 0.12], center: 0 },
+    { key: '0.25', range: [0.12, 0.32], center: 0.25 },
+    { key: '0.4', range: [0.32, 0.45], center: 0.4 },
+    { key: '0.5', range: [0.45, 0.55], center: 0.5 },
+    { key: '0.6', range: [0.55, 0.67], center: 0.6 },
+    { key: '0.75', range: [0.67, 1.0], center: 0.75 },
+  ]
+  const fidStats = new Map()
+  fidBuckets.forEach((b) => fidStats.set(b.key, { wins: 0, total: 0 }))
+  matchRows.forEach((m) => {
+    const fid = toNumber(m.fid, 0.4)
+    const bucket = fidBuckets.find((b) => fid >= b.range[0] && fid < b.range[1]) || fidBuckets[2]
+    const row = fidStats.get(bucket.key)
+    row.total += 1
+    if (m.is_correct === true) row.wins += 1
+  })
+  const learnedFid = {}
+  fidStats.forEach((stats, key) => {
+    if (stats.total < minSamplesPerBucket || globalTotal === 0) {
+      learnedFid[key] = 1.0
+      return
+    }
+    const hitRate = stats.wins / stats.total
+    const empiricalFactor = globalHitRate > 0 ? hitRate / globalHitRate : 1.0
+    const shrink = stats.total / (stats.total + shrinkageK)
+    learnedFid[key] = Number(clamp(shrink * empiricalFactor + (1 - shrink) * 1.0, 0.8, 1.2).toFixed(4))
+  })
+
+  // ── FSE factor learning (quintile buckets) ──
+  const fseBuckets = [
+    { key: 'very_low', range: [0, 0.25], center: 0.125 },
+    { key: 'low', range: [0.25, 0.45], center: 0.35 },
+    { key: 'mid', range: [0.45, 0.6], center: 0.525 },
+    { key: 'high', range: [0.6, 0.8], center: 0.7 },
+    { key: 'very_high', range: [0.8, 1.01], center: 0.9 },
+  ]
+  const fseStats = new Map()
+  fseBuckets.forEach((b) => fseStats.set(b.key, { wins: 0, total: 0 }))
+  matchRows.forEach((m) => {
+    const fseHome = toNumber(m.fse_home, 0.5)
+    const fseAway = toNumber(m.fse_away, 0.5)
+    const fseGeo = Math.sqrt(clamp(fseHome, 0.05, 1) * clamp(fseAway, 0.05, 1))
+    const bucket = fseBuckets.find((b) => fseGeo >= b.range[0] && fseGeo < b.range[1]) || fseBuckets[2]
+    const row = fseStats.get(bucket.key)
+    row.total += 1
+    if (m.is_correct === true) row.wins += 1
+  })
+  // Build a continuous FSE factor via piecewise interpolation from bucket centers
+  const fseBucketFactors = []
+  fseStats.forEach((stats, key) => {
+    const bucket = fseBuckets.find((b) => b.key === key)
+    if (stats.total < minSamplesPerBucket || globalTotal === 0) {
+      fseBucketFactors.push({ center: bucket.center, factor: 1.0 })
+      return
+    }
+    const hitRate = stats.wins / stats.total
+    const empiricalFactor = globalHitRate > 0 ? hitRate / globalHitRate : 1.0
+    const shrink = stats.total / (stats.total + shrinkageK)
+    const factor = clamp(shrink * empiricalFactor + (1 - shrink) * 1.0, 0.75, 1.3)
+    fseBucketFactors.push({ center: bucket.center, factor: Number(factor.toFixed(4)) })
+  })
+  fseBucketFactors.sort((a, b) => a.center - b.center)
+
+  // Continuous interpolation function for FSE
+  const interpolateFseFactor = (fseGeo) => {
+    const x = clamp(fseGeo, 0, 1)
+    if (fseBucketFactors.length === 0) return 1.0
+    if (x <= fseBucketFactors[0].center) return fseBucketFactors[0].factor
+    if (x >= fseBucketFactors[fseBucketFactors.length - 1].center) return fseBucketFactors[fseBucketFactors.length - 1].factor
+    for (let i = 0; i < fseBucketFactors.length - 1; i++) {
+      const a = fseBucketFactors[i]
+      const b = fseBucketFactors[i + 1]
+      if (x >= a.center && x <= b.center) {
+        const t = (x - a.center) / (b.center - a.center)
+        return a.factor + t * (b.factor - a.factor)
+      }
+    }
+    return 1.0
+  }
+
+  const totalSamples = globalTotal
+  const reliability = clamp((totalSamples - 15) / 60, 0, 1)
+
+  return {
+    mode: learnedMode,
+    tys: learnedTys,
+    fid: learnedFid,
+    fse: { buckets: fseBucketFactors, interpolate: interpolateFseFactor },
+    totalSamples,
+    reliability: Number(reliability.toFixed(3)),
+    globalHitRate: Number(globalHitRate.toFixed(4)),
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FIX #2 — Isotonic Regression for probability calibration
+// Pool-Adjacent-Violators (PAV) algorithm: monotonicity-preserving
+// calibration that's non-parametric and handles non-linear patterns.
+// Activated when we have ≥30 binary outcome samples.
+// ═══════════════════════════════════════════════════════════════
+
+export const buildIsotonicRegression = (binaryRows = null) => {
+  const rows = Array.isArray(binaryRows) ? binaryRows : getBinaryOutcomeRows()
+  const fallback = {
+    ready: false,
+    calibrate: (p) => p,
+    nodes: [],
+    sampleCount: rows.length,
+    reliability: 0,
+  }
+  if (rows.length < 30) return fallback
+
+  // Sort by predicted probability (conf)
+  const sorted = [...rows].sort((a, b) => a.conf - b.conf)
+
+  // PAV algorithm: merge adjacent violators
+  const blocks = sorted.map((r) => ({
+    sumY: r.actual,
+    sumW: 1,
+    low: r.conf,
+    high: r.conf,
+  }))
+
+  let i = 0
+  while (i < blocks.length - 1) {
+    const valI = blocks[i].sumY / blocks[i].sumW
+    const valJ = blocks[i + 1].sumY / blocks[i + 1].sumW
+    if (valI > valJ) {
+      // Merge block i+1 into block i
+      blocks[i].sumY += blocks[i + 1].sumY
+      blocks[i].sumW += blocks[i + 1].sumW
+      blocks[i].high = blocks[i + 1].high
+      blocks.splice(i + 1, 1)
+      // Check backward
+      if (i > 0) i -= 1
+    } else {
+      i += 1
+    }
+  }
+
+  // Build piecewise-linear nodes from block centers
+  const nodes = blocks.map((b) => ({
+    x: (b.low + b.high) / 2,
+    y: clamp(b.sumY / b.sumW, 0.02, 0.98),
+    n: b.sumW,
+  }))
+
+  // Isotonic calibrate function via piecewise linear interpolation
+  const calibrate = (rawP) => {
+    const p = clamp(rawP, 0.02, 0.98)
+    if (nodes.length === 0) return p
+    if (p <= nodes[0].x) return nodes[0].y
+    if (p >= nodes[nodes.length - 1].x) return nodes[nodes.length - 1].y
+    for (let j = 0; j < nodes.length - 1; j++) {
+      if (p >= nodes[j].x && p <= nodes[j + 1].x) {
+        const t = (p - nodes[j].x) / (nodes[j + 1].x - nodes[j].x || 1e-9)
+        return clamp(nodes[j].y + t * (nodes[j + 1].y - nodes[j].y), 0.02, 0.98)
+      }
+    }
+    return p
+  }
+
+  // Evaluate isotonic calibration quality
+  const isoBrier = rows.reduce((sum, r) => {
+    const p = calibrate(r.conf)
+    return sum + (p - r.actual) ** 2
+  }, 0) / rows.length
+  const rawBrier = rows.reduce((sum, r) => sum + (r.conf - r.actual) ** 2, 0) / rows.length
+  const improvement = rawBrier > 0 ? (rawBrier - isoBrier) / rawBrier : 0
+
+  return {
+    ready: true,
+    calibrate,
+    nodes,
+    sampleCount: rows.length,
+    reliability: Number(clamp((rows.length - 20) / 80, 0, 1).toFixed(3)),
+    brierImprovement: Number(improvement.toFixed(4)),
+    isoBrier: Number(isoBrier.toFixed(4)),
+    rawBrier: Number(rawBrier.toFixed(4)),
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FIX #3 — Walk-Forward Feedback Loop
+// Analyzes recent walk-forward validation results and adapts
+// model parameters: Kelly divisor, tier thresholds, and odds
+// weight based on recent Brier score, LogLoss, and ROI.
+// ═══════════════════════════════════════════════════════════════
+
+export const computeWalkForwardFeedback = () => {
+  const config = getSystemConfig()
+  const rows = getBinaryOutcomeRows()
+  const teamProfiles = getTeamProfiles()
+  const wf = evaluateBlendWalkForward(rows, config, teamProfiles)
+
+  const fallback = {
+    ready: false,
+    adjustments: {},
+    diagnostics: {},
+    sampleCount: rows.length,
+  }
+  if (!Array.isArray(wf) || wf.length === 0) return fallback
+
+  // Compute average metrics across walk-forward windows
+  const avgCalBrier = wf.reduce((s, w) => s + w.calibratedBrier, 0) / wf.length
+  const avgBlendBrier = wf.reduce((s, w) => s + w.blendedBrier, 0) / wf.length
+  const avgMarketBrier = wf.reduce((s, w) => s + w.marketBrier, 0) / wf.length
+  const avgCalRoi = wf.reduce((s, w) => s + w.calibratedRoi, 0) / wf.length
+  const avgBlendRoi = wf.reduce((s, w) => s + w.blendedRoi, 0) / wf.length
+  const avgCalLogLoss = wf.reduce((s, w) => s + w.calibratedLogLoss, 0) / wf.length
+  const avgBlendLogLoss = wf.reduce((s, w) => s + w.blendedLogLoss, 0) / wf.length
+
+  // Assess model health
+  const calBetterThanMarket = avgCalBrier < avgMarketBrier
+  const blendBetterThanCal = avgBlendBrier < avgCalBrier
+  const brierQuality = avgBlendBrier < 0.22 ? 'good' : avgBlendBrier < 0.26 ? 'fair' : 'poor'
+
+  // ── Kelly Divisor Adjustment ──
+  // If Brier is poor (>0.26) → increase Kelly divisor (more conservative)
+  // If Brier is good (<0.22) + positive ROI → can decrease Kelly divisor (more aggressive)
+  const currentKelly = toNumber(config.kellyDivisor, 4)
+  let suggestedKelly = currentKelly
+  if (brierQuality === 'poor') {
+    suggestedKelly = clamp(currentKelly * 1.15, 3, 12)
+  } else if (brierQuality === 'good' && avgBlendRoi > 0) {
+    suggestedKelly = clamp(currentKelly * 0.92, 2, 8)
+  }
+
+  // ── Odds Weight Adjustment ──
+  // If blended beats calibrated on Brier → market odds should get more weight
+  // If calibrated beats blended → reduce odds weight
+  const currentOddsWeight = toNumber(config.weightOdds, 0.06)
+  let suggestedOddsWeight = currentOddsWeight
+  if (blendBetterThanCal && avgBlendBrier < avgCalBrier * 0.96) {
+    suggestedOddsWeight = clamp(currentOddsWeight + 0.015, 0.02, 0.2)
+  } else if (!blendBetterThanCal && avgCalBrier < avgBlendBrier * 0.96) {
+    suggestedOddsWeight = clamp(currentOddsWeight - 0.015, 0.02, 0.2)
+  }
+
+  // ── Confidence Tier Threshold Adjustment ──
+  // If high-conf predictions are underperforming → raise tier_1 threshold
+  // If low-conf predictions are overperforming → lower tier_3/4 boundary
+  const recentRows = rows.slice(-Math.min(40, Math.floor(rows.length * 0.3)))
+  const highConfRows = recentRows.filter((r) => r.conf >= 0.7)
+  const lowConfRows = recentRows.filter((r) => r.conf < 0.4)
+  const highConfHitRate = highConfRows.length > 5 ? highConfRows.filter((r) => r.actual === 1).length / highConfRows.length : null
+  const lowConfHitRate = lowConfRows.length > 5 ? lowConfRows.filter((r) => r.actual === 1).length / lowConfRows.length : null
+
+  let tierAdjustment = 0
+  if (highConfHitRate !== null && highConfHitRate < 0.55) {
+    tierAdjustment = 0.03 // Raise thresholds — model overconfident
+  } else if (highConfHitRate !== null && highConfHitRate > 0.75) {
+    tierAdjustment = -0.02 // Lower thresholds — model underconfident
+  }
+
+  return {
+    ready: true,
+    adjustments: {
+      kellyDivisor: Number(suggestedKelly.toFixed(2)),
+      kellyDelta: Number((suggestedKelly - currentKelly).toFixed(2)),
+      oddsWeight: Number(suggestedOddsWeight.toFixed(4)),
+      oddsWeightDelta: Number((suggestedOddsWeight - currentOddsWeight).toFixed(4)),
+      tierShift: Number(tierAdjustment.toFixed(3)),
+    },
+    diagnostics: {
+      brierQuality,
+      avgCalBrier: Number(avgCalBrier.toFixed(4)),
+      avgBlendBrier: Number(avgBlendBrier.toFixed(4)),
+      avgMarketBrier: Number(avgMarketBrier.toFixed(4)),
+      avgCalLogLoss: Number(avgCalLogLoss.toFixed(4)),
+      avgBlendLogLoss: Number(avgBlendLogLoss.toFixed(4)),
+      avgCalRoi: Number(avgCalRoi.toFixed(2)),
+      avgBlendRoi: Number(avgBlendRoi.toFixed(2)),
+      calBetterThanMarket,
+      blendBetterThanCal,
+      highConfHitRate: highConfHitRate !== null ? Number(highConfHitRate.toFixed(3)) : null,
+      lowConfHitRate: lowConfHitRate !== null ? Number(lowConfHitRate.toFixed(3)) : null,
+      walkForwardWindows: wf.length,
+    },
+    sampleCount: rows.length,
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FIX #4 — Entry Correlation Matrix
+// Computes pairwise co-occurrence correction for combo probability.
+// When two entries historically co-occur (e.g., same league, same
+// match day), their joint hit rate may differ from the product
+// of marginals (independence assumption). This matrix captures
+// that deviation as a correlation coefficient.
+// ═══════════════════════════════════════════════════════════════
+
+export const buildEntryCorrelationMatrix = () => {
+  const settled = getSettledInvestments(getActiveInvestments())
+  const fallback = {
+    ready: false,
+    getCorrelation: () => ({ rho: 0, samples: 0, reliability: 0 }),
+    pairs: [],
+    avgCorrelation: 0,
+    sampleCount: 0,
+  }
+
+  // Extract combo-level data: which legs co-occurred and their joint outcomes
+  const combos = settled
+    .filter((inv) => {
+      const matches = Array.isArray(inv.matches) ? inv.matches : []
+      return matches.length >= 2 && matches.every((m) => typeof m.is_correct === 'boolean')
+    })
+    .map((inv) => inv.matches.map((m) => ({
+      key: `${m.home_team || '-'} vs ${m.away_team || '-'}`,
+      entryType: m.entry_market_type || 'other',
+      isCorrect: m.is_correct === true,
+      odds: toNumber(m.odds, 2.0),
+      conf: toNumber(m.conf, 0.5),
+    })))
+
+  if (combos.length < 8) return fallback
+
+  // Build pairwise co-occurrence statistics by entry-type pairs
+  const pairStats = new Map()
+  combos.forEach((legs) => {
+    for (let i = 0; i < legs.length; i++) {
+      for (let j = i + 1; j < legs.length; j++) {
+        const a = legs[i]
+        const b = legs[j]
+        const pairKey = [a.entryType, b.entryType].sort().join('|')
+        if (!pairStats.has(pairKey)) {
+          pairStats.set(pairKey, { key: pairKey, n: 0, bothWin: 0, aWin: 0, bWin: 0, sumAConf: 0, sumBConf: 0 })
+        }
+        const pair = pairStats.get(pairKey)
+        pair.n += 1
+        pair.sumAConf += a.conf
+        pair.sumBConf += b.conf
+        if (a.isCorrect) pair.aWin += 1
+        if (b.isCorrect) pair.bWin += 1
+        if (a.isCorrect && b.isCorrect) pair.bothWin += 1
+      }
+    }
+  })
+
+  // Compute tetrachoric-like correlation from 2×2 contingency table
+  const pairsWithCorrelation = []
+  pairStats.forEach((pair) => {
+    if (pair.n < 5) return
+    const pA = pair.aWin / pair.n
+    const pB = pair.bWin / pair.n
+    const pAB = pair.bothWin / pair.n
+    const independent = pA * pB
+    // Phi coefficient (Pearson for binary)
+    const denom = Math.sqrt(pA * (1 - pA) * pB * (1 - pB))
+    const rho = denom > 0.001 ? (pAB - independent) / denom : 0
+    const shrinkage = pair.n / (pair.n + 10)
+    const shrunkRho = shrinkage * rho // shrink toward 0
+
+    pairsWithCorrelation.push({
+      key: pair.key,
+      rho: Number(clamp(shrunkRho, -0.5, 0.5).toFixed(4)),
+      rawRho: Number(rho.toFixed(4)),
+      samples: pair.n,
+      reliability: Number(clamp((pair.n - 5) / 20, 0, 1).toFixed(3)),
+      pA: Number(pA.toFixed(3)),
+      pB: Number(pB.toFixed(3)),
+      pAB: Number(pAB.toFixed(3)),
+    })
+  })
+
+  // Lookup function for combo probability adjustment
+  const correlationMap = new Map()
+  pairsWithCorrelation.forEach((p) => correlationMap.set(p.key, p))
+
+  const getCorrelation = (entryTypeA, entryTypeB) => {
+    const key = [entryTypeA, entryTypeB].sort().join('|')
+    return correlationMap.get(key) || { rho: 0, samples: 0, reliability: 0 }
+  }
+
+  const avgCorrelation = pairsWithCorrelation.length > 0
+    ? pairsWithCorrelation.reduce((s, p) => s + p.rho * p.samples, 0) /
+      pairsWithCorrelation.reduce((s, p) => s + p.samples, 0)
+    : 0
+
+  return {
+    ready: pairsWithCorrelation.length > 0,
+    getCorrelation,
+    pairs: pairsWithCorrelation.sort((a, b) => Math.abs(b.rho) - Math.abs(a.rho)),
+    avgCorrelation: Number(avgCorrelation.toFixed(4)),
+    sampleCount: combos.length,
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FIX #5 — Per-Match EJR (Expected Judge Rating) Recording
+// Records pre-match EJR at match level (not investment level) so
+// we can compare EJR vs AJR per individual match leg. This enables
+// a proper expected-vs-actual calibration loop.
+// Generates a snapshot of all matches with EJR, AJR, delta, and
+// calibration error statistics for the model feedback system.
+// ═══════════════════════════════════════════════════════════════
+
+export const getPerMatchEjrSnapshot = () => {
+  const settled = getSettledInvestments(getActiveInvestments())
+  const matchRows = settled.flatMap((item) =>
+    splitInvestmentToMatches(item).map((match, idx) => {
+      const ejr = toNumber(match.conf, Number.NaN) // conf IS the per-match EJR
+      const ajr = toNumber(match.match_rating, Number.NaN)
+      const odds = toNumber(match.odds, Number.NaN)
+      return {
+        id: `${item.id}-m${idx}`,
+        investmentId: item.id,
+        date: item.created_at,
+        homeTeam: match.home_team || '-',
+        awayTeam: match.away_team || '-',
+        entry: match.entry_text || '-',
+        mode: normalizeMode(match.mode) || '常规',
+        fid: toNumber(match.fid, 0.4),
+        tys: `${match.tys_home || 'M'}/${match.tys_away || 'M'}`,
+        fseGeo: Number(Math.sqrt(clamp(toNumber(match.fse_home, 0.5), 0.05, 1) * clamp(toNumber(match.fse_away, 0.5), 0.05, 1)).toFixed(3)),
+        ejr: Number.isFinite(ejr) ? Number(ejr.toFixed(3)) : null,
+        ajr: Number.isFinite(ajr) ? Number(ajr.toFixed(3)) : null,
+        odds: Number.isFinite(odds) ? Number(odds.toFixed(2)) : null,
+        delta: Number.isFinite(ejr) && Number.isFinite(ajr) ? Number((ajr - ejr).toFixed(3)) : null,
+        isCorrect: match.is_correct,
+      }
+    }),
+  )
+  .filter((r) => r.ejr !== null)
+
+  // Aggregate statistics
+  const withAjr = matchRows.filter((r) => r.ajr !== null)
+  const deltas = withAjr.map((r) => r.delta)
+  const meanDelta = deltas.length > 0 ? deltas.reduce((s, d) => s + d, 0) / deltas.length : 0
+  const maeScore = deltas.length > 0 ? deltas.reduce((s, d) => s + Math.abs(d), 0) / deltas.length : 0
+  const rmse = deltas.length > 0 ? Math.sqrt(deltas.reduce((s, d) => s + d * d, 0) / deltas.length) : 0
+
+  // Per-mode EJR accuracy
+  const modeAccuracy = new Map()
+  withAjr.forEach((r) => {
+    if (!modeAccuracy.has(r.mode)) modeAccuracy.set(r.mode, { n: 0, absDeltaSum: 0, deltaSum: 0 })
+    const row = modeAccuracy.get(r.mode)
+    row.n += 1
+    row.absDeltaSum += Math.abs(r.delta)
+    row.deltaSum += r.delta
+  })
+  const perModeAccuracy = [...modeAccuracy.entries()].map(([mode, stats]) => ({
+    mode,
+    samples: stats.n,
+    mae: Number((stats.absDeltaSum / stats.n).toFixed(3)),
+    bias: Number((stats.deltaSum / stats.n).toFixed(3)),
+  })).sort((a, b) => b.samples - a.samples)
+
+  return {
+    matches: matchRows,
+    totalMatches: matchRows.length,
+    matchesWithAjr: withAjr.length,
+    calibrationStats: {
+      meanDelta: Number(meanDelta.toFixed(4)),
+      mae: Number(maeScore.toFixed(4)),
+      rmse: Number(rmse.toFixed(4)),
+    },
+    perModeAccuracy,
   }
 }

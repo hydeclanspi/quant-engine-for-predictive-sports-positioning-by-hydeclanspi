@@ -392,6 +392,118 @@ const runPortfolioMonteCarlo = (packageItems, iterations = 50000) => {
   }
 }
 
+/* ── Portfolio Allocation Optimizer ─────────────────────────────────── */
+// Recommends which combos to buy together (portfolio packs) to maximize
+// expected return while covering all counter-consensus insights.
+// Uses greedy set-cover + MC-based utility scoring.
+const optimizePortfolioAllocations = (recommendations, maxPackages = 3) => {
+  if (!recommendations || recommendations.length < 2) return []
+  const items = recommendations.slice(0, 12)
+
+  // Extract unique match keys across all combos
+  const allMatchKeys = new Set()
+  items.forEach((item) => {
+    const subset = item.subset || []
+    subset.forEach((m) => allMatchKeys.add(m.key))
+  })
+
+  // Generate candidate portfolios (subsets of 2-5 combos)
+  const portfolios = []
+  const n = Math.min(items.length, 8)
+  for (let mask = 3; mask < (1 << n); mask++) {
+    const bits = []
+    let count = 0
+    for (let b = 0; b < n; b++) {
+      if (mask & (1 << b)) { bits.push(b); count++ }
+    }
+    if (count < 2 || count > 5) continue
+    portfolios.push(bits)
+  }
+
+  // Score each portfolio
+  const scored = portfolios.map((indices) => {
+    const selected = indices.map((i) => items[i])
+    const totalStake = selected.reduce((s, item) => s + (Number(item.amount) || 10), 0)
+    // Coverage: how many unique matches are covered
+    const covered = new Set()
+    selected.forEach((item) => (item.subset || []).forEach((m) => covered.add(m.key)))
+    const coverageRatio = allMatchKeys.size > 0 ? covered.size / allMatchKeys.size : 0
+    // Expected value (weighted avg)
+    const weightedEv = selected.reduce((s, item) => s + (item.expectedReturn || 0) * (Number(item.amount) || 10), 0) / Math.max(totalStake, 1)
+    // Layer diversity (unique layer tags)
+    const layers = new Set(selected.map((item) => item.explain?.ftLayerTag).filter(Boolean))
+    const layerDiv = layers.size / 4
+    // Tier diversity (unique conf tiers present)
+    const tiers = new Set()
+    selected.forEach((item) => (item.confTiers || []).forEach((t) => tiers.add(t)))
+    const tierDiv = tiers.size / 4
+    // Avoid redundancy: penalize overlapping legs
+    let overlapPairs = 0
+    let totalPairs = 0
+    for (let i = 0; i < selected.length; i++) {
+      for (let j = i + 1; j < selected.length; j++) {
+        totalPairs++
+        const keysI = new Set((selected[i].subset || []).map((m) => m.key))
+        const keysJ = (selected[j].subset || []).map((m) => m.key)
+        const overlap = keysJ.filter((k) => keysI.has(k)).length
+        if (overlap > 0) overlapPairs++
+      }
+    }
+    const diversityScore = totalPairs > 0 ? 1 - overlapPairs / totalPairs : 1
+
+    // Composite utility
+    const utility =
+      weightedEv * 0.35 +
+      coverageRatio * 0.30 +
+      layerDiv * 0.10 +
+      tierDiv * 0.05 +
+      diversityScore * 0.20
+
+    // Run mini MC for this portfolio
+    const mc = runPortfolioMonteCarlo(selected, 10000)
+
+    return {
+      indices,
+      comboIds: selected.map((s) => s.id),
+      label: indices.map((i) => i + 1).join('+'),
+      combos: selected,
+      totalStake: Math.round(totalStake),
+      coverageRatio: Number(coverageRatio.toFixed(2)),
+      covered: covered.size,
+      totalMatches: allMatchKeys.size,
+      weightedEv: Number((weightedEv * 100).toFixed(1)),
+      layerDiv: Number(layerDiv.toFixed(2)),
+      tierDiv: Number(tierDiv.toFixed(2)),
+      diversityScore: Number(diversityScore.toFixed(2)),
+      utility: Number(utility.toFixed(4)),
+      mc,
+    }
+  })
+
+  // Sort by utility descending and take top N
+  scored.sort((a, b) => b.utility - a.utility)
+
+  // Deduplicate: don't return portfolios that are subsets of higher-ranked ones
+  const result = []
+  const usedSigs = new Set()
+  for (const p of scored) {
+    const sig = [...p.indices].sort().join(',')
+    if (usedSigs.has(sig)) continue
+    // Check if this is a subset of an already-selected portfolio
+    let isSubset = false
+    for (const existing of result) {
+      const existingSet = new Set(existing.indices)
+      if (p.indices.every((i) => existingSet.has(i))) { isSubset = true; break }
+    }
+    if (isSubset) continue
+    result.push(p)
+    usedSigs.add(sig)
+    if (result.length >= maxPackages) break
+  }
+
+  return result
+}
+
 /* ── 方案A+C+D+E: Fault-tolerant covering + layered hedging ────────── */
 const generateFaultTolerantCombos = (selectedMatches, systemConfig, calibrationContext, dynParams) => {
   const thresholds = dynParams?.confTierThresholds || DEFAULT_CONF_TIER_THRESHOLDS
@@ -584,6 +696,7 @@ const mmrRerank = (candidates, lambda = 0.6, maxPick = 10, coverageTargetKeys = 
       }
 
       // Penalize over-concentration on the same match across top selections.
+      // STRONG penalty: prevents single-point-of-failure where one match miss kills ALL combos
       const candidateMatchKeys = getSubsetMatchKeys(cand.subset)
       let concentrationPenalty = 0
       if (candidateMatchKeys.length > 0 && selected.length > 0) {
@@ -591,10 +704,26 @@ const mmrRerank = (candidates, lambda = 0.6, maxPick = 10, coverageTargetKeys = 
         candidateMatchKeys.forEach((mk) => {
           const used = matchUseCount.get(mk) || 0
           if (used <= 0) return
-          const usageRatio = used / selected.length
-          penaltyAcc += usageRatio * usageRatio
+          const usageRatio = used / Math.max(1, selected.length)
+          // Quadratic penalty that ramps up aggressively when a match is overused
+          // At 2 selected: if match used 2/2 = 1.0, penalty = 1.0 + 0.5 = 1.5
+          penaltyAcc += usageRatio * usageRatio + (used >= 2 ? 0.5 * usageRatio : 0)
         })
         concentrationPenalty = penaltyAcc / candidateMatchKeys.length
+      }
+
+      // Extra penalty for sharing the HIGHEST-CONF leg with already-selected combos
+      // This prevents all combos from anchoring on the same "safe" match
+      let anchorSharePenalty = 0
+      if (selected.length > 0 && cand.subset.length > 0) {
+        // Find this combo's highest-conf leg (its "anchor")
+        const anchor = [...cand.subset].sort((a, b) => (b.conf || 0) - (a.conf || 0))[0]
+        const anchorKey = anchor ? buildMatchRefKey(anchor) : null
+        if (anchorKey) {
+          const anchorUsed = matchUseCount.get(anchorKey) || 0
+          // If the anchor is already in 50%+ of selected combos, heavy penalty
+          anchorSharePenalty = anchorUsed >= 1 ? 0.12 * (anchorUsed / Math.max(1, selected.length)) : 0
+        }
       }
 
       const score =
@@ -602,6 +731,7 @@ const mmrRerank = (candidates, lambda = 0.6, maxPick = 10, coverageTargetKeys = 
         - similarityWeight * maxSim
         + safeEta * coverageGain
         - concentrationWeight * concentrationPenalty
+        - anchorSharePenalty
       if (score > bestScore) {
         bestScore = score
         bestIdx = idx
@@ -1117,6 +1247,7 @@ const getTodayMatches = () => {
           awayTeam: match.away_team || '-',
           entry: match.entry_text || (Array.isArray(match.entries) ? match.entries.map((entry) => entry.name).join(', ') : '-'),
           entries: Array.isArray(match.entries) ? match.entries.map((entry) => ({ ...entry })) : [],
+          entryMarketType: match.entry_market_type || 'other',
           odds: Number(odds.toFixed(2)),
           conf: Number(conf.toFixed(2)),
           roughEvPercent: roughEv * 100,
@@ -1155,6 +1286,37 @@ const buildSubsets = (items, maxSubsetSize) => {
   return result
 }
 
+// ═══════════════════════════════════════════════════════════════
+// Conf-Surplus: How much our conf exceeds market-implied probability.
+// Positive surplus = we see value the market doesn't = edge.
+// This is RELATIVE evaluation: conf 0.45 on a 3.2 odds match
+// (implied ~31%) gives surplus +0.14, which is a STRONG edge.
+// Conf 0.75 on a 1.19 odds match (implied ~84%) gives surplus -0.09.
+// ═══════════════════════════════════════════════════════════════
+const calcConfSurplus = (match) => {
+  const conf = clamp(Number(match.conf || 0.5), 0.05, 0.95)
+  const anchorOdds = estimateEntryAnchorOdds(
+    Array.isArray(match.entries) ? match.entries : [],
+    Number(match.odds || 2.5),
+  )
+  // Market implied probability (with vig removed — assume ~5% overround)
+  const rawImplied = 1 / Math.max(1.01, anchorOdds)
+  const vigAdjusted = clamp(rawImplied * 0.95, 0.02, 0.98) // Remove ~5% vig
+  const surplus = conf - vigAdjusted
+  // Surplus ratio: how big is the edge relative to market prob
+  // This normalizes across different odds levels
+  const surplusRatio = vigAdjusted > 0.01 ? surplus / vigAdjusted : 0
+  return {
+    surplus: Number(surplus.toFixed(4)),
+    surplusRatio: Number(surplusRatio.toFixed(4)),
+    marketImplied: Number(vigAdjusted.toFixed(4)),
+    conf,
+    anchorOdds: Number(anchorOdds.toFixed(2)),
+    // Edge classification
+    edgeClass: surplus >= 0.12 ? 'strong_edge' : surplus >= 0.04 ? 'moderate_edge' : surplus >= -0.03 ? 'neutral' : 'negative_edge',
+  }
+}
+
 const calcAdjustedProbability = (match, systemConfig, calibrationContext) => {
   const confMultiplier = clamp(Number(calibrationContext?.multipliers?.conf || 1), 0.75, 1.25)
   const fseMultiplier = clamp(Number(calibrationContext?.multipliers?.fse || 1), 0.75, 1.25)
@@ -1163,11 +1325,37 @@ const calcAdjustedProbability = (match, systemConfig, calibrationContext) => {
     typeof calibrationContext?.calibrate === 'function'
       ? clamp(calibrationContext.calibrate(rawConf), 0.05, 0.95)
       : clamp(rawConf * confMultiplier, 0.05, 0.95)
-  const modeFactor = MODE_FACTOR_MAP[match.mode] || 1
-  const tysFactor = ((TYS_FACTOR_MAP[match.tysHome] || 1) + (TYS_FACTOR_MAP[match.tysAway] || 1)) / 2
-  const fidFactor = FID_FACTOR_MAP[match.fid] || 1
+
+  // ── Use LEARNED factors from calibrationContext if available, fallback to hardcoded priors ──
+  const lf = calibrationContext?.learnedFactors
+  const hasLearnedFactors = lf && lf.reliability > 0.15
+
+  // MODE factor: learned from historical hit-rate by mode
+  const modeFactor = hasLearnedFactors && lf.mode?.[match.mode] != null
+    ? lf.mode[match.mode]
+    : (MODE_FACTOR_MAP[match.mode] || 1)
+
+  // TYS factor: learned per TYS level, averaged for home/away
+  const tysHome = hasLearnedFactors && lf.tys?.[match.tysHome] != null
+    ? lf.tys[match.tysHome]
+    : (TYS_FACTOR_MAP[match.tysHome] || 1)
+  const tysAway = hasLearnedFactors && lf.tys?.[match.tysAway] != null
+    ? lf.tys[match.tysAway]
+    : (TYS_FACTOR_MAP[match.tysAway] || 1)
+  const tysFactor = (tysHome + tysAway) / 2
+
+  // FID factor: learned per FID bucket
+  const fidKey = String(match.fid)
+  const fidFactor = hasLearnedFactors && lf.fid?.[fidKey] != null
+    ? lf.fid[fidKey]
+    : (FID_FACTOR_MAP[match.fid] || 1)
+
+  // FSE factor: learned via continuous interpolation from historical FSE buckets
   const fseMatch = Math.sqrt(clamp(match.fseHome, 0.05, 1) * clamp(match.fseAway, 0.05, 1))
-  const fseFactor = clamp((0.88 + fseMatch * 0.24) * fseMultiplier, 0.72, 1.35)
+  const fseFactor = hasLearnedFactors && typeof lf.fse?.interpolate === 'function'
+    ? clamp(lf.fse.interpolate(fseMatch) * fseMultiplier, 0.72, 1.35)
+    : clamp((0.88 + fseMatch * 0.24) * fseMultiplier, 0.72, 1.35)
+
   // Context-factor lift (mode, TYS, FID, FSE — everything EXCEPT conf itself)
   const contextLift =
     modeFactor ** getFactorWeight(systemConfig.weightMode, 0.16) *
@@ -1536,7 +1724,17 @@ const generateRecommendations = (
 
   // ── Dynamic parameter optimization: backtest historical data ──
   const dynParams = backtestDynamicParams(calibrationContext)
-  const dynThresholds = dynParams.confTierThresholds
+
+  // ── FIX #3: Apply walk-forward feedback adjustments to tier thresholds ──
+  const wfFeedback = calibrationContext?.walkForwardFeedback
+  const tierShift = wfFeedback?.ready ? (wfFeedback.adjustments?.tierShift || 0) : 0
+  const dynThresholds = tierShift !== 0
+    ? {
+        tier_1: clamp((dynParams.confTierThresholds?.tier_1 || 0.72) + tierShift, 0.60, 0.85),
+        tier_2: clamp((dynParams.confTierThresholds?.tier_2 || 0.55) + tierShift, 0.42, 0.70),
+        tier_3: clamp((dynParams.confTierThresholds?.tier_3 || 0.40) + tierShift, 0.28, 0.55),
+      }
+    : dynParams.confTierThresholds
 
   const maxSubsetSize = Math.min(5, selectedMatches.length)
   const subsets = buildSubsets(selectedMatches, maxSubsetSize)
@@ -1563,11 +1761,12 @@ const generateRecommendations = (
 
   const scoredAll = mergedSubsets.map((subset) => {
     const legs = subset.length
-    // Annotate each leg with calibrated probability for downstream MC simulation
+    // Annotate each leg with calibrated probability + conf surplus for downstream MC simulation
     const annotatedSubset = subset.map((item) => {
-      if (item.calibratedP !== undefined) return item
-      const cp = calcAdjustedProbability(item, systemConfig, calibrationContext)
-      return { ...item, calibratedP: cp }
+      if (item.calibratedP !== undefined && item.confSurplus !== undefined) return item
+      const cp = item.calibratedP !== undefined ? item.calibratedP : calcAdjustedProbability(item, systemConfig, calibrationContext)
+      const cs = item.confSurplus !== undefined ? item.confSurplus : calcConfSurplus(item)
+      return { ...item, calibratedP: cp, confSurplus: cs }
     })
     const adjustedProfiles = annotatedSubset.map((item) => {
       if (item.atomicProfile) return item.atomicProfile
@@ -1582,9 +1781,36 @@ const generateRecommendations = (
     })
     const adjustedCombo = combineAtomicMatchProfiles(adjustedProfiles)
     const rawCombo = combineAtomicMatchProfiles(rawProfiles)
-    const p = clamp(Number(adjustedCombo.hitProbability || 0), 0, 1)
-    const profitWinProbability = clamp(Number(adjustedCombo.profitWinProbability || 0), 0, 1)
+    let p = clamp(Number(adjustedCombo.hitProbability || 0), 0, 1)
+    let profitWinProbability = clamp(Number(adjustedCombo.profitWinProbability || 0), 0, 1)
     const rawP = clamp(Number(rawCombo.hitProbability || 0), 0, 1)
+
+    // ── FIX #4: Entry correlation adjustment ──
+    // Correct the independence assumption using pairwise correlation data
+    const corrMatrix = calibrationContext?.entryCorrelation
+    if (corrMatrix?.ready && legs >= 2) {
+      let corrShift = 0
+      let pairCount = 0
+      for (let i = 0; i < annotatedSubset.length; i++) {
+        for (let j = i + 1; j < annotatedSubset.length; j++) {
+          const entryA = annotatedSubset[i].entryMarketType || annotatedSubset[i].entry_market_type || 'other'
+          const entryB = annotatedSubset[j].entryMarketType || annotatedSubset[j].entry_market_type || 'other'
+          const corr = corrMatrix.getCorrelation(entryA, entryB)
+          if (corr.reliability > 0.2) {
+            // Positive correlation → joint prob > product (independence underestimates)
+            // Negative correlation → joint prob < product (independence overestimates)
+            corrShift += corr.rho * corr.reliability * 0.04
+            pairCount += 1
+          }
+        }
+      }
+      if (pairCount > 0) {
+        const avgCorrAdj = corrShift / pairCount
+        p = clamp(p + avgCorrAdj, 0.02, 0.98)
+        profitWinProbability = clamp(profitWinProbability + avgCorrAdj, 0.02, 0.98)
+      }
+    }
+
     const fallbackOdds = annotatedSubset.reduce((prod, item) => prod * Math.max(1.01, Number(item.odds) || 1.01), 1)
     const odds = Math.max(1.01, Number(adjustedCombo.equivalentOdds || fallbackOdds))
     const ev = Number(adjustedCombo.expectedReturn || 0)
@@ -1632,8 +1858,18 @@ const generateRecommendations = (
       })
     }
 
+    // ── Conf-Surplus Bonus: reward combos that capture counter-consensus edges ──
+    // A combo containing a leg where conf significantly exceeds market-implied prob
+    // is capturing arbitrage value that the market is mispricing.
+    const surplusValues = annotatedSubset.map((item) => item.confSurplus?.surplus || 0)
+    const avgSurplus = surplusValues.reduce((s, v) => s + v, 0) / Math.max(legs, 1)
+    const maxSurplus = Math.max(...surplusValues)
+    // Bonus scales with average surplus across legs, extra boost if any leg has strong edge
+    const confSurplusBonus = clamp(avgSurplus * 0.15, -0.08, 0.12) + (maxSurplus >= 0.12 ? 0.03 : 0)
+
     const utility = rewardTerm - riskPenalty + pBonus + familyBonus + roleSignal.bonus
       - tierPenalty + tierAnchorBonus + coveringBonus - hardConstraintPenalty + teamBiasBonus
+      + confSurplusBonus
     const corr = calcSubsetSourceCorrelation(annotatedSubset)
     const confAvg = annotatedSubset.reduce((sum, item) => sum + clamp(item.conf, 0.05, 0.95), 0) / Math.max(legs, 1)
     return {
@@ -1667,6 +1903,9 @@ const generateRecommendations = (
       tierAnchorBonus,
       ftLayerTag,
       coveringBonus,
+      confSurplusBonus,
+      avgSurplus,
+      maxSurplus,
     }
   })
 
@@ -1734,7 +1973,9 @@ const generateRecommendations = (
   const concentrationPool = dedupeRankedBySignature(
     [...weightedUniverse].sort((a, b) => b.weight - a.weight || b.utility - a.utility),
   )
-  selectedRanked = rebalanceMatchConcentration(selectedRanked, concentrationPool, 10, 0.78)
+  // Max concentration: no single match may appear in more than 60% of combos
+  // This prevents the single-point-of-failure scenario (e.g., 切尔西 miss kills ALL combos)
+  selectedRanked = rebalanceMatchConcentration(selectedRanked, concentrationPool, 10, 0.60)
 
   const fallbackRanked = selectedRanked.length > 0 ? selectedRanked : weightedUniverse.slice(0, Math.min(3, weightedUniverse.length))
   const allocationSeed = fallbackRanked.map((item) => {
@@ -1807,6 +2048,9 @@ const generateRecommendations = (
         tierPenalty: Number((item.tierPenalty || 0).toFixed(3)),
         tierAnchorBonus: Number((item.tierAnchorBonus || 0).toFixed(3)),
         coveringBonus: Number((item.coveringBonus || 0).toFixed(3)),
+        confSurplusBonus: Number((item.confSurplusBonus || 0).toFixed(3)),
+        avgSurplus: Number((item.avgSurplus || 0).toFixed(4)),
+        maxSurplus: Number((item.maxSurplus || 0).toFixed(4)),
       },
     }
   })
@@ -1897,6 +2141,9 @@ export default function ComboPage({ openModal }) {
   const [lessTeams, setLessTeams] = useState(new Set())
   const [moreTeams, setMoreTeams] = useState(new Set())
   const [mcSimResult, setMcSimResult] = useState(null)
+  const [portfolioAllocations, setPortfolioAllocations] = useState([])
+  const [expandedComboIdx, setExpandedComboIdx] = useState(null)
+  const [expandedPortfolioIdx, setExpandedPortfolioIdx] = useState(null)
   const [generationSummary, setGenerationSummary] = useState({
     totalInvest: 0,
     expectedReturnPercent: 0,
@@ -2374,6 +2621,12 @@ export default function ComboPage({ openModal }) {
     // Auto-run Monte Carlo simulation on the generated package
     const mc = runPortfolioMonteCarlo(generated.recommendations.slice(0, 8))
     setMcSimResult(mc)
+
+    // Auto-run portfolio allocation optimizer
+    const allocations = optimizePortfolioAllocations(generated.recommendations, 3)
+    setPortfolioAllocations(allocations)
+    setExpandedComboIdx(null)
+    setExpandedPortfolioIdx(null)
   }
 
   const handleConfirmChecked = () => {
@@ -2413,6 +2666,11 @@ export default function ComboPage({ openModal }) {
     // Auto-run MC on the new package
     const mc = runPortfolioMonteCarlo(generated.recommendations.slice(0, 8))
     setMcSimResult(mc)
+    // Auto-run portfolio allocation optimizer
+    const allocations = optimizePortfolioAllocations(generated.recommendations, 3)
+    setPortfolioAllocations(allocations)
+    setExpandedComboIdx(null)
+    setExpandedPortfolioIdx(null)
   }
 
   // Soft refresh: jitter coefficients for a different but still sound output
@@ -3112,6 +3370,83 @@ export default function ComboPage({ openModal }) {
             </div>
           )}
 
+          {/* Portfolio Allocation Optimizer */}
+          {portfolioAllocations.length > 0 && (
+            <div className="mb-4 p-3 rounded-xl bg-gradient-to-br from-indigo-50/60 to-violet-50/30 border border-indigo-100">
+              <p className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wider mb-2">建议投资组合</p>
+              <div className="space-y-1.5">
+                {portfolioAllocations.map((alloc, aIdx) => (
+                  <div key={aIdx}>
+                    <div
+                      onClick={() => setExpandedPortfolioIdx(expandedPortfolioIdx === aIdx ? null : aIdx)}
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/70 border border-indigo-100/60 cursor-pointer hover:bg-white transition-all"
+                    >
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${aIdx === 0 ? 'bg-indigo-500 text-white' : 'bg-indigo-100 text-indigo-600'}`}>
+                        {aIdx === 0 ? '最优' : `#${aIdx + 1}`}
+                      </span>
+                      <span className="text-[13px] font-medium text-stone-700 flex-1">
+                        组合 {alloc.label}
+                      </span>
+                      <div className="flex items-center gap-2 text-[10px] text-stone-500">
+                        <span>覆盖{alloc.covered}/{alloc.totalMatches}场</span>
+                        <span className="text-emerald-600 font-medium">EV {alloc.weightedEv}%</span>
+                        <span>{alloc.totalStake} rmb</span>
+                      </div>
+                      <svg className={`w-3 h-3 text-stone-400 transition-transform ${expandedPortfolioIdx === aIdx ? 'rotate-180' : ''}`} viewBox="0 0 12 12" fill="none">
+                        <path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                    {expandedPortfolioIdx === aIdx && (
+                      <div className="mt-1.5 ml-2 p-2.5 rounded-lg bg-white/50 border border-indigo-50 space-y-2 animate-fade-in">
+                        <div className="grid grid-cols-4 gap-1.5 text-[10px]">
+                          <div className="text-center">
+                            <p className="text-stone-400">覆盖率</p>
+                            <p className="font-semibold text-indigo-600">{(alloc.coverageRatio * 100).toFixed(0)}%</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-stone-400">层多样</p>
+                            <p className="font-semibold text-violet-600">{(alloc.layerDiv * 100).toFixed(0)}%</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-stone-400">独立性</p>
+                            <p className="font-semibold text-sky-600">{(alloc.diversityScore * 100).toFixed(0)}%</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-stone-400">综合效用</p>
+                            <p className="font-semibold text-stone-700">{alloc.utility.toFixed(3)}</p>
+                          </div>
+                        </div>
+                        {alloc.mc && (
+                          <div className="grid grid-cols-3 gap-1.5 text-[10px] pt-1 border-t border-indigo-50">
+                            <div className="flex justify-between">
+                              <span className="text-stone-400">盈利概率</span>
+                              <span className={`font-semibold ${alloc.mc.profitProb >= 0.5 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                {(alloc.mc.profitProb * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-stone-400">中位收益</span>
+                              <span className={`font-mono text-[10px] ${alloc.mc.median >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                {alloc.mc.median >= 0 ? '+' : ''}{alloc.mc.median}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-stone-400">95%VaR</span>
+                              <span className="text-rose-500 font-mono text-[10px]">{alloc.mc.var95}</span>
+                            </div>
+                          </div>
+                        )}
+                        <div className="text-[10px] text-stone-400 pt-1">
+                          包含: {alloc.combos.map((c) => c.combo).join(' · ')}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Package List */}
           {recommendations.length === 0 ? (
             <div className="py-8 text-center">
@@ -3121,54 +3456,117 @@ export default function ComboPage({ openModal }) {
             <div className="space-y-1.5">
               {recommendations.slice(0, 8).map((item, idx) => {
                 const selected = Boolean(selectedRecommendationIds[item.id])
+                const expanded = expandedComboIdx === idx
                 const layerTag = item.explain?.ftLayerTag
                 const layerDot = layerTag === 'core' ? 'bg-emerald-400'
                   : layerTag === 'covering' ? 'bg-teal-400'
                   : layerTag === 'satellite' ? 'bg-sky-400'
                   : layerTag === 'moonshot' ? 'bg-violet-400' : 'bg-stone-300'
                 return (
-                  <div
-                    key={item.id}
-                    onClick={() => toggleRecommendation(item.id)}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer transition-all ${
-                      selected ? 'bg-indigo-50/70 border border-indigo-200' : 'bg-stone-50/50 border border-transparent hover:bg-stone-50'
-                    }`}
-                  >
-                    <span className="text-[11px] text-stone-400 font-mono w-4 shrink-0">{idx + 1}.</span>
-                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${layerDot}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] text-stone-700 truncate">{item.combo}</p>
-                      <div className="flex items-center gap-2 mt-0.5 text-[10px] text-stone-400">
-                        <span>{item.legs || item.subset.length}关</span>
-                        <span>×{(Number(item.combinedOdds || item.odds || 0)).toFixed(1)}</span>
-                        {item.explain?.confTierSummary && item.explain.confTierSummary !== '--' && (
-                          <span className="text-stone-500">{item.explain.confTierSummary}</span>
-                        )}
-                        {layerTag && (
-                          <span className={`px-1 py-px rounded text-[9px] font-medium ${
-                            layerTag === 'core' ? 'bg-emerald-100 text-emerald-600'
-                            : layerTag === 'covering' ? 'bg-teal-100 text-teal-600'
-                            : layerTag === 'satellite' ? 'bg-sky-100 text-sky-600'
-                            : 'bg-violet-100 text-violet-600'
-                          }`}>
-                            {layerTag === 'core' ? '锚定' : layerTag === 'covering' ? '容错' : layerTag === 'satellite' ? '扩展' : '博冷'}
-                          </span>
+                  <div key={item.id}>
+                    <div
+                      className={`flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer transition-all ${
+                        selected ? 'bg-indigo-50/70 border border-indigo-200' : 'bg-stone-50/50 border border-transparent hover:bg-stone-50'
+                      }`}
+                    >
+                      <span className="text-[11px] text-stone-400 font-mono w-4 shrink-0">{idx + 1}.</span>
+                      <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${layerDot}`} />
+                      <div className="flex-1 min-w-0" onClick={() => setExpandedComboIdx(expanded ? null : idx)}>
+                        <p className="text-[13px] text-stone-700 truncate">{item.combo}</p>
+                        <div className="flex items-center gap-2 mt-0.5 text-[10px] text-stone-400">
+                          <span>{item.legs || item.subset.length}关</span>
+                          <span>×{(Number(item.combinedOdds || item.odds || 0)).toFixed(1)}</span>
+                          {item.explain?.confTierSummary && item.explain.confTierSummary !== '--' && (
+                            <span className="text-stone-500">{item.explain.confTierSummary}</span>
+                          )}
+                          {layerTag && (
+                            <span className={`px-1 py-px rounded text-[9px] font-medium ${
+                              layerTag === 'core' ? 'bg-emerald-100 text-emerald-600'
+                              : layerTag === 'covering' ? 'bg-teal-100 text-teal-600'
+                              : layerTag === 'satellite' ? 'bg-sky-100 text-sky-600'
+                              : 'bg-violet-100 text-violet-600'
+                            }`}>
+                              {layerTag === 'core' ? '锚定' : layerTag === 'covering' ? '容错' : layerTag === 'satellite' ? '扩展' : '博冷'}
+                            </span>
+                          )}
+                          <svg className={`w-2.5 h-2.5 text-stone-400 transition-transform ${expanded ? 'rotate-180' : ''}`} viewBox="0 0 12 12" fill="none">
+                            <path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[12px] font-semibold text-stone-700">{item.allocation}</p>
+                        <p className="text-[10px] text-emerald-600">{item.ev}</p>
+                      </div>
+                      <div
+                        onClick={(e) => { e.stopPropagation(); toggleRecommendation(item.id) }}
+                        className={`w-3.5 h-3.5 rounded border-2 shrink-0 transition-colors cursor-pointer ${
+                          selected ? 'bg-indigo-500 border-indigo-500' : 'border-stone-300'
+                        }`}
+                      >
+                        {selected && (
+                          <svg viewBox="0 0 12 12" className="w-full h-full text-white">
+                            <path d="M3 6l2 2 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
                         )}
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-[12px] font-semibold text-stone-700">{item.allocation}</p>
-                      <p className="text-[10px] text-emerald-600">{item.ev}</p>
-                    </div>
-                    <div className={`w-3.5 h-3.5 rounded border-2 shrink-0 transition-colors ${
-                      selected ? 'bg-indigo-500 border-indigo-500' : 'border-stone-300'
-                    }`}>
-                      {selected && (
-                        <svg viewBox="0 0 12 12" className="w-full h-full text-white">
-                          <path d="M3 6l2 2 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
-                    </div>
+                    {/* Expandable Detail Panel */}
+                    {expanded && (
+                      <div className="ml-6 mt-1 p-2.5 rounded-lg bg-stone-50/80 border border-stone-100 animate-fade-in">
+                        <div className="grid grid-cols-4 gap-1.5 text-[10px] mb-2">
+                          <div className="text-center">
+                            <p className="text-stone-400">命中率</p>
+                            <p className="font-semibold text-sky-600">{item.winRate}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-stone-400">盈利率</p>
+                            <p className="font-semibold text-indigo-600">{item.profitWinRate}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-stone-400">Sharpe</p>
+                            <p className="font-semibold text-violet-600">{item.sharpe}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-stone-400">校准增益</p>
+                            <p className={`font-semibold ${item.explain.calibGainPp >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                              {item.explain.calibGainPp >= 0 ? '+' : ''}{item.explain.calibGainPp.toFixed(1)}pp
+                            </p>
+                          </div>
+                        </div>
+                        <div className="space-y-1 text-[10px]">
+                          {(item.subset || []).map((leg, li) => {
+                            const cs = leg.confSurplus
+                            const surplusVal = cs?.surplus || 0
+                            return (
+                              <div key={li} className="flex items-center gap-1.5 text-stone-600">
+                                <span className="text-stone-400 w-3 shrink-0">{li + 1}</span>
+                                <span className="flex-1 truncate">{leg.homeTeam} vs {leg.awayTeam}</span>
+                                <span className="text-stone-500 shrink-0">{leg.entry || '-'}</span>
+                                <span className="font-mono text-stone-500 shrink-0">@{Number(leg.odds || 0).toFixed(2)}</span>
+                                <span className={`font-mono shrink-0 ${(leg.calibratedP || leg.conf) >= 0.55 ? 'text-emerald-600' : 'text-amber-500'}`}>
+                                  P:{((leg.calibratedP || leg.conf) * 100).toFixed(0)}%
+                                </span>
+                                <span className={`font-mono shrink-0 text-[9px] ${surplusVal >= 0.04 ? 'text-emerald-600' : surplusVal >= -0.03 ? 'text-stone-400' : 'text-rose-400'}`}>
+                                  {surplusVal >= 0 ? '+' : ''}{(surplusVal * 100).toFixed(0)}pp
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <div className="mt-1.5 flex flex-wrap gap-1 text-[9px]">
+                          <span className="px-1 py-px rounded bg-stone-200/70 text-stone-500">相关 {item.explain.corr.toFixed(2)}</span>
+                          <span className="px-1 py-px rounded bg-stone-200/70 text-stone-500">Conf均 {item.explain.confAvg.toFixed(2)}</span>
+                          {item.explain.avgSurplus != null && (
+                            <span className={`px-1 py-px rounded ${item.explain.avgSurplus >= 0.04 ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-200/70 text-stone-500'}`}>
+                              边际 {item.explain.avgSurplus >= 0 ? '+' : ''}{(item.explain.avgSurplus * 100).toFixed(1)}pp
+                            </span>
+                          )}
+                          {item.explain.roleMixBonus > 0 && <span className="px-1 py-px rounded bg-sky-100 text-sky-600">角色+{item.explain.roleMixBonus.toFixed(2)}</span>}
+                          {item.explain.familyDiversity > 0.6 && <span className="px-1 py-px rounded bg-violet-100 text-violet-600">多样{(item.explain.familyDiversity * 100).toFixed(0)}%</span>}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}
