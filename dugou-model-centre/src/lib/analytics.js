@@ -1925,6 +1925,141 @@ const evaluateBlendWalkForward = (rows, config, teamProfiles) => {
   return windows
 }
 
+/**
+ * Conf×Odds 交叉校准层
+ * 检测主观 Conf 在不同赔率区间下的系统性偏差
+ * 高赔区间 conf 往往偏高（过度自信）或偏低（过度保守），
+ * 此函数通过分桶回归 + 收缩估计量化该偏差并输出每桶的修正系数。
+ *
+ * @returns {{ buckets: Array, adjustForOddsBucket: function, reliability: number }}
+ */
+const buildConfOddsCalibrationLayer = (matchRowsInput = null) => {
+  const fallback = {
+    buckets: [],
+    adjustForOddsBucket: (_conf, _odds) => ({ adjustedConf: _conf, bucketShift: 0, bucketKey: 'unknown', reliability: 0 }),
+    reliability: 0,
+  }
+
+  const matchRows = Array.isArray(matchRowsInput)
+    ? matchRowsInput
+    : getSettledInvestments(getActiveInvestments())
+        .flatMap((investment) =>
+          splitInvestmentToMatches(investment).map((match) => ({
+            investment,
+            match,
+            created_at: investment.created_at,
+          })),
+        )
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+  // Collect valid data points with conf, odds, actual outcome
+  const points = []
+  matchRows.forEach((row, index) => {
+    const conf = toNumber(row.match?.conf, Number.NaN)
+    const actual = normalizeAjrForModel(row.match?.match_rating, Number.NaN)
+    const odds = toNumber(row.match?.odds, Number.NaN)
+    if (!Number.isFinite(conf) || !Number.isFinite(actual) || !Number.isFinite(odds) || conf <= 0 || odds <= 1) return
+
+    const n = Math.max(1, Math.floor(matchRows.length / 50))
+    let recencyWeight = 1.0
+    if (index < 6 * n) recencyWeight = 1.35
+    else if (index < 11 * n) recencyWeight = 1.1
+
+    points.push({ conf, actual, odds, weight: recencyWeight })
+  })
+
+  if (points.length < 12) return fallback
+
+  // Define odds buckets: low (1.0-1.8), medium (1.8-2.5), high (2.5-3.5), very-high (3.5+)
+  const ODDS_BUCKETS = [
+    { key: 'low', label: '低赔 1.0-1.8', min: 1.0, max: 1.8 },
+    { key: 'medium', label: '中赔 1.8-2.5', min: 1.8, max: 2.5 },
+    { key: 'high', label: '高赔 2.5-3.5', min: 2.5, max: 3.5 },
+    { key: 'very_high', label: '超高赔 3.5+', min: 3.5, max: 100 },
+  ]
+
+  const bucketStats = ODDS_BUCKETS.map((bucket) => {
+    const bucketPoints = points.filter((p) => p.odds >= bucket.min && p.odds < bucket.max)
+    if (bucketPoints.length < 3) {
+      return { ...bucket, samples: 0, shift: 0, reliability: 0, confBias: 0, meanConf: 0, meanActual: 0 }
+    }
+
+    // Weighted mean of (actual - conf) residuals within this odds bucket
+    let weightedResidual = 0
+    let weightedResidualSq = 0
+    let weightedConfSum = 0
+    let weightedActualSum = 0
+    let totalWeight = 0
+
+    bucketPoints.forEach((p) => {
+      const residual = p.actual - p.conf
+      weightedResidual += residual * p.weight
+      weightedResidualSq += residual * residual * p.weight
+      weightedConfSum += p.conf * p.weight
+      weightedActualSum += p.actual * p.weight
+      totalWeight += p.weight
+    })
+
+    const meanResidual = totalWeight > 0 ? weightedResidual / totalWeight : 0
+    const variance = totalWeight > 0 ? weightedResidualSq / totalWeight - meanResidual * meanResidual : 0
+    const residualStd = Math.sqrt(Math.max(variance, 0))
+    const meanConf = totalWeight > 0 ? weightedConfSum / totalWeight : 0
+    const meanActual = totalWeight > 0 ? weightedActualSum / totalWeight : 0
+
+    // Reliability: ramps with sample count and stability
+    const sampleReliability = clamp((bucketPoints.length - 3) / 20, 0, 1)
+    const stability = clamp(1 - residualStd / 0.4, 0, 1)
+    const reliability = clamp(sampleReliability * 0.68 + stability * 0.32, 0, 1)
+
+    // Shrinkage-estimated shift (pull toward 0 with low reliability)
+    const shift = clamp(meanResidual * reliability, -0.2, 0.2)
+
+    // confBias: positive means conf is too low (under-confident), negative means too high (over-confident)
+    const confBias = meanConf > 0 ? (meanActual - meanConf) / meanConf : 0
+
+    return {
+      ...bucket,
+      samples: bucketPoints.length,
+      shift: Number(shift.toFixed(4)),
+      reliability: Number(reliability.toFixed(3)),
+      confBias: Number(confBias.toFixed(3)),
+      meanConf: Number(meanConf.toFixed(3)),
+      meanActual: Number(meanActual.toFixed(3)),
+      residualStd: Number(residualStd.toFixed(3)),
+    }
+  })
+
+  const overallReliability = clamp(
+    bucketStats.reduce((sum, b) => sum + b.reliability * b.samples, 0) /
+      Math.max(1, bucketStats.reduce((sum, b) => sum + b.samples, 0)),
+    0,
+    1,
+  )
+
+  const adjustForOddsBucket = (conf, odds) => {
+    if (!Number.isFinite(conf) || !Number.isFinite(odds) || odds <= 1) {
+      return { adjustedConf: conf, bucketShift: 0, bucketKey: 'unknown', reliability: 0 }
+    }
+    const bucket = bucketStats.find((b) => odds >= b.min && odds < b.max) || bucketStats[bucketStats.length - 1]
+    if (!bucket || bucket.reliability <= 0) {
+      return { adjustedConf: conf, bucketShift: 0, bucketKey: bucket?.key || 'unknown', reliability: 0 }
+    }
+    const adjustedConf = clamp(conf + bucket.shift, 0.05, 0.95)
+    return {
+      adjustedConf,
+      bucketShift: bucket.shift,
+      bucketKey: bucket.key,
+      reliability: bucket.reliability,
+    }
+  }
+
+  return {
+    buckets: bucketStats,
+    adjustForOddsBucket,
+    reliability: Number(overallReliability.toFixed(3)),
+  }
+}
+
 export const getPredictionCalibrationContext = () => {
   const cacheKey = getRevisionCacheKey('calibrationContext')
   const cached = analyticsMemo.calibrationContext.get(cacheKey)
@@ -2018,6 +2153,9 @@ export const getPredictionCalibrationContext = () => {
   const blendSummary = summarizeBlendWalkForward(blendWalkForward)
   const oddsWeightBase = clamp(0.12 + getWeightFactor(config.weightOdds, 0.06) * 0.95, 0.08, 0.55)
 
+  // ── Conf×Odds 交叉校准层 ──
+  const confOddsCalibration = buildConfOddsCalibrationLayer(matchRows)
+
   const calibrateProbabilityForMatch = (input = {}) => {
     const rawConf = toNumber(input.conf ?? input.rawConf, Number.NaN)
     const baseProbability = toNumber(input.baseProbability, Number.NaN)
@@ -2026,6 +2164,13 @@ export const getPredictionCalibrationContext = () => {
     const awayTeam = input.awayTeam || input.away_team || ''
 
     let probability = Number.isFinite(baseProbability) ? clamp(baseProbability, 0.02, 0.98) : baseConfCalibrate(rawConf)
+
+    // Apply Conf×Odds bucket shift — corrects systematic conf bias at different odds tiers
+    if (Number.isFinite(odds) && odds > 1 && confOddsCalibration.reliability > 0) {
+      const bucketAdj = confOddsCalibration.adjustForOddsBucket(probability, odds)
+      probability = clamp(bucketAdj.adjustedConf, 0.02, 0.98)
+    }
+
     const teamAdjustment = teamCalibration.getMatchAdjustment(homeTeam, awayTeam)
     probability = clamp(probability + teamAdjustment.shift, 0.02, 0.98)
 
@@ -2064,6 +2209,10 @@ export const getPredictionCalibrationContext = () => {
       teamCount: teamCalibration.teamCount,
       defaultReliability: teamCalibration.defaultReliability,
       topTeams: teamCalibration.teams,
+    },
+    confOddsCalibration: {
+      buckets: confOddsCalibration.buckets,
+      reliability: confOddsCalibration.reliability,
     },
     marketBlend: {
       oddsWeightBase: Number(oddsWeightBase.toFixed(3)),
