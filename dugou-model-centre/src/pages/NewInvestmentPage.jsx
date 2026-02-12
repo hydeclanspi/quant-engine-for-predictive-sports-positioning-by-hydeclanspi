@@ -480,18 +480,24 @@ export default function NewInvestmentPage() {
 
   const atomicMatchProfiles = useMemo(
     () =>
-      matches.map((match) => {
-        const unionProbability = calcAdjustedConf(match)
-        const validEntries = getValidEntries(match.entries)
-        return {
-          ...buildAtomicMatchProfile({
-            entries: validEntries,
+      matches
+        .map((match) => {
+          const home = normalizeTeamNameInput(match.homeTeam)
+          const away = normalizeTeamNameInput(match.awayTeam)
+          const validEntries = getValidEntries(match.entries)
+          if (!home || !away || validEntries.length === 0) return null
+
+          const unionProbability = calcAdjustedConf(match)
+          return {
+            ...buildAtomicMatchProfile({
+              entries: validEntries,
+              unionProbability,
+              fallbackOdds: systemConfig.defaultOdds,
+            }),
             unionProbability,
-            fallbackOdds: systemConfig.defaultOdds,
-          }),
-          unionProbability,
-        }
-      }),
+          }
+        })
+        .filter(Boolean),
     [calibrationContext, matches, systemConfig],
   )
 
@@ -501,16 +507,23 @@ export default function NewInvestmentPage() {
   )
 
   const combinedOdds = useMemo(() => {
+    if (atomicMatchProfiles.length === 0) return Number.NaN
     const conditionalOdds = Number(combinedAtomicProfile.conditionalOdds)
     if (Number.isFinite(conditionalOdds) && conditionalOdds > 0) {
       return conditionalOdds
     }
-    const fallback = matches.reduce((product, match) => product * calcMatchOdds(match.entries), 1)
+    const fallback = matches.reduce((product, match) => {
+      const home = normalizeTeamNameInput(match.homeTeam)
+      const away = normalizeTeamNameInput(match.awayTeam)
+      const validEntries = getValidEntries(match.entries)
+      if (!home || !away || validEntries.length === 0) return product
+      return product * calcMatchOdds(match.entries)
+    }, 1)
     return Number.isFinite(fallback) ? fallback : 0
-  }, [combinedAtomicProfile, matches, systemConfig.defaultOdds])
+  }, [atomicMatchProfiles.length, combinedAtomicProfile, matches, systemConfig.defaultOdds])
 
   const expectedRating = useMemo(() => {
-    if (atomicMatchProfiles.length === 0) return 0
+    if (atomicMatchProfiles.length === 0) return Number.NaN
     const average = atomicMatchProfiles.reduce((sum, row) => sum + row.unionProbability, 0) / atomicMatchProfiles.length
     return Number.isFinite(average) ? average : 0
   }, [atomicMatchProfiles])
@@ -694,6 +707,7 @@ export default function NewInvestmentPage() {
 
   const resetForm = () => {
     setMatches(Array.from({ length: parlaySize }, () => createEmptyMatch()))
+    setActualInput('')
     setShowModeDropdown({})
     setActiveTeamInput(null)
     setHistoryPrefillApplied({})
@@ -1406,12 +1420,12 @@ export default function NewInvestmentPage() {
             <div className="flex items-center gap-6">
               <div>
                 <span className="text-xs text-stone-400 block">综合 Odds</span>
-                <span className="text-xl font-semibold text-stone-800">{combinedOdds.toFixed(2)}</span>
+                <span className="text-xl font-semibold text-stone-800">{Number.isFinite(combinedOdds) ? combinedOdds.toFixed(2) : '--'}</span>
               </div>
               <div className="w-px h-10 bg-stone-200" />
               <div>
                 <span className="text-xs text-stone-400 block">Expected Rating</span>
-                <span className="text-xl font-semibold text-stone-800">{expectedRating.toFixed(2)}</span>
+                <span className="text-xl font-semibold text-stone-800">{Number.isFinite(expectedRating) ? expectedRating.toFixed(2) : '--'}</span>
               </div>
               <div className="w-px h-10 bg-stone-200" />
               <div>
