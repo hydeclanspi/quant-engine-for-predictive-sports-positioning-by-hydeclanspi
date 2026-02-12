@@ -2143,7 +2143,7 @@ export default function ComboPage({ openModal }) {
   const [mcSimResult, setMcSimResult] = useState(null)
   const [portfolioAllocations, setPortfolioAllocations] = useState([])
   const [expandedComboIdx, setExpandedComboIdx] = useState(null)
-  const [expandedPortfolioIdx, setExpandedPortfolioIdx] = useState(null)
+  const [expandedPortfolioIdxSet, setExpandedPortfolioIdxSet] = useState(() => new Set())
   const [generationSummary, setGenerationSummary] = useState({
     totalInvest: 0,
     expectedReturnPercent: 0,
@@ -2568,6 +2568,15 @@ export default function ComboPage({ openModal }) {
     setSelectedRecommendationIds((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
+  const togglePortfolioExpand = (idx) => {
+    setExpandedPortfolioIdxSet((prev) => {
+      const next = new Set(prev)
+      if (next.has(idx)) next.delete(idx)
+      else next.add(idx)
+      return next
+    })
+  }
+
   const handleGenerate = () => {
     if (selectedMatches.length === 0) {
       window.alert('请先勾选至少 1 场比赛。')
@@ -2626,7 +2635,7 @@ export default function ComboPage({ openModal }) {
     const allocations = optimizePortfolioAllocations(generated.recommendations, 3)
     setPortfolioAllocations(allocations)
     setExpandedComboIdx(null)
-    setExpandedPortfolioIdx(null)
+    setExpandedPortfolioIdxSet(new Set())
   }
 
   const handleConfirmChecked = () => {
@@ -2670,7 +2679,7 @@ export default function ComboPage({ openModal }) {
     const allocations = optimizePortfolioAllocations(generated.recommendations, 3)
     setPortfolioAllocations(allocations)
     setExpandedComboIdx(null)
-    setExpandedPortfolioIdx(null)
+    setExpandedPortfolioIdxSet(new Set())
   }
 
   // Soft refresh: jitter coefficients for a different but still sound output
@@ -3378,7 +3387,7 @@ export default function ComboPage({ openModal }) {
                 {portfolioAllocations.map((alloc, aIdx) => (
                   <div key={aIdx}>
                     <div
-                      onClick={() => setExpandedPortfolioIdx(expandedPortfolioIdx === aIdx ? null : aIdx)}
+                      onClick={() => togglePortfolioExpand(aIdx)}
                       className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/70 border border-indigo-100/60 cursor-pointer hover:bg-white transition-all"
                     >
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${aIdx === 0 ? 'bg-indigo-500 text-white' : 'bg-indigo-100 text-indigo-600'}`}>
@@ -3392,11 +3401,11 @@ export default function ComboPage({ openModal }) {
                         <span className="text-emerald-600 font-medium">EV {alloc.weightedEv}%</span>
                         <span>{alloc.totalStake} rmb</span>
                       </div>
-                      <svg className={`w-3 h-3 text-stone-400 transition-transform ${expandedPortfolioIdx === aIdx ? 'rotate-180' : ''}`} viewBox="0 0 12 12" fill="none">
+                      <svg className={`w-3 h-3 text-stone-400 transition-transform ${expandedPortfolioIdxSet.has(aIdx) ? 'rotate-180' : ''}`} viewBox="0 0 12 12" fill="none">
                         <path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </div>
-                    {expandedPortfolioIdx === aIdx && (
+                    {expandedPortfolioIdxSet.has(aIdx) && (
                       <div className="mt-1.5 ml-2 p-2.5 rounded-lg bg-white/50 border border-indigo-50 space-y-2 animate-fade-in">
                         <div className="grid grid-cols-4 gap-1.5 text-[10px]">
                           <div className="text-center">
