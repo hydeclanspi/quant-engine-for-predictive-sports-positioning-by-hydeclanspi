@@ -1515,6 +1515,7 @@ const generateRecommendations = (
     const confTiers = subset.map((item) => classifyConfidenceTier(item.conf, dynThresholds))
     const weakCount = confTiers.filter((t) => t === 'tier_3' || t === 'tier_4').length
     const tier1Count = confTiers.filter((t) => t === 'tier_1').length
+    const tier3Count = confTiers.filter((t) => t === 'tier_3').length
     const tier4Count = confTiers.filter((t) => t === 'tier_4').length
     // Hard constraint: cap weak legs per combo (dynamic from backtest)
     const exceedsWeakCap = weakCount > dynParams.maxWeakLegsPerCombo
