@@ -869,7 +869,7 @@ function AdaptiveWeightCard({ config, setConfig, saveSystemConfig, dataVersion }
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
-            <span className="text-amber-500">⚡</span> 自适应权重优化
+            自适应权重优化
           </h3>
           <span className="px-2 py-0.5 text-[10px] font-medium bg-gradient-to-r from-violet-500 to-purple-500 text-white rounded-full">
             BETA

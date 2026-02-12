@@ -398,7 +398,6 @@ export default function MetricsPage({ openModal }) {
 
         <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
           <h3 className="font-medium text-stone-700 mb-4 flex items-center gap-2">
-            <span className="text-amber-500">⚡</span>
             风险指标
           </h3>
           <div className="space-y-3">

@@ -2880,7 +2880,7 @@ export default function ComboPage({ openModal }) {
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium text-stone-700 truncate">{item.match}</p>
                       <span className={`px-1.5 py-[1px] rounded border text-[9px] font-medium flex-shrink-0 ${activeRoleMeta?.tone || 'bg-stone-100 text-stone-500 border-stone-200'}`}>
-                        {hasManualRole ? (activeRoleMeta?.label || '自动') : `⚡${activeRoleMeta?.label || '自动'}`}
+                        {activeRoleMeta?.label || '自动'}
                       </span>
                       {(() => {
                         const tier = classifyConfidenceTier(item.conf)
