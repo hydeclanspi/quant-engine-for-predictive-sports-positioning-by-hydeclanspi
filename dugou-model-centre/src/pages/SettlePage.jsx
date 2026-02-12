@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp, Check, X, Trash2 } from 'lucide-react'
 import { deleteInvestment, getInvestments, updateInvestment } from '../lib/localData'
 import { handleNoteShortcut } from '../lib/noteFormatting'
+import { normalizeEntryName } from '../lib/entryParsing'
 
 const formatDate = (isoString) => {
   const date = new Date(isoString)
@@ -21,6 +22,8 @@ const createPendingCombos = () =>
       totalInputs: Number(item.inputs || 0),
       matches:
         item.matches?.map((match) => ({
+          homeTeam: match.home_team || '',
+          awayTeam: match.away_team || '',
           match: `${match.home_team || '-'} vs ${match.away_team || '-'}`,
           entry: match.entry_text || (Array.isArray(match.entries) ? match.entries.map((entry) => entry.name).join(', ') : '-'),
           odds: Number(match.odds || 0).toFixed(2),
@@ -57,6 +60,40 @@ const getComboLabel = (matchCount) => {
 const AJR_MIN = 0
 const AJR_MAX = 0.8
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
+const normalizeKey = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+
+const isEmptyValue = (value) => value === '' || value === null || value === undefined
+
+const buildTeamMatchupKey = (homeTeam, awayTeam) => {
+  const home = normalizeKey(homeTeam)
+  const away = normalizeKey(awayTeam)
+  if (!home || !away) return ''
+  // 主客队严格匹配，避免把同队对阵但主客对调的历史误判为同一场
+  return `${home}::${away}`
+}
+
+const toEntryNames = (entryText = '') =>
+  normalizeEntryName(entryText)
+    .split(',')
+    .map((name) => normalizeEntryName(name).toLowerCase())
+    .filter(Boolean)
+
+const buildEntryKey = (entryText = '') => {
+  const names = [...new Set(toEntryNames(entryText))]
+  if (names.length === 0) return ''
+  return names.sort().join('|')
+}
+
+const buildHistoryLookupKey = ({ homeTeam, awayTeam, entryText }) => {
+  const matchupKey = buildTeamMatchupKey(homeTeam, awayTeam)
+  const entryKey = buildEntryKey(entryText)
+  if (!matchupKey || !entryKey) return ''
+  return `${matchupKey}##${entryKey}`
+}
 
 const toNumberOrNull = (value) => {
   const n = Number.parseFloat(value)
@@ -87,6 +124,48 @@ export default function SettlePage() {
   const [selectedComboIds, setSelectedComboIds] = useState({})
   const [batchRating, setBatchRating] = useState('')
   const [batchRep, setBatchRep] = useState('')
+  const [historyAutoFillSnapshots, setHistoryAutoFillSnapshots] = useState({})
+
+  const settledHistoryLookup = useMemo(() => {
+    const lookup = new Map()
+
+    getInvestments()
+      .filter((item) => item.status !== 'pending')
+      .forEach((investment) => {
+        const createdAtTs = Number(new Date(investment.created_at).getTime()) || 0
+        const matches = Array.isArray(investment.matches) ? investment.matches : []
+
+        matches.forEach((match) => {
+          const entryText =
+            match.entry_text ||
+            (Array.isArray(match.entries) ? match.entries.map((entry) => normalizeEntryName(entry?.name || '')).join(', ') : '')
+          const key = buildHistoryLookupKey({
+            homeTeam: match.home_team,
+            awayTeam: match.away_team,
+            entryText,
+          })
+          if (!key) return
+
+          const source = {
+            createdAtTs,
+            results: String(match.results || '').trim(),
+            isCorrect: typeof match.is_correct === 'boolean' ? match.is_correct : null,
+            matchRating: toAjrOrNull(match.match_rating),
+            matchRep: toNumberOrNull(match.match_rep),
+          }
+          const hasFillPayload =
+            source.results || source.isCorrect !== null || source.matchRating !== null || source.matchRep !== null
+          if (!hasFillPayload) return
+
+          const previous = lookup.get(key)
+          if (!previous || source.createdAtTs > previous.createdAtTs) {
+            lookup.set(key, source)
+          }
+        })
+      })
+
+    return lookup
+  }, [pendingCombos.length])
 
   useEffect(() => {
     setSelectedComboIds((prev) => {
@@ -97,6 +176,96 @@ export default function SettlePage() {
       return next
     })
   }, [pendingCombos])
+
+  useEffect(() => {
+    const pendingIds = new Set(pendingCombos.map((combo) => combo.id))
+    setHistoryAutoFillSnapshots((prev) => {
+      const next = {}
+      Object.keys(prev).forEach((comboId) => {
+        if (pendingIds.has(comboId)) {
+          next[comboId] = prev[comboId]
+        }
+      })
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next
+    })
+  }, [pendingCombos])
+
+  useEffect(() => {
+    if (pendingCombos.length === 0 || settledHistoryLookup.size === 0) return
+
+    const applied = {}
+    let changed = false
+    const nextForms = { ...forms }
+
+    pendingCombos.forEach((combo) => {
+      if (historyAutoFillSnapshots[combo.id]) return
+      const currentForm = nextForms[combo.id]
+      if (!currentForm || !Array.isArray(currentForm.matches)) return
+
+      const previousForm = {
+        revenues: currentForm.revenues,
+        matches: currentForm.matches.map((match) => ({ ...match })),
+      }
+
+      let comboChanged = false
+      let filledCount = 0
+      const nextMatches = currentForm.matches.map((formMatch, matchIdx) => {
+        const comboMatch = combo.matches[matchIdx]
+        if (!comboMatch) return formMatch
+
+        const key = buildHistoryLookupKey({
+          homeTeam: comboMatch.homeTeam,
+          awayTeam: comboMatch.awayTeam,
+          entryText: comboMatch.entry,
+        })
+        if (!key) return formMatch
+
+        const matched = settledHistoryLookup.get(key)
+        if (!matched) return formMatch
+
+        let matchChanged = false
+        const nextMatch = { ...formMatch }
+
+        if (!String(nextMatch.results || '').trim() && matched.results) {
+          nextMatch.results = matched.results
+          matchChanged = true
+        }
+        if (nextMatch.isCorrect === null && matched.isCorrect !== null) {
+          nextMatch.isCorrect = matched.isCorrect
+          matchChanged = true
+        }
+        if (isEmptyValue(nextMatch.matchRating) && matched.matchRating !== null) {
+          nextMatch.matchRating = String(matched.matchRating)
+          matchChanged = true
+        }
+        if (isEmptyValue(nextMatch.matchRep) && matched.matchRep !== null) {
+          nextMatch.matchRep = String(matched.matchRep)
+          matchChanged = true
+        }
+
+        if (!matchChanged) return formMatch
+        comboChanged = true
+        filledCount += 1
+        return nextMatch
+      })
+
+      if (!comboChanged) return
+
+      changed = true
+      nextForms[combo.id] = {
+        ...currentForm,
+        matches: nextMatches,
+      }
+      applied[combo.id] = {
+        previousForm,
+        filledCount,
+      }
+    })
+
+    if (!changed) return
+    setForms(nextForms)
+    setHistoryAutoFillSnapshots((prev) => ({ ...prev, ...applied }))
+  }, [forms, historyAutoFillSnapshots, pendingCombos, settledHistoryLookup])
 
   const selectedCount = useMemo(
     () => pendingCombos.filter((combo) => selectedComboIds[combo.id]).length,
@@ -121,6 +290,24 @@ export default function SettlePage() {
         revenues: value,
       },
     }))
+  }
+
+  const revertHistoryAutoFill = (comboId) => {
+    const snapshot = historyAutoFillSnapshots[comboId]
+    if (!snapshot?.previousForm) return
+
+    setForms((prev) => ({
+      ...prev,
+      [comboId]: {
+        revenues: snapshot.previousForm.revenues,
+        matches: snapshot.previousForm.matches.map((match) => ({ ...match })),
+      },
+    }))
+    setHistoryAutoFillSnapshots((prev) => {
+      const next = { ...prev }
+      delete next[comboId]
+      return next
+    })
   }
 
   const getValidationError = (form) => {
@@ -190,6 +377,13 @@ export default function SettlePage() {
       return next
     })
     setSelectedComboIds((prev) => {
+      const next = { ...prev }
+      targetCombos.forEach((combo) => {
+        delete next[combo.id]
+      })
+      return next
+    })
+    setHistoryAutoFillSnapshots((prev) => {
       const next = { ...prev }
       targetCombos.forEach((combo) => {
         delete next[combo.id]
@@ -410,7 +604,25 @@ export default function SettlePage() {
             </div>
 
             {expandedCombo === combo.id && (
-              <div className="p-6 border-t border-stone-100 space-y-6 animate-fade-in">
+              <div className="relative p-6 border-t border-stone-100 space-y-6 animate-fade-in">
+                {historyAutoFillSnapshots[combo.id] && (
+                  <div className="absolute right-6 top-4 z-20">
+                    <div className="history-float-panel history-float-enter px-2 py-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-medium text-sky-600">
+                          已自动填充 {historyAutoFillSnapshots[combo.id].filledCount || 0} 场
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => revertHistoryAutoFill(combo.id)}
+                          className="history-float-item rounded-md border border-sky-200/70 bg-sky-100/70 px-2 py-0.5 text-[10px] font-medium text-sky-700 hover:bg-sky-100/90 transition-colors"
+                        >
+                          撤回
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {combo.matches.map((match, matchIdx) => (
                   <div key={`${combo.id}-${matchIdx}`} className={matchIdx > 0 ? 'pt-6 border-t border-stone-100' : ''}>
                     <div className="flex items-center justify-between mb-3">
