@@ -2169,7 +2169,7 @@ export default function ComboPage({ openModal }) {
   const [moreTeams, setMoreTeams] = useState(new Set())
   const [mcSimResult, setMcSimResult] = useState(null)
   const [portfolioAllocations, setPortfolioAllocations] = useState([])
-  const [expandedComboIdx, setExpandedComboIdx] = useState(null)
+  const [expandedComboIdxSet, setExpandedComboIdxSet] = useState(() => new Set())
   const [expandedPortfolioIdxSet, setExpandedPortfolioIdxSet] = useState(() => new Set())
   const [showAllPortfolios, setShowAllPortfolios] = useState(false)
   const [generationSummary, setGenerationSummary] = useState({
@@ -2266,6 +2266,25 @@ export default function ComboPage({ openModal }) {
         : recommendations.slice(0, QUICK_PREVIEW_RECOMMENDATION_COUNT),
     [recommendations, showAllQuickRecommendations],
   )
+
+  const toggleQuickComboExpand = (idx) => {
+    setExpandedComboIdxSet((prev) => {
+      const next = new Set(prev)
+      if (next.has(idx)) next.delete(idx)
+      else next.add(idx)
+      return next
+    })
+  }
+
+  const toggleExpandAllQuickComboDetails = () => {
+    setExpandedComboIdxSet((prev) => {
+      const allExpanded =
+        quickPreviewRecommendations.length > 0 &&
+        quickPreviewRecommendations.every((_, idx) => prev.has(idx))
+      if (allExpanded) return new Set()
+      return new Set(quickPreviewRecommendations.map((_, idx) => idx))
+    })
+  }
 
   const selectedRecommendations = useMemo(
     () => recommendations.filter((item) => selectedRecommendationIds[item.id]),
@@ -2675,7 +2694,7 @@ export default function ComboPage({ openModal }) {
     // Auto-run portfolio allocation optimizer
     const allocations = optimizePortfolioAllocations(generated.recommendations, 10)
     setPortfolioAllocations(allocations)
-    setExpandedComboIdx(null)
+    setExpandedComboIdxSet(new Set())
     setExpandedPortfolioIdxSet(new Set())
     setShowAllPortfolios(false)
   }
@@ -2719,7 +2738,7 @@ export default function ComboPage({ openModal }) {
     // Auto-run portfolio allocation optimizer
     const allocations = optimizePortfolioAllocations(generated.recommendations, 10)
     setPortfolioAllocations(allocations)
-    setExpandedComboIdx(null)
+    setExpandedComboIdxSet(new Set())
     setExpandedPortfolioIdxSet(new Set())
     setShowAllPortfolios(false)
   }
@@ -3531,9 +3550,20 @@ export default function ComboPage({ openModal }) {
             </div>
           ) : (
             <div className="space-y-1.5">
+              <div className="flex items-center justify-end mb-1">
+                <button
+                  onClick={toggleExpandAllQuickComboDetails}
+                  className="text-[10px] px-2 py-1 rounded-md border border-indigo-200/70 bg-white/70 text-indigo-600 hover:bg-indigo-50/70 transition-colors"
+                >
+                  {quickPreviewRecommendations.length > 0 &&
+                  quickPreviewRecommendations.every((_, idx) => expandedComboIdxSet.has(idx))
+                    ? '全部收起明细'
+                    : '一键展开明细'}
+                </button>
+              </div>
               {quickPreviewRecommendations.map((item, idx) => {
                 const selected = Boolean(selectedRecommendationIds[item.id])
-                const expanded = expandedComboIdx === idx
+                const expanded = expandedComboIdxSet.has(idx)
                 const layerTag = item.explain?.ftLayerTag
                 const layerDot = layerTag === 'core' ? 'bg-emerald-400'
                   : layerTag === 'covering' ? 'bg-teal-400'
@@ -3548,7 +3578,7 @@ export default function ComboPage({ openModal }) {
                     >
                       <span className="text-[11px] text-stone-400 font-mono w-4 shrink-0">{idx + 1}.</span>
                       <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${layerDot}`} />
-                      <div className="flex-1 min-w-0" onClick={() => setExpandedComboIdx(expanded ? null : idx)}>
+                      <div className="flex-1 min-w-0" onClick={() => toggleQuickComboExpand(idx)}>
                         <p className="text-[13px] text-stone-700 truncate">{item.combo}</p>
                         <div className="flex items-center gap-2 mt-0.5 text-[10px] text-stone-400">
                           <span>{item.legs || item.subset.length}关</span>
@@ -3651,7 +3681,7 @@ export default function ComboPage({ openModal }) {
                 <button
                   onClick={() => {
                     setShowAllQuickRecommendations((prev) => !prev)
-                    setExpandedComboIdx(null)
+                    setExpandedComboIdxSet(new Set())
                   }}
                   className="w-full pt-1 text-[10px] text-center text-indigo-500 hover:text-indigo-600"
                 >
