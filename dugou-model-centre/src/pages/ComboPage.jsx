@@ -48,6 +48,13 @@ const MATCH_ROLE_OPTIONS = [
   { value: 'neutral_soft', label: '中性-保守', tone: 'bg-stone-200 text-stone-600 border-stone-300' },
 ]
 
+const MATCH_ROLE_COMPACT_LABEL = {
+  stable: '稳',
+  lever: '杠杆',
+  neutral_plus: '中+信',
+  neutral_soft: '中-守',
+}
+
 const MATCH_ROLE_TILT_MAP = {
   stable: 0.18,
   lever: 0.24,
@@ -2144,6 +2151,7 @@ export default function ComboPage({ openModal }) {
   const [portfolioAllocations, setPortfolioAllocations] = useState([])
   const [expandedComboIdx, setExpandedComboIdx] = useState(null)
   const [expandedPortfolioIdxSet, setExpandedPortfolioIdxSet] = useState(() => new Set())
+  const [showAllPortfolios, setShowAllPortfolios] = useState(false)
   const [generationSummary, setGenerationSummary] = useState({
     totalInvest: 0,
     expectedReturnPercent: 0,
@@ -2634,10 +2642,11 @@ export default function ComboPage({ openModal }) {
     setMcSimResult(mc)
 
     // Auto-run portfolio allocation optimizer
-    const allocations = optimizePortfolioAllocations(generated.recommendations, 3)
+    const allocations = optimizePortfolioAllocations(generated.recommendations, 10)
     setPortfolioAllocations(allocations)
     setExpandedComboIdx(null)
     setExpandedPortfolioIdxSet(new Set())
+    setShowAllPortfolios(false)
   }
 
   const handleConfirmChecked = () => {
@@ -2676,10 +2685,11 @@ export default function ComboPage({ openModal }) {
     const mc = runPortfolioMonteCarlo(generated.recommendations.slice(0, 8))
     setMcSimResult(mc)
     // Auto-run portfolio allocation optimizer
-    const allocations = optimizePortfolioAllocations(generated.recommendations, 3)
+    const allocations = optimizePortfolioAllocations(generated.recommendations, 10)
     setPortfolioAllocations(allocations)
     setExpandedComboIdx(null)
     setExpandedPortfolioIdxSet(new Set())
+    setShowAllPortfolios(false)
   }
 
   // Soft refresh: jitter coefficients for a different but still sound output
@@ -2889,7 +2899,7 @@ export default function ComboPage({ openModal }) {
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium text-stone-700 truncate">{item.match}</p>
                       <span className={`px-1.5 py-[1px] rounded border text-[9px] font-medium flex-shrink-0 ${activeRoleMeta?.tone || 'bg-stone-100 text-stone-500 border-stone-200'}`}>
-                        {activeRoleMeta?.label || '自动'}
+                        {MATCH_ROLE_COMPACT_LABEL[effectiveRole] || '自动'}
                       </span>
                       {(() => {
                         const tier = classifyConfidenceTier(item.conf)
@@ -2907,53 +2917,41 @@ export default function ComboPage({ openModal }) {
                         EV {formatPercent(item.adjustedEvPercent)}
                       </span>
                     </div>
-                    {/* Role selector — appears on hover */}
-                    <div className="mt-1.5 flex flex-wrap items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                      {MATCH_ROLE_OPTIONS.map((role) => {
-                        const active = effectiveRole === role.value
-                        return (
-                          <button
-                            key={`${item.key}-${role.value}`}
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              setMatchRoleOverrides((prev) => ({
-                                ...prev,
-                                [item.key]: role.value,
-                              }))
-                            }}
-                            className={`px-1.5 py-0.5 rounded-md border text-[10px] transition-colors ${
-                              active
-                                ? role.tone
-                                : 'bg-white text-stone-400 border-stone-200 hover:border-stone-300'
-                            }`}
-                          >
-                            {role.label}
-                          </button>
-                        )
-                      })}
-                      <button
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          setMatchRoleOverrides((prev) => {
+                  </div>
+                  <div className="flex-shrink-0">
+                    <select
+                      value={hasManualRole ? effectiveRole : 'auto'}
+                      onClick={(event) => event.stopPropagation()}
+                      onChange={(event) => {
+                        event.stopPropagation()
+                        const nextValue = event.target.value
+                        setMatchRoleOverrides((prev) => {
+                          if (nextValue === 'auto') {
                             if (!Object.prototype.hasOwnProperty.call(prev, item.key)) return prev
                             const next = { ...prev }
                             delete next[item.key]
                             return next
-                          })
-                        }}
-                        className={`px-1.5 py-0.5 rounded-md border text-[10px] transition-colors ${
-                          hasManualRole
-                            ? 'bg-white text-stone-400 border-stone-200 hover:border-stone-300'
-                            : 'bg-sky-100 text-sky-700 border-sky-200'
-                        }`}
-                      >
-                        自动
-                      </button>
-                    </div>
+                          }
+                          return {
+                            ...prev,
+                            [item.key]: nextValue,
+                          }
+                        })
+                      }}
+                      className="h-7 min-w-[76px] rounded-md border border-stone-200 bg-white/85 px-2 text-[11px] font-medium text-stone-600 outline-none focus:border-indigo-300"
+                    >
+                      <option value="auto">自动</option>
+                      {MATCH_ROLE_OPTIONS.map((role) => (
+                        <option key={`${item.key}-${role.value}`} value={role.value}>
+                          {MATCH_ROLE_COMPACT_LABEL[role.value] || role.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <span className="block text-sm font-semibold text-stone-700">{item.suggestedAmount > 0 ? `${item.suggestedAmount}` : '--'}</span>
-                    <span className="text-[10px] text-stone-400">rmb</span>
+                  <div className="text-right flex-shrink-0 min-w-[102px]">
+                    <span className="block text-base font-bold tabular-nums text-stone-700">
+                      {item.suggestedAmount > 0 ? `${item.suggestedAmount} rmb` : '-- rmb'}
+                    </span>
                   </div>
                 </div>
               )
@@ -3392,7 +3390,7 @@ export default function ComboPage({ openModal }) {
                 </button>
               </div>
               <div className="space-y-1.5">
-                {portfolioAllocations.map((alloc, aIdx) => (
+                {(showAllPortfolios ? portfolioAllocations : portfolioAllocations.slice(0, 6)).map((alloc, aIdx) => (
                   <div key={aIdx}>
                     <div
                       onClick={() => togglePortfolioExpand(aIdx)}
