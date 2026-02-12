@@ -2151,7 +2151,6 @@ export const getPredictionCalibrationContext = () => {
   const binaryRows = getBinaryOutcomeRows()
   const blendWalkForward = evaluateBlendWalkForward(binaryRows, config, teamProfiles)
   const blendSummary = summarizeBlendWalkForward(blendWalkForward)
-  const oddsWeightBase = clamp(0.12 + getWeightFactor(config.weightOdds, 0.06) * 0.95, 0.08, 0.55)
 
   // ── Conf×Odds 交叉校准层 ──
   const confOddsCalibration = buildConfOddsCalibrationLayer(matchRows)
@@ -2164,6 +2163,13 @@ export const getPredictionCalibrationContext = () => {
 
   // ── FIX #3: Walk-forward feedback ──
   const walkForwardFeedback = computeWalkForwardFeedback()
+
+  // Apply walk-forward odds weight adjustment to base odds weight
+  const rawOddsWeight = 0.12 + getWeightFactor(config.weightOdds, 0.06) * 0.95
+  const wfOddsWeightDelta = walkForwardFeedback.ready && Number.isFinite(walkForwardFeedback.adjustments?.oddsWeightDelta)
+    ? walkForwardFeedback.adjustments.oddsWeightDelta
+    : 0
+  const oddsWeightBase = clamp(rawOddsWeight + wfOddsWeightDelta, 0.08, 0.55)
 
   // ── FIX #4: Entry correlation matrix ──
   const entryCorrelation = buildEntryCorrelationMatrix()

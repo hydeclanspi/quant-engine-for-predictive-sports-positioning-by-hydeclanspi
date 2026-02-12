@@ -1156,7 +1156,7 @@ const normalizeHistoryRecommendation = (row, index = 0) => {
   }
 }
 
-const calcRecommendedAmount = (probability, odds, systemConfig, riskCap) => {
+const calcRecommendedAmount = (probability, odds, systemConfig, riskCap, calibrationContext = null) => {
   if (!Number.isFinite(probability) || !Number.isFinite(odds) || odds <= 1) return 0
   const p = clamp(probability, 0.05, 0.95)
   // Pure Kelly criterion: f* = (p × b - q) / b where b = odds - 1, q = 1 - p
@@ -1164,7 +1164,14 @@ const calcRecommendedAmount = (probability, odds, systemConfig, riskCap) => {
   const kelly = (p * b - (1 - p)) / b
   if (!Number.isFinite(kelly) || kelly <= 0) return 0
   // Fractional Kelly: divide by kellyDivisor (default 4 = 25% Kelly)
-  const fraction = kelly / Math.max(1, Number(systemConfig.kellyDivisor || 4))
+  // Apply walk-forward feedback adjustment if available
+  const baseKellyDivisor = Number(systemConfig.kellyDivisor || 4)
+  const wfFeedback = calibrationContext?.walkForwardFeedback
+  const wfKellyDivisor = wfFeedback?.ready && Number.isFinite(wfFeedback.adjustments?.kellyDivisor)
+    ? wfFeedback.adjustments.kellyDivisor
+    : baseKellyDivisor
+  const effectiveKellyDivisor = Math.max(1, wfKellyDivisor)
+  const fraction = kelly / effectiveKellyDivisor
   const raw = Math.max(0, Number(systemConfig.initialCapital || 0) * fraction)
   if (raw <= 0) return 0
   const rounded = Math.round(raw / 10) * 10
@@ -1303,8 +1310,11 @@ const buildSubsets = (items, maxSubsetSize) => {
 // (implied ~31%) gives surplus +0.14, which is a STRONG edge.
 // Conf 0.75 on a 1.19 odds match (implied ~84%) gives surplus -0.09.
 // ═══════════════════════════════════════════════════════════════
-const calcConfSurplus = (match) => {
-  const conf = clamp(Number(match.conf || 0.5), 0.05, 0.95)
+const calcConfSurplus = (match, calibratedP = null) => {
+  const rawConf = clamp(Number(match.conf || 0.5), 0.05, 0.95)
+  // Use calibrated probability if available, otherwise raw conf
+  // This ensures surplus reflects the model's actual calibrated edge, not uncalibrated input
+  const modelProb = calibratedP != null && Number.isFinite(calibratedP) ? clamp(calibratedP, 0.05, 0.95) : rawConf
   const anchorOdds = estimateEntryAnchorOdds(
     Array.isArray(match.entries) ? match.entries : [],
     Number(match.odds || 2.5),
@@ -1312,7 +1322,7 @@ const calcConfSurplus = (match) => {
   // Market implied probability (with vig removed — assume ~5% overround)
   const rawImplied = 1 / Math.max(1.01, anchorOdds)
   const vigAdjusted = clamp(rawImplied * 0.95, 0.02, 0.98) // Remove ~5% vig
-  const surplus = conf - vigAdjusted
+  const surplus = modelProb - vigAdjusted
   // Surplus ratio: how big is the edge relative to market prob
   // This normalizes across different odds levels
   const surplusRatio = vigAdjusted > 0.01 ? surplus / vigAdjusted : 0
@@ -1320,7 +1330,8 @@ const calcConfSurplus = (match) => {
     surplus: Number(surplus.toFixed(4)),
     surplusRatio: Number(surplusRatio.toFixed(4)),
     marketImplied: Number(vigAdjusted.toFixed(4)),
-    conf,
+    conf: rawConf,
+    modelProb: Number(modelProb.toFixed(4)),
     anchorOdds: Number(anchorOdds.toFixed(2)),
     // Edge classification
     edgeClass: surplus >= 0.12 ? 'strong_edge' : surplus >= 0.04 ? 'moderate_edge' : surplus >= -0.03 ? 'neutral' : 'negative_edge',
@@ -1779,7 +1790,7 @@ const generateRecommendations = (
     const annotatedSubset = subset.map((item) => {
       if (item.calibratedP !== undefined && item.confSurplus !== undefined) return item
       const cp = item.calibratedP !== undefined ? item.calibratedP : calcAdjustedProbability(item, systemConfig, calibrationContext)
-      const cs = item.confSurplus !== undefined ? item.confSurplus : calcConfSurplus(item)
+      const cs = item.confSurplus !== undefined ? item.confSurplus : calcConfSurplus(item, cp)
       return { ...item, calibratedP: cp, confSurplus: cs }
     })
     const adjustedProfiles = annotatedSubset.map((item) => {
@@ -2043,6 +2054,7 @@ const generateRecommendations = (
       combinedOdds: Number(item.odds.toFixed(2)),
       expectedRating: Number((item.hitProbability || item.p).toFixed(2)),
       coverageInjected: Boolean(item.coverageInjected),
+      confTiers: item.confTiers || [],
       explain: {
         weightPct: Number((item.allocatedWeight * 100).toFixed(1)),
         confAvg: Number(item.confAvg.toFixed(2)),
@@ -2195,7 +2207,7 @@ export default function ComboPage({ openModal }) {
         const rawAtomicProfile = buildAtomicLegProfile(item, clamp(Number(item.conf) || 0.5, 0.05, 0.95), fallbackOdds)
         const effectiveOdds = Math.max(1.01, Number(atomicProfile.equivalentOdds || fallbackOdds))
         const adjustedEvPercent = Number(atomicProfile.expectedReturn || 0) * 100
-        const suggestedAmount = calcRecommendedAmount(adjustedProb, effectiveOdds, systemConfig, riskCap)
+        const suggestedAmount = calcRecommendedAmount(adjustedProb, effectiveOdds, systemConfig, riskCap, calibrationContext)
         const autoRole = inferMatchRoleByMetrics(adjustedProb, effectiveOdds, item.conf)
         return {
           ...item,

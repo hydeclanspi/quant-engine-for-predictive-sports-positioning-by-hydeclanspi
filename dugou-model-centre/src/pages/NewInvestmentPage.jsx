@@ -448,13 +448,38 @@ export default function NewInvestmentPage() {
     const confBase =
       typeof calibrationContext?.calibrate === 'function'
         ? clamp(calibrationContext.calibrate(rawConf), 0.05, 0.95)
-        : clamp(rawConf * clamp(Number(calibrationContext.multipliers.conf || 1), 0.75, 1.25), 0.05, 0.95)
-    const fseMultiplier = clamp(Number(calibrationContext.multipliers.fse || 1), 0.75, 1.25)
-    const modeFactor = MODE_FACTOR_MAP[match.mode] || 1
-    const tysFactor = ((TYS_FACTOR_MAP[match.tys_home] || 1) + (TYS_FACTOR_MAP[match.tys_away] || 1)) / 2
-    const fidFactor = FID_FACTOR_MAP[match.fid] || 1
-    const fseMatch = Math.sqrt((match.fse_home / 100) * (match.fse_away / 100))
-    const fseFactor = clamp((0.85 + fseMatch * 0.3) * fseMultiplier, 0.72, 1.35)
+        : clamp(rawConf * clamp(Number(calibrationContext?.multipliers?.conf || 1), 0.75, 1.25), 0.05, 0.95)
+    const fseMultiplier = clamp(Number(calibrationContext?.multipliers?.fse || 1), 0.75, 1.25)
+
+    // ── Use LEARNED factors from calibrationContext if available, fallback to hardcoded priors ──
+    const lf = calibrationContext?.learnedFactors
+    const hasLearnedFactors = lf && lf.reliability > 0.15
+
+    const modeFactor = hasLearnedFactors && lf.mode?.[match.mode] != null
+      ? lf.mode[match.mode]
+      : (MODE_FACTOR_MAP[match.mode] || 1)
+
+    const tysHome = hasLearnedFactors && lf.tys?.[match.tys_home] != null
+      ? lf.tys[match.tys_home]
+      : (TYS_FACTOR_MAP[match.tys_home] || 1)
+    const tysAway = hasLearnedFactors && lf.tys?.[match.tys_away] != null
+      ? lf.tys[match.tys_away]
+      : (TYS_FACTOR_MAP[match.tys_away] || 1)
+    const tysFactor = (tysHome + tysAway) / 2
+
+    const fidKey = String(match.fid)
+    const fidFactor = hasLearnedFactors && lf.fid?.[fidKey] != null
+      ? lf.fid[fidKey]
+      : (FID_FACTOR_MAP[match.fid] || 1)
+
+    // FSE: match.fse_home/fse_away are 0-100 scale in NewInvestmentPage, normalize to 0-1
+    const fseHome = clamp(match.fse_home / 100, 0.05, 1)
+    const fseAway = clamp(match.fse_away / 100, 0.05, 1)
+    const fseMatch = Math.sqrt(fseHome * fseAway)
+    const fseFactor = hasLearnedFactors && typeof lf.fse?.interpolate === 'function'
+      ? clamp(lf.fse.interpolate(fseMatch) * fseMultiplier, 0.72, 1.35)
+      : clamp((0.88 + fseMatch * 0.24) * fseMultiplier, 0.72, 1.35)
+
     const odds = calcMatchAnchorOdds(match.entries)
     // Context-factor lift (mode, TYS, FID, FSE — everything EXCEPT conf itself)
     const contextLift =
