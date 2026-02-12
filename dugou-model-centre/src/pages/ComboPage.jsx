@@ -2540,11 +2540,7 @@ export default function ComboPage({ openModal }) {
     })
     setShowAllRecommendations(false)
 
-    const nextSelected = {}
-    if (safeRecommendations[0]) {
-      nextSelected[safeRecommendations[0].id] = true
-    }
-    setSelectedRecommendationIds(nextSelected)
+    setSelectedRecommendationIds({})
   }
 
   const clearPlanHistory = () => {
@@ -2621,11 +2617,7 @@ export default function ComboPage({ openModal }) {
     setShowAllRecommendations(false)
     pushPlanHistory(generated, selectedMatches, riskPref)
 
-    const nextSelected = {}
-    if (generated.recommendations[0]) {
-      nextSelected[generated.recommendations[0].id] = true
-    }
-    setSelectedRecommendationIds(nextSelected)
+    setSelectedRecommendationIds({})
 
     // Auto-run Monte Carlo simulation on the generated package
     const mc = runPortfolioMonteCarlo(generated.recommendations.slice(0, 8))
@@ -2669,9 +2661,7 @@ export default function ComboPage({ openModal }) {
       dynParams: generated.dynParams || null, ftTiers: generated.ftTiers || null,
     })
     setShowAllRecommendations(false)
-    const nextSelected = {}
-    if (generated.recommendations[0]) nextSelected[generated.recommendations[0].id] = true
-    setSelectedRecommendationIds(nextSelected)
+    setSelectedRecommendationIds({})
     // Auto-run MC on the new package
     const mc = runPortfolioMonteCarlo(generated.recommendations.slice(0, 8))
     setMcSimResult(mc)
