@@ -152,9 +152,10 @@ export default function SettlePage() {
             isCorrect: typeof match.is_correct === 'boolean' ? match.is_correct : null,
             matchRating: toAjrOrNull(match.match_rating),
             matchRep: toNumberOrNull(match.match_rep),
+            postNote: String(match.post_note || '').trim(),
           }
           const hasFillPayload =
-            source.results || source.isCorrect !== null || source.matchRating !== null || source.matchRep !== null
+            source.results || source.isCorrect !== null || source.matchRating !== null || source.matchRep !== null || source.postNote
           if (!hasFillPayload) return
 
           const previous = lookup.get(key)
@@ -193,23 +194,20 @@ export default function SettlePage() {
   useEffect(() => {
     if (pendingCombos.length === 0 || settledHistoryLookup.size === 0) return
 
-    const applied = {}
     let changed = false
     const nextForms = { ...forms }
+    const nextSnapshots = {}
 
     pendingCombos.forEach((combo) => {
-      if (historyAutoFillSnapshots[combo.id]) return
       const currentForm = nextForms[combo.id]
       if (!currentForm || !Array.isArray(currentForm.matches)) return
-
-      const previousForm = {
-        revenues: currentForm.revenues,
-        matches: currentForm.matches.map((match) => ({ ...match })),
-      }
+      const comboSnapshots = historyAutoFillSnapshots[combo.id] || {}
 
       let comboChanged = false
-      let filledCount = 0
       const nextMatches = currentForm.matches.map((formMatch, matchIdx) => {
+        const existingSnapshot = comboSnapshots[matchIdx]
+        if (existingSnapshot?.status === 'applied' || existingSnapshot?.status === 'dismissed') return formMatch
+
         const comboMatch = combo.matches[matchIdx]
         if (!comboMatch) return formMatch
 
@@ -224,28 +222,43 @@ export default function SettlePage() {
         if (!matched) return formMatch
 
         let matchChanged = false
+        const filledFields = []
         const nextMatch = { ...formMatch }
 
         if (!String(nextMatch.results || '').trim() && matched.results) {
           nextMatch.results = matched.results
           matchChanged = true
+          filledFields.push('results')
         }
         if (nextMatch.isCorrect === null && matched.isCorrect !== null) {
           nextMatch.isCorrect = matched.isCorrect
           matchChanged = true
+          filledFields.push('isCorrect')
         }
         if (isEmptyValue(nextMatch.matchRating) && matched.matchRating !== null) {
           nextMatch.matchRating = String(matched.matchRating)
           matchChanged = true
+          filledFields.push('matchRating')
         }
         if (isEmptyValue(nextMatch.matchRep) && matched.matchRep !== null) {
           nextMatch.matchRep = String(matched.matchRep)
           matchChanged = true
+          filledFields.push('matchRep')
+        }
+        if (isEmptyValue(nextMatch.postNote) && matched.postNote) {
+          nextMatch.postNote = matched.postNote
+          matchChanged = true
+          filledFields.push('postNote')
         }
 
         if (!matchChanged) return formMatch
         comboChanged = true
-        filledCount += 1
+        if (!nextSnapshots[combo.id]) nextSnapshots[combo.id] = {}
+        nextSnapshots[combo.id][matchIdx] = {
+          status: 'applied',
+          previousMatch: { ...formMatch },
+          filledFields,
+        }
         return nextMatch
       })
 
@@ -256,15 +269,20 @@ export default function SettlePage() {
         ...currentForm,
         matches: nextMatches,
       }
-      applied[combo.id] = {
-        previousForm,
-        filledCount,
-      }
     })
 
     if (!changed) return
     setForms(nextForms)
-    setHistoryAutoFillSnapshots((prev) => ({ ...prev, ...applied }))
+    setHistoryAutoFillSnapshots((prev) => {
+      const next = { ...prev }
+      Object.keys(nextSnapshots).forEach((comboId) => {
+        next[comboId] = {
+          ...(next[comboId] || {}),
+          ...nextSnapshots[comboId],
+        }
+      })
+      return next
+    })
   }, [forms, historyAutoFillSnapshots, pendingCombos, settledHistoryLookup])
 
   const selectedCount = useMemo(
@@ -292,22 +310,26 @@ export default function SettlePage() {
     }))
   }
 
-  const revertHistoryAutoFill = (comboId) => {
-    const snapshot = historyAutoFillSnapshots[comboId]
-    if (!snapshot?.previousForm) return
+  const revertHistoryAutoFillMatch = (comboId, matchIdx) => {
+    const snapshot = historyAutoFillSnapshots[comboId]?.[matchIdx]
+    if (!snapshot?.previousMatch || snapshot.status !== 'applied') return
 
     setForms((prev) => ({
       ...prev,
       [comboId]: {
-        revenues: snapshot.previousForm.revenues,
-        matches: snapshot.previousForm.matches.map((match) => ({ ...match })),
+        ...prev[comboId],
+        matches: prev[comboId].matches.map((match, idx) => (idx === matchIdx ? { ...snapshot.previousMatch } : match)),
       },
     }))
-    setHistoryAutoFillSnapshots((prev) => {
-      const next = { ...prev }
-      delete next[comboId]
-      return next
-    })
+    setHistoryAutoFillSnapshots((prev) => ({
+      ...prev,
+      [comboId]: {
+        ...(prev[comboId] || {}),
+        [matchIdx]: {
+          status: 'dismissed',
+        },
+      },
+    }))
   }
 
   const getValidationError = (form) => {
@@ -605,28 +627,32 @@ export default function SettlePage() {
 
             {expandedCombo === combo.id && (
               <div className="relative p-6 border-t border-stone-100 space-y-6 animate-fade-in">
-                {historyAutoFillSnapshots[combo.id] && (
-                  <div className="absolute right-6 top-4 z-20">
-                    <div className="history-float-panel history-float-enter px-2 py-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-medium text-sky-600">
-                          已自动填充 {historyAutoFillSnapshots[combo.id].filledCount || 0} 场
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => revertHistoryAutoFill(combo.id)}
-                          className="history-float-item rounded-md border border-sky-200/70 bg-sky-100/70 px-2 py-0.5 text-[10px] font-medium text-sky-700 hover:bg-sky-100/90 transition-colors"
-                        >
-                          撤回
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {combo.matches.map((match, matchIdx) => (
+                {combo.matches.map((match, matchIdx) => {
+                  const matchAutoFillSnapshot = historyAutoFillSnapshots[combo.id]?.[matchIdx]
+                  const showAutoFillTag = matchAutoFillSnapshot?.status === 'applied'
+                  return (
                   <div key={`${combo.id}-${matchIdx}`} className={matchIdx > 0 ? 'pt-6 border-t border-stone-100' : ''}>
                     <div className="flex items-center justify-between mb-3">
-                      <p className="font-semibold text-stone-800">{match.match}</p>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className="font-semibold text-stone-800">{match.match}</p>
+                        {showAutoFillTag && (
+                          <div className="history-float-panel history-float-enter px-1.5 py-0.5 rounded-md">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-medium text-sky-600">已自动填充</span>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  revertHistoryAutoFillMatch(combo.id, matchIdx)
+                                }}
+                                className="history-float-item rounded-md border border-sky-200/70 bg-sky-100/70 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 hover:bg-sky-100/90 transition-colors"
+                              >
+                                撤回
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                       <span className="text-xs text-stone-400">
                         Odds <span className="font-bold italic text-violet-600">{match.odds}</span>
                       </span>
@@ -744,7 +770,7 @@ export default function SettlePage() {
                       <p className="mt-1 text-[10px] text-stone-400">快捷键：Cmd/Ctrl+B 粗体 · Cmd/Ctrl+I 斜体 · Cmd/Ctrl+Shift+R 红色 · Cmd/Ctrl+Shift+B 蓝色</p>
                     </div>
                   </div>
-                ))}
+                )})}
 
                 <div className="pt-4 border-t border-stone-200">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
