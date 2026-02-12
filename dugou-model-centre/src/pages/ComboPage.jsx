@@ -2573,6 +2573,16 @@ export default function ComboPage({ openModal }) {
     })
   }
 
+  const toggleExpandAllPortfolio = () => {
+    setExpandedPortfolioIdxSet((prev) => {
+      const allExpanded =
+        portfolioAllocations.length > 0 &&
+        portfolioAllocations.every((_, idx) => prev.has(idx))
+      if (allExpanded) return new Set()
+      return new Set(portfolioAllocations.map((_, idx) => idx))
+    })
+  }
+
   const handleGenerate = () => {
     if (selectedMatches.length === 0) {
       window.alert('请先勾选至少 1 场比赛。')
@@ -3372,7 +3382,15 @@ export default function ComboPage({ openModal }) {
           {/* Portfolio Allocation Optimizer */}
           {portfolioAllocations.length > 0 && (
             <div className="mb-4 p-3 rounded-xl bg-gradient-to-br from-indigo-50/60 to-violet-50/30 border border-indigo-100">
-              <p className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wider mb-2">建议投资组合</p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wider">建议投资组合</p>
+                <button
+                  onClick={toggleExpandAllPortfolio}
+                  className="text-[10px] px-2 py-1 rounded-md border border-indigo-200/70 bg-white/70 text-indigo-600 hover:bg-white transition-colors"
+                >
+                  {portfolioAllocations.every((_, idx) => expandedPortfolioIdxSet.has(idx)) ? '全部收起' : '一键展开'}
+                </button>
+              </div>
               <div className="space-y-1.5">
                 {portfolioAllocations.map((alloc, aIdx) => (
                   <div key={aIdx}>
