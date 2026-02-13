@@ -111,18 +111,6 @@ const formatDate = (value) => {
   return `${month}-${day}`
 }
 
-const getMomentumTone = (direction) => {
-  if (direction === 'up') return 'text-emerald-600'
-  if (direction === 'down') return 'text-rose-500'
-  return 'text-stone-500'
-}
-
-const getMomentumLabel = (direction) => {
-  if (direction === 'up') return '上行'
-  if (direction === 'down') return '下行'
-  return '震荡'
-}
-
 const getRangeDays = (periodKey) => {
   if (periodKey === '1w') return 7
   if (periodKey === '2w') return 14
@@ -757,6 +745,35 @@ export default function AnalysisPage({ openModal }) {
       recommendation,
     }
   }, [dashboardSnapshot?.momentum, dashboardSnapshot?.streaks])
+  const timeWeightTotalSamples = useMemo(
+    () => deepData.timeWeights.reduce((sum, item) => sum + Number(item.count || 0), 0),
+    [deepData.timeWeights],
+  )
+  const recencyRegime = useMemo(() => {
+    const strength = String(momentumSummary.strength || '').toLowerCase()
+    if (momentumSummary.direction === 'up') {
+      return {
+        label: strength === 'strong' ? '上行·强' : '上行·温和',
+        chipClass: 'border-emerald-200 bg-emerald-50/90 text-emerald-700',
+        toneClass: 'text-emerald-600',
+        summary: '近期表现优于基线，可维持主推仓位并保留适度进攻弹性。',
+      }
+    }
+    if (momentumSummary.direction === 'down') {
+      return {
+        label: strength === 'strong' ? '下行·强' : '下行·温和',
+        chipClass: 'border-rose-200 bg-rose-50/90 text-rose-600',
+        toneClass: 'text-rose-500',
+        summary: '近期波动放大，建议降低高赔率暴露并优先稳健仓位。',
+      }
+    }
+    return {
+      label: '震荡·均衡',
+      chipClass: 'border-cyan-200 bg-cyan-50/90 text-cyan-700',
+      toneClass: 'text-cyan-700',
+      summary: '当前无明显单边趋势，维持均衡配置并等待方向确认。',
+    }
+  }, [momentumSummary.direction, momentumSummary.strength])
 
   const advantageModes = useMemo(() => {
     const modeSet = new Set((metricsSnapshot.matchRows || []).map((row) => row.mode))
@@ -1739,62 +1756,119 @@ export default function AnalysisPage({ openModal }) {
       )}
 
       {analysisTab === 'time' && (
-        <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
-          <div className="flex items-center gap-2 mb-4">
-            <h3 className="font-medium text-stone-700">时间近因机制</h3>
-            <span className="text-[10px] px-2 py-0.5 bg-stone-100 text-stone-500 rounded">
-              n={Math.max(1, Math.floor(deepData.totalMatchSamples / 50))}
-            </span>
-          </div>
-          <p className="text-sm text-stone-500 mb-6">Conf、FSE 等参数应用时间衰减权重，近期表现影响更大。</p>
-          <div className="grid grid-cols-3 gap-6">
-            {deepData.timeWeights.map((item) => (
-              <div
-                key={item.period}
-                className={`p-6 rounded-xl text-center ${item.highlight ? 'bg-amber-50 border border-amber-200' : 'bg-stone-50'}`}
-              >
-                <span className={`text-3xl font-bold ${item.highlight ? 'text-amber-600' : 'text-stone-400'}`}>{item.weight}</span>
-                <p className="text-sm text-stone-600 mt-2">{item.period}</p>
-                <p className="text-xs text-stone-400 mt-1">{item.count} 场样本</p>
+        <div className="glow-card relative overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-white via-sky-50/32 to-cyan-50/30 p-6">
+          <div className="pointer-events-none absolute -top-16 -right-12 h-44 w-44 rounded-full bg-sky-200/28 blur-3xl" />
+          <div className="pointer-events-none absolute top-24 -left-12 h-36 w-36 rounded-full bg-cyan-200/24 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-16 right-24 h-40 w-40 rounded-full bg-indigo-200/18 blur-3xl" />
+          <div className="relative">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-[17px] font-semibold text-stone-800">时间近因机制</h3>
+                  <span className="inline-flex items-center rounded-full border border-sky-200 bg-white/85 px-2 py-0.5 text-[10px] font-medium tracking-[0.12em] text-sky-700 uppercase">
+                    S5/S6
+                  </span>
+                </div>
+                <p className="text-sm text-stone-500 mt-1.5">Conf、FSE 等参数按时序衰减加权，近期样本优先影响最终评分。</p>
               </div>
-            ))}
-          </div>
-
-          <div className="mt-6 p-4 rounded-xl border border-stone-100 bg-stone-50/70">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-medium text-stone-700">连续性动量（S5/S6）</h4>
-              <span className={`text-xs font-medium ${getMomentumTone(momentumSummary.direction)}`}>
-                {getMomentumLabel(momentumSummary.direction)} · {momentumSummary.strength}
-              </span>
+              <div className="min-w-[150px] rounded-xl border border-white/80 bg-white/72 px-3 py-2.5 backdrop-blur-sm shadow-[0_8px_18px_rgba(14,165,233,0.1)]">
+                <p className="text-[10px] text-stone-400 uppercase tracking-[0.12em]">Regime</p>
+                <p className={`text-sm font-semibold mt-0.5 ${recencyRegime.toneClass}`}>{recencyRegime.label}</p>
+                <p className="text-[11px] text-stone-500 mt-1">
+                  n={Math.max(1, Math.floor(deepData.totalMatchSamples / 50))} · 样本 {deepData.totalMatchSamples}
+                </p>
+              </div>
             </div>
-            <div className="grid grid-cols-3 gap-3 text-xs">
-              <div className="p-3 rounded-lg bg-white border border-stone-100">
-                <p className="text-stone-400">当前连续性</p>
-                <p className="mt-1 text-sm font-semibold text-stone-700">{momentumSummary.streakLabel}</p>
-                <p className="text-stone-400 mt-1">
+
+            <div className="grid grid-cols-3 gap-4">
+              {deepData.timeWeights.map((item) => {
+                const share = timeWeightTotalSamples > 0 ? Math.round((item.count / timeWeightTotalSamples) * 100) : 0
+                const tone = item.highlight
+                  ? {
+                      card: 'border-emerald-200 bg-gradient-to-br from-emerald-50/90 to-white',
+                      weight: 'text-emerald-600',
+                      band: 'bg-emerald-400',
+                      tag: '近期主权重',
+                    }
+                  : item.weight === '1.15x'
+                    ? {
+                        card: 'border-sky-200 bg-gradient-to-br from-sky-50/90 to-white',
+                        weight: 'text-sky-600',
+                        band: 'bg-sky-400',
+                        tag: '过渡层',
+                      }
+                    : {
+                        card: 'border-stone-200 bg-gradient-to-br from-stone-50 to-white',
+                        weight: 'text-stone-500',
+                        band: 'bg-stone-300',
+                        tag: '基线层',
+                      }
+                return (
+                  <div key={item.period} className={`rounded-xl border p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ${tone.card}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase tracking-[0.12em] text-stone-400">{tone.tag}</span>
+                      <span className="text-[10px] text-stone-400">{share}%</span>
+                    </div>
+                    <p className={`mt-2 text-3xl leading-none font-semibold tabular-nums ${tone.weight}`}>{item.weight}</p>
+                    <p className="text-sm text-stone-700 mt-2">{item.period}</p>
+                    <p className="text-[11px] text-stone-500 mt-1">{item.count} 场样本</p>
+                    <div className="mt-2 h-1.5 rounded-full bg-white border border-white/80 overflow-hidden">
+                      <div className={`h-full ${tone.band}`} style={{ width: `${Math.max(8, share)}%` }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="mt-4 rounded-xl border border-sky-100/80 bg-white/74 p-3.5 backdrop-blur-sm">
+              <p className="text-[10px] uppercase tracking-[0.12em] text-stone-400 mb-2">样本分层分布</p>
+              <div className="h-2 rounded-full overflow-hidden border border-stone-200/70 bg-white flex">
+                {deepData.timeWeights.map((item) => {
+                  const share = timeWeightTotalSamples > 0 ? Math.max(6, Math.round((item.count / timeWeightTotalSamples) * 100)) : 0
+                  const band = item.highlight ? 'bg-emerald-400' : item.weight === '1.15x' ? 'bg-sky-400' : 'bg-stone-300'
+                  return <div key={`mix-${item.period}`} className={band} style={{ width: `${share}%` }} />
+                })}
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3.5">
+              <div className="rounded-xl border border-stone-200/80 bg-white/82 p-3.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] uppercase tracking-[0.12em] text-stone-400">连续性</p>
+                  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${recencyRegime.chipClass}`}>
+                    {momentumSummary.streakLabel}
+                  </span>
+                </div>
+                <p className="text-[12px] text-stone-600 mt-2">
                   最近 {momentumSummary.recentSamples} 场 / 基线 {momentumSummary.baseSamples} 场
                 </p>
+                <p className="text-[12px] text-stone-600 leading-6 mt-2">{recencyRegime.summary}</p>
               </div>
-              <div className="p-3 rounded-lg bg-white border border-stone-100">
-                <p className="text-stone-400">ROI 动量</p>
-                <p className={`mt-1 text-sm font-semibold ${momentumSummary.roiDelta >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                  {signed(momentumSummary.roiDelta, 1, '%')}
-                </p>
-                <p className="text-stone-400 mt-1">
-                  {momentumSummary.recentRoi.toFixed(1)}% vs {momentumSummary.baseRoi.toFixed(1)}%
-                </p>
-              </div>
-              <div className="p-3 rounded-lg bg-white border border-stone-100">
-                <p className="text-stone-400">命中率动量</p>
-                <p className={`mt-1 text-sm font-semibold ${momentumSummary.hitRateDelta >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                  {signed(momentumSummary.hitRateDelta, 1, 'pp')}
-                </p>
-                <p className="text-stone-400 mt-1">
-                  {momentumSummary.recentHitRate.toFixed(1)}% vs {momentumSummary.baseHitRate.toFixed(1)}%
-                </p>
+              <div className="rounded-xl border border-stone-200/80 bg-white/82 p-3.5">
+                <p className="text-[10px] uppercase tracking-[0.12em] text-stone-400 mb-2">动量面板</p>
+                <div className="grid grid-cols-2 gap-2.5 text-[12px]">
+                  <div className="rounded-lg border border-stone-100 bg-stone-50/70 p-2.5">
+                    <p className="text-stone-400">ROI 动量</p>
+                    <p className={`mt-1 font-semibold ${momentumSummary.roiDelta >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                      {signed(momentumSummary.roiDelta, 1, '%')}
+                    </p>
+                    <p className="text-[11px] text-stone-500 mt-1">
+                      {momentumSummary.recentRoi.toFixed(1)}% vs {momentumSummary.baseRoi.toFixed(1)}%
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-stone-100 bg-stone-50/70 p-2.5">
+                    <p className="text-stone-400">命中率动量</p>
+                    <p className={`mt-1 font-semibold ${momentumSummary.hitRateDelta >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                      {signed(momentumSummary.hitRateDelta, 1, 'pp')}
+                    </p>
+                    <p className="text-[11px] text-stone-500 mt-1">
+                      {momentumSummary.recentHitRate.toFixed(1)}% vs {momentumSummary.baseHitRate.toFixed(1)}%
+                    </p>
+                  </div>
+                </div>
+                <p className="mt-2.5 text-[12px] text-stone-600 leading-6">{momentumSummary.recommendation}</p>
               </div>
             </div>
-            <p className="text-xs text-stone-500 mt-3">{momentumSummary.recommendation}</p>
           </div>
         </div>
       )}
