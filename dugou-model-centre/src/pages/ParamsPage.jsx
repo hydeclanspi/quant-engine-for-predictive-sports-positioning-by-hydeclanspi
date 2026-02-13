@@ -2389,218 +2389,6 @@ export default function ParamsPage({ openModal }) {
       <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
-            <ConsoleCardIcon IconComp={Cloud} /> 云端同步（Supabase）
-          </h3>
-          <span className="text-xs text-stone-400">{syncStatus.enabled ? '已启用' : '未启用'}</span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-3 bg-stone-50 rounded-xl">
-            <p className="text-xs text-stone-400">环境变量</p>
-            <p className={`text-sm font-medium mt-1 ${syncStatus.hasEnv ? 'text-emerald-600' : 'text-rose-500'}`}>
-              {syncStatus.hasEnv ? '已配置' : '未配置'}
-            </p>
-            <p className="text-[11px] text-stone-400 mt-1">需要 `VITE_SUPABASE_URL` 和 `VITE_SUPABASE_ANON_KEY`</p>
-          </div>
-          <div className="p-3 bg-stone-50 rounded-xl">
-            <p className="text-xs text-stone-400">最近同步</p>
-            <p className="text-sm font-medium mt-1 text-stone-700">{syncStatus.lastSyncAt ? new Date(syncStatus.lastSyncAt).toLocaleString() : '--'}</p>
-            {syncStatus.lastError ? <p className="text-[11px] text-rose-500 mt-1">{syncStatus.lastError}</p> : <p className="text-[11px] text-emerald-600 mt-1">状态正常</p>}
-          </div>
-        </div>
-
-        <div className="mt-4 space-y-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={handleToggleCloudSync}
-              className={`px-3 py-2 rounded-xl text-sm transition-colors ${
-                syncStatus.enabled ? 'bg-rose-100 text-rose-600 hover:bg-rose-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-              }`}
-            >
-              {syncStatus.enabled ? '暂停同步' : '开启同步'}
-            </button>
-            <button
-              onClick={handleCloudSyncNow}
-              disabled={!syncStatus.enabled || syncingNow}
-              className="px-3 py-2 rounded-xl text-sm bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {syncingNow ? '同步中...' : '立即同步'}
-            </button>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => handleCloudPull('merge')}
-              disabled={!syncStatus.hasEnv || pullingCloud}
-              className="px-3 py-2 rounded-xl text-sm bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {pullingCloud ? '拉取中...' : '从云端合并拉取'}
-            </button>
-            <button
-              onClick={() => handleCloudPull('replace')}
-              disabled={!syncStatus.hasEnv || pullingCloud}
-              className="px-3 py-2 rounded-xl text-sm bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              从云端覆盖拉取
-            </button>
-            {cloudPullStatus && <span className="text-xs text-stone-500">{cloudPullStatus}</span>}
-          </div>
-        </div>
-      </div>
-
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium text-stone-700 flex items-center gap-2">
-            <ConsoleCardIcon IconComp={FileSpreadsheet} /> Excel 数据进出
-          </h3>
-          {excelStatus && <span className="text-xs text-emerald-600">{excelStatus}</span>}
-        </div>
-        <p className="text-xs text-stone-400 mb-4">支持多 Sheet 导出（Investments / Matches / TeamProfiles / SystemConfig）与导入预览。</p>
-
-        <div className="mb-4 rounded-xl border border-stone-200 bg-stone-50 p-3.5">
-          <div className="grid grid-cols-3 gap-3 items-end">
-            <label className="text-xs text-stone-500 col-span-1">
-              固定导出频率
-              <select
-                value={normalizeBackupCadence(config.backupCadence)}
-                onChange={(event) => handleBackupCadenceChange(event.target.value)}
-                className="input-glow mt-1 w-full px-2.5 py-2 rounded-lg border border-stone-200 text-sm text-stone-700"
-              >
-                {BACKUP_CADENCE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="col-span-2 text-xs text-stone-500 space-y-1.5">
-              <p>
-                上次导出：<span className="text-stone-700">{backupSchedule.lastBackupLabel}</span>
-              </p>
-              <p>
-                下次到期：<span className="text-stone-700">{backupSchedule.nextDueLabel}</span>
-              </p>
-              <p className={backupSchedule.isDue ? 'text-rose-600' : 'text-emerald-600'}>
-                {backupSchedule.isDue
-                  ? backupSchedule.hasLastBackup
-                    ? `已到导出时间（超时约 ${Math.max(1, Math.round(backupSchedule.overdueHours))} 小时）`
-                    : '尚未首次导出，建议立即备份'
-                  : `距离下次到期约 ${Math.max(1, Math.ceil(backupSchedule.remainingHours))} 小时`}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={handleExportExcel}
-            className={`btn-secondary btn-hover ${backupSchedule.isDue ? 'ring-2 ring-rose-200 text-rose-600 border-rose-200' : ''}`}
-          >
-            {backupSchedule.isDue ? '导出 Excel（已到期）' : '导出 Excel'}
-          </button>
-          <input
-            ref={excelInputRef}
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={handleImportExcel}
-            className="hidden"
-          />
-          <button onClick={() => excelInputRef.current?.click()} className="btn-primary btn-hover">
-            导入 Excel
-          </button>
-          {excelError && <span className="text-xs text-rose-500">{excelError}</span>}
-        </div>
-
-        {excelPreview && (
-          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-stone-700">导入预览：{excelPreview.fileName}</p>
-                <p className="text-xs text-stone-500 mt-1">
-                  投资 {excelPreview.preview.investmentCount} 笔 · 比赛 {excelPreview.preview.matchCount} 场 · 球队 {excelPreview.preview.teamCount} 条
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleApplyExcelImport('merge')}
-                  className="px-3 py-1.5 rounded-lg text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
-                >
-                  合并导入
-                </button>
-                <button
-                  onClick={() => handleApplyExcelImport('replace')}
-                  className="px-3 py-1.5 rounded-lg text-xs bg-stone-200 text-stone-700 hover:bg-stone-300 transition-colors"
-                >
-                  覆盖导入
-                </button>
-                <button
-                  onClick={() => setExcelPreview(null)}
-                  className="px-2 py-1.5 rounded-lg text-xs text-stone-400 hover:text-stone-600"
-                >
-                  取消
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <div className="rounded-lg border border-stone-100 bg-white p-3">
-                <p className="text-xs text-stone-400 mb-2">投资样本预览</p>
-                {(excelPreview.preview.sampleInvestments || []).length > 0 ? (
-                  <div className="space-y-1 text-xs text-stone-600">
-                    {excelPreview.preview.sampleInvestments.map((row, idx) => (
-                      <div key={`inv-preview-${idx}`} className="flex items-center justify-between">
-                        <span className="truncate max-w-[160px]">{row.id}</span>
-                        <span className="text-stone-400">{row.status}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-stone-400">无可预览记录</p>
-                )}
-              </div>
-              <div className="rounded-lg border border-stone-100 bg-white p-3">
-                <p className="text-xs text-stone-400 mb-2">比赛样本预览</p>
-                {(excelPreview.preview.sampleMatches || []).length > 0 ? (
-                  <div className="space-y-1 text-xs text-stone-600">
-                    {excelPreview.preview.sampleMatches.map((row, idx) => (
-                      <div key={`match-preview-${idx}`} className="flex items-center justify-between">
-                        <span className="truncate max-w-[160px]">{row.match || row.match_text || row.entry_text || row.entry || '-'}</span>
-                        <span className="text-stone-400">{row.odds || '-'}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-stone-400">无可预览记录</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium text-stone-700 flex items-center gap-2">
-            <ConsoleCardIcon IconComp={Database} /> JSON 数据备份
-          </h3>
-          {jsonStatus && <span className="text-xs text-emerald-600">{jsonStatus}</span>}
-        </div>
-        <p className="text-xs text-stone-400 mb-4">完整数据快照（含所有投资记录、系统配置、球队数据）的 JSON 格式导入导出。</p>
-        <div className="flex flex-wrap items-center gap-3">
-          <button onClick={handleJsonExport} className="btn-secondary btn-hover">
-            导出 JSON Backup
-          </button>
-          <input ref={jsonInputRef} type="file" accept=".json" onChange={handleJsonImportFile} className="hidden" />
-          <button onClick={() => jsonInputRef.current?.click()} className="btn-primary btn-hover">
-            导入 JSON
-          </button>
-        </div>
-      </div>
-
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={LineChart} /> 回归分析校准
           </h3>
           <span className="text-xs text-stone-400 px-2 py-1 bg-amber-50 border border-amber-200 rounded">
@@ -3129,6 +2917,218 @@ export default function ParamsPage({ openModal }) {
             className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white/85 px-3 py-2 text-xs font-medium text-sky-700 hover:bg-sky-50 transition-colors"
           >
             查看详情 <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+
+      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mt-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-medium text-stone-700 flex items-center gap-2">
+            <ConsoleCardIcon IconComp={Cloud} /> 云端同步（Supabase）
+          </h3>
+          <span className="text-xs text-stone-400">{syncStatus.enabled ? '已启用' : '未启用'}</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-3 bg-stone-50 rounded-xl">
+            <p className="text-xs text-stone-400">环境变量</p>
+            <p className={`text-sm font-medium mt-1 ${syncStatus.hasEnv ? 'text-emerald-600' : 'text-rose-500'}`}>
+              {syncStatus.hasEnv ? '已配置' : '未配置'}
+            </p>
+            <p className="text-[11px] text-stone-400 mt-1">需要 `VITE_SUPABASE_URL` 和 `VITE_SUPABASE_ANON_KEY`</p>
+          </div>
+          <div className="p-3 bg-stone-50 rounded-xl">
+            <p className="text-xs text-stone-400">最近同步</p>
+            <p className="text-sm font-medium mt-1 text-stone-700">{syncStatus.lastSyncAt ? new Date(syncStatus.lastSyncAt).toLocaleString() : '--'}</p>
+            {syncStatus.lastError ? <p className="text-[11px] text-rose-500 mt-1">{syncStatus.lastError}</p> : <p className="text-[11px] text-emerald-600 mt-1">状态正常</p>}
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleToggleCloudSync}
+              className={`px-3 py-2 rounded-xl text-sm transition-colors ${
+                syncStatus.enabled ? 'bg-rose-100 text-rose-600 hover:bg-rose-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+              }`}
+            >
+              {syncStatus.enabled ? '暂停同步' : '开启同步'}
+            </button>
+            <button
+              onClick={handleCloudSyncNow}
+              disabled={!syncStatus.enabled || syncingNow}
+              className="px-3 py-2 rounded-xl text-sm bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {syncingNow ? '同步中...' : '立即同步'}
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => handleCloudPull('merge')}
+              disabled={!syncStatus.hasEnv || pullingCloud}
+              className="px-3 py-2 rounded-xl text-sm bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {pullingCloud ? '拉取中...' : '从云端合并拉取'}
+            </button>
+            <button
+              onClick={() => handleCloudPull('replace')}
+              disabled={!syncStatus.hasEnv || pullingCloud}
+              className="px-3 py-2 rounded-xl text-sm bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              从云端覆盖拉取
+            </button>
+            {cloudPullStatus && <span className="text-xs text-stone-500">{cloudPullStatus}</span>}
+          </div>
+        </div>
+      </div>
+
+      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-medium text-stone-700 flex items-center gap-2">
+            <ConsoleCardIcon IconComp={FileSpreadsheet} /> Excel 数据进出
+          </h3>
+          {excelStatus && <span className="text-xs text-emerald-600">{excelStatus}</span>}
+        </div>
+        <p className="text-xs text-stone-400 mb-4">支持多 Sheet 导出（Investments / Matches / TeamProfiles / SystemConfig）与导入预览。</p>
+
+        <div className="mb-4 rounded-xl border border-stone-200 bg-stone-50 p-3.5">
+          <div className="grid grid-cols-3 gap-3 items-end">
+            <label className="text-xs text-stone-500 col-span-1">
+              固定导出频率
+              <select
+                value={normalizeBackupCadence(config.backupCadence)}
+                onChange={(event) => handleBackupCadenceChange(event.target.value)}
+                className="input-glow mt-1 w-full px-2.5 py-2 rounded-lg border border-stone-200 text-sm text-stone-700"
+              >
+                {BACKUP_CADENCE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="col-span-2 text-xs text-stone-500 space-y-1.5">
+              <p>
+                上次导出：<span className="text-stone-700">{backupSchedule.lastBackupLabel}</span>
+              </p>
+              <p>
+                下次到期：<span className="text-stone-700">{backupSchedule.nextDueLabel}</span>
+              </p>
+              <p className={backupSchedule.isDue ? 'text-rose-600' : 'text-emerald-600'}>
+                {backupSchedule.isDue
+                  ? backupSchedule.hasLastBackup
+                    ? `已到导出时间（超时约 ${Math.max(1, Math.round(backupSchedule.overdueHours))} 小时）`
+                    : '尚未首次导出，建议立即备份'
+                  : `距离下次到期约 ${Math.max(1, Math.ceil(backupSchedule.remainingHours))} 小时`}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={handleExportExcel}
+            className={`btn-secondary btn-hover ${backupSchedule.isDue ? 'ring-2 ring-rose-200 text-rose-600 border-rose-200' : ''}`}
+          >
+            {backupSchedule.isDue ? '导出 Excel（已到期）' : '导出 Excel'}
+          </button>
+          <input
+            ref={excelInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleImportExcel}
+            className="hidden"
+          />
+          <button onClick={() => excelInputRef.current?.click()} className="btn-primary btn-hover">
+            导入 Excel
+          </button>
+          {excelError && <span className="text-xs text-rose-500">{excelError}</span>}
+        </div>
+
+        {excelPreview && (
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-stone-700">导入预览：{excelPreview.fileName}</p>
+                <p className="text-xs text-stone-500 mt-1">
+                  投资 {excelPreview.preview.investmentCount} 笔 · 比赛 {excelPreview.preview.matchCount} 场 · 球队 {excelPreview.preview.teamCount} 条
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleApplyExcelImport('merge')}
+                  className="px-3 py-1.5 rounded-lg text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
+                >
+                  合并导入
+                </button>
+                <button
+                  onClick={() => handleApplyExcelImport('replace')}
+                  className="px-3 py-1.5 rounded-lg text-xs bg-stone-200 text-stone-700 hover:bg-stone-300 transition-colors"
+                >
+                  覆盖导入
+                </button>
+                <button
+                  onClick={() => setExcelPreview(null)}
+                  className="px-2 py-1.5 rounded-lg text-xs text-stone-400 hover:text-stone-600"
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <div className="rounded-lg border border-stone-100 bg-white p-3">
+                <p className="text-xs text-stone-400 mb-2">投资样本预览</p>
+                {(excelPreview.preview.sampleInvestments || []).length > 0 ? (
+                  <div className="space-y-1 text-xs text-stone-600">
+                    {excelPreview.preview.sampleInvestments.map((row, idx) => (
+                      <div key={`inv-preview-${idx}`} className="flex items-center justify-between">
+                        <span className="truncate max-w-[160px]">{row.id}</span>
+                        <span className="text-stone-400">{row.status}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-stone-400">无可预览记录</p>
+                )}
+              </div>
+              <div className="rounded-lg border border-stone-100 bg-white p-3">
+                <p className="text-xs text-stone-400 mb-2">比赛样本预览</p>
+                {(excelPreview.preview.sampleMatches || []).length > 0 ? (
+                  <div className="space-y-1 text-xs text-stone-600">
+                    {excelPreview.preview.sampleMatches.map((row, idx) => (
+                      <div key={`match-preview-${idx}`} className="flex items-center justify-between">
+                        <span className="truncate max-w-[160px]">{row.match || row.match_text || row.entry_text || row.entry || '-'}</span>
+                        <span className="text-stone-400">{row.odds || '-'}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-stone-400">无可预览记录</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-medium text-stone-700 flex items-center gap-2">
+            <ConsoleCardIcon IconComp={Database} /> JSON 数据备份
+          </h3>
+          {jsonStatus && <span className="text-xs text-emerald-600">{jsonStatus}</span>}
+        </div>
+        <p className="text-xs text-stone-400 mb-4">完整数据快照（含所有投资记录、系统配置、球队数据）的 JSON 格式导入导出。</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <button onClick={handleJsonExport} className="btn-secondary btn-hover">
+            导出 JSON Backup
+          </button>
+          <input ref={jsonInputRef} type="file" accept=".json" onChange={handleJsonImportFile} className="hidden" />
+          <button onClick={() => jsonInputRef.current?.click()} className="btn-primary btn-hover">
+            导入 JSON
           </button>
         </div>
       </div>

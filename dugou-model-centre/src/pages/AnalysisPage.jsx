@@ -1176,100 +1176,9 @@ export default function AnalysisPage({ openModal }) {
 
           <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium text-stone-700">不同 Position 表现对比</h3>
-              <span className="text-xs text-stone-400">点选某个 Position 查看历史</span>
-            </div>
-            <div className="space-y-3">
-              {deepData.positionRows.map((item) => (
-                <div
-                  key={item.type}
-                  onClick={() => openPositionHistoryDetail(item.type)}
-                  className={`p-4 rounded-xl border transition-all lift-card cursor-pointer ${
-                    item.best ? 'border-emerald-200 bg-emerald-50/50' : 'border-stone-100 bg-stone-50 hover:bg-amber-50/40'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <span className="font-medium text-stone-700">{item.type}</span>
-                        <span className="text-xs text-stone-400 ml-2">{item.sublabel}</span>
-                      </div>
-                      {item.best && <span className="text-[10px] px-2 py-0.5 bg-emerald-200 text-emerald-700 rounded-full font-medium">最优</span>}
-                      {item.partial && <span className="text-[10px] text-stone-400 bg-stone-100 px-2 py-0.5 rounded">{item.partial}</span>}
-                    </div>
-                    <span className={`text-lg font-semibold ${item.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                      {signed(item.roi, 1, '%')}
-                    </span>
-                  </div>
-                  <div className="flex gap-4 text-xs text-stone-500">
-                    <span>{item.samples} 样本</span>
-                    <span>命中率 {item.hitRate.toFixed(1)}%</span>
-                    <span>平均赔率 {item.avgOdds.toFixed(2)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium text-stone-700">最优串关组合分析（S8）</h3>
-              <span className="text-xs text-stone-400">串关规模 × 主导 Mode · 点击单元格查看历史</span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-stone-200 text-left text-stone-500">
-                    <th className="py-2 pr-3 min-w-[72px]">规模</th>
-                    {MODE_ORDER.map((mode) => (
-                      <th key={`head-${mode}`} className="py-2 px-1 min-w-[96px] text-center font-medium">
-                        {mode}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {deepData.comboMatrixRows.map((row) => (
-                    <tr key={`matrix-${row.sizeBucket}`} className="border-b border-stone-100">
-                      <td className="py-2.5 pr-3 font-medium text-stone-700">{row.sizeBucket}</td>
-                      {row.cells.map((cell) => {
-                        const intensity = Math.min(Math.abs(cell.roi) / 40, 1)
-                        const bgColor = !cell.hasData
-                          ? 'rgba(245,245,244,0.65)'
-                          : cell.roi >= 0
-                            ? `rgba(16,185,129,${0.1 + intensity * 0.22})`
-                            : `rgba(251,113,133,${0.08 + intensity * 0.16})`
-                        const textTone = !cell.hasData ? 'text-stone-300' : cell.roi >= 0 ? 'text-emerald-700' : 'text-rose-600'
-
-                        return (
-                          <td key={cell.key} className="py-2 px-1">
-                            <button
-                              onClick={() => openComboMatrixDetail(cell)}
-                              disabled={!cell.hasData}
-                              style={{ background: bgColor }}
-                              className={`w-full rounded-lg border border-stone-200/70 py-1.5 px-1 text-center transition-all ${
-                                cell.hasData ? 'hover:shadow-sm' : 'cursor-not-allowed'
-                              }`}
-                            >
-                              <p className={`text-sm font-semibold ${textTone}`}>{cell.hasData ? signed(cell.roi, 1, '%') : '--'}</p>
-                              <p className="text-[10px] text-stone-500">{cell.hasData ? `${cell.samples}场 · ${cell.hitRate.toFixed(0)}%` : '无样本'}</p>
-                            </button>
-                          </td>
-                        )
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium text-stone-700">优势领域识别 2.0</h3>
+              <h3 className="font-medium text-stone-700">优势领域分析 2.0</h3>
               <span className="text-xs text-stone-400">Mode × Conf × Odds · 点击单元格查看样本明细</span>
             </div>
-
             <div className="flex flex-wrap items-center gap-2 mb-4">
               {advantageModes.map((mode) => (
                 <button
@@ -1405,6 +1314,96 @@ export default function AnalysisPage({ openModal }) {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-medium text-stone-700">最优串关组合分析（S8）</h3>
+              <span className="text-xs text-stone-400">串关规模 × 主导 Mode · 点击单元格查看历史</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-stone-200 text-left text-stone-500">
+                    <th className="py-2 pr-3 min-w-[72px]">规模</th>
+                    {MODE_ORDER.map((mode) => (
+                      <th key={`head-${mode}`} className="py-2 px-1 min-w-[96px] text-center font-medium">
+                        {mode}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {deepData.comboMatrixRows.map((row) => (
+                    <tr key={`matrix-${row.sizeBucket}`} className="border-b border-stone-100">
+                      <td className="py-2.5 pr-3 font-medium text-stone-700">{row.sizeBucket}</td>
+                      {row.cells.map((cell) => {
+                        const intensity = Math.min(Math.abs(cell.roi) / 40, 1)
+                        const bgColor = !cell.hasData
+                          ? 'rgba(245,245,244,0.65)'
+                          : cell.roi >= 0
+                            ? `rgba(16,185,129,${0.1 + intensity * 0.22})`
+                            : `rgba(251,113,133,${0.08 + intensity * 0.16})`
+                        const textTone = !cell.hasData ? 'text-stone-300' : cell.roi >= 0 ? 'text-emerald-700' : 'text-rose-600'
+
+                        return (
+                          <td key={cell.key} className="py-2 px-1">
+                            <button
+                              onClick={() => openComboMatrixDetail(cell)}
+                              disabled={!cell.hasData}
+                              style={{ background: bgColor }}
+                              className={`w-full rounded-lg border border-stone-200/70 py-1.5 px-1 text-center transition-all ${
+                                cell.hasData ? 'hover:shadow-sm' : 'cursor-not-allowed'
+                              }`}
+                            >
+                              <p className={`text-sm font-semibold ${textTone}`}>{cell.hasData ? signed(cell.roi, 1, '%') : '--'}</p>
+                              <p className="text-[10px] text-stone-500">{cell.hasData ? `${cell.samples}场 · ${cell.hitRate.toFixed(0)}%` : '无样本'}</p>
+                            </button>
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-medium text-stone-700">不同 Position 表现对比</h3>
+              <span className="text-xs text-stone-400">点选某个 Position 查看历史</span>
+            </div>
+            <div className="space-y-3">
+              {deepData.positionRows.map((item) => (
+                <div
+                  key={item.type}
+                  onClick={() => openPositionHistoryDetail(item.type)}
+                  className={`p-4 rounded-xl border transition-all lift-card cursor-pointer ${
+                    item.best ? 'border-emerald-200 bg-emerald-50/50' : 'border-stone-100 bg-stone-50 hover:bg-amber-50/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <span className="font-medium text-stone-700">{item.type}</span>
+                        <span className="text-xs text-stone-400 ml-2">{item.sublabel}</span>
+                      </div>
+                      {item.best && <span className="text-[10px] px-2 py-0.5 bg-emerald-200 text-emerald-700 rounded-full font-medium">最优</span>}
+                      {item.partial && <span className="text-[10px] text-stone-400 bg-stone-100 px-2 py-0.5 rounded">{item.partial}</span>}
+                    </div>
+                    <span className={`text-lg font-semibold ${item.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                      {signed(item.roi, 1, '%')}
+                    </span>
+                  </div>
+                  <div className="flex gap-4 text-xs text-stone-500">
+                    <span>{item.samples} 样本</span>
+                    <span>命中率 {item.hitRate.toFixed(1)}%</span>
+                    <span>平均赔率 {item.avgOdds.toFixed(2)}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -1688,27 +1687,29 @@ export default function AnalysisPage({ openModal }) {
         </div>
       )}
 
-      <div className="mt-6 glow-card bg-white rounded-2xl p-5 border border-stone-100">
-        <h3 className="font-medium text-stone-700 mb-2">快速概览</h3>
-        <div className="grid grid-cols-4 gap-4 text-sm">
-          <div className="p-3 rounded-xl bg-stone-50">
-            <p className="text-xs text-stone-400">Position 维度样本</p>
-            <p className="text-lg font-semibold text-stone-800">{deepData.positionRows.reduce((sum, row) => sum + row.samples, 0)}</p>
-          </div>
-          <div className="p-3 rounded-xl bg-stone-50">
-            <p className="text-xs text-stone-400">联赛覆盖</p>
-            <p className="text-lg font-semibold text-stone-800">{deepData.leagueRows.length} 个联赛</p>
-          </div>
-          <div className="p-3 rounded-xl bg-stone-50">
-            <p className="text-xs text-stone-400">Conf 分层样本</p>
-            <p className="text-lg font-semibold text-stone-800">{deepData.confRows.reduce((sum, row) => sum + row.samples, 0)}</p>
-          </div>
-          <div className="p-3 rounded-xl bg-stone-50">
-            <p className="text-xs text-stone-400">Mode 样本</p>
-            <p className="text-lg font-semibold text-stone-800">{metricsSnapshot.matrix.mode.reduce((sum, row) => sum + row.samples, 0)}</p>
+      {analysisTab === 'combo' && (
+        <div className="mt-6 glow-card bg-white rounded-2xl p-5 border border-stone-100">
+          <h3 className="font-medium text-stone-700 mb-2">快速概览</h3>
+          <div className="grid grid-cols-4 gap-4 text-sm">
+            <div className="p-3 rounded-xl bg-stone-50">
+              <p className="text-xs text-stone-400">Position 维度样本</p>
+              <p className="text-lg font-semibold text-stone-800">{deepData.positionRows.reduce((sum, row) => sum + row.samples, 0)}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-stone-50">
+              <p className="text-xs text-stone-400">联赛覆盖</p>
+              <p className="text-lg font-semibold text-stone-800">{deepData.leagueRows.length} 个联赛</p>
+            </div>
+            <div className="p-3 rounded-xl bg-stone-50">
+              <p className="text-xs text-stone-400">Conf 分层样本</p>
+              <p className="text-lg font-semibold text-stone-800">{deepData.confRows.reduce((sum, row) => sum + row.samples, 0)}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-stone-50">
+              <p className="text-xs text-stone-400">Mode 样本</p>
+              <p className="text-lg font-semibold text-stone-800">{metricsSnapshot.matrix.mode.reduce((sum, row) => sum + row.samples, 0)}</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
