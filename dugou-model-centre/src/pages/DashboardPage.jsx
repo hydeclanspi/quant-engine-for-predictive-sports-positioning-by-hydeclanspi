@@ -344,6 +344,38 @@ export default function DashboardPage({ openModal }) {
       }))
       .sort((a, b) => b.share - a.share)
   }, [repCards])
+  const totalRepSamples = useMemo(
+    () => repCards.reduce((sum, row) => sum + Number(row.samples || 0), 0),
+    [repCards],
+  )
+  const recencySignal = useMemo(() => {
+    if (!repSummary) {
+      return {
+        label: '待采样',
+        chipClass: 'border-stone-200 bg-stone-100/90 text-stone-600',
+        valueClass: 'text-stone-600',
+      }
+    }
+    if (repSummary.riskGap <= -8) {
+      return {
+        label: '防守期',
+        chipClass: 'border-rose-200 bg-rose-50/90 text-rose-600',
+        valueClass: 'text-rose-500',
+      }
+    }
+    if (repSummary.riskGap >= 8) {
+      return {
+        label: '进攻期',
+        chipClass: 'border-emerald-200 bg-emerald-50/90 text-emerald-700',
+        valueClass: 'text-emerald-600',
+      }
+    }
+    return {
+      label: '均衡期',
+      chipClass: 'border-cyan-200 bg-cyan-50/90 text-cyan-700',
+      valueClass: 'text-cyan-700',
+    }
+  }, [repSummary])
   const confPriorityRows = useMemo(
     () =>
       confDetailRows
@@ -1102,89 +1134,132 @@ export default function DashboardPage({ openModal }) {
         <div className="grid grid-cols-3 gap-4">
           <div
             onClick={openRepModal}
-            className="glow-card relative overflow-hidden rounded-2xl p-5 border border-cyan-100/80 bg-gradient-to-br from-white via-cyan-50/35 to-indigo-50/35 cursor-pointer h-full flex flex-col"
+            className="glow-card group relative overflow-hidden rounded-2xl p-5 border border-sky-100/80 bg-gradient-to-br from-white via-sky-50/35 to-cyan-50/35 cursor-pointer h-full"
           >
-            <div className="pointer-events-none absolute -top-10 -right-8 h-28 w-28 rounded-full bg-cyan-200/20 blur-2xl" />
-            <div className="pointer-events-none absolute -bottom-12 -left-8 h-28 w-28 rounded-full bg-indigo-200/20 blur-2xl" />
-            <div className="relative">
-              <div className="flex items-center justify-between mb-3">
+            <div className="pointer-events-none absolute -top-16 -right-12 h-40 w-40 rounded-full bg-sky-200/30 blur-3xl" />
+            <div className="pointer-events-none absolute top-16 -left-16 h-36 w-36 rounded-full bg-cyan-200/24 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-16 right-10 h-36 w-36 rounded-full bg-indigo-200/24 blur-3xl" />
+            <div className="relative h-full flex flex-col">
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="flex items-center gap-2.5">
-                    <h3 className="font-medium text-stone-700">REP (噪音过滤)</h3>
-                    <span className="ml-0.5 px-1 py-[1px] rounded border border-cyan-200 bg-cyan-50 text-[8px] font-medium uppercase tracking-[0.12em] text-cyan-700">Beta</span>
-                    <span className="px-1.5 py-[1px] rounded border border-indigo-200 bg-indigo-50 text-[8px] font-medium uppercase tracking-[0.12em] text-indigo-700">
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-flex items-center rounded-full border border-sky-200 bg-white/85 px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] text-sky-700">
+                      Beta
+                    </span>
+                    <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50/80 px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] text-indigo-700">
                       Recency Engine
                     </span>
                   </div>
-                  <p className="text-xs text-stone-400">Random Events Parameter · 时间近因机制</p>
+                  <h3 className="mt-2 text-[15px] font-semibold text-stone-800 tracking-[0.01em]">时间近因机制</h3>
+                  <p className="text-[11px] text-stone-500 mt-1">Random Events Parameter · 近期样本权重校准</p>
+                </div>
+                <div className="text-right rounded-xl border border-white/85 bg-white/72 px-2.5 py-2 shadow-[0_6px_16px_rgba(14,165,233,0.1)] backdrop-blur-sm">
+                  <p className="text-[10px] text-stone-400 uppercase tracking-[0.1em]">样本池</p>
+                  <p className="text-lg font-semibold text-sky-700 tabular-nums">{totalRepSamples}</p>
+                  <p className="text-[10px] text-stone-400">matches</p>
                 </div>
               </div>
-              <div className="space-y-2">
-                {snapshot.repBuckets.map((bucket, index) => {
-                  const colorClass = index === 0 ? 'text-emerald-600' : index === 1 ? 'text-stone-600' : 'text-rose-500'
+
+              <div className="mt-3 grid grid-cols-3 gap-2.5">
+                {repCards.map((bucket) => {
+                  const tone =
+                    bucket.key === 'low'
+                      ? {
+                          panel: 'border-emerald-100 bg-emerald-50/70',
+                          value: 'text-emerald-600',
+                          bar: 'bg-emerald-400',
+                        }
+                      : bucket.key === 'mid'
+                        ? {
+                            panel: 'border-amber-100 bg-amber-50/70',
+                            value: 'text-amber-600',
+                            bar: 'bg-amber-400',
+                          }
+                        : {
+                            panel: 'border-rose-100 bg-rose-50/70',
+                            value: 'text-rose-500',
+                            bar: 'bg-rose-400',
+                          }
+                  const share = totalRepSamples > 0 ? Math.round((bucket.samples / totalRepSamples) * 100) : 0
                   return (
-                    <div key={bucket.label} className="flex items-center justify-between px-2.5 py-2 rounded-lg border border-white/80 bg-white/65 backdrop-blur-sm">
-                      <span className="text-xs text-stone-500">{bucket.label}场次</span>
-                      <span className={`text-xs font-medium ${colorClass}`}>
-                        {bucket.count} 场 · ROI {toSigned(bucket.roi, 1, '%')}
-                      </span>
+                    <div
+                      key={bucket.key}
+                      className={`rounded-xl border px-2.5 py-2 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.88)] ${tone.panel}`}
+                    >
+                      <p className="text-[10px] text-stone-500 truncate">{bucket.label}</p>
+                      <p className={`text-[12px] font-semibold mt-0.5 ${tone.value}`}>{toSigned(bucket.roi, 1, '%')}</p>
+                      <p className="text-[10px] text-stone-500 mt-0.5">
+                        {bucket.samples} 场 · Hit {toPercent(bucket.hitRate, 0)}
+                      </p>
+                      <div className="mt-1.5 h-1 rounded-full bg-white/85 border border-white/70 overflow-hidden">
+                        <div className={`h-full ${tone.bar}`} style={{ width: `${Math.max(8, share)}%` }} />
+                      </div>
                     </div>
                   )
                 })}
               </div>
-              <div className="mt-3 pt-3 border-t border-cyan-100/80 space-y-2 flex-1 flex flex-col">
+
+              <div className="mt-3 rounded-xl border border-sky-100/80 bg-white/72 backdrop-blur-sm p-3 shadow-[0_8px_18px_rgba(14,165,233,0.08)]">
                 {repSummary ? (
                   <>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="rounded-lg border border-emerald-100 bg-emerald-50/45 p-2">
-                        <p className="text-[10px] text-stone-400">最优随机层</p>
-                        <p className="text-xs font-medium text-emerald-700">{repSummary.best.label}</p>
-                        <p className="text-[11px] text-emerald-600">
-                          ROI {toSigned(repSummary.best.roi, 1, '%')} · Hit {repSummary.best.hitRate.toFixed(0)}%
-                        </p>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.12em] text-stone-400">Regime Signal</p>
+                        <p className={`text-[13px] font-semibold ${recencySignal.valueClass}`}>{recencySignal.label}</p>
                       </div>
-                      <div className="rounded-lg border border-rose-100 bg-rose-50/45 p-2">
-                        <p className="text-[10px] text-stone-400">最弱随机层</p>
-                        <p className="text-xs font-medium text-rose-600">{repSummary.weakest.label}</p>
-                        <p className="text-[11px] text-rose-500">
-                          ROI {toSigned(repSummary.weakest.roi, 1, '%')} · Hit {repSummary.weakest.hitRate.toFixed(0)}%
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-[11px] text-stone-500">
-                      <span>高随机 vs 低随机 ROI 差</span>
-                      <span className={`font-medium ${repSummary.riskGap >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                        {toSigned(repSummary.riskGap, 1, '%')}
+                      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${recencySignal.chipClass}`}>
+                        高随机-低随机 {toSigned(repSummary.riskGap, 1, '%')}
                       </span>
                     </div>
-                    <p className="text-[11px] text-stone-500 leading-5">{repSummary.action}</p>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+                      <div className="rounded-lg border border-emerald-100/90 bg-emerald-50/70 px-2 py-1.5">
+                        <p className="text-stone-500">最优层</p>
+                        <p className="font-medium text-emerald-700">{repSummary.best.label}</p>
+                      </div>
+                      <div className="rounded-lg border border-rose-100/90 bg-rose-50/70 px-2 py-1.5">
+                        <p className="text-stone-500">脆弱层</p>
+                        <p className="font-medium text-rose-600">{repSummary.weakest.label}</p>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-[11px] leading-5 text-stone-600">{repSummary.action}</p>
                   </>
                 ) : (
                   <p className="text-[11px] text-stone-400">当前窗口暂无 REP 细分样本。</p>
                 )}
-                {repMixRows.length > 0 && (
-                  <div className="mt-1.5 rounded-xl border border-cyan-100/70 bg-white/65 p-2.5 space-y-2 backdrop-blur-sm">
-                    <p className="text-[10px] uppercase tracking-[0.12em] text-stone-400">样本结构 / 处理优先级</p>
+              </div>
+
+              {repMixRows.length > 0 && (
+                <div className="mt-3 rounded-xl border border-cyan-100/80 bg-white/68 px-3 py-2.5 backdrop-blur-sm">
+                  <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.12em] text-stone-400">
+                    <span>样本结构分层</span>
+                    <span>Execution Priority</span>
+                  </div>
+                  <div className="mt-2 h-2 rounded-full overflow-hidden border border-stone-200/70 bg-white flex">
                     {repMixRows.map((row) => (
-                      <div key={row.key} className="space-y-1">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-stone-500">{row.label}</span>
-                          <span className="font-medium text-stone-700">
-                            {toPercent(row.share * 100, 0)} · {row.tip}
-                          </span>
-                        </div>
-                        <div className="h-1.5 rounded-full bg-white overflow-hidden border border-stone-200/60">
-                          <div
-                            className={`h-full ${row.bandTone}`}
-                            style={{ width: `${Math.max(8, Math.round(row.share * 100))}%` }}
-                          />
-                        </div>
-                      </div>
+                      <div
+                        key={`mix-${row.key}`}
+                        className={row.bandTone}
+                        style={{ width: `${Math.max(8, Math.round(row.share * 100))}%` }}
+                      />
                     ))}
                   </div>
-                )}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {repMixRows.map((row) => (
+                      <span
+                        key={row.key}
+                        className="inline-flex items-center rounded-full border border-white/90 bg-white/86 px-2 py-0.5 text-[10px] text-stone-600"
+                      >
+                        {row.label}: {toPercent(row.share * 100, 0)} · {row.tip}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-3 pt-2 border-t border-sky-100/80 flex items-center justify-between text-[10px] text-stone-400">
+                <span>点击查看分层样本明细与分页回放</span>
+                <span className="font-medium text-sky-600 group-hover:translate-x-0.5 transition-transform">OPEN →</span>
               </div>
-              <p className="text-[10px] text-stone-400 mt-3">通过 REP 加权过滤随机因素，帮助区分运气波动与判断质量。</p>
             </div>
           </div>
 

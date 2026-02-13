@@ -4122,11 +4122,11 @@ export default function ComboPage({ openModal }) {
                     </div>
                     <div className="w-[190px] justify-self-end mr-2 text-right">
                       <p className="text-[11px] text-stone-500 uppercase tracking-[0.08em]">EV / Invest</p>
-                      <p className="text-base font-semibold text-stone-700 whitespace-nowrap tabular-nums">
+                      <p className="text-[14px] leading-tight font-semibold text-stone-700 whitespace-nowrap tabular-nums">
                         <span className={item.expectedReturnPercent >= 0 ? 'text-emerald-600' : 'text-rose-500'}>
                           {formatPercent(item.expectedReturnPercent)}
-                        </span>{' '}
-                        / {item.totalInvest} rmb
+                        </span>
+                        <span className="text-[13px] font-semibold text-stone-600"> / {item.totalInvest} rmb</span>
                       </p>
                     </div>
                     <button

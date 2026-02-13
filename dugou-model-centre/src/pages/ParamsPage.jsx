@@ -1387,6 +1387,7 @@ export default function ParamsPage({ openModal }) {
   const [dataVersion, setDataVersion] = useState(0)
   const [nowTick, setNowTick] = useState(() => Date.now())
   const [pendingKellyAdjustment, setPendingKellyAdjustment] = useState(null)
+  const [showAllKellyRows, setShowAllKellyRows] = useState(false)
   const [analyticsData, setAnalyticsData] = useState(() => ({
     ratingRows: [],
     modeKellyRows: [],
@@ -1536,6 +1537,11 @@ export default function ParamsPage({ openModal }) {
     () => (kellyBacktest.globalRows || []).some((row) => row.samples > 0),
     [kellyBacktest.globalRows],
   )
+  const kellyVisibleRows = useMemo(
+    () => (showAllKellyRows ? kellyBacktest.globalRows || [] : (kellyBacktest.globalRows || []).slice(0, 6)),
+    [showAllKellyRows, kellyBacktest.globalRows],
+  )
+  const hasMoreKellyRows = (kellyBacktest.globalRows || []).length > 6
   const recommendedKellyDivisor = useMemo(() => {
     if (!modeKellyRows || modeKellyRows.length === 0) return 4
     const totalSamples = modeKellyRows.reduce((sum, row) => sum + (row.samples || 0), 0)
@@ -2254,7 +2260,7 @@ export default function ParamsPage({ openModal }) {
                 </tr>
               </thead>
               <tbody>
-                {kellyBacktest.globalRows.map((row) => {
+                {kellyVisibleRows.map((row) => {
                   const isBest = kellyBacktest.globalBest?.divisor === row.divisor
                   return (
                     <tr key={`kelly-${row.divisor}`} className={`border-b border-stone-100 ${isBest ? 'bg-amber-50/50' : ''}`}>
@@ -2283,6 +2289,16 @@ export default function ParamsPage({ openModal }) {
                 })}
               </tbody>
             </table>
+            {hasMoreKellyRows && (
+              <div className="mt-2 flex justify-center">
+                <button
+                  onClick={() => setShowAllKellyRows((prev) => !prev)}
+                  className="h-7 px-3 rounded-full text-[11px] border border-amber-200 bg-amber-50/80 text-amber-700 hover:bg-amber-100 transition-colors"
+                >
+                  {showAllKellyRows ? '收起回测行' : `展开更多（+${kellyBacktest.globalRows.length - 6}）`}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
