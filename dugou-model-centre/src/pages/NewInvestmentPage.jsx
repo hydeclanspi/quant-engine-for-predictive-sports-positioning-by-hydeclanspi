@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, X, ChevronDown, ChevronRight } from 'lucide-react'
 import { bumpTeamSamples, findTeamProfile, getInvestments, getSystemConfig, getTeamProfiles, saveInvestment, searchTeamProfiles } from '../lib/localData'
@@ -225,7 +225,10 @@ export default function NewInvestmentPage() {
   const [quickInputOpen, setQuickInputOpen] = useState(false)
   const [quickInputResult, setQuickInputResult] = useState(null)
   const [waxSealBurst, setWaxSealBurst] = useState({ active: false, token: 0, x: 0, y: 0 })
+  const [confirmPersistPending, setConfirmPersistPending] = useState(false)
   const [systemConfig] = useState(() => getSystemConfig())
+  const persistTimerRef = useRef(null)
+  const persistIdleRef = useRef(null)
 
   const teamProfiles = useMemo(() => getTeamProfiles(), [profilesVersion])
   const historicalMatchLibrary = useMemo(() => {
@@ -328,6 +331,18 @@ export default function NewInvestmentPage() {
     window.addEventListener('dugou:data-changed', onDataChanged)
     return () => window.removeEventListener('dugou:data-changed', onDataChanged)
   }, [])
+
+  useEffect(
+    () => () => {
+      if (persistTimerRef.current) {
+        window.clearTimeout(persistTimerRef.current)
+      }
+      if (persistIdleRef.current && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(persistIdleRef.current)
+      }
+    },
+    [],
+  )
 
   useEffect(() => {
     setMatches((prev) =>
@@ -823,8 +838,7 @@ export default function NewInvestmentPage() {
     setHistoryFloatDismissed({})
   }
 
-  const persistCurrentInvestment = () => {
-    const payload = buildInvestmentPayload()
+  const persistInvestmentFromPayload = (payload) => {
     if (!payload) return null
     const { newInvestment, normalizedMatches } = payload
     saveInvestment(newInvestment)
@@ -833,6 +847,39 @@ export default function NewInvestmentPage() {
     setComboName('')
     resetForm()
     return newInvestment
+  }
+
+  const persistCurrentInvestment = () => {
+    const payload = buildInvestmentPayload()
+    if (!payload) return null
+    return persistInvestmentFromPayload(payload)
+  }
+
+  const queueBackgroundPersist = (payload) => {
+    const runPersist = () => {
+      persistTimerRef.current = null
+      persistIdleRef.current = null
+      try {
+        persistInvestmentFromPayload(payload)
+      } finally {
+        setConfirmPersistPending(false)
+      }
+    }
+
+    const queueIdlePersist = () => {
+      if (typeof window.requestIdleCallback === 'function') {
+        persistIdleRef.current = window.requestIdleCallback(runPersist, { timeout: 2200 })
+        return
+      }
+      persistTimerRef.current = window.setTimeout(runPersist, 720)
+    }
+
+    // Let the seal animation fully enter first, then persist in background.
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        persistTimerRef.current = window.setTimeout(queueIdlePersist, 120)
+      })
+    })
   }
 
   const triggerWaxSealStamp = (target) => {
@@ -850,10 +897,12 @@ export default function NewInvestmentPage() {
   }
 
   const handleConfirmInvestment = (event) => {
-    const saved = persistCurrentInvestment()
-    if (saved) {
-      triggerWaxSealStamp(event?.currentTarget)
-    }
+    if (confirmPersistPending) return
+    const payload = buildInvestmentPayload()
+    if (!payload) return
+    setConfirmPersistPending(true)
+    triggerWaxSealStamp(event?.currentTarget)
+    queueBackgroundPersist(payload)
   }
 
   const handleAddToCombo = () => {
@@ -1499,8 +1548,12 @@ export default function NewInvestmentPage() {
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <button onClick={(event) => handleConfirmInvestment(event)} className="btn-primary btn-hover">
-                  确认投资
+                <button
+                  onClick={(event) => handleConfirmInvestment(event)}
+                  disabled={confirmPersistPending}
+                  className={`btn-primary btn-hover ${confirmPersistPending ? 'opacity-80 cursor-not-allowed' : ''}`}
+                >
+                  {confirmPersistPending ? '印章确认中...' : '确认投资'}
                 </button>
                 <button
                   onClick={handleAddToCombo}
