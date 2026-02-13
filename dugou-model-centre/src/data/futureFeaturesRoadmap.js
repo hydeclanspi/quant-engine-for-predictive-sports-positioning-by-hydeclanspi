@@ -31,20 +31,26 @@ export const FUTURE_FEATURE_OVERVIEW_TEXT = `### 4. 高级 AI/ML 赋能汇报（
 
 #### Tier 2 — 中可行性、需要额外数据源
 
-**⑤ NLP 舆情信号 (Sentiment Signal)**
+**⑤ 碰撞模拟引擎 (Collision Simulation Engine)**
+
+- 思路：在每场比赛层先生成带不确定性的 outcome 分布（胜/平/负及其置信带），再在组合层做多轮"场景碰撞"（Scenario Collision）模拟，输出分位数收益、尾部回撤和结构脆弱点。
+- 价值：比单点 EV 更贴近真实下注感受，能看见"同样高 EV 但回撤路径完全不同"的组合差异，帮助你筛掉看似高分但结构脆弱的方案。
+- 挑战：需要更细粒度的结果采样逻辑（赔率冲击、模式冲击、联赛共振冲击）和更严格的回测切分，避免模拟器过拟合历史噪声。
+
+**⑥ NLP 舆情信号 (Sentiment Signal)**
 
 - 思路：爬取赛前新闻/伤停/阵容信息，用预训练 LLM 或 FinBERT 提取情感分数（看好/看衰/中性）。作为 conf 的外部验证信号或独立特征。
 - 价值：可以捕捉"内幕"级信息（关键球员伤停、换帅效应），conf 可能遗漏这些。
 - 挑战：中文足球新闻 NLP 需要中文模型，数据获取和清洗工作量大。
 
-**⑥ 赔率变动时序建模 (Odds Movement Features)**
+**⑦ 赔率变动时序建模 (Odds Movement Features)**
 
 - 思路：跟踪从开盘到临场的赔率变动曲线。Sharp 钱流（大资金线路变动）是市场定价效率的强信号。
 - 特征：开盘 odds、临场 odds、Δodds、变动方向、变动速度。
 - 价值：赔率下降 = 市场看好 → 如果 conf 也高则验证信号，如果 conf 低而赔率降则可能是信息不对称。
 - 需要：实时或准实时赔率 API。
 
-**⑦ Ensemble 模型 + Stacking**
+**⑧ Ensemble 模型 + Stacking**
 
 - 思路：当前是单一管线（回归校准 + 保序回归）。可以跑多个 base learners（逻辑回归、随机森林、XGBoost、Naive Bayes），然后用 meta-learner（逻辑回归/简单平均）stack 它们的输出。
 - 价值：Ensemble 通常比任何单模型更稳健，特别是在小样本下。
@@ -52,18 +58,18 @@ export const FUTURE_FEATURE_OVERVIEW_TEXT = `### 4. 高级 AI/ML 赋能汇报（
 
 #### Tier 3 — 实验性 / 长期方向
 
-**⑧ Reinforcement Learning 下注策略**
+**⑨ Reinforcement Learning 下注策略**
 
 - 思路：把 Kelly sizing + combo selection 建模为 MDP (Markov Decision Process)。State = 当前资金 + 今日比赛参数，Action = 选哪些 combo + 各投多少，Reward = 实际 P&L。
 - 用 PPO/DQN 训练策略网络，自动学习最优 combo 构成和仓位分配。
 - 挑战：超大 action space，样本效率极低（需要数万轮交互），不太适合真实下注场景。可以用模拟环境离线训练。
 
-**⑨ 图神经网络 (GNN) 建模球队关系**
+**⑩ 图神经网络 (GNN) 建模球队关系**
 
 - 思路：球队之间有对战历史、转会关系、联赛层级关系。用 GNN 建模球队嵌入 (team embeddings)，捕捉传递性关系（A 胜 B，B 胜 C → A vs C 的先验）。
 - 需要：大量历史对战数据。
 
-**⑩ Transformer 序列模型**
+**⑪ Transformer 序列模型**
 
 - 思路：把用户的投注历史看作时序序列，用 Transformer 建模 conf → actual 的时序依赖（如连续高估后可能回调）。
 - 需要：较长历史（数百条以上）。
@@ -75,20 +81,21 @@ export const FUTURE_FEATURE_OVERVIEW_TEXT = `### 4. 高级 AI/ML 赋能汇报（
 1. **立即可做**：② Bayesian Online Updating（纯代码改动，无新依赖）
 2. **短期（1-2周）**：① XGBoost/LightGBM 概率模型（需集成 ml.js）
 3. **中期（1个月）**：③ Elo/Glicko-2 + ④ Copula 联合分布
-4. **需要数据基建**：⑤ NLP 舆情 + ⑥ 赔率变动时序
-5. **实验性**：⑦ Ensemble Stacking → ⑧ RL → ⑨ GNN → ⑩ Transformer`
+4. **需要数据基建**：⑤ 碰撞模拟 + ⑥ NLP 舆情 + ⑦ 赔率变动时序
+5. **实验性**：⑧ Ensemble Stacking → ⑨ RL → ⑩ GNN → ⑪ Transformer`
 
 export const FUTURE_FEATURE_POINTS = [
   { id: '1', tier: 'Tier 1', title: `① Gradient Boosted Trees — XGBoost / LightGBM`, shortIntro: `用树模型自动学习 Conf、赔率与模式等特征的非线性交互，替代手工因子拼接，提升基础胜率预测能力。` },
   { id: '2', tier: 'Tier 1', title: `② Bayesian Updating / Online Learning — 贝叶斯在线更新`, shortIntro: `把模型从批量重算升级为逐场在线更新，让系统能更快响应近期状态变化并增强冷启动稳定性。` },
   { id: '3', tier: 'Tier 1', title: `③ Elo / Glicko-2 自建球队实力评级`, shortIntro: `构建球队级连续实力先验（Elo/Glicko-2），把离散 TYS 升级为可迭代、可解释的动态实力体系。` },
   { id: '4', tier: 'Tier 1', title: `④ Copula 建模 — 替代独立性假设`, shortIntro: `用 Copula 显式建模多场比赛的依赖结构，替代独立假设下的联合概率近似，提升 3+ 腿组合定价质量。` },
-  { id: '5', tier: 'Tier 2', title: `⑤ NLP 舆情信号 (Sentiment Signal)`, shortIntro: `引入赛前新闻与伤停舆情的语义信号，为 Conf 提供外部信息校验，捕捉纯参数难以感知的突发变量。` },
-  { id: '6', tier: 'Tier 2', title: `⑥ 赔率变动时序建模 (Odds Movement Features)`, shortIntro: `把开盘到临场的赔率路径转成时序特征，利用市场资金流变化校准主观判断与风险暴露。` },
-  { id: '7', tier: 'Tier 2', title: `⑦ Ensemble 模型 + Stacking — 集成学习`, shortIntro: `通过多基学习器 + 元学习器做集成融合，降低单模型偏差与方差，在小样本阶段提升稳健性。` },
-  { id: '8', tier: 'Tier 3', title: `⑧ Reinforcement Learning (RL) — 强化学习下注策略`, shortIntro: `将组合选择和仓位分配建模为 MDP，用强化学习在模拟环境里学习长期最优策略。` },
-  { id: '9', tier: 'Tier 3', title: `⑨ 图神经网络 (GNN) — 建模球队关系`, shortIntro: `以球队关系图构建 Team Embedding，利用传递性与结构信息提升跨对阵场景的泛化推断能力。` },
-  { id: '10', tier: 'Tier 3', title: `⑩ Transformer 序列模型`, shortIntro: `把投注历史视作序列，用 Transformer 捕捉时序依赖与状态迁移，强化中长期行为模式建模。` },
+  { id: '4.5', tier: 'Tier 2', title: `⑤ 碰撞模拟引擎 (Collision Simulation Engine)`, shortIntro: `把单场预测映射为可采样的概率分布，在组合层进行多轮场景碰撞，输出分位数收益、尾部回撤与结构稳定性。` },
+  { id: '5', tier: 'Tier 2', title: `⑥ NLP 舆情信号 (Sentiment Signal)`, shortIntro: `引入赛前新闻与伤停舆情的语义信号，为 Conf 提供外部信息校验，捕捉纯参数难以感知的突发变量。` },
+  { id: '6', tier: 'Tier 2', title: `⑦ 赔率变动时序建模 (Odds Movement Features)`, shortIntro: `把开盘到临场的赔率路径转成时序特征，利用市场资金流变化校准主观判断与风险暴露。` },
+  { id: '7', tier: 'Tier 2', title: `⑧ Ensemble 模型 + Stacking — 集成学习`, shortIntro: `通过多基学习器 + 元学习器做集成融合，降低单模型偏差与方差，在小样本阶段提升稳健性。` },
+  { id: '8', tier: 'Tier 3', title: `⑨ Reinforcement Learning (RL) — 强化学习下注策略`, shortIntro: `将组合选择和仓位分配建模为 MDP，用强化学习在模拟环境里学习长期最优策略。` },
+  { id: '9', tier: 'Tier 3', title: `⑩ 图神经网络 (GNN) — 建模球队关系`, shortIntro: `以球队关系图构建 Team Embedding，利用传递性与结构信息提升跨对阵场景的泛化推断能力。` },
+  { id: '10', tier: 'Tier 3', title: `⑪ Transformer 序列模型`, shortIntro: `把投注历史视作序列，用 Transformer 捕捉时序依赖与状态迁移，强化中长期行为模式建模。` },
 ]
 
 export const FUTURE_FEATURE_DETAIL_TEXT = {
@@ -461,7 +468,96 @@ Statistics（统计学）
 **相关课程**：MIT 18.650 Statistics for Applications、Columbia STAT 4204 Statistical Inference
 
 ---`,
-  '5': `## ⑤ NLP 舆情信号 (Sentiment Signal)
+  '4.5': `## ⑤ 碰撞模拟引擎 (Collision Simulation Engine)
+
+### 一句话概括
+
+把"单场单点预测"升级为"可采样的概率分布"，在组合层执行多轮场景碰撞（Scenario Collision），输出可用于实战的分位数收益、尾部回撤和结构稳定性指标。
+
+### 它是什么
+
+你当前很多核心指标仍是**单值视角**：单个 EV、单个 hit rate、单个推荐金额。  
+但真实下注是"路径问题"：同一个 EV，在不同市场状态下会走出完全不同的资金曲线。
+
+碰撞模拟引擎做的事情是把这个路径展开：
+
+1. **单场层（Leg-level）**：  
+   每场不是一个固定概率，而是一个带不确定性的分布（由 Conf、Mode、TYS、FID、FSE、odds 共同决定）。
+2. **联赛层（Market Regime）**：  
+   每轮模拟抽取一个"市场状态冲击"（比如整体偏保守、整体偏激进、某联赛进球分布异常）。
+3. **组合层（Portfolio-level）**：  
+   在同一宇宙内让多场结果同步落地，结算全部组合收益，得到整组方案的 PnL 分布。
+
+你可以把它理解成一个"投注风洞实验室"：不是只看飞机能不能飞，而是看在不同风况下会不会抖、会不会失速、什么时候最危险。
+
+### 在 DUGOU 中怎么用
+
+**输入**：你现有的校准后概率 + 赔率 + 组合结构（2关/3关/4关） + 风格约束（稳/杠杆/中性）
+
+**核心流程**：
+
+\`\`\`text
+for sim in 1..N:
+  1) 抽取市场冲击 Regime_t（联赛节奏、赔率漂移、情绪偏置）
+  2) 对每场比赛注入冲击并重采样 outcome（win/draw/lose）
+  3) 结算每个组合，累计组合与总池 PnL
+输出：ROI 分布、回撤分布、命中分布、结构脆弱点
+\`\`\`
+
+**输出指标（可直接上 UI）**：
+
+- **P10 / P50 / P90 ROI**：悲观、中位、乐观场景下的回报
+- **Tail Drawdown@95%**：95% 置信尾部的最大回撤
+- **Fragility Index（结构脆弱度）**：组合对单一比赛/单一联赛冲击的敏感度
+- **Regime Sensitivity**：不同市场状态下方案排序是否稳定
+
+这能直接解释你常见的困惑：  
+"为什么两个方案 EV 接近，但我实战体感一个稳、一个晃？"  
+答案通常就在路径分布和尾部暴露里，不在单点 EV 里。
+
+### 与 Copula、NLP 的关系
+
+- **与 Copula**：Copula 负责建模"相关性结构"，碰撞引擎负责在该结构下进行"路径级模拟"；二者是互补关系，不是替代关系。
+- **与 NLP 舆情**：NLP 给出情绪偏置信号，碰撞引擎把该信号转成冲击参数（例如伤停突发导致主队分布左移）。
+
+所以在你的路线图里放在 Copula 与 NLP 之间最自然：  
+先有结构（Copula）→ 再有引擎（Collision）→ 再接入外部信息流（NLP）。
+
+### 现实世界广泛应用
+
+- **投行与资管风险引擎**：用情景分析 + 蒙特卡洛评估组合在不同宏观冲击下的尾部损失
+- **保险精算**：在不同灾害情景下评估赔付分布和偿付能力
+- **能源交易**：把价格路径和需求冲击联合模拟，估算策略稳健性
+- **职业体育交易台**：通过场景仿真而非单点赔率，管理多盘口联动风险
+
+### 🎓 知识图谱位置
+
+\`\`\`
+Quantitative Risk Modeling（量化风险建模）
+ └─ Scenario Analysis（情景分析）
+     ├─ Monte Carlo Simulation（蒙特卡洛模拟）
+     ├─ Stress Testing（压力测试）
+     ├─ Regime Switching（状态切换模型）
+     └─ Portfolio Risk Decomposition（组合风险分解）
+         ├─ Tail Risk（尾部风险）
+         ├─ Drawdown Analytics（回撤分析）
+         └─ Sensitivity / Attribution（敏感度与归因）
+\`\`\`
+
+涉及的底层知识：
+- 概率论：随机变量采样、条件分布、分位数
+- 数理统计：参数估计与不确定性传播
+- 数值计算：大规模模拟与方差缩减
+- 风险管理：VaR / CVaR / Drawdown 框架
+
+### 分阶段落地建议（对当前项目友好）
+
+1. **V1（可快速落地）**：在现有蒙特卡洛之上新增"场景冲击层"，先做独立采样 + 轻量冲击参数
+2. **V2（中期增强）**：接入 Copula 相关结构，改为相关采样
+3. **V3（高阶）**：把 NLP 舆情与赔率时序映射成动态冲击函数，形成真正的实时碰撞引擎
+
+---`,
+  '5': `## ⑥ NLP 舆情信号 (Sentiment Signal)
 
 ### 一句话概括
 
@@ -560,7 +656,7 @@ Artificial Intelligence（人工智能）
 **相关课程**：斯坦福 CS224N Natural Language Processing with Deep Learning
 
 ---`,
-  '6': `## ⑥ 赔率变动时序建模 (Odds Movement Features)
+  '6': `## ⑦ 赔率变动时序建模 (Odds Movement Features)
 
 ### 一句话概括
 
@@ -662,7 +758,7 @@ Statistics（统计学）
 **相关课程**：MIT 18.S096 Topics in Mathematics with Applications in Finance、斯坦福 STATS 207 Time Series
 
 ---`,
-  '7': `## ⑦ Ensemble 模型 + Stacking — 集成学习
+  '7': `## ⑧ Ensemble 模型 + Stacking — 集成学习
 
 ### 一句话概括
 
@@ -772,7 +868,7 @@ Machine Learning（机器学习）
 **相关课程**：斯坦福 CS229 第 12 讲、CMU 10-701 Machine Learning
 
 ---`,
-  '8': `## ⑧ Reinforcement Learning (RL) — 强化学习下注策略
+  '8': `## ⑨ Reinforcement Learning (RL) — 强化学习下注策略
 
 ### 一句话概括
 
@@ -884,7 +980,7 @@ Machine Learning（机器学习）
 **相关课程**：UC Berkeley CS285 Deep Reinforcement Learning、David Silver (DeepMind) 的经典 RL 公开课
 
 ---`,
-  '9': `## ⑨ 图神经网络 (GNN) — 建模球队关系
+  '9': `## ⑩ 图神经网络 (GNN) — 建模球队关系
 
 ### 一句话概括
 
@@ -996,7 +1092,7 @@ Deep Learning（深度学习）
 **相关课程**：斯坦福 CS224W Machine Learning with Graphs
 
 ---`,
-  '10': `## ⑩ Transformer 序列模型
+  '10': `## ⑪ Transformer 序列模型
 
 ### 一句话概括
 
@@ -1120,13 +1216,14 @@ Deep Learning（深度学习）
 | 🥇 | ② 贝叶斯在线更新 | 无需额外数据 | ⭐ 低 | ⭐⭐⭐ 中高 | 立即可做 |
 | 🥈 | ③ Elo/Glicko-2 | 需要比赛结果数据 | ⭐⭐ 中低 | ⭐⭐⭐ 中高 | 1-2周 |
 | 🥉 | ① XGBoost | 需500+条记录 | ⭐⭐ 中 | ⭐⭐⭐⭐ 高 | 积累数据后 |
-| 4 | ⑦ Ensemble | 需有多个基础模型 | ⭐⭐ 中 | ⭐⭐⭐ 中高 | 在①之后 |
+| 4 | ⑧ Ensemble | 需有多个基础模型 | ⭐⭐ 中 | ⭐⭐⭐ 中高 | 在①之后 |
 | 5 | ④ Copula | 需同天比赛相关性数据 | ⭐⭐⭐ 中高 | ⭐⭐ 中 | 1-2月 |
-| 6 | ⑥ 赔率变动 | 需赔率API | ⭐⭐⭐ 中高 | ⭐⭐⭐⭐ 高 | 取决于数据获取 |
-| 7 | ⑤ NLP舆情 | 需新闻数据源 | ⭐⭐⭐⭐ 高 | ⭐⭐⭐ 中 | 长期方向 |
-| 8 | ⑧ RL下注策略 | 需大量模拟数据 | ⭐⭐⭐⭐⭐ 很高 | ⭐⭐ 中 | 实验性 |
-| 9 | ⑩ Transformer | 需500+条记录 | ⭐⭐⭐⭐ 高 | ⭐ 低(数据不足) | 实验性 |
-| 10 | ⑨ GNN | 需完整对战网络 | ⭐⭐⭐⭐⭐ 很高 | ⭐⭐ 中 | 实验性 |
+| 6 | ⑤ 碰撞模拟引擎 | 需可复用的场景冲击参数 | ⭐⭐⭐ 中高 | ⭐⭐⭐ 中高 | 1-2月 |
+| 7 | ⑦ 赔率变动 | 需赔率API | ⭐⭐⭐ 中高 | ⭐⭐⭐⭐ 高 | 取决于数据获取 |
+| 8 | ⑥ NLP舆情 | 需新闻数据源 | ⭐⭐⭐⭐ 高 | ⭐⭐⭐ 中 | 长期方向 |
+| 9 | ⑨ RL下注策略 | 需大量模拟数据 | ⭐⭐⭐⭐⭐ 很高 | ⭐⭐ 中 | 实验性 |
+| 10 | ⑪ Transformer | 需500+条记录 | ⭐⭐⭐⭐ 高 | ⭐ 低(数据不足) | 实验性 |
+| 11 | ⑩ GNN | 需完整对战网络 | ⭐⭐⭐⭐⭐ 很高 | ⭐⭐ 中 | 实验性 |
 
 ### 核心建议
 
@@ -1134,18 +1231,18 @@ Deep Learning（深度学习）
 
 **第二阶段（短期）**：③ Elo/Glicko-2 评级系统。提供更精确的球队实力先验，直接提升模型输入质量。
 
-**第三阶段（中期，等数据量够了）**：① XGBoost + ⑦ Ensemble Stacking。这会是模型质量最大的跃升。
+**第三阶段（中期，等数据量够了）**：① XGBoost + ⑧ Ensemble Stacking。这会是模型质量最大的跃升。
 
-**第四阶段（有余力时）**：④ Copula + ⑥ 赔率变动。前者改善 combo 定价，后者引入市场信息。
+**第四阶段（有余力时）**：④ Copula + ⑤ 碰撞模拟 + ⑦ 赔率变动。前者给依赖结构，中间负责路径级风险仿真，后者补充市场信息。
 
-**长期探索方向**：⑤⑧⑨⑩ 都是更前沿的方向，在数据量和工程能力都足够时可以探索。
+**长期探索方向**：⑥⑨⑩⑪ 都是更前沿的方向，在数据量和工程能力都足够时可以探索。
 
 ---
 
-> 💡 **最后一个 CS 视角的 insight**：这 10 个方向几乎覆盖了现代机器学习和人工智能的所有主要分支——从经典统计（贝叶斯）到树模型（XGBoost）到深度学习（Transformer、GNN）再到强化学习（RL）。如果你真的把这些都理解到"知道 how they work"的程度，你的知识面在 ML/AI 领域已经相当全面了——这也是为什么你这个项目是一个非常好的学习载体，因为它天然地把几乎所有重要的 ML 知识串联在了一起。`,
+> 💡 **最后一个 CS 视角的 insight**：这 11 个方向几乎覆盖了现代机器学习和人工智能的所有主要分支——从经典统计（贝叶斯）到树模型（XGBoost）到风险仿真（碰撞模拟）再到深度学习（Transformer、GNN）与强化学习（RL）。如果你真的把这些都理解到"知道 how they work"的程度，你的知识面在 ML/AI 领域已经相当全面了——这也是为什么你这个项目是一个非常好的学习载体，因为它天然地把几乎所有重要的 ML 知识串联在了一起。`,
 }
 
 export const FUTURE_FEATURE_DETAIL_SOURCE = {
   overview: '高级 AI:ML 赋能汇报（研究报告，不执行）.md · section 4',
-  details: 'Dugou模型进阶AI:ML赋能方案·详细解读.md · sections ①-⑩',
+  details: 'Dugou模型进阶AI:ML赋能方案·详细解读.md · sections ①-⑪',
 }
