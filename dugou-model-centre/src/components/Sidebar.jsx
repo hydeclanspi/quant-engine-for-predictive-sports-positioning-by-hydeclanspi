@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { exportDataBundle, getInvestments, importDataBundle } from '../lib/localData'
 import { exportDataBundleAsExcel } from '../lib/excel'
+import HdcsC19Logo from './HdcsC19Logo'
 
 export default function Sidebar({ collapsed, onToggleCollapse }) {
   const [showDataMenu, setShowDataMenu] = useState(false)
@@ -16,16 +17,9 @@ export default function Sidebar({ collapsed, onToggleCollapse }) {
     history: true,
   })
   const [dataVersion, setDataVersion] = useState(0)
-  const [logoEntrance, setLogoEntrance] = useState(true)
   const location = useLocation()
   const navigate = useNavigate()
   const importInputRef = useRef(null)
-
-  // Remove entrance class after animation completes
-  useEffect(() => {
-    const timer = setTimeout(() => setLogoEntrance(false), 3200)
-    return () => clearTimeout(timer)
-  }, [])
 
   useEffect(() => {
     const onDataChanged = () => setDataVersion((prev) => prev + 1)
@@ -126,31 +120,7 @@ export default function Sidebar({ collapsed, onToggleCollapse }) {
     <div className={`h-screen bg-gradient-to-b from-stone-50 to-orange-50/30 border-r border-stone-200/60 flex flex-col transition-all duration-300 ${collapsed ? 'w-16' : 'w-56'}`}>
       {/* Brand — Solo C19 Logo */}
       <div className="sidebar-brand-solo">
-        <div className={`c19-logo ${logoEntrance ? 'c19-entrance' : ''}`}>
-          {logoEntrance ? (
-            <div className="c19-draw-border">
-              <svg viewBox="0 0 48 48">
-                <defs>
-                  <linearGradient id="c19DrawGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#fbbf24" />
-                    <stop offset="50%" stopColor="#f97316" />
-                    <stop offset="100%" stopColor="#fcd34d" />
-                  </linearGradient>
-                </defs>
-                <rect x="1" y="1" width="46" height="46" rx="12" ry="12" />
-              </svg>
-            </div>
-          ) : (
-            <div className="c19-logo-border" />
-          )}
-          <div className="c19-logo-inner" />
-          <div className="c19-logo-content">
-            <span className="c19-t">HD</span>
-            <span className="c19-dot" />
-            <span className="c19-b">CS</span>
-          </div>
-          <div className="c19-logo-shimmer" />
-        </div>
+        <HdcsC19Logo size="md" />
       </div>
 
       {/* Navigation */}

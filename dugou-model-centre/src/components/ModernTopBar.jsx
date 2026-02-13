@@ -12,6 +12,7 @@ import {
   Flag,
 } from 'lucide-react'
 import { getInvestments } from '../lib/localData'
+import HdcsC19Logo from './HdcsC19Logo'
 
 /* ──────────────────────────────────────────────────
    Modern Navigation — Vercel/Linear design language
@@ -123,14 +124,7 @@ export default function ModernTopBar() {
     <header className="mn-bar">
       {/* ── Brand ── */}
       <button className="mn-brand" onClick={() => navigate('/new')}>
-        <div className="hdcs-wordmark hdcs-wordmark--mn" aria-hidden="true">
-          <div className="hdcs-wordmark-row">
-            <span className="hdcs-wordmark-text">hd</span>
-            <span className="hdcs-wordmark-dot" />
-            <span className="hdcs-wordmark-text">cs</span>
-          </div>
-          <span className="hdcs-wordmark-line" />
-        </div>
+        <HdcsC19Logo size="sm" />
       </button>
 
       {/* ── Breadcrumb separator ── */}

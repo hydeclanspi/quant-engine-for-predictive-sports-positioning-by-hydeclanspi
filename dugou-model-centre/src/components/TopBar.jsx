@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { exportDataBundle, getInvestments, getSystemConfig, importDataBundle } from '../lib/localData'
 import { exportDataBundleAsExcel } from '../lib/excel'
+import HdcsC19Logo from './HdcsC19Logo'
 
 /* ──────────────────────────────────────────────────
    Navigation structure with Lucide icons
@@ -67,19 +68,12 @@ export default function TopBar() {
   const [showSearch, setShowSearch] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [dataVersion, setDataVersion] = useState(0)
-  const [logoEntrance, setLogoEntrance] = useState(true)
   const dropdownRef = useRef(null)
   const searchInputRef = useRef(null)
   const settingsRef = useRef(null)
   const importInputRef = useRef(null)
   const location = useLocation()
   const navigate = useNavigate()
-
-  // Logo entrance animation
-  useEffect(() => {
-    const timer = setTimeout(() => setLogoEntrance(false), 3200)
-    return () => clearTimeout(timer)
-  }, [])
 
   // Listen for data changes (for badges)
   useEffect(() => {
@@ -187,14 +181,7 @@ export default function TopBar() {
     <header className="topbar-v2">
       {/* ── Left: Brand ── */}
       <div className="topbar-v2-brand" onClick={() => navigate('/new')}>
-        <div className={`hdcs-wordmark hdcs-wordmark--topbar ${logoEntrance ? 'hdcs-wordmark--entrance' : ''}`} aria-hidden="true">
-          <div className="hdcs-wordmark-row">
-            <span className="hdcs-wordmark-text">hd</span>
-            <span className="hdcs-wordmark-dot" />
-            <span className="hdcs-wordmark-text">cs</span>
-          </div>
-          <span className="hdcs-wordmark-line" />
-        </div>
+        <HdcsC19Logo size="sm" />
       </div>
 
       {/* ── Subtle vertical divider ── */}
