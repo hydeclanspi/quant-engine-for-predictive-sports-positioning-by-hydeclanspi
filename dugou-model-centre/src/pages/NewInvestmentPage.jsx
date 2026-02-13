@@ -844,16 +844,16 @@ export default function NewInvestmentPage() {
   }
 
   return (
-    <div className="page-shell page-content-fluid">
+    <div className="page-shell page-content-fluid motion-v2-scope">
       <div className="mb-8">
         <h2 className="text-2xl font-semibold text-stone-800 font-display">新建投资</h2>
         <p className="text-stone-400 text-sm mt-1.5 leading-relaxed">录入比赛信息与预测参数 · Record match predictions & calibration parameters</p>
       </div>
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-4 mb-5">
+      <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 p-4 mb-5">
         <button
           onClick={() => setQuickInputOpen((prev) => !prev)}
-          className="flex items-center gap-2 text-sm text-stone-600 hover:text-amber-600 transition-colors w-full"
+          className="motion-v2-ghost-btn flex items-center gap-2 text-sm text-stone-600 hover:text-amber-600 transition-colors w-full"
         >
           {quickInputOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           <span className="font-medium">Quick Input</span>
@@ -912,7 +912,7 @@ export default function NewInvestmentPage() {
         )}
       </div>
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden">
+      <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden">
         <div className="px-6 py-5 border-b border-stone-100 bg-stone-50/50">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-4 flex-nowrap min-w-0">
@@ -965,7 +965,7 @@ export default function NewInvestmentPage() {
             const awayFseHistorySuggestion = awayTeamKey ? (latestTeamFseMap.get(awayTeamKey) ?? null) : null
 
             return (
-              <div key={idx} className={`relative ${idx > 0 ? 'pt-6 border-t border-stone-100' : ''}`}>
+              <div key={idx} className={`motion-v2-match-card relative ${idx > 0 ? 'pt-6 border-t border-stone-100' : ''}`}>
                 {appliedHistory ? (
                   <div className="absolute right-1 top-0 z-30 history-float-wrap">
                     <div className="history-float-panel history-float-enter px-2.5 py-2">
@@ -1014,7 +1014,7 @@ export default function NewInvestmentPage() {
                               key={historyItem.id}
                               type="button"
                               onClick={() => applyHistoryPrefill(idx, historyItem)}
-                              className="history-float-item w-full text-left rounded-lg border border-white/75 bg-white/72 px-2 py-1.5 hover:border-amber-200/80 hover:bg-amber-50/70"
+                              className="history-float-item motion-v2-row w-full text-left rounded-lg border border-white/75 bg-white/72 px-2 py-1.5 hover:border-amber-200/80 hover:bg-amber-50/70"
                             >
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/70 text-stone-600 border border-stone-200/80">

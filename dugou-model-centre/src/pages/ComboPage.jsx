@@ -2902,14 +2902,14 @@ export default function ComboPage({ openModal }) {
   }
 
   return (
-    <div className="page-shell page-content-wide">
+    <div className="page-shell page-content-wide motion-v2-scope">
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-stone-800 font-display">智能组合建议</h2>
         <p className="text-stone-400 text-sm mt-1">基于 Portfolio Optimization 的最优下注方案</p>
       </div>
 
       <div className="combo-main-grid mb-6">
-        <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+        <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium text-stone-700">今日备选比赛</h3>
             <div className="flex items-center gap-2">
@@ -2947,7 +2947,7 @@ export default function ComboPage({ openModal }) {
           <div className="flex items-center justify-between text-xs text-stone-500 mb-3">
             <span>已勾选 {selectedMatches.length}/{displayedCandidates.length}</span>
             {displayedCandidates.length > 0 && (
-              <button onClick={toggleCheckAll} className="text-amber-600 hover:text-amber-700">
+              <button onClick={toggleCheckAll} className="motion-v2-ghost-btn text-amber-600 hover:text-amber-700">
                 {allChecked ? '取消全选' : '全选'}
               </button>
             )}
@@ -2961,7 +2961,7 @@ export default function ComboPage({ openModal }) {
               return (
                 <div
                   key={item.key}
-                  className="group flex items-center gap-3 p-3 rounded-xl border border-stone-100 hover:border-indigo-200 bg-white hover:bg-indigo-50/20 transition-all cursor-pointer"
+                  className="motion-v2-row motion-v2-selectable group flex items-center gap-3 p-3 rounded-xl border border-stone-100 hover:border-indigo-200 bg-white hover:bg-indigo-50/20 transition-all cursor-pointer"
                 >
                   <div onClick={() => toggleCheck(i)} className={`custom-checkbox flex-shrink-0 ${checkedMatches[i] ? 'checked' : ''}`} />
                   <div className="flex-1 min-w-0">
@@ -3360,7 +3360,7 @@ export default function ComboPage({ openModal }) {
         </div>
 
         {/* ═══ 智能组合包 Hero Card ═══ */}
-        <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 relative">
+        <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 p-6 relative">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Sparkles size={16} className="text-indigo-500" />
@@ -3453,7 +3453,7 @@ export default function ComboPage({ openModal }) {
                 <p className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wider">建议投资组合</p>
                 <button
                   onClick={toggleExpandAllPortfolio}
-                  className="text-[10px] px-2 py-1 rounded-md border border-indigo-200/70 bg-white/70 text-indigo-600 hover:bg-white transition-colors"
+                  className="motion-v2-ghost-btn text-[10px] px-2 py-1 rounded-md border border-indigo-200/70 bg-white/70 text-indigo-600 hover:bg-white transition-colors"
                 >
                   {portfolioAllocations.every((_, idx) => expandedPortfolioIdxSet.has(idx)) ? '全部收起' : '一键展开'}
                 </button>
@@ -3463,7 +3463,7 @@ export default function ComboPage({ openModal }) {
                   <div key={aIdx}>
                     <div
                       onClick={() => togglePortfolioExpand(aIdx)}
-                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/70 border border-indigo-100/60 cursor-pointer hover:bg-white transition-all"
+                      className="motion-v2-row flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/70 border border-indigo-100/60 cursor-pointer hover:bg-white transition-all"
                     >
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${aIdx === 0 ? 'bg-indigo-500 text-white' : 'bg-indigo-100 text-indigo-600'}`}>
                         {aIdx === 0 ? '最优' : `#${aIdx + 1}`}
@@ -3530,7 +3530,7 @@ export default function ComboPage({ openModal }) {
                 {portfolioAllocations.length > 6 && (
                   <button
                     onClick={() => setShowAllPortfolios(v => !v)}
-                    className="w-full mt-1 py-1 rounded-lg text-[10px] font-medium text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50/60 transition-all flex items-center justify-center gap-1"
+                    className="motion-v2-ghost-btn w-full mt-1 py-1 rounded-lg text-[10px] font-medium text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50/60 transition-all flex items-center justify-center gap-1"
                   >
                     {showAllPortfolios ? (
                       <>收起 <svg className="w-2.5 h-2.5" viewBox="0 0 12 12" fill="none"><path d="M3 7.5l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg></>
@@ -3553,7 +3553,7 @@ export default function ComboPage({ openModal }) {
               <div className="flex items-center justify-end -mt-1 mb-1.5">
                 <button
                   onClick={toggleExpandAllQuickComboDetails}
-                  className="text-[10px] px-2 py-1 rounded-md border border-emerald-200/70 bg-emerald-50/55 text-emerald-700 hover:bg-emerald-50/75 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_6px_18px_-14px_rgba(16,185,129,0.55)] transition-colors"
+                  className="motion-v2-ghost-btn text-[10px] px-2 py-1 rounded-md border border-emerald-200/70 bg-emerald-50/55 text-emerald-700 hover:bg-emerald-50/75 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_6px_18px_-14px_rgba(16,185,129,0.55)] transition-colors"
                 >
                   {quickPreviewRecommendations.length > 0 &&
                   quickPreviewRecommendations.every((_, idx) => expandedComboIdxSet.has(idx))
@@ -3572,7 +3572,7 @@ export default function ComboPage({ openModal }) {
                 return (
                   <div key={item.id}>
                     <div
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer transition-all ${
+                      className={`motion-v2-row motion-v2-selectable flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer transition-all ${
                         selected ? 'bg-indigo-50/70 border border-indigo-200' : 'bg-stone-50/50 border border-transparent hover:bg-stone-50'
                       }`}
                     >

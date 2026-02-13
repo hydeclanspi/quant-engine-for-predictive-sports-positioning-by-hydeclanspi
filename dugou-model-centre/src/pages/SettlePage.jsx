@@ -530,7 +530,7 @@ export default function SettlePage() {
   }
 
   return (
-    <div className="page-shell page-content-wide">
+    <div className="page-shell page-content-wide motion-v2-scope">
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-stone-800 font-display">待结算</h2>
         <p className="text-stone-400 text-sm mt-1">{pendingCombos.length} 笔投资待录入结果</p>
@@ -558,13 +558,13 @@ export default function SettlePage() {
               onChange={(event) => setBatchRep(event.target.value)}
               className="w-24 sm:w-28 px-2 py-1.5 rounded-lg border border-stone-200 text-xs text-right"
             />
-            <button onClick={applyBatchFill} className="px-3 py-1.5 text-xs rounded-lg bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors">
+            <button onClick={applyBatchFill} className="motion-v2-ghost-btn px-3 py-1.5 text-xs rounded-lg bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors">
               填充空值
             </button>
-            <button onClick={toggleSelectAll} className="px-3 py-1.5 text-xs rounded-lg bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors">
+            <button onClick={toggleSelectAll} className="motion-v2-ghost-btn px-3 py-1.5 text-xs rounded-lg bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors">
               {selectedCount === pendingCombos.length ? '取消全选' : '全选'}
             </button>
-            <button onClick={handleBatchSettlement} className="px-3 py-1.5 text-xs rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors">
+            <button onClick={handleBatchSettlement} className="motion-v2-ghost-btn px-3 py-1.5 text-xs rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors">
               批量结算已选
             </button>
           </div>
@@ -573,10 +573,10 @@ export default function SettlePage() {
 
       <div className="space-y-4">
         {pendingCombos.map((combo) => (
-          <div key={combo.id} className="glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden">
+          <div key={combo.id} className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden">
             <div
               onClick={() => setExpandedCombo(expandedCombo === combo.id ? null : combo.id)}
-              className="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-stone-50/50 transition-colors"
+              className="motion-v2-row px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-stone-50/50 transition-colors"
             >
               <div className="flex items-center gap-4">
                 <div
@@ -631,7 +631,7 @@ export default function SettlePage() {
                   const matchAutoFillSnapshot = historyAutoFillSnapshots[combo.id]?.[matchIdx]
                   const showAutoFillTag = matchAutoFillSnapshot?.status === 'applied'
                   return (
-                  <div key={`${combo.id}-${matchIdx}`} className={matchIdx > 0 ? 'pt-6 border-t border-stone-100' : ''}>
+                  <div key={`${combo.id}-${matchIdx}`} className={`motion-v2-match-card ${matchIdx > 0 ? 'pt-6 border-t border-stone-100' : ''}`}>
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2 min-w-0">
                         <p className="font-semibold text-stone-800">{match.match}</p>
