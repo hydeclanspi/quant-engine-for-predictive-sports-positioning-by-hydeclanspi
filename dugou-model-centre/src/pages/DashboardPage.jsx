@@ -348,34 +348,6 @@ export default function DashboardPage({ openModal }) {
     () => repCards.reduce((sum, row) => sum + Number(row.samples || 0), 0),
     [repCards],
   )
-  const recencySignal = useMemo(() => {
-    if (!repSummary) {
-      return {
-        label: '待采样',
-        chipClass: 'border-stone-200 bg-stone-100/90 text-stone-600',
-        valueClass: 'text-stone-600',
-      }
-    }
-    if (repSummary.riskGap <= -8) {
-      return {
-        label: '防守期',
-        chipClass: 'border-rose-200 bg-rose-50/90 text-rose-600',
-        valueClass: 'text-rose-500',
-      }
-    }
-    if (repSummary.riskGap >= 8) {
-      return {
-        label: '进攻期',
-        chipClass: 'border-emerald-200 bg-emerald-50/90 text-emerald-700',
-        valueClass: 'text-emerald-600',
-      }
-    }
-    return {
-      label: '均衡期',
-      chipClass: 'border-cyan-200 bg-cyan-50/90 text-cyan-700',
-      valueClass: 'text-cyan-700',
-    }
-  }, [repSummary])
   const confPriorityRows = useMemo(
     () =>
       confDetailRows
@@ -1142,16 +1114,13 @@ export default function DashboardPage({ openModal }) {
             <div className="relative h-full flex flex-col">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="inline-flex items-center rounded-full border border-sky-200 bg-white/85 px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] text-sky-700">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-[15px] font-semibold text-stone-800 tracking-[0.01em]">REP (噪音过滤)</h3>
+                    <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50/85 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] text-sky-700">
                       Beta
                     </span>
-                    <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50/80 px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] text-indigo-700">
-                      Recency Engine
-                    </span>
                   </div>
-                  <h3 className="mt-2 text-[15px] font-semibold text-stone-800 tracking-[0.01em]">时间近因机制</h3>
-                  <p className="text-[11px] text-stone-500 mt-1">Random Events Parameter · 近期样本权重校准</p>
+                  <p className="text-[11px] text-stone-500 mt-1">Random Events Parameter · 时间近因机制</p>
                 </div>
                 <div className="text-right rounded-xl border border-white/85 bg-white/72 px-2.5 py-2 shadow-[0_6px_16px_rgba(14,165,233,0.1)] backdrop-blur-sm">
                   <p className="text-[10px] text-stone-400 uppercase tracking-[0.1em]">样本池</p>
@@ -1202,22 +1171,19 @@ export default function DashboardPage({ openModal }) {
               <div className="mt-3 rounded-xl border border-sky-100/80 bg-white/72 backdrop-blur-sm p-3 shadow-[0_8px_18px_rgba(14,165,233,0.08)]">
                 {repSummary ? (
                   <>
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-[0.12em] text-stone-400">Regime Signal</p>
-                        <p className={`text-[13px] font-semibold ${recencySignal.valueClass}`}>{recencySignal.label}</p>
-                      </div>
-                      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${recencySignal.chipClass}`}>
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <p className="text-[10px] uppercase tracking-[0.12em] text-stone-400">结构洞察</p>
+                      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${repSummary.riskGap >= 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-600'}`}>
                         高随机-低随机 {toSigned(repSummary.riskGap, 1, '%')}
                       </span>
                     </div>
-                    <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
                       <div className="rounded-lg border border-emerald-100/90 bg-emerald-50/70 px-2 py-1.5">
-                        <p className="text-stone-500">最优层</p>
+                        <p className="text-stone-500">优势层</p>
                         <p className="font-medium text-emerald-700">{repSummary.best.label}</p>
                       </div>
                       <div className="rounded-lg border border-rose-100/90 bg-rose-50/70 px-2 py-1.5">
-                        <p className="text-stone-500">脆弱层</p>
+                        <p className="text-stone-500">风险层</p>
                         <p className="font-medium text-rose-600">{repSummary.weakest.label}</p>
                       </div>
                     </div>
@@ -1231,26 +1197,28 @@ export default function DashboardPage({ openModal }) {
               {repMixRows.length > 0 && (
                 <div className="mt-3 rounded-xl border border-cyan-100/80 bg-white/68 px-3 py-2.5 backdrop-blur-sm">
                   <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.12em] text-stone-400">
-                    <span>样本结构分层</span>
-                    <span>Execution Priority</span>
+                    <span>样本结构 / 处理优先级</span>
+                    <span>Desk View</span>
                   </div>
-                  <div className="mt-2 h-2 rounded-full overflow-hidden border border-stone-200/70 bg-white flex">
+                  <div className="mt-2 space-y-1.5">
                     {repMixRows.map((row) => (
                       <div
-                        key={`mix-${row.key}`}
-                        className={row.bandTone}
-                        style={{ width: `${Math.max(8, Math.round(row.share * 100))}%` }}
-                      />
-                    ))}
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {repMixRows.map((row) => (
-                      <span
                         key={row.key}
-                        className="inline-flex items-center rounded-full border border-white/90 bg-white/86 px-2 py-0.5 text-[10px] text-stone-600"
+                        className="rounded-lg border border-white/85 bg-white/82 px-2.5 py-2"
                       >
-                        {row.label}: {toPercent(row.share * 100, 0)} · {row.tip}
-                      </span>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-stone-600">{row.label}</span>
+                          <span className="font-medium text-stone-700">
+                            {toPercent(row.share * 100, 0)} · {row.tip}
+                          </span>
+                        </div>
+                        <div className="mt-1.5 h-1.5 rounded-full overflow-hidden border border-stone-200/70 bg-white">
+                          <div
+                            className={`h-full ${row.bandTone}`}
+                            style={{ width: `${Math.max(8, Math.round(row.share * 100))}%` }}
+                          />
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
