@@ -1195,7 +1195,7 @@ export default function DashboardPage({ openModal }) {
                         <p className="font-medium text-rose-600">{repSummary.weakest.label}</p>
                       </div>
                     </div>
-                    <p className="mt-2 text-[11px] leading-5 text-stone-600">{repInsightText}</p>
+                    <p className="mt-2 text-[10px] leading-4 text-stone-600 whitespace-nowrap overflow-hidden text-ellipsis">{repInsightText}</p>
                   </>
                 ) : (
                   <p className="text-[11px] text-stone-400">{periodInsightLabel}暂无 REP 细分样本。</p>
