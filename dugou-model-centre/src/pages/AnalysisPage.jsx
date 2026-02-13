@@ -1147,30 +1147,71 @@ export default function AnalysisPage({ openModal }) {
 
       {analysisTab === 'combo' && (
         <div className="space-y-4">
-          <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium text-stone-700">最优组合发现</h3>
-              <span className="text-xs text-stone-400">点选某个配置查看近期记录</span>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {deepData.comboRows.map((row) => (
-                <div
-                  key={row.combo}
-                  onClick={() => openComboHistoryDetail(row.combo)}
-                  className="p-4 rounded-xl bg-stone-50 hover:bg-amber-50 transition-all cursor-pointer lift-card border border-stone-100"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-stone-700">{row.combo}</span>
-                    <span className={`text-lg font-semibold ${row.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                      {signed(row.roi, 1, '%')}
-                    </span>
-                  </div>
-                  <div className="flex gap-3 text-xs text-stone-500">
-                    <span>{row.samples} 样本</span>
-                    <span>命中率 {row.hitRate.toFixed(1)}%</span>
-                  </div>
+          <div className="glow-card relative overflow-hidden rounded-2xl border border-cyan-100 bg-gradient-to-br from-cyan-50/55 via-sky-50/45 to-violet-50/40 p-6">
+            <div className="pointer-events-none absolute -top-16 -right-20 h-48 w-48 rounded-full bg-cyan-200/20 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-violet-200/20 blur-3xl" />
+            <div className="relative">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-medium text-stone-700">最优组合发现</h3>
+                  <p className="text-[11px] text-stone-400 mt-1">Top 档位策略 · 点击查看该配置的近期记录</p>
                 </div>
-              ))}
+                <span className="inline-flex items-center rounded-full border border-cyan-200 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-cyan-700">
+                  TOP {deepData.comboRows.length}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                {deepData.comboRows.map((row, index) => {
+                  const isPositive = row.roi >= 0
+                  const barWidth = Math.max(4, Math.min(100, row.hitRate))
+                  return (
+                    <div
+                      key={row.combo}
+                      onClick={() => openComboHistoryDetail(row.combo)}
+                      className={`group p-4 rounded-2xl border transition-all cursor-pointer lift-card backdrop-blur-sm shadow-[0_8px_24px_rgba(15,23,42,0.04)] ${
+                        isPositive
+                          ? 'border-emerald-200/80 bg-gradient-to-br from-white/85 via-emerald-50/60 to-cyan-50/45 hover:from-emerald-50/75 hover:to-cyan-50/65'
+                          : 'border-rose-200/80 bg-gradient-to-br from-white/85 via-rose-50/60 to-violet-50/45 hover:from-rose-50/70 hover:to-violet-50/65'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3 mb-2.5">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span className="inline-flex items-center rounded-md bg-white/90 border border-stone-200 px-1.5 py-0.5 text-[10px] text-stone-500 font-medium">
+                              #{index + 1}
+                            </span>
+                            <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium ${
+                              row.hitRate >= 60
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : row.hitRate >= 45
+                                  ? 'bg-sky-100 text-sky-700'
+                                  : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {row.hitRate >= 60 ? '稳健' : row.hitRate >= 45 ? '平衡' : '激进'}
+                            </span>
+                          </div>
+                          <p className="text-sm font-medium text-stone-700 truncate">{row.combo}</p>
+                        </div>
+                        <span className={`text-lg font-semibold ${isPositive ? 'text-emerald-600' : 'text-rose-500'}`}>
+                          {signed(row.roi, 1, '%')}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-stone-500 mb-2">
+                        <span>{row.samples} 样本</span>
+                        <span>命中率 {row.hitRate.toFixed(1)}%</span>
+                      </div>
+
+                      <div className="h-1.5 rounded-full bg-white/80 border border-stone-200/70 overflow-hidden">
+                        <div
+                          className={`h-full transition-all ${isPositive ? 'bg-gradient-to-r from-emerald-400 to-cyan-400' : 'bg-gradient-to-r from-rose-400 to-fuchsia-400'}`}
+                          style={{ width: `${barWidth}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
 
@@ -1370,40 +1411,73 @@ export default function AnalysisPage({ openModal }) {
             </div>
           </div>
 
-          <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium text-stone-700">不同 Position 表现对比</h3>
-              <span className="text-xs text-stone-400">点选某个 Position 查看历史</span>
-            </div>
-            <div className="space-y-3">
-              {deepData.positionRows.map((item) => (
-                <div
-                  key={item.type}
-                  onClick={() => openPositionHistoryDetail(item.type)}
-                  className={`p-4 rounded-xl border transition-all lift-card cursor-pointer ${
-                    item.best ? 'border-emerald-200 bg-emerald-50/50' : 'border-stone-100 bg-stone-50 hover:bg-amber-50/40'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <span className="font-medium text-stone-700">{item.type}</span>
-                        <span className="text-xs text-stone-400 ml-2">{item.sublabel}</span>
-                      </div>
-                      {item.best && <span className="text-[10px] px-2 py-0.5 bg-emerald-200 text-emerald-700 rounded-full font-medium">最优</span>}
-                      {item.partial && <span className="text-[10px] text-stone-400 bg-stone-100 px-2 py-0.5 rounded">{item.partial}</span>}
-                    </div>
-                    <span className={`text-lg font-semibold ${item.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                      {signed(item.roi, 1, '%')}
-                    </span>
-                  </div>
-                  <div className="flex gap-4 text-xs text-stone-500">
-                    <span>{item.samples} 样本</span>
-                    <span>命中率 {item.hitRate.toFixed(1)}%</span>
-                    <span>平均赔率 {item.avgOdds.toFixed(2)}</span>
-                  </div>
+          <div className="glow-card relative overflow-hidden rounded-2xl border border-violet-100 bg-gradient-to-br from-white via-indigo-50/30 to-sky-50/30 p-6">
+            <div className="pointer-events-none absolute -top-12 -left-14 h-40 w-40 rounded-full bg-indigo-200/20 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-16 right-6 h-40 w-40 rounded-full bg-cyan-200/20 blur-3xl" />
+            <div className="relative">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-medium text-stone-700">不同 Position 表现对比</h3>
+                  <p className="text-[11px] text-stone-400 mt-1">结构化仓位对比视图 · 点击卡片查看历史明细</p>
                 </div>
-              ))}
+                <span className="inline-flex items-center rounded-full border border-indigo-200 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-indigo-700">
+                  {deepData.positionRows.length} Positions
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                {deepData.positionRows.map((item, index) => {
+                  const isPositive = item.roi >= 0
+                  return (
+                    <div
+                      key={item.type}
+                      onClick={() => openPositionHistoryDetail(item.type)}
+                      className={`group rounded-2xl border p-4 transition-all lift-card cursor-pointer backdrop-blur-sm ${
+                        item.best
+                          ? 'border-emerald-200 bg-gradient-to-br from-emerald-50/70 via-white/90 to-cyan-50/55'
+                          : 'border-stone-200/80 bg-gradient-to-br from-white/90 via-slate-50/75 to-indigo-50/45 hover:border-indigo-200'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-stone-200 bg-white/90 text-[11px] font-medium text-stone-600 px-1.5">
+                              {index + 1}
+                            </span>
+                            {item.best && <span className="text-[10px] px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-medium">Top ROI</span>}
+                            {item.partial && <span className="text-[10px] text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full">{item.partial}</span>}
+                          </div>
+                          <p className="text-sm font-semibold text-stone-700">{item.type}</p>
+                          <p className="text-[11px] text-stone-500 mt-0.5">{item.sublabel}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[11px] text-stone-400">ROI</p>
+                          <p className={`text-xl font-semibold leading-tight ${isPositive ? 'text-emerald-600' : 'text-rose-500'}`}>
+                            {signed(item.roi, 1, '%')}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="rounded-lg border border-stone-200/80 bg-white/80 px-2.5 py-2">
+                          <p className="text-[10px] text-stone-400">样本</p>
+                          <p className="text-sm font-medium text-stone-700">{item.samples}</p>
+                        </div>
+                        <div className="rounded-lg border border-stone-200/80 bg-white/80 px-2.5 py-2">
+                          <p className="text-[10px] text-stone-400">命中率</p>
+                          <p className={`text-sm font-medium ${item.hitRate >= 50 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                            {item.hitRate.toFixed(1)}%
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-stone-200/80 bg-white/80 px-2.5 py-2">
+                          <p className="text-[10px] text-stone-400">平均赔率</p>
+                          <p className="text-sm font-medium text-violet-700">{item.avgOdds.toFixed(2)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </div>
