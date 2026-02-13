@@ -13,10 +13,10 @@ export const getWaxSealStampPoint = (target) => {
   }
   const rect = target.getBoundingClientRect()
   const x = rect.left + rect.width / 2
-  const y = rect.top + rect.height / 2 - 14
+  const y = rect.top + rect.height / 2
   return {
-    x: clamp(Math.round(x), 88, window.innerWidth - 88),
-    y: clamp(Math.round(y), 104, window.innerHeight - 112),
+    x: clamp(Math.round(x), 72, window.innerWidth - 72),
+    y: clamp(Math.round(y), 90, window.innerHeight - 90),
   }
 }
 
@@ -25,7 +25,7 @@ export default function WaxSealStampOverlay({ burst, onDone }) {
     if (!burst?.active) return undefined
     const timer = window.setTimeout(() => {
       onDone?.()
-    }, 1420)
+    }, 1220)
     return () => window.clearTimeout(timer)
   }, [burst?.active, burst?.token, onDone])
 
