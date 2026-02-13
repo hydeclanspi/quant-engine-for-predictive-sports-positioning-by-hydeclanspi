@@ -311,6 +311,14 @@ export default function DashboardPage({ openModal }) {
           : '三档随机性差异不大，维持均衡配置并继续观察。'
     return { best, weakest, riskGap, action }
   }, [repCards])
+  const periodInsightLabel = useMemo(
+    () => (timePeriod === 'all' ? '历史上' : PERIOD_LABELS[timePeriod] || '当前窗口'),
+    [timePeriod],
+  )
+  const repInsightText = useMemo(() => {
+    if (!repSummary) return `${periodInsightLabel}样本不足，等待更多已结算记录。`
+    return `${periodInsightLabel}${repSummary.action}`
+  }, [periodInsightLabel, repSummary])
   const confSummary = useMemo(() => {
     const rows = confDetailRows.filter((row) => row.samples > 0)
     if (rows.length === 0) return null
@@ -1187,10 +1195,10 @@ export default function DashboardPage({ openModal }) {
                         <p className="font-medium text-rose-600">{repSummary.weakest.label}</p>
                       </div>
                     </div>
-                    <p className="mt-2 text-[11px] leading-5 text-stone-600">{repSummary.action}</p>
+                    <p className="mt-2 text-[11px] leading-5 text-stone-600">{repInsightText}</p>
                   </>
                 ) : (
-                  <p className="text-[11px] text-stone-400">当前窗口暂无 REP 细分样本。</p>
+                  <p className="text-[11px] text-stone-400">{periodInsightLabel}暂无 REP 细分样本。</p>
                 )}
               </div>
 
