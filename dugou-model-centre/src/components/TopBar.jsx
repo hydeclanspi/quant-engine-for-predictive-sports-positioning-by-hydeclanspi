@@ -187,34 +187,13 @@ export default function TopBar() {
     <header className="topbar-v2">
       {/* ── Left: Brand ── */}
       <div className="topbar-v2-brand" onClick={() => navigate('/new')}>
-        <div className={`c19-logo-sm ${logoEntrance ? 'c19-entrance' : ''}`}>
-          {logoEntrance ? (
-            <div className="c19-draw-border c19-draw-border-sm">
-              <svg viewBox="0 0 32 32">
-                <defs>
-                  <linearGradient id="c19DrawGradSm" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#fbbf24" />
-                    <stop offset="50%" stopColor="#f97316" />
-                    <stop offset="100%" stopColor="#fcd34d" />
-                  </linearGradient>
-                </defs>
-                <rect x="1" y="1" width="30" height="30" rx="8" ry="8" />
-              </svg>
-            </div>
-          ) : (
-            <div className="c19-logo-border c19-logo-border-sm" />
-          )}
-          <div className="c19-logo-inner c19-logo-inner-sm" />
-          <div className="c19-logo-content c19-logo-content-sm">
-            <span className="c19-t c19-t-sm">HD</span>
-            <span className="c19-dot c19-dot-sm" />
-            <span className="c19-b c19-b-sm">CS</span>
+        <div className={`hdcs-wordmark hdcs-wordmark--topbar ${logoEntrance ? 'hdcs-wordmark--entrance' : ''}`} aria-hidden="true">
+          <div className="hdcs-wordmark-row">
+            <span className="hdcs-wordmark-text">hd</span>
+            <span className="hdcs-wordmark-dot" />
+            <span className="hdcs-wordmark-text">cs</span>
           </div>
-          <div className="c19-logo-shimmer" />
-        </div>
-        <div className="topbar-v2-brand-text">
-          <span className="topbar-v2-brand-name">DUGOU</span>
-          <span className="topbar-v2-brand-sub">Model Centre</span>
+          <span className="hdcs-wordmark-line" />
         </div>
       </div>
 

@@ -123,30 +123,14 @@ export default function ModernTopBar() {
     <header className="mn-bar">
       {/* ── Brand ── */}
       <button className="mn-brand" onClick={() => navigate('/new')}>
-        <div className="mn-brand-mark">
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-            <rect x="0.5" y="0.5" width="21" height="21" rx="6" stroke="url(#mnBorderGrad)" strokeWidth="1.3" />
-            <rect x="4" y="4" width="14" height="14" rx="3.5" fill="url(#mnMidGrad)" opacity="0.12" />
-            <rect x="6.5" y="6.5" width="9" height="9" rx="2.5" fill="url(#mnCoreGrad)" />
-            <defs>
-              <linearGradient id="mnBorderGrad" x1="0" y1="0" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#6366f1" />
-                <stop offset="0.5" stopColor="#f59e0b" />
-                <stop offset="1" stopColor="#f97316" />
-              </linearGradient>
-              <linearGradient id="mnMidGrad" x1="4" y1="4" x2="18" y2="18" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#6366f1" />
-                <stop offset="1" stopColor="#fbbf24" />
-              </linearGradient>
-              <linearGradient id="mnCoreGrad" x1="6.5" y1="6.5" x2="15.5" y2="15.5" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#f59e0b" />
-                <stop offset="0.6" stopColor="#f97316" />
-                <stop offset="1" stopColor="#6366f1" />
-              </linearGradient>
-            </defs>
-          </svg>
+        <div className="hdcs-wordmark hdcs-wordmark--mn" aria-hidden="true">
+          <div className="hdcs-wordmark-row">
+            <span className="hdcs-wordmark-text">hd</span>
+            <span className="hdcs-wordmark-dot" />
+            <span className="hdcs-wordmark-text">cs</span>
+          </div>
+          <span className="hdcs-wordmark-line" />
         </div>
-        <span className="mn-brand-name">dugou</span>
       </button>
 
       {/* ── Breadcrumb separator ── */}
