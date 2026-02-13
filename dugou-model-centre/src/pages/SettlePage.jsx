@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Check, X, Trash2 } from 'lucide-react'
 import { deleteInvestment, getInvestments, updateInvestment } from '../lib/localData'
 import { handleNoteShortcut } from '../lib/noteFormatting'
 import { normalizeEntryName } from '../lib/entryParsing'
+import WaxSealStampOverlay, { getWaxSealStampPoint } from '../components/WaxSealStampOverlay'
 
 const formatDate = (isoString) => {
   const date = new Date(isoString)
@@ -125,6 +126,7 @@ export default function SettlePage() {
   const [batchRating, setBatchRating] = useState('')
   const [batchRep, setBatchRep] = useState('')
   const [historyAutoFillSnapshots, setHistoryAutoFillSnapshots] = useState({})
+  const [waxSealBurst, setWaxSealBurst] = useState({ active: false, token: 0, x: 0, y: 0 })
 
   const settledHistoryLookup = useMemo(() => {
     const lookup = new Map()
@@ -415,13 +417,28 @@ export default function SettlePage() {
     setExpandedCombo((prev) => (prev && ids.has(prev) ? null : prev))
   }
 
-  const confirmSettlement = (combo) => {
+  const triggerWaxSealStamp = (target) => {
+    const point = getWaxSealStampPoint(target)
+    setWaxSealBurst((prev) => ({
+      active: true,
+      token: prev.token + 1,
+      x: point.x,
+      y: point.y,
+    }))
+  }
+
+  const handleWaxSealStampDone = () => {
+    setWaxSealBurst((prev) => ({ ...prev, active: false }))
+  }
+
+  const confirmSettlement = (combo, event) => {
     const form = forms[combo.id]
     const error = getValidationError(form)
     if (error) {
       window.alert(error)
       return
     }
+    triggerWaxSealStamp(event?.currentTarget)
     applySettlement(combo, form)
 
     // 找到当前结算项的下一条，用于自动展开
@@ -458,7 +475,7 @@ export default function SettlePage() {
     setSelectedComboIds(next)
   }
 
-  const handleBatchSettlement = () => {
+  const handleBatchSettlement = (event) => {
     const targetCombos = pendingCombos.filter((combo) => selectedComboIds[combo.id])
     if (targetCombos.length === 0) {
       window.alert('请先勾选要批量结算的记录。')
@@ -481,6 +498,7 @@ export default function SettlePage() {
     const ok = window.confirm(`确认批量结算已勾选的 ${targetCombos.length} 笔记录吗？`)
     if (!ok) return
 
+    triggerWaxSealStamp(event?.currentTarget)
     targetCombos.forEach((combo) => applySettlement(combo, forms[combo.id]))
     settleCombos(targetCombos)
   }
@@ -564,7 +582,7 @@ export default function SettlePage() {
             <button onClick={toggleSelectAll} className="motion-v2-ghost-btn px-3 py-1.5 text-xs rounded-lg bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors">
               {selectedCount === pendingCombos.length ? '取消全选' : '全选'}
             </button>
-            <button onClick={handleBatchSettlement} className="motion-v2-ghost-btn px-3 py-1.5 text-xs rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors">
+            <button onClick={(event) => handleBatchSettlement(event)} className="motion-v2-ghost-btn px-3 py-1.5 text-xs rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors">
               批量结算已选
             </button>
           </div>
@@ -787,7 +805,7 @@ export default function SettlePage() {
                         <span className="text-xs text-stone-400 ml-2">（按赔率比例分摊至各场）</span>
                       </div>
                     </div>
-                    <button onClick={() => confirmSettlement(combo)} className="btn-primary btn-hover">
+                    <button onClick={(event) => confirmSettlement(combo, event)} className="btn-primary btn-hover">
                       确认结算
                     </button>
                   </div>
@@ -803,6 +821,7 @@ export default function SettlePage() {
           </div>
         )}
       </div>
+      <WaxSealStampOverlay burst={waxSealBurst} onDone={handleWaxSealStampDone} />
     </div>
   )
 }

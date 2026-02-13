@@ -5,6 +5,7 @@ import { bumpTeamSamples, findTeamProfile, getInvestments, getSystemConfig, getT
 import { handleNoteShortcut } from '../lib/noteFormatting'
 import { getPredictionCalibrationContext, getModeKellyRecommendations } from '../lib/analytics'
 import { getPrimaryEntryMarket, normalizeEntryName, normalizeEntryRecord } from '../lib/entryParsing'
+import WaxSealStampOverlay, { getWaxSealStampPoint } from '../components/WaxSealStampOverlay'
 import {
   buildAtomicMatchProfile,
   calcAtomicEquivalentOdds,
@@ -223,6 +224,7 @@ export default function NewInvestmentPage() {
   const [quickInputText, setQuickInputText] = useState('')
   const [quickInputOpen, setQuickInputOpen] = useState(false)
   const [quickInputResult, setQuickInputResult] = useState(null)
+  const [waxSealBurst, setWaxSealBurst] = useState({ active: false, token: 0, x: 0, y: 0 })
   const [systemConfig] = useState(() => getSystemConfig())
 
   const teamProfiles = useMemo(() => getTeamProfiles(), [profilesVersion])
@@ -833,8 +835,25 @@ export default function NewInvestmentPage() {
     return newInvestment
   }
 
-  const handleConfirmInvestment = () => {
-    persistCurrentInvestment()
+  const triggerWaxSealStamp = (target) => {
+    const point = getWaxSealStampPoint(target)
+    setWaxSealBurst((prev) => ({
+      active: true,
+      token: prev.token + 1,
+      x: point.x,
+      y: point.y,
+    }))
+  }
+
+  const handleWaxSealStampDone = () => {
+    setWaxSealBurst((prev) => ({ ...prev, active: false }))
+  }
+
+  const handleConfirmInvestment = (event) => {
+    const saved = persistCurrentInvestment()
+    if (saved) {
+      triggerWaxSealStamp(event?.currentTarget)
+    }
   }
 
   const handleAddToCombo = () => {
@@ -1480,7 +1499,7 @@ export default function NewInvestmentPage() {
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <button onClick={handleConfirmInvestment} className="btn-primary btn-hover">
+                <button onClick={(event) => handleConfirmInvestment(event)} className="btn-primary btn-hover">
                   确认投资
                 </button>
                 <button
@@ -1494,6 +1513,7 @@ export default function NewInvestmentPage() {
           </div>
         </div>
       </div>
+      <WaxSealStampOverlay burst={waxSealBurst} onDone={handleWaxSealStampDone} />
     </div>
   )
 }
