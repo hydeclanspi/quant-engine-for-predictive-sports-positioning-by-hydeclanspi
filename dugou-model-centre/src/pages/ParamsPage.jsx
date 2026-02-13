@@ -319,7 +319,7 @@ const FutureFeaturesExplorer = () => {
           style={{ transform: `translateX(${activePointId ? '-50%' : '0%'})` }}
         >
           <section className="w-1/2 h-full p-4 sm:p-5">
-            <div className="h-full rounded-2xl border border-sky-200/70 bg-white/72 backdrop-blur-xl px-4 py-4 sm:px-5 sm:py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] flex flex-col min-h-0">
+            <div className="h-full rounded-2xl border border-sky-200/70 bg-white/72 backdrop-blur-xl px-4 py-4 sm:px-5 sm:py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] overflow-y-auto custom-scrollbar">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.18em] text-sky-600 font-medium">Concept Preview</p>
@@ -334,11 +334,11 @@ const FutureFeaturesExplorer = () => {
                 源文档：{FUTURE_FEATURE_DETAIL_SOURCE.overview}
               </p>
 
-              <div className="mt-4 rounded-xl border border-sky-100 bg-gradient-to-br from-white/85 to-sky-50/55 px-4 py-3 max-h-[34vh] overflow-y-auto custom-scrollbar">
+              <div className="mt-4 rounded-xl border border-sky-100 bg-gradient-to-br from-white/85 to-sky-50/55 px-4 py-3">
                 <LongFormDocument text={FUTURE_FEATURE_OVERVIEW_TEXT} keyPrefix="future-overview" />
               </div>
 
-              <div className="mt-4 min-h-0 flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-2.5">
+              <div className="mt-4 pr-1 pb-2 space-y-2.5">
                 {pointRows.map((point) => (
                   <button
                     key={point.id}
@@ -367,7 +367,10 @@ const FutureFeaturesExplorer = () => {
           </section>
 
           <section className="w-1/2 h-full p-4 sm:p-5">
-            <div className="h-full rounded-2xl border border-sky-200/70 bg-white/80 backdrop-blur-xl px-4 py-4 sm:px-5 sm:py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] flex flex-col min-h-0">
+            <div
+              ref={detailScrollRef}
+              className="h-full rounded-2xl border border-sky-200/70 bg-white/80 backdrop-blur-xl px-4 py-4 sm:px-5 sm:py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] overflow-y-auto custom-scrollbar"
+            >
               <div className="flex items-center justify-between gap-3">
                 <button
                   type="button"
@@ -390,14 +393,14 @@ const FutureFeaturesExplorer = () => {
               </p>
               <p className="text-[11px] text-stone-400 mt-2">{FUTURE_FEATURE_DETAIL_SOURCE.details}</p>
 
-              <div ref={detailScrollRef} className="mt-4 min-h-0 flex-1 overflow-y-auto custom-scrollbar pr-1">
+              <div className="mt-4 pr-1 pb-2">
                 {activePoint ? (
                   <LongFormDocument
                     text={FUTURE_FEATURE_DETAIL_TEXT[String(activePoint.id)] || ''}
                     keyPrefix={`future-detail-${activePoint.id}`}
                   />
                 ) : (
-                  <div className="h-full rounded-xl border border-dashed border-sky-200 bg-sky-50/40 flex items-center justify-center text-sm text-sky-600">
+                  <div className="min-h-[220px] rounded-xl border border-dashed border-sky-200 bg-sky-50/40 flex items-center justify-center text-sm text-sky-600">
                     请选择左侧任一进阶方向
                   </div>
                 )}
