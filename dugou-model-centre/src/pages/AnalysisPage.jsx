@@ -756,6 +756,7 @@ export default function AnalysisPage({ openModal }) {
         label: strength === 'strong' ? '上行·强' : '上行·温和',
         chipClass: 'border-emerald-200 bg-emerald-50/90 text-emerald-700',
         toneClass: 'text-emerald-600',
+        panelClass: 'border-emerald-200 bg-emerald-50/70',
         summary: '近期表现优于基线，可维持主推仓位并保留适度进攻弹性。',
       }
     }
@@ -764,6 +765,7 @@ export default function AnalysisPage({ openModal }) {
         label: strength === 'strong' ? '下行·强' : '下行·温和',
         chipClass: 'border-rose-200 bg-rose-50/90 text-rose-600',
         toneClass: 'text-rose-500',
+        panelClass: 'border-rose-200 bg-rose-50/70',
         summary: '近期波动放大，建议降低高赔率暴露并优先稳健仓位。',
       }
     }
@@ -771,6 +773,7 @@ export default function AnalysisPage({ openModal }) {
       label: '震荡·均衡',
       chipClass: 'border-cyan-200 bg-cyan-50/90 text-cyan-700',
       toneClass: 'text-cyan-700',
+      panelClass: 'border-cyan-200 bg-cyan-50/75',
       summary: '当前无明显单边趋势，维持均衡配置并等待方向确认。',
     }
   }, [momentumSummary.direction, momentumSummary.strength])
@@ -1771,7 +1774,7 @@ export default function AnalysisPage({ openModal }) {
                 </div>
                 <p className="text-sm text-stone-500 mt-1.5">Conf、FSE 等参数按时序衰减加权，近期样本优先影响最终评分。</p>
               </div>
-              <div className="min-w-[150px] rounded-xl border border-white/80 bg-white/72 px-3 py-2.5 backdrop-blur-sm shadow-[0_8px_18px_rgba(14,165,233,0.1)]">
+              <div className={`min-w-[150px] rounded-xl border px-3 py-2.5 backdrop-blur-sm shadow-[0_8px_18px_rgba(14,165,233,0.1)] ${recencyRegime.panelClass}`}>
                 <p className="text-[10px] text-stone-400 uppercase tracking-[0.12em]">Regime</p>
                 <p className={`text-sm font-semibold mt-0.5 ${recencyRegime.toneClass}`}>{recencyRegime.label}</p>
                 <p className="text-[11px] text-stone-500 mt-1">
@@ -1790,7 +1793,7 @@ export default function AnalysisPage({ openModal }) {
                       band: 'bg-emerald-400',
                       tag: '近期主权重',
                     }
-                  : item.weight === '1.15x'
+                    : item.weight === '1.15x'
                     ? {
                         card: 'border-sky-200 bg-gradient-to-br from-sky-50/90 to-white',
                         weight: 'text-sky-600',
@@ -1798,10 +1801,10 @@ export default function AnalysisPage({ openModal }) {
                         tag: '过渡层',
                       }
                     : {
-                        card: 'border-stone-200 bg-gradient-to-br from-stone-50 to-white',
-                        weight: 'text-stone-500',
-                        band: 'bg-stone-300',
-                        tag: '基线层',
+                        card: 'border-violet-200 bg-gradient-to-br from-violet-50/92 to-white',
+                        weight: 'text-violet-600',
+                        band: 'bg-violet-400',
+                        tag: '基础层',
                       }
                 return (
                   <div key={item.period} className={`rounded-xl border p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ${tone.card}`}>
@@ -1822,17 +1825,17 @@ export default function AnalysisPage({ openModal }) {
 
             <div className="mt-4 rounded-xl border border-sky-100/80 bg-white/74 p-3.5 backdrop-blur-sm">
               <p className="text-[10px] uppercase tracking-[0.12em] text-stone-400 mb-2">样本分层分布</p>
-              <div className="h-2 rounded-full overflow-hidden border border-stone-200/70 bg-white flex">
+              <div className="h-2 rounded-full overflow-hidden border border-sky-100/80 bg-white flex">
                 {deepData.timeWeights.map((item) => {
                   const share = timeWeightTotalSamples > 0 ? Math.max(6, Math.round((item.count / timeWeightTotalSamples) * 100)) : 0
-                  const band = item.highlight ? 'bg-emerald-400' : item.weight === '1.15x' ? 'bg-sky-400' : 'bg-stone-300'
+                  const band = item.highlight ? 'bg-emerald-400' : item.weight === '1.15x' ? 'bg-sky-400' : 'bg-violet-400'
                   return <div key={`mix-${item.period}`} className={band} style={{ width: `${share}%` }} />
                 })}
               </div>
             </div>
 
             <div className="mt-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3.5">
-              <div className="rounded-xl border border-stone-200/80 bg-white/82 p-3.5">
+              <div className="rounded-xl border border-cyan-100/90 bg-gradient-to-br from-cyan-50/75 to-white p-3.5">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] uppercase tracking-[0.12em] text-stone-400">连续性</p>
                   <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${recencyRegime.chipClass}`}>
@@ -1844,10 +1847,10 @@ export default function AnalysisPage({ openModal }) {
                 </p>
                 <p className="text-[12px] text-stone-600 leading-6 mt-2">{recencyRegime.summary}</p>
               </div>
-              <div className="rounded-xl border border-stone-200/80 bg-white/82 p-3.5">
+              <div className="rounded-xl border border-violet-100/90 bg-gradient-to-br from-violet-50/75 to-white p-3.5">
                 <p className="text-[10px] uppercase tracking-[0.12em] text-stone-400 mb-2">动量面板</p>
                 <div className="grid grid-cols-2 gap-2.5 text-[12px]">
-                  <div className="rounded-lg border border-stone-100 bg-stone-50/70 p-2.5">
+                  <div className="rounded-lg border border-cyan-100/80 bg-cyan-50/65 p-2.5">
                     <p className="text-stone-400">ROI 动量</p>
                     <p className={`mt-1 font-semibold ${momentumSummary.roiDelta >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                       {signed(momentumSummary.roiDelta, 1, '%')}
@@ -1856,7 +1859,7 @@ export default function AnalysisPage({ openModal }) {
                       {momentumSummary.recentRoi.toFixed(1)}% vs {momentumSummary.baseRoi.toFixed(1)}%
                     </p>
                   </div>
-                  <div className="rounded-lg border border-stone-100 bg-stone-50/70 p-2.5">
+                  <div className="rounded-lg border border-violet-100/80 bg-violet-50/65 p-2.5">
                     <p className="text-stone-400">命中率动量</p>
                     <p className={`mt-1 font-semibold ${momentumSummary.hitRateDelta >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                       {signed(momentumSummary.hitRateDelta, 1, 'pp')}
