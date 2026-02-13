@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ArrowLeft,
   BarChart3,
+  ChevronRight,
   Clock3,
   Cloud,
   Database,
@@ -9,6 +11,7 @@ import {
   LineChart,
   ShieldCheck,
   SlidersHorizontal,
+  Sparkles,
   TrendingUp,
   Wallet,
 } from 'lucide-react'
@@ -24,6 +27,12 @@ import {
 } from '../lib/analytics'
 import { exportDataBundle, getCloudSyncStatus, getInvestments, getSystemConfig, importDataBundle, pullCloudSnapshotNow, runCloudSyncNow, saveSystemConfig, setCloudSyncEnabled } from '../lib/localData'
 import { getPrimaryEntryMarket, normalizeEntryRecord } from '../lib/entryParsing'
+import {
+  FUTURE_FEATURE_DETAIL_SOURCE,
+  FUTURE_FEATURE_DETAIL_TEXT,
+  FUTURE_FEATURE_OVERVIEW_TEXT,
+  FUTURE_FEATURE_POINTS,
+} from '../data/futureFeaturesRoadmap'
 import * as XLSX from 'xlsx'
 
 const TYS_BASE_FACTORS = {
@@ -121,6 +130,285 @@ const ConsoleCardIcon = ({ IconComp }) => (
     <IconComp size={14} strokeWidth={1.7} />
   </span>
 )
+
+const parseInlineTokens = (text, keyPrefix) => {
+  const source = String(text || '')
+  if (!source) return null
+  const parts = source.split(/(\*\*[^*]+\*\*|`[^`]+`)/g)
+  return parts
+    .filter((item) => item.length > 0)
+    .map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return (
+          <strong key={`${keyPrefix}-strong-${index}`} className="font-semibold text-stone-800">
+            {part.slice(2, -2)}
+          </strong>
+        )
+      }
+      if (part.startsWith('`') && part.endsWith('`')) {
+        return (
+          <code
+            key={`${keyPrefix}-code-${index}`}
+            className="px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-100 text-[12px] font-medium"
+          >
+            {part.slice(1, -1)}
+          </code>
+        )
+      }
+      return <span key={`${keyPrefix}-txt-${index}`}>{part}</span>
+    })
+}
+
+const renderReadableTextBlock = (rawBlock, keyPrefix) => {
+  const block = String(rawBlock || '').trim()
+  if (!block) return null
+  if (/^-{3,}$/.test(block)) {
+    return <hr key={`${keyPrefix}-divider`} className="border-stone-200/80 my-2" />
+  }
+
+  const lines = block.split('\n')
+  const firstLine = lines[0].trim()
+  const headingMatch = firstLine.match(/^(#{2,4})\s+(.+)$/)
+  if (headingMatch && lines.length === 1) {
+    const level = headingMatch[1].length
+    const text = headingMatch[2].trim()
+    if (level === 2) {
+      return (
+        <h3 key={`${keyPrefix}-h2`} className="text-[18px] font-semibold tracking-tight text-stone-800 mt-1">
+          {parseInlineTokens(text, `${keyPrefix}-h2`)}
+        </h3>
+      )
+    }
+    if (level === 3) {
+      return (
+        <h4 key={`${keyPrefix}-h3`} className="text-[15px] font-semibold text-stone-700 mt-1">
+          {parseInlineTokens(text, `${keyPrefix}-h3`)}
+        </h4>
+      )
+    }
+    return (
+      <h5 key={`${keyPrefix}-h4`} className="text-[13px] font-semibold uppercase tracking-[0.08em] text-stone-500 mt-1">
+        {parseInlineTokens(text, `${keyPrefix}-h4`)}
+      </h5>
+    )
+  }
+
+  if (lines.every((line) => line.trim().startsWith('- '))) {
+    return (
+      <ul key={`${keyPrefix}-ul`} className="space-y-1.5 pl-5 text-[13px] leading-6 text-stone-600 list-disc marker:text-sky-400">
+        {lines.map((line, index) => (
+          <li key={`${keyPrefix}-li-${index}`}>{parseInlineTokens(line.trim().slice(2), `${keyPrefix}-li-${index}`)}</li>
+        ))}
+      </ul>
+    )
+  }
+
+  if (lines.every((line) => /^\d+\.\s+/.test(line.trim()))) {
+    return (
+      <ol key={`${keyPrefix}-ol`} className="space-y-1.5 pl-5 text-[13px] leading-6 text-stone-600 list-decimal marker:text-sky-500">
+        {lines.map((line, index) => {
+          const normalized = line.trim().replace(/^\d+\.\s+/, '')
+          return <li key={`${keyPrefix}-ol-${index}`}>{parseInlineTokens(normalized, `${keyPrefix}-ol-${index}`)}</li>
+        })}
+      </ol>
+    )
+  }
+
+  if (lines.length >= 2 && lines.some((line) => line.trim().startsWith('|'))) {
+    return (
+      <div key={`${keyPrefix}-table`} className="rounded-xl border border-sky-100 bg-white/70 overflow-hidden">
+        {lines.map((line, index) => (
+          <div
+            key={`${keyPrefix}-tr-${index}`}
+            className={`px-3 py-1.5 text-[11px] font-mono text-slate-600 ${index !== lines.length - 1 ? 'border-b border-sky-100/80' : ''}`}
+          >
+            {line}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (lines.every((line) => line.trim().startsWith('>'))) {
+    return (
+      <blockquote key={`${keyPrefix}-quote`} className="rounded-xl border-l-4 border-sky-300 bg-sky-50/70 px-4 py-3 text-[13px] leading-6 text-slate-600">
+        {lines.map((line, index) => (
+          <p key={`${keyPrefix}-quote-p-${index}`}>{parseInlineTokens(line.trim().replace(/^>\s?/, ''), `${keyPrefix}-quote-${index}`)}</p>
+        ))}
+      </blockquote>
+    )
+  }
+
+  return (
+    <p key={`${keyPrefix}-p`} className="text-[13px] leading-7 text-stone-600 whitespace-pre-wrap">
+      {parseInlineTokens(block, `${keyPrefix}-p`)}
+    </p>
+  )
+}
+
+const LongFormDocument = ({ text, keyPrefix }) => {
+  const content = String(text || '').replace(/\r\n/g, '\n')
+  if (!content) return null
+  const segments = []
+  const codeFenceRegex = /```([\s\S]*?)```/g
+  let lastIndex = 0
+  let match = codeFenceRegex.exec(content)
+  while (match) {
+    if (match.index > lastIndex) {
+      segments.push({ type: 'text', content: content.slice(lastIndex, match.index) })
+    }
+    segments.push({ type: 'code', content: match[1].trim() })
+    lastIndex = codeFenceRegex.lastIndex
+    match = codeFenceRegex.exec(content)
+  }
+  if (lastIndex < content.length) {
+    segments.push({ type: 'text', content: content.slice(lastIndex) })
+  }
+
+  return (
+    <div className="space-y-3">
+      {segments.map((segment, segmentIndex) => {
+        if (segment.type === 'code') {
+          return (
+            <pre
+              key={`${keyPrefix}-code-${segmentIndex}`}
+              className="rounded-xl border border-slate-700/20 bg-slate-950/95 text-slate-100 text-[11px] leading-6 px-4 py-3 overflow-x-auto"
+            >
+              {segment.content}
+            </pre>
+          )
+        }
+        const blocks = segment.content
+          .split(/\n{2,}/)
+          .map((block) => block.trim())
+          .filter(Boolean)
+        return blocks.map((block, blockIndex) => renderReadableTextBlock(block, `${keyPrefix}-seg-${segmentIndex}-block-${blockIndex}`))
+      })}
+    </div>
+  )
+}
+
+const FutureFeaturesExplorer = () => {
+  const [activePointId, setActivePointId] = useState(null)
+  const detailScrollRef = useRef(null)
+  const pointRows = useMemo(
+    () =>
+      [...(Array.isArray(FUTURE_FEATURE_POINTS) ? FUTURE_FEATURE_POINTS : [])].sort(
+        (a, b) => Number(a?.id || 0) - Number(b?.id || 0),
+      ),
+    [],
+  )
+
+  const activePoint = useMemo(
+    () => pointRows.find((row) => String(row.id) === String(activePointId)) || null,
+    [pointRows, activePointId],
+  )
+
+  useEffect(() => {
+    if (detailScrollRef.current) {
+      detailScrollRef.current.scrollTop = 0
+    }
+  }, [activePointId])
+
+  return (
+    <div className="relative h-[72vh] overflow-hidden rounded-2xl border border-sky-200/80 bg-gradient-to-br from-sky-50/90 via-white/90 to-cyan-50/80 shadow-[0_24px_56px_rgba(14,165,233,0.16),inset_0_1px_0_rgba(255,255,255,0.92)]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(110%_90%_at_15%_0%,rgba(125,211,252,0.35),rgba(255,255,255,0))]" />
+      <div className="relative h-full overflow-hidden">
+        <div
+          className="flex h-full w-[200%] transition-transform duration-500 ease-out"
+          style={{ transform: `translateX(${activePointId ? '-50%' : '0%'})` }}
+        >
+          <section className="w-1/2 h-full p-4 sm:p-5">
+            <div className="h-full rounded-2xl border border-sky-200/70 bg-white/72 backdrop-blur-xl px-4 py-4 sm:px-5 sm:py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] flex flex-col min-h-0">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-sky-600 font-medium">Concept Preview</p>
+                  <h4 className="text-lg font-semibold text-stone-800 mt-1">高级 AI/ML 赋能方向总览</h4>
+                </div>
+                <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-100/70 px-2.5 py-1 text-[11px] text-sky-700 font-medium">
+                  BETA
+                </span>
+              </div>
+
+              <p className="text-[12px] text-stone-500 mt-2">
+                源文档：{FUTURE_FEATURE_DETAIL_SOURCE.overview}
+              </p>
+
+              <div className="mt-4 rounded-xl border border-sky-100 bg-gradient-to-br from-white/85 to-sky-50/55 px-4 py-3 max-h-[34vh] overflow-y-auto custom-scrollbar">
+                <LongFormDocument text={FUTURE_FEATURE_OVERVIEW_TEXT} keyPrefix="future-overview" />
+              </div>
+
+              <div className="mt-4 min-h-0 flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-2.5">
+                {pointRows.map((point) => (
+                  <button
+                    key={point.id}
+                    type="button"
+                    onClick={() => setActivePointId(point.id)}
+                    className="w-full rounded-xl border border-sky-100 bg-white/80 hover:bg-sky-50/80 hover:border-sky-200 transition-all px-3.5 py-3 text-left group"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center rounded-md bg-sky-100 text-sky-700 text-[11px] px-1.5 py-0.5 font-medium">
+                            {point.tier}
+                          </span>
+                          <span className="text-sm font-semibold text-stone-800">{point.title}</span>
+                        </div>
+                        <p className="mt-1.5 text-[12px] leading-6 text-stone-600">{point.shortIntro}</p>
+                      </div>
+                      <span className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-lg border border-sky-200 bg-white text-sky-600 group-hover:translate-x-0.5 transition-transform">
+                        <ChevronRight size={14} />
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="w-1/2 h-full p-4 sm:p-5">
+            <div className="h-full rounded-2xl border border-sky-200/70 bg-white/80 backdrop-blur-xl px-4 py-4 sm:px-5 sm:py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] flex flex-col min-h-0">
+              <div className="flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setActivePointId(null)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50/80 text-sky-700 text-xs px-2.5 py-1.5 hover:bg-sky-100 transition-colors"
+                >
+                  <ArrowLeft size={13} />
+                  返回总览
+                </button>
+                <span className="text-[11px] uppercase tracking-[0.12em] text-sky-500">
+                  {activePoint?.tier || 'Detail'}
+                </span>
+              </div>
+
+              <h4 className="mt-3 text-lg font-semibold text-stone-800">
+                {activePoint?.title || '请选择一个方向查看详情'}
+              </h4>
+              <p className="mt-1.5 text-[12px] leading-6 text-stone-600">
+                {activePoint?.shortIntro || '选择左侧任一方向后，这里会显示完整研究内容与赋能科普。'}
+              </p>
+              <p className="text-[11px] text-stone-400 mt-2">{FUTURE_FEATURE_DETAIL_SOURCE.details}</p>
+
+              <div ref={detailScrollRef} className="mt-4 min-h-0 flex-1 overflow-y-auto custom-scrollbar pr-1">
+                {activePoint ? (
+                  <LongFormDocument
+                    text={FUTURE_FEATURE_DETAIL_TEXT[String(activePoint.id)] || ''}
+                    keyPrefix={`future-detail-${activePoint.id}`}
+                  />
+                ) : (
+                  <div className="h-full rounded-xl border border-dashed border-sky-200 bg-sky-50/40 flex items-center justify-center text-sm text-sky-600">
+                    请选择左侧任一进阶方向
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 const normalizeBackupCadence = (value) => {
   const key = String(value || '').trim()
@@ -1464,6 +1752,13 @@ export default function ParamsPage({ openModal }) {
     })
   }
 
+  const openFutureFeaturesModal = () => {
+    openModal({
+      title: '未来迭代 · 概念版features前瞻',
+      content: <FutureFeaturesExplorer />,
+    })
+  }
+
   const handleConfigChange = (field, value) => {
     setConfig((prev) => ({ ...prev, [field]: value }))
   }
@@ -2800,6 +3095,39 @@ export default function ParamsPage({ openModal }) {
           </button>
         </div>
         <p className="text-[11px] text-stone-400 mt-3 text-center">Layout changes take effect immediately.</p>
+      </div>
+
+      <div
+        onClick={openFutureFeaturesModal}
+        className="glow-card mt-6 rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50/90 via-white/92 to-cyan-50/78 p-6 cursor-pointer backdrop-blur-sm shadow-[0_20px_45px_rgba(56,189,248,0.18),inset_0_1px_0_rgba(255,255,255,0.86)]"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-sky-200 bg-white/80 text-sky-600">
+                <Sparkles size={14} strokeWidth={1.8} />
+              </span>
+              <span className="text-xs text-sky-700 font-medium uppercase tracking-[0.1em]">Future Iteration</span>
+              <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-100/70 px-2 py-0.5 text-[10px] text-sky-700 font-semibold">
+                BETA
+              </span>
+            </div>
+            <h3 className="text-lg font-semibold text-stone-800">未来迭代 · 概念版features前瞻</h3>
+            <p className="text-sm text-stone-500 mt-2 max-w-3xl">
+              装载完整研究原文（Part 4）与十项进阶方向的全量详细解读，支持分层阅读与右向左推出交互。
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              openFutureFeaturesModal()
+            }}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white/85 px-3 py-2 text-xs font-medium text-sky-700 hover:bg-sky-50 transition-colors"
+          >
+            查看详情 <ChevronRight size={14} />
+          </button>
+        </div>
       </div>
     </div>
   )
