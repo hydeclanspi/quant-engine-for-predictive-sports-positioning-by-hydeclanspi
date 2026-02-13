@@ -125,6 +125,7 @@ export default function ModernTopBar() {
       {/* ── Brand ── */}
       <button className="mn-brand" onClick={() => navigate('/new')}>
         <HdcsC19Logo size="sm" />
+        <span className="mn-brand-name">dugou</span>
       </button>
 
       {/* ── Breadcrumb separator ── */}

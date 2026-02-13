@@ -182,6 +182,9 @@ export default function TopBar() {
       {/* ── Left: Brand ── */}
       <div className="topbar-v2-brand" onClick={() => navigate('/new')}>
         <HdcsC19Logo size="sm" />
+        <div className="topbar-v2-brand-text">
+          <span className="topbar-v2-brand-name">dugou</span>
+        </div>
       </div>
 
       {/* ── Subtle vertical divider ── */}
