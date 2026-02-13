@@ -4070,51 +4070,77 @@ export default function ComboPage({ openModal }) {
         </div>
       </div>
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mt-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium text-stone-700">方案生成历史</h3>
-          <button
-            onClick={clearPlanHistory}
-            disabled={planHistory.length === 0}
-            className="text-xs text-stone-400 hover:text-rose-500 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            清空历史
-          </button>
-        </div>
-
-        {planHistory.length === 0 ? (
-          <p className="text-sm text-stone-400">还没有历史生成记录，生成一次组合后会自动存档。</p>
-        ) : (
-          <div className="space-y-2">
-            {planHistory.slice(0, 8).map((item) => (
-              <div key={item.id} className="rounded-xl border border-stone-100 bg-stone-50/70 px-3 py-2.5">
-                <div className="grid grid-cols-[minmax(0,1fr)_170px_auto] items-center gap-x-4">
-                  <div className="min-w-0">
-                    <p className="text-sm text-stone-700 truncate">
-                      {item.selectedLabel}
-                      {item.selectedCount > 2 ? ` + ${item.selectedCount - 2}场` : ''}
-                    </p>
-                    <p className="text-[11px] text-stone-400">
-                      {new Date(item.createdAt).toLocaleString()} · Risk {item.riskPref}% · 候选 {item.candidateCombos}
-                    </p>
-                  </div>
-                  <div className="w-[170px] justify-self-end mr-3 text-right">
-                    <p className="text-xs text-stone-500">EV / Invest</p>
-                    <p className="text-sm font-semibold text-stone-700 whitespace-nowrap tabular-nums">
-                      {formatPercent(item.expectedReturnPercent)} / {item.totalInvest} rmb
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => restorePlanFromHistory(item)}
-                    className="justify-self-end px-2.5 py-1 rounded-lg text-xs border border-stone-200 text-stone-600 hover:border-amber-300 hover:text-amber-700 hover:bg-amber-50 transition-colors"
-                  >
-                    恢复
-                  </button>
-                </div>
-              </div>
-            ))}
+      <div className="glow-card relative overflow-hidden rounded-2xl border border-cyan-100 bg-gradient-to-br from-white via-cyan-50/35 to-violet-50/30 p-6 mt-6">
+        <div className="pointer-events-none absolute -top-12 right-14 h-36 w-36 rounded-full bg-cyan-200/25 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-14 -left-10 h-36 w-36 rounded-full bg-violet-200/20 blur-3xl" />
+        <div className="relative">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-medium text-stone-700">方案生成历史</h3>
+              <p className="text-[11px] text-stone-400 mt-1">最近策略快照 · 可一键恢复当时生成状态</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center rounded-full border border-cyan-200 bg-white/85 px-2.5 py-1 text-[10px] font-medium text-cyan-700">
+                最近 {Math.min(planHistory.length, 8)} 条
+              </span>
+              <button
+                onClick={clearPlanHistory}
+                disabled={planHistory.length === 0}
+                className="text-xs text-stone-400 hover:text-rose-500 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                清空历史
+              </button>
+            </div>
           </div>
-        )}
+
+          {planHistory.length === 0 ? (
+            <p className="text-sm text-stone-400">还没有历史生成记录，生成一次组合后会自动存档。</p>
+          ) : (
+            <div className="space-y-2.5">
+              {planHistory.slice(0, 8).map((item, index) => (
+                <div
+                  key={item.id}
+                  className="rounded-2xl border border-white/80 bg-white/72 backdrop-blur-sm px-3.5 py-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)]"
+                >
+                  <div className="grid grid-cols-[minmax(0,1fr)_190px_auto] items-center gap-x-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="inline-flex items-center rounded-md border border-stone-200 bg-white px-1.5 py-0.5 text-[10px] text-stone-500 font-medium">
+                          #{index + 1}
+                        </span>
+                        <span className="inline-flex items-center rounded-md bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 text-[10px] text-indigo-600 font-medium">
+                          Risk {item.riskPref}%
+                        </span>
+                      </div>
+                      <p className="text-sm text-stone-700 truncate">
+                        {item.selectedLabel}
+                        {item.selectedCount > 2 ? ` + ${item.selectedCount - 2}场` : ''}
+                      </p>
+                      <p className="text-[11px] text-stone-400">
+                        {new Date(item.createdAt).toLocaleString()} · 候选 {item.candidateCombos}
+                      </p>
+                    </div>
+                    <div className="w-[190px] justify-self-end mr-2 text-right">
+                      <p className="text-[11px] text-stone-500 uppercase tracking-[0.08em]">EV / Invest</p>
+                      <p className="text-base font-semibold text-stone-700 whitespace-nowrap tabular-nums">
+                        <span className={item.expectedReturnPercent >= 0 ? 'text-emerald-600' : 'text-rose-500'}>
+                          {formatPercent(item.expectedReturnPercent)}
+                        </span>{' '}
+                        / {item.totalInvest} rmb
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => restorePlanFromHistory(item)}
+                      className="justify-self-end px-2.5 py-1 rounded-lg text-xs border border-cyan-200 bg-white text-cyan-700 hover:border-cyan-300 hover:bg-cyan-50 transition-colors"
+                    >
+                      恢复
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

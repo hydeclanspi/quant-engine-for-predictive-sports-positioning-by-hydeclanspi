@@ -1102,83 +1102,90 @@ export default function DashboardPage({ openModal }) {
         <div className="grid grid-cols-3 gap-4">
           <div
             onClick={openRepModal}
-            className="glow-card bg-white rounded-2xl p-5 border border-stone-100 cursor-pointer h-full flex flex-col"
+            className="glow-card relative overflow-hidden rounded-2xl p-5 border border-cyan-100/80 bg-gradient-to-br from-white via-cyan-50/35 to-indigo-50/35 cursor-pointer h-full flex flex-col"
           >
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <h3 className="font-medium text-stone-700">REP (噪音过滤)</h3>
-                  <span className="ml-0.5 px-1 py-[1px] rounded border border-amber-200 bg-amber-50 text-[8px] font-medium uppercase tracking-[0.12em] text-amber-700">Beta</span>
+            <div className="pointer-events-none absolute -top-10 -right-8 h-28 w-28 rounded-full bg-cyan-200/20 blur-2xl" />
+            <div className="pointer-events-none absolute -bottom-12 -left-8 h-28 w-28 rounded-full bg-indigo-200/20 blur-2xl" />
+            <div className="relative">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <h3 className="font-medium text-stone-700">REP (噪音过滤)</h3>
+                    <span className="ml-0.5 px-1 py-[1px] rounded border border-cyan-200 bg-cyan-50 text-[8px] font-medium uppercase tracking-[0.12em] text-cyan-700">Beta</span>
+                    <span className="px-1.5 py-[1px] rounded border border-indigo-200 bg-indigo-50 text-[8px] font-medium uppercase tracking-[0.12em] text-indigo-700">
+                      Recency Engine
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-400">Random Events Parameter · 时间近因机制</p>
                 </div>
-                <p className="text-xs text-stone-400">Random Events Parameter</p>
               </div>
-            </div>
-            <div className="space-y-2">
-              {snapshot.repBuckets.map((bucket, index) => {
-                const colorClass = index === 0 ? 'text-emerald-600' : index === 1 ? 'text-stone-600' : 'text-rose-500'
-                return (
-                  <div key={bucket.label} className="flex items-center justify-between p-2 bg-stone-50 rounded-lg">
-                    <span className="text-xs text-stone-500">{bucket.label}场次</span>
-                    <span className={`text-xs font-medium ${colorClass}`}>
-                      {bucket.count} 场 · ROI {toSigned(bucket.roi, 1, '%')}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-            <div className="mt-3 pt-3 border-t border-stone-100 space-y-2 flex-1 flex flex-col">
-              {repSummary ? (
-                <>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-lg border border-emerald-100 bg-emerald-50/45 p-2">
-                      <p className="text-[10px] text-stone-400">最优随机层</p>
-                      <p className="text-xs font-medium text-emerald-700">{repSummary.best.label}</p>
-                      <p className="text-[11px] text-emerald-600">
-                        ROI {toSigned(repSummary.best.roi, 1, '%')} · Hit {repSummary.best.hitRate.toFixed(0)}%
-                      </p>
+              <div className="space-y-2">
+                {snapshot.repBuckets.map((bucket, index) => {
+                  const colorClass = index === 0 ? 'text-emerald-600' : index === 1 ? 'text-stone-600' : 'text-rose-500'
+                  return (
+                    <div key={bucket.label} className="flex items-center justify-between px-2.5 py-2 rounded-lg border border-white/80 bg-white/65 backdrop-blur-sm">
+                      <span className="text-xs text-stone-500">{bucket.label}场次</span>
+                      <span className={`text-xs font-medium ${colorClass}`}>
+                        {bucket.count} 场 · ROI {toSigned(bucket.roi, 1, '%')}
+                      </span>
                     </div>
-                    <div className="rounded-lg border border-rose-100 bg-rose-50/45 p-2">
-                      <p className="text-[10px] text-stone-400">最弱随机层</p>
-                      <p className="text-xs font-medium text-rose-600">{repSummary.weakest.label}</p>
-                      <p className="text-[11px] text-rose-500">
-                        ROI {toSigned(repSummary.weakest.roi, 1, '%')} · Hit {repSummary.weakest.hitRate.toFixed(0)}%
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-stone-500">
-                    <span>高随机 vs 低随机 ROI 差</span>
-                    <span className={`font-medium ${repSummary.riskGap >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                      {toSigned(repSummary.riskGap, 1, '%')}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-stone-500 leading-5">{repSummary.action}</p>
-                </>
-              ) : (
-                <p className="text-[11px] text-stone-400">当前窗口暂无 REP 细分样本。</p>
-              )}
-              {repMixRows.length > 0 && (
-                <div className="mt-1.5 rounded-xl border border-stone-100 bg-stone-50/70 p-2.5 space-y-2">
-                  <p className="text-[10px] uppercase tracking-[0.12em] text-stone-400">样本结构 / 处理优先级</p>
-                  {repMixRows.map((row) => (
-                    <div key={row.key} className="space-y-1">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-stone-500">{row.label}</span>
-                        <span className="font-medium text-stone-700">
-                          {toPercent(row.share * 100, 0)} · {row.tip}
-                        </span>
+                  )
+                })}
+              </div>
+              <div className="mt-3 pt-3 border-t border-cyan-100/80 space-y-2 flex-1 flex flex-col">
+                {repSummary ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-lg border border-emerald-100 bg-emerald-50/45 p-2">
+                        <p className="text-[10px] text-stone-400">最优随机层</p>
+                        <p className="text-xs font-medium text-emerald-700">{repSummary.best.label}</p>
+                        <p className="text-[11px] text-emerald-600">
+                          ROI {toSigned(repSummary.best.roi, 1, '%')} · Hit {repSummary.best.hitRate.toFixed(0)}%
+                        </p>
                       </div>
-                      <div className="h-1.5 rounded-full bg-white overflow-hidden">
-                        <div
-                          className={`h-full ${row.bandTone}`}
-                          style={{ width: `${Math.max(8, Math.round(row.share * 100))}%` }}
-                        />
+                      <div className="rounded-lg border border-rose-100 bg-rose-50/45 p-2">
+                        <p className="text-[10px] text-stone-400">最弱随机层</p>
+                        <p className="text-xs font-medium text-rose-600">{repSummary.weakest.label}</p>
+                        <p className="text-[11px] text-rose-500">
+                          ROI {toSigned(repSummary.weakest.roi, 1, '%')} · Hit {repSummary.weakest.hitRate.toFixed(0)}%
+                        </p>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                    <div className="flex items-center justify-between text-[11px] text-stone-500">
+                      <span>高随机 vs 低随机 ROI 差</span>
+                      <span className={`font-medium ${repSummary.riskGap >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                        {toSigned(repSummary.riskGap, 1, '%')}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-stone-500 leading-5">{repSummary.action}</p>
+                  </>
+                ) : (
+                  <p className="text-[11px] text-stone-400">当前窗口暂无 REP 细分样本。</p>
+                )}
+                {repMixRows.length > 0 && (
+                  <div className="mt-1.5 rounded-xl border border-cyan-100/70 bg-white/65 p-2.5 space-y-2 backdrop-blur-sm">
+                    <p className="text-[10px] uppercase tracking-[0.12em] text-stone-400">样本结构 / 处理优先级</p>
+                    {repMixRows.map((row) => (
+                      <div key={row.key} className="space-y-1">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-stone-500">{row.label}</span>
+                          <span className="font-medium text-stone-700">
+                            {toPercent(row.share * 100, 0)} · {row.tip}
+                          </span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-white overflow-hidden border border-stone-200/60">
+                          <div
+                            className={`h-full ${row.bandTone}`}
+                            style={{ width: `${Math.max(8, Math.round(row.share * 100))}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <p className="text-[10px] text-stone-400 mt-3">通过 REP 加权过滤随机因素，帮助区分运气波动与判断质量。</p>
             </div>
-            <p className="text-[10px] text-stone-400 mt-3">通过 REP 加权过滤随机因素，帮助区分运气波动与判断质量。</p>
           </div>
 
           <div className="glow-card bg-white rounded-2xl p-5 border border-stone-100">

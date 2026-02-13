@@ -1946,6 +1946,10 @@ export default function ParamsPage({ openModal }) {
     }
   }
 
+  const totalPreMatchWeight = useMemo(
+    () => WEIGHT_FIELDS.reduce((sum, field) => sum + Number(config[field.key] || 0), 0),
+    [config],
+  )
   const currentLayoutMode = config.layoutMode || 'modern'
 
   return (
@@ -2305,31 +2309,54 @@ export default function ParamsPage({ openModal }) {
         <p className="text-[11px] text-stone-400 mt-3">Mode 建议用于参考，可点击“应用”将该分母设为全局。</p>
       </div>
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium text-stone-700 flex items-center gap-2">
-            <ConsoleCardIcon IconComp={SlidersHorizontal} /> 赛前评分权重
-          </h3>
-          <span className="text-xs text-stone-400">用于新建投资与智能组合的评分计算链路</span>
-        </div>
-        <div className="grid grid-cols-3 gap-4">
-          {WEIGHT_FIELDS.map((field) => (
-            <div key={field.key} className="p-3 bg-stone-50 rounded-xl">
-              <label className="text-xs text-stone-400 mb-1.5 block">{field.label}</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  max="1.5"
-                  value={config[field.key]}
-                  onChange={(event) => handleConfigChange(field.key, event.target.value)}
-                  className="input-glow w-full px-3 py-2 rounded-lg text-sm text-right border border-stone-200"
-                />
-              </div>
-              <p className="text-[11px] text-stone-400 mt-1">{field.hint}</p>
+      <div className="glow-card relative overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/30 to-cyan-50/30 p-6 mb-6">
+        <div className="pointer-events-none absolute -top-14 -right-8 h-36 w-36 rounded-full bg-indigo-200/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-12 -left-10 h-36 w-36 rounded-full bg-cyan-200/20 blur-3xl" />
+        <div className="relative">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-medium text-stone-700 flex items-center gap-2">
+                <ConsoleCardIcon IconComp={SlidersHorizontal} /> 赛前评分权重
+              </h3>
+              <p className="text-[11px] text-stone-400 mt-1">用于新建投资与智能组合的评分计算链路</p>
             </div>
-          ))}
+            <div className="text-right">
+              <p className="text-[11px] text-stone-400">总权重</p>
+              <p className="text-sm font-semibold text-indigo-700">{totalPreMatchWeight.toFixed(2)}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
+            {WEIGHT_FIELDS.map((field, index) => {
+              const toneSet = [
+                'from-indigo-50/85 to-white border-indigo-100',
+                'from-cyan-50/85 to-white border-cyan-100',
+                'from-sky-50/85 to-white border-sky-100',
+                'from-violet-50/85 to-white border-violet-100',
+                'from-emerald-50/85 to-white border-emerald-100',
+                'from-amber-50/85 to-white border-amber-100',
+              ]
+              const tone = toneSet[index % toneSet.length]
+              return (
+                <div key={field.key} className={`p-3 rounded-xl border bg-gradient-to-br ${tone}`}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs text-stone-500 block">{field.label}</label>
+                    <span className="text-[10px] text-stone-400">{field.hint}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      max="1.5"
+                      value={config[field.key]}
+                      onChange={(event) => handleConfigChange(field.key, event.target.value)}
+                      className="input-glow w-full px-3 py-2 rounded-lg text-sm text-right border border-white/90 bg-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]"
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
 
