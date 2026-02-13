@@ -601,7 +601,7 @@ const ModalPagination = ({ page, totalPages, onChange }) => (
       <button
         onClick={() => onChange(Math.max(1, page - 1))}
         disabled={page === 1}
-        className={`px-3 py-1.5 rounded-lg text-xs ${page === 1 ? 'text-stone-300 cursor-not-allowed' : 'text-stone-500 hover:bg-stone-100'}`}
+        className={`motion-v2-ghost-btn px-3 py-1.5 rounded-lg text-xs ${page === 1 ? 'text-stone-300 cursor-not-allowed' : 'text-stone-500 hover:bg-stone-100'}`}
       >
         ← 上一页
       </button>
@@ -611,7 +611,7 @@ const ModalPagination = ({ page, totalPages, onChange }) => (
       <button
         onClick={() => onChange(Math.min(totalPages, page + 1))}
         disabled={page === totalPages}
-        className={`px-3 py-1.5 rounded-lg text-xs ${page === totalPages ? 'text-stone-300 cursor-not-allowed' : 'text-stone-500 hover:bg-stone-100'}`}
+        className={`motion-v2-ghost-btn px-3 py-1.5 rounded-lg text-xs ${page === totalPages ? 'text-stone-300 cursor-not-allowed' : 'text-stone-500 hover:bg-stone-100'}`}
       >
         下一页 →
       </button>
@@ -1136,7 +1136,7 @@ export default function AnalysisPage({ openModal }) {
   }
 
   return (
-    <div className="page-shell page-content-wide">
+    <div className="page-shell page-content-wide pt-5 space-y-5 motion-v2-scope">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-stone-800 font-display">深度分析</h2>
@@ -1146,14 +1146,14 @@ export default function AnalysisPage({ openModal }) {
       </div>
 
       {!hasAnyData && (
-        <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-4">
+        <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-4">
           <h3 className="text-lg font-semibold text-stone-800 mb-2">当前时间窗口暂无可分析样本</h3>
           <p className="text-sm text-stone-500 mb-4">先新建投资并完成结算，系统会自动生成组合、联赛、Mode 与 Conf 的分析层。</p>
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/new')} className="btn-primary btn-hover">
+            <button onClick={() => navigate('/new')} className="btn-primary btn-hover motion-v2-ghost-btn">
               去新建投资
             </button>
-            <button onClick={() => navigate('/settle')} className="btn-secondary btn-hover">
+            <button onClick={() => navigate('/settle')} className="btn-secondary btn-hover motion-v2-ghost-btn">
               去待结算
             </button>
           </div>
@@ -1165,7 +1165,7 @@ export default function AnalysisPage({ openModal }) {
           <button
             key={tab.id}
             onClick={() => setAnalysisTab(tab.id)}
-            className={`px-4 py-2 rounded-xl text-sm transition-all btn-hover ${
+            className={`motion-v2-ghost-btn px-4 py-2 rounded-xl text-sm transition-all btn-hover ${
               analysisTab === tab.id ? 'bg-amber-100 text-amber-700 font-medium' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
             }`}
           >
@@ -1176,7 +1176,7 @@ export default function AnalysisPage({ openModal }) {
 
       {analysisTab === 'combo' && (
         <div className="space-y-4">
-          <div className="glow-card relative overflow-hidden rounded-2xl border border-cyan-100 bg-gradient-to-br from-cyan-50/55 via-sky-50/45 to-violet-50/40 p-6">
+          <div className="motion-v2-surface glow-card relative overflow-hidden rounded-2xl border border-cyan-100 bg-gradient-to-br from-cyan-50/55 via-sky-50/45 to-violet-50/40 p-6">
             <div className="pointer-events-none absolute -top-16 -right-20 h-48 w-48 rounded-full bg-cyan-200/20 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-violet-200/20 blur-3xl" />
             <div className="relative">
@@ -1246,7 +1246,7 @@ export default function AnalysisPage({ openModal }) {
                     <div
                       key={row.combo}
                       onClick={() => openComboHistoryDetail(row.combo)}
-                      className={`group p-4 rounded-2xl border transition-all cursor-pointer lift-card backdrop-blur-sm shadow-[0_8px_24px_rgba(15,23,42,0.04)] ${profileMeta.card}`}
+                      className={`motion-v2-row motion-v2-selectable group p-4 rounded-2xl border transition-all cursor-pointer lift-card backdrop-blur-sm shadow-[0_8px_24px_rgba(15,23,42,0.04)] ${profileMeta.card}`}
                     >
                       <div className="flex items-start justify-between gap-3 mb-2.5">
                         <div className="min-w-0">
@@ -1283,7 +1283,7 @@ export default function AnalysisPage({ openModal }) {
             </div>
           </div>
 
-          <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+          <div className="motion-v2-surface glow-card bg-white rounded-2xl p-6 border border-stone-100">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium text-stone-700">优势领域分析 2.0</h3>
               <span className="text-xs text-stone-400">Mode × Conf × Odds · 点击单元格查看样本明细</span>
@@ -1293,7 +1293,7 @@ export default function AnalysisPage({ openModal }) {
                 <button
                   key={`adv-${mode}`}
                   onClick={() => setAdvantageMode(mode)}
-                  className={`px-3 py-1.5 rounded-full text-xs transition-all ${
+                  className={`motion-v2-ghost-btn px-3 py-1.5 rounded-full text-xs transition-all ${
                     advantageMode === mode ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
                   }`}
                 >
@@ -1304,7 +1304,7 @@ export default function AnalysisPage({ openModal }) {
                 <button
                   onClick={() => applyAdvantageFilterToCombo(advantageHighlights.top[0])}
                   disabled={!advantageHighlights.top[0]}
-                  className="px-3 py-1.5 rounded-full text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="motion-v2-ghost-btn px-3 py-1.5 rounded-full text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   一键带入智能组合
                 </button>
@@ -1325,14 +1325,14 @@ export default function AnalysisPage({ openModal }) {
                       <button
                         key={`top-${cell.confBucket}-${cell.oddsBucket}`}
                         onClick={() => openAdvantageCellDetail(cell)}
-                        className="flex w-full items-center justify-between rounded-md px-2 py-1 hover:bg-white/80"
+                        className="motion-v2-row motion-v2-selectable flex w-full items-center justify-between rounded-md px-2 py-1 hover:bg-white/80"
                       >
                         <span>
                           {cell.confBucket} × {cell.oddsBucket}
                         </span>
                         <span className="flex items-center gap-2">
                           <span className="font-medium text-emerald-700">{signed(cell.roi, 1, '%')}</span>
-                          <span className="text-[10px] text-amber-600" onClick={(event) => {
+                          <span className="motion-v2-ghost-btn inline-flex text-[10px] text-amber-600 rounded-md px-1" onClick={(event) => {
                             event.stopPropagation()
                             applyAdvantageFilterToCombo(cell)
                           }}>
@@ -1354,14 +1354,14 @@ export default function AnalysisPage({ openModal }) {
                       <button
                         key={`bottom-${cell.confBucket}-${cell.oddsBucket}`}
                         onClick={() => openAdvantageCellDetail(cell)}
-                        className="flex w-full items-center justify-between rounded-md px-2 py-1 hover:bg-white/80"
+                        className="motion-v2-row motion-v2-selectable flex w-full items-center justify-between rounded-md px-2 py-1 hover:bg-white/80"
                       >
                         <span>
                           {cell.confBucket} × {cell.oddsBucket}
                         </span>
                         <span className="flex items-center gap-2">
                           <span className="font-medium text-rose-600">{signed(cell.roi, 1, '%')}</span>
-                          <span className="text-[10px] text-amber-600" onClick={(event) => {
+                          <span className="motion-v2-ghost-btn inline-flex text-[10px] text-amber-600 rounded-md px-1" onClick={(event) => {
                             event.stopPropagation()
                             applyAdvantageFilterToCombo(cell)
                           }}>
@@ -1409,7 +1409,7 @@ export default function AnalysisPage({ openModal }) {
                               onClick={() => openAdvantageCellDetail(cell)}
                               disabled={!cell.hasData}
                               style={{ background: bgColor }}
-                              className={`w-full rounded-lg border border-stone-200/70 py-1.5 px-1 text-center transition-all ${
+                              className={`motion-v2-row ${cell.hasData ? 'motion-v2-selectable' : ''} w-full rounded-lg border border-stone-200/70 py-1.5 px-1 text-center transition-all ${
                                 cell.hasData ? 'hover:shadow-sm' : 'cursor-not-allowed'
                               }`}
                             >
@@ -1426,7 +1426,7 @@ export default function AnalysisPage({ openModal }) {
             </div>
           </div>
 
-          <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+          <div className="motion-v2-surface glow-card bg-white rounded-2xl p-6 border border-stone-100">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium text-stone-700">最优串关组合分析（S8）</h3>
               <span className="text-xs text-stone-400">串关规模 × 主导 Mode · 点击单元格查看历史</span>
@@ -1462,7 +1462,7 @@ export default function AnalysisPage({ openModal }) {
                               onClick={() => openComboMatrixDetail(cell)}
                               disabled={!cell.hasData}
                               style={{ background: bgColor }}
-                              className={`w-full rounded-lg border border-stone-200/70 py-1.5 px-1 text-center transition-all ${
+                              className={`motion-v2-row ${cell.hasData ? 'motion-v2-selectable' : ''} w-full rounded-lg border border-stone-200/70 py-1.5 px-1 text-center transition-all ${
                                 cell.hasData ? 'hover:shadow-sm' : 'cursor-not-allowed'
                               }`}
                             >
@@ -1479,7 +1479,7 @@ export default function AnalysisPage({ openModal }) {
             </div>
           </div>
 
-          <div className="glow-card relative overflow-hidden rounded-2xl border border-violet-100 bg-gradient-to-br from-white via-indigo-50/30 to-sky-50/30 p-6">
+          <div className="motion-v2-surface glow-card relative overflow-hidden rounded-2xl border border-violet-100 bg-gradient-to-br from-white via-indigo-50/30 to-sky-50/30 p-6">
             <div className="pointer-events-none absolute -top-12 -left-14 h-40 w-40 rounded-full bg-indigo-200/20 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-16 right-6 h-40 w-40 rounded-full bg-cyan-200/20 blur-3xl" />
             <div className="relative">
@@ -1500,7 +1500,7 @@ export default function AnalysisPage({ openModal }) {
                     <div
                       key={item.type}
                       onClick={() => openPositionHistoryDetail(item.type)}
-                      className={`group rounded-2xl border p-4 transition-all lift-card cursor-pointer backdrop-blur-sm ${
+                      className={`motion-v2-row motion-v2-selectable group rounded-2xl border p-4 transition-all lift-card cursor-pointer backdrop-blur-sm ${
                         item.best
                           ? 'border-emerald-200 bg-gradient-to-br from-emerald-50/70 via-white/90 to-cyan-50/55'
                           : 'border-stone-200/80 bg-gradient-to-br from-white/90 via-slate-50/75 to-indigo-50/45 hover:border-indigo-200'
@@ -1552,7 +1552,7 @@ export default function AnalysisPage({ openModal }) {
       )}
 
       {analysisTab === 'league' && (
-        <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+        <div className="motion-v2-surface glow-card bg-white rounded-2xl p-6 border border-stone-100">
           <h3 className="font-medium text-stone-700 mb-1">联赛表现对比</h3>
           <p className="text-xs text-stone-400 mb-4">点击联赛可展开对应近期投资比赛历史明细</p>
           <div className="space-y-3">
@@ -1564,10 +1564,10 @@ export default function AnalysisPage({ openModal }) {
               const pageRows = item.history.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
               return (
-                <div key={item.league} className="rounded-xl border border-stone-100 bg-stone-50 overflow-hidden">
+                <div key={item.league} className="motion-v2-row rounded-xl border border-stone-100 bg-stone-50 overflow-hidden">
                   <button
                     onClick={() => setExpandedLeague(isExpanded ? null : item.league)}
-                    className="w-full flex items-center justify-between p-4 hover:bg-amber-50 transition-all"
+                    className="motion-v2-row motion-v2-selectable w-full flex items-center justify-between p-4 hover:bg-amber-50 transition-all"
                   >
                     <div className="flex items-center gap-4">
                       <span className="font-medium text-stone-700 w-16">{item.league}</span>
@@ -1635,7 +1635,7 @@ export default function AnalysisPage({ openModal }) {
                         <button
                           onClick={() => setLeaguePage(item.league, Math.max(1, currentPage - 1))}
                           disabled={currentPage === 1}
-                          className={`px-3 py-1.5 rounded-lg text-xs ${currentPage === 1 ? 'text-stone-300 cursor-not-allowed' : 'text-stone-500 hover:bg-stone-100'}`}
+                          className={`motion-v2-ghost-btn px-3 py-1.5 rounded-lg text-xs ${currentPage === 1 ? 'text-stone-300 cursor-not-allowed' : 'text-stone-500 hover:bg-stone-100'}`}
                         >
                           ← 上一页
                         </button>
@@ -1645,7 +1645,7 @@ export default function AnalysisPage({ openModal }) {
                         <button
                           onClick={() => setLeaguePage(item.league, Math.min(totalPages, currentPage + 1))}
                           disabled={currentPage === totalPages}
-                          className={`px-3 py-1.5 rounded-lg text-xs ${currentPage === totalPages ? 'text-stone-300 cursor-not-allowed' : 'text-stone-500 hover:bg-stone-100'}`}
+                          className={`motion-v2-ghost-btn px-3 py-1.5 rounded-lg text-xs ${currentPage === totalPages ? 'text-stone-300 cursor-not-allowed' : 'text-stone-500 hover:bg-stone-100'}`}
                         >
                           下一页 →
                         </button>
@@ -1660,7 +1660,7 @@ export default function AnalysisPage({ openModal }) {
       )}
 
       {analysisTab === 'mode' && (
-        <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+        <div className="motion-v2-surface glow-card bg-white rounded-2xl p-6 border border-stone-100">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium text-stone-700">各 Mode 历史表现</h3>
             <span className="text-xs text-stone-400">点击行可查看该 Mode 的样本历史</span>
@@ -1682,7 +1682,7 @@ export default function AnalysisPage({ openModal }) {
                 <tr
                   key={row.mode}
                   onClick={() => openModeHistoryDetail(row.mode)}
-                  className="border-b border-stone-100 hover:bg-stone-50 cursor-pointer"
+                  className="motion-v2-row motion-v2-selectable border-b border-stone-100 hover:bg-stone-50 cursor-pointer"
                 >
                   <td className="py-3 font-medium text-stone-700">{row.mode}</td>
                   <td className="py-3 text-stone-600">{row.samples}</td>
@@ -1734,7 +1734,7 @@ export default function AnalysisPage({ openModal }) {
       )}
 
       {analysisTab === 'conf' && (
-        <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+        <div className="motion-v2-surface glow-card bg-white rounded-2xl p-6 border border-stone-100">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium text-stone-700">Conf 区间分析</h3>
             <span className="text-xs text-stone-400">点击区间查看样本历史</span>
@@ -1744,7 +1744,7 @@ export default function AnalysisPage({ openModal }) {
               <button
                 key={row.range}
                 onClick={() => openConfRangeDetail(row.range)}
-                className="p-4 rounded-xl bg-stone-50 text-center hover:bg-amber-50 border border-stone-100 hover:border-amber-200 transition-all lift-card"
+                className="motion-v2-row motion-v2-selectable p-4 rounded-xl bg-stone-50 text-center hover:bg-amber-50 border border-stone-100 hover:border-amber-200 transition-all lift-card"
               >
                 <span className="text-lg font-semibold text-stone-700">{row.range}</span>
                 <div className="mt-3 space-y-1 text-sm">
@@ -1769,7 +1769,7 @@ export default function AnalysisPage({ openModal }) {
       )}
 
       {analysisTab === 'time' && (
-        <div className="glow-card relative overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-white via-sky-50/32 to-cyan-50/30 p-6">
+        <div className="motion-v2-surface glow-card relative overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-white via-sky-50/32 to-cyan-50/30 p-6">
           <div className="pointer-events-none absolute -top-16 -right-12 h-44 w-44 rounded-full bg-sky-200/28 blur-3xl" />
           <div className="pointer-events-none absolute top-24 -left-12 h-36 w-36 rounded-full bg-cyan-200/24 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-16 right-24 h-40 w-40 rounded-full bg-indigo-200/18 blur-3xl" />
@@ -1817,7 +1817,7 @@ export default function AnalysisPage({ openModal }) {
                         tag: '基础层',
                       }
                 return (
-                  <div key={item.period} className={`rounded-xl border p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ${tone.card}`}>
+                  <div key={item.period} className={`motion-v2-row rounded-xl border p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ${tone.card}`}>
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] uppercase tracking-[0.12em] text-stone-400">{tone.tag}</span>
                       <span className="text-[10px] text-stone-400">{share}%</span>
@@ -1845,7 +1845,7 @@ export default function AnalysisPage({ openModal }) {
             </div>
 
             <div className="mt-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3.5">
-              <div className="rounded-xl border border-cyan-100/90 bg-gradient-to-br from-cyan-50/75 to-white p-3.5">
+              <div className="motion-v2-row rounded-xl border border-cyan-100/90 bg-gradient-to-br from-cyan-50/75 to-white p-3.5">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] uppercase tracking-[0.12em] text-stone-400">连续性</p>
                   <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${recencyRegime.chipClass}`}>
@@ -1857,7 +1857,7 @@ export default function AnalysisPage({ openModal }) {
                 </p>
                 <p className="text-[12px] text-stone-600 leading-6 mt-2">{recencyRegime.summary}</p>
               </div>
-              <div className="rounded-xl border border-violet-100/90 bg-gradient-to-br from-violet-50/75 to-white p-3.5">
+              <div className="motion-v2-row rounded-xl border border-violet-100/90 bg-gradient-to-br from-violet-50/75 to-white p-3.5">
                 <p className="text-[10px] uppercase tracking-[0.12em] text-stone-400 mb-2">动量面板</p>
                 <div className="grid grid-cols-2 gap-2.5 text-[12px]">
                   <div className="rounded-lg border border-cyan-100/80 bg-cyan-50/65 p-2.5">
@@ -1887,22 +1887,22 @@ export default function AnalysisPage({ openModal }) {
       )}
 
       {analysisTab === 'combo' && (
-        <div className="mt-6 glow-card bg-white rounded-2xl p-5 border border-stone-100">
+        <div className="motion-v2-surface mt-6 glow-card bg-white rounded-2xl p-5 border border-stone-100">
           <h3 className="font-medium text-stone-700 mb-2">快速概览</h3>
           <div className="grid grid-cols-4 gap-4 text-sm">
-            <div className="p-3 rounded-xl bg-stone-50">
+            <div className="motion-v2-row p-3 rounded-xl bg-stone-50">
               <p className="text-xs text-stone-400">Position 维度样本</p>
               <p className="text-lg font-semibold text-stone-800">{deepData.positionRows.reduce((sum, row) => sum + row.samples, 0)}</p>
             </div>
-            <div className="p-3 rounded-xl bg-stone-50">
+            <div className="motion-v2-row p-3 rounded-xl bg-stone-50">
               <p className="text-xs text-stone-400">联赛覆盖</p>
               <p className="text-lg font-semibold text-stone-800">{deepData.leagueRows.length} 个联赛</p>
             </div>
-            <div className="p-3 rounded-xl bg-stone-50">
+            <div className="motion-v2-row p-3 rounded-xl bg-stone-50">
               <p className="text-xs text-stone-400">Conf 分层样本</p>
               <p className="text-lg font-semibold text-stone-800">{deepData.confRows.reduce((sum, row) => sum + row.samples, 0)}</p>
             </div>
-            <div className="p-3 rounded-xl bg-stone-50">
+            <div className="motion-v2-row p-3 rounded-xl bg-stone-50">
               <p className="text-xs text-stone-400">Mode 样本</p>
               <p className="text-lg font-semibold text-stone-800">{metricsSnapshot.matrix.mode.reduce((sum, row) => sum + row.samples, 0)}</p>
             </div>

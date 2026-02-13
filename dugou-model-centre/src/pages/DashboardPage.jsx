@@ -952,7 +952,7 @@ export default function DashboardPage({ openModal }) {
   }
 
   return (
-    <div className="page-shell page-content-wide pt-5 space-y-5">
+    <div className="page-shell page-content-wide pt-5 space-y-5 motion-v2-scope">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-stone-800 font-display">Dashboard</h2>
@@ -965,7 +965,7 @@ export default function DashboardPage({ openModal }) {
           <div ref={exportPickerRef} className="relative">
             <button
               onClick={() => setShowExportPicker((prev) => !prev)}
-              className="btn-secondary btn-hover"
+              className="btn-secondary btn-hover motion-v2-ghost-btn"
             >
               导出报告
             </button>
@@ -976,7 +976,7 @@ export default function DashboardPage({ openModal }) {
                     exportAsCsv()
                     setShowExportPicker(false)
                   }}
-                  className="block w-full px-4 py-2 text-left text-sm text-stone-600 hover:bg-stone-50"
+                  className="motion-v2-row motion-v2-selectable block w-full px-4 py-2 text-left text-sm text-stone-600 hover:bg-stone-50"
                 >
                   导出 CSV
                 </button>
@@ -985,7 +985,7 @@ export default function DashboardPage({ openModal }) {
                     exportAsJson()
                     setShowExportPicker(false)
                   }}
-                  className="block w-full px-4 py-2 text-left text-sm text-stone-600 hover:bg-stone-50"
+                  className="motion-v2-row motion-v2-selectable block w-full px-4 py-2 text-left text-sm text-stone-600 hover:bg-stone-50"
                 >
                   导出 JSON
                 </button>
@@ -994,34 +994,34 @@ export default function DashboardPage({ openModal }) {
                     exportAsExcel()
                     setShowExportPicker(false)
                   }}
-                  className="block w-full px-4 py-2 text-left text-sm text-stone-600 hover:bg-stone-50"
+                  className="motion-v2-row motion-v2-selectable block w-full px-4 py-2 text-left text-sm text-stone-600 hover:bg-stone-50"
                 >
                   导出 Excel
                 </button>
               </div>
             )}
           </div>
-          <button onClick={() => navigate('/new')} className="btn-primary btn-hover">
+          <button onClick={() => navigate('/new')} className="btn-primary btn-hover motion-v2-ghost-btn">
             + 新建投资
           </button>
         </div>
       </div>
 
       {snapshot.periodInvestments === 0 && (
-        <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+        <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 p-6">
           <h3 className="text-lg font-semibold text-stone-800 mb-2">当前时间窗口暂无投资数据</h3>
           <p className="text-sm text-stone-500 mb-4">先新建投资并完成至少一笔结算，Dashboard 指标会自动刷新。</p>
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/new')} className="btn-primary btn-hover">
+            <button onClick={() => navigate('/new')} className="btn-primary btn-hover motion-v2-ghost-btn">
               去新建投资
             </button>
-            <button onClick={() => navigate('/settle')} className="btn-secondary btn-hover">
+            <button onClick={() => navigate('/settle')} className="btn-secondary btn-hover motion-v2-ghost-btn">
               去待结算
             </button>
             {timePeriod !== 'all' && (
               <button
                 onClick={() => setTimePeriod('all')}
-                className="px-3 py-2 rounded-xl bg-stone-100 text-stone-600 text-sm hover:bg-stone-200 transition-colors"
+                className="motion-v2-ghost-btn px-3 py-2 rounded-xl bg-stone-100 text-stone-600 text-sm hover:bg-stone-200 transition-colors"
               >
                 查看全部时间
               </button>
@@ -1032,12 +1032,12 @@ export default function DashboardPage({ openModal }) {
 
       <div className="grid grid-cols-4 gap-4">
         {/* 蓄水池余额 - 单独处理以添加注资按钮 */}
-        <div className="glow-card bg-white rounded-2xl p-5 border border-stone-100">
+        <div className="motion-v2-surface glow-card bg-white rounded-2xl p-5 border border-stone-100">
           <div className="flex items-center justify-between mb-3">
             <span className="text-stone-400 text-xs uppercase tracking-wide">蓄水池余额</span>
             <Wallet size={18} strokeWidth={1.5} className="text-amber-500" />
           </div>
-          <div className="text-2xl font-semibold text-amber-600 cursor-pointer" onClick={openBalanceModal}>{toRmb(snapshot.poolBalance)}</div>
+          <div className="text-2xl font-semibold text-amber-600 cursor-pointer motion-v2-ghost-btn inline-block" onClick={openBalanceModal}>{toRmb(snapshot.poolBalance)}</div>
           <div className="flex items-center justify-between mt-1">
             <span className={`text-xs ${snapshot.roiDelta >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
               {toSigned(snapshot.roiDelta, 1, '%')} vs 上周期
@@ -1047,7 +1047,7 @@ export default function DashboardPage({ openModal }) {
                 e.stopPropagation()
                 setShowInjectModal(true)
               }}
-              className="text-[10px] px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
+              className="motion-v2-ghost-btn text-[10px] px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
             >
               + 注资
             </button>
@@ -1084,7 +1084,7 @@ export default function DashboardPage({ openModal }) {
           <div
             key={metric.label}
             onClick={metric.onClick}
-            className="glow-card bg-white rounded-2xl p-5 border border-stone-100 cursor-pointer"
+            className="motion-v2-surface glow-card bg-white rounded-2xl p-5 border border-stone-100 cursor-pointer"
           >
             <div className="flex items-center justify-between mb-3">
               <span className="text-stone-400 text-xs uppercase tracking-wide">{metric.label}</span>
@@ -1104,7 +1104,7 @@ export default function DashboardPage({ openModal }) {
             <span className="flex-1 text-[11px] text-stone-600 leading-5">{smartReminderLine}</span>
             <button
               onClick={() => setShowSmartReminder(false)}
-              className="text-[10px] text-stone-400 hover:text-stone-600 transition-colors"
+              className="motion-v2-ghost-btn text-[10px] text-stone-400 hover:text-stone-600 transition-colors rounded-md px-1.5 py-0.5"
             >
               关闭
             </button>
@@ -1114,7 +1114,7 @@ export default function DashboardPage({ openModal }) {
         <div className="grid grid-cols-3 gap-4">
           <div
             onClick={openRepModal}
-            className="glow-card group relative overflow-hidden rounded-2xl p-5 border border-sky-100/80 bg-gradient-to-br from-white via-sky-50/35 to-cyan-50/35 cursor-pointer h-full"
+            className="motion-v2-surface glow-card group relative overflow-hidden rounded-2xl p-5 border border-sky-100/80 bg-gradient-to-br from-white via-sky-50/35 to-cyan-50/35 cursor-pointer h-full"
           >
             <div className="pointer-events-none absolute -top-16 -right-12 h-40 w-40 rounded-full bg-sky-200/30 blur-3xl" />
             <div className="pointer-events-none absolute top-16 -left-16 h-36 w-36 rounded-full bg-cyan-200/24 blur-3xl" />
@@ -1161,7 +1161,7 @@ export default function DashboardPage({ openModal }) {
                   return (
                     <div
                       key={bucket.key}
-                      className={`rounded-xl border px-2.5 py-2 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.88)] ${tone.panel}`}
+                      className={`motion-v2-row rounded-xl border px-2.5 py-2 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.88)] ${tone.panel}`}
                     >
                       <p className="text-[10px] text-stone-500 truncate">{bucket.label}</p>
                       <p className={`text-[12px] font-semibold mt-0.5 ${tone.value}`}>{toSigned(bucket.roi, 1, '%')}</p>
@@ -1212,7 +1212,7 @@ export default function DashboardPage({ openModal }) {
                     {repMixRows.map((row) => (
                       <div
                         key={row.key}
-                        className="rounded-lg border border-white/85 bg-white/82 px-2.5 py-2"
+                        className="motion-v2-row rounded-lg border border-white/85 bg-white/82 px-2.5 py-2"
                       >
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="text-stone-600">{row.label}</span>
@@ -1239,16 +1239,16 @@ export default function DashboardPage({ openModal }) {
             </div>
           </div>
 
-          <div className="glow-card bg-white rounded-2xl p-5 border border-stone-100">
+          <div className="motion-v2-surface glow-card bg-white rounded-2xl p-5 border border-stone-100">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium text-stone-700">近期投资</h3>
-              <button onClick={() => navigate('/history')} className="text-xs text-amber-500 hover:text-amber-600">
+              <button onClick={() => navigate('/history')} className="motion-v2-ghost-btn text-xs text-amber-500 hover:text-amber-600 rounded-md px-2 py-1">
                 查看全部 →
               </button>
             </div>
             <div className="space-y-2">
               {snapshot.recent.slice(0, 6).map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-stone-50 transition-colors cursor-pointer">
+                <div key={item.id} className="motion-v2-row motion-v2-selectable flex items-center justify-between p-2.5 rounded-xl hover:bg-stone-50 transition-colors cursor-pointer">
                   <div className="flex items-center gap-3">
                     <div
                       className={`w-2 h-2 rounded-full ${
@@ -1274,7 +1274,7 @@ export default function DashboardPage({ openModal }) {
 
           <div
             onClick={openConfModal}
-            className="glow-card bg-white rounded-2xl p-5 border border-stone-100 cursor-pointer h-full flex flex-col"
+            className="motion-v2-surface glow-card bg-white rounded-2xl p-5 border border-stone-100 cursor-pointer h-full flex flex-col"
           >
             <h3 className="font-medium text-stone-700 mb-4">Conf 校准曲线</h3>
             <div className="space-y-2.5">
@@ -1330,7 +1330,7 @@ export default function DashboardPage({ openModal }) {
                     const emphasisClass = row.diff >= 0 ? 'text-emerald-600' : 'text-rose-500'
                     const barClass = row.diff >= 0 ? 'bg-emerald-400' : 'bg-rose-400'
                     return (
-                      <div key={row.label} className="space-y-1">
+                      <div key={row.label} className="motion-v2-row space-y-1">
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="text-stone-500">{row.label}</span>
                           <span className={`font-medium ${emphasisClass}`}>
@@ -1358,12 +1358,12 @@ export default function DashboardPage({ openModal }) {
         </div>
       </div>
 
-      <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+      <div className="motion-v2-surface glow-card bg-white rounded-2xl p-6 border border-stone-100">
         <div className="flex items-center justify-between mb-4">
           <div className="relative">
             <button
               onClick={() => setShowChartPicker((prev) => !prev)}
-              className="font-medium text-stone-700 flex items-center gap-2 hover:text-amber-600"
+              className="motion-v2-ghost-btn font-medium text-stone-700 flex items-center gap-2 hover:text-amber-600 rounded-md px-2 py-1"
             >
               {CHART_OPTIONS.find((item) => item.key === chartKey)?.label}
               <span className="text-xs">▼</span>
@@ -1377,7 +1377,7 @@ export default function DashboardPage({ openModal }) {
                       setChartKey(item.key)
                       setShowChartPicker(false)
                     }}
-                    className={`block w-full px-4 py-2 text-left text-sm ${
+                    className={`motion-v2-row motion-v2-selectable block w-full px-4 py-2 text-left text-sm ${
                       chartKey === item.key ? 'bg-amber-50 text-amber-700' : 'text-stone-600 hover:bg-stone-50'
                     }`}
                   >
@@ -1437,12 +1437,12 @@ export default function DashboardPage({ openModal }) {
         </div>
       </div>
 
-      <div onClick={openAdvantageModal} className="glow-card bg-white rounded-2xl p-5 border border-stone-100 cursor-pointer">
+      <div onClick={openAdvantageModal} className="motion-v2-surface glow-card bg-white rounded-2xl p-5 border border-stone-100 cursor-pointer">
         <h3 className="font-medium text-stone-700 mb-1">优势领域识别</h3>
         <p className="text-[10px] text-stone-400 mb-3">以球队为切片，自动识别 ROI 与命中率长期领先的组合</p>
         <div className="grid grid-cols-3 gap-3">
           {topAdvantageRows.slice(0, 3).map((item) => (
-            <div key={item.team} className="flex items-center justify-between p-3 rounded-xl bg-stone-50 hover:bg-amber-50 transition-all">
+            <div key={item.team} className="motion-v2-row motion-v2-selectable flex items-center justify-between p-3 rounded-xl bg-stone-50 hover:bg-amber-50 transition-all">
               <div>
                 <p className="text-sm text-stone-700">{item.team}</p>
                 <p className="text-xs text-stone-400">{item.samples} samples · 命中率 {toPercent(item.hitRate)}</p>
@@ -1480,13 +1480,13 @@ export default function DashboardPage({ openModal }) {
             <div className="flex gap-2">
               <button
                 onClick={() => setShowInjectModal(false)}
-                className="flex-1 py-2 rounded-lg border border-stone-200 text-stone-600 text-sm hover:bg-stone-50 transition-colors"
+                className="motion-v2-ghost-btn flex-1 py-2 rounded-lg border border-stone-200 text-stone-600 text-sm hover:bg-stone-50 transition-colors"
               >
                 取消
               </button>
               <button
                 onClick={handleInjectCapital}
-                className="flex-1 py-2 rounded-lg bg-amber-500 text-white text-sm hover:bg-amber-600 transition-colors"
+                className="motion-v2-ghost-btn flex-1 py-2 rounded-lg bg-amber-500 text-white text-sm hover:bg-amber-600 transition-colors"
               >
                 确认注资
               </button>
