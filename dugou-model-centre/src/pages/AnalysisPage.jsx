@@ -1164,15 +1164,59 @@ export default function AnalysisPage({ openModal }) {
                 {deepData.comboRows.map((row, index) => {
                   const isPositive = row.roi >= 0
                   const barWidth = Math.max(4, Math.min(100, row.hitRate))
+                  const roiNorm = clamp((Number(row.roi) - 15) / 185, 0, 1)
+                  const hitNorm = clamp((Number(row.hitRate) - 35) / 45, 0, 1)
+                  const sampleNorm = clamp(Number(row.samples) / 10, 0, 1)
+
+                  let profileKey = 'yield'
+                  if (hitNorm >= roiNorm && hitNorm >= sampleNorm) {
+                    profileKey = 'hit'
+                  } else if (sampleNorm >= roiNorm && sampleNorm >= hitNorm) {
+                    profileKey = 'sample'
+                  }
+
+                  const profileMetaMap = {
+                    hit: {
+                      label: '命中驱动',
+                      badge: 'bg-sky-100 text-sky-700',
+                      card:
+                        'border-sky-200/80 bg-gradient-to-br from-white/85 via-sky-50/60 to-cyan-50/45 hover:from-sky-50/75 hover:to-cyan-50/65',
+                      bar: 'from-sky-400 to-cyan-400',
+                      roiTone: 'text-sky-700',
+                    },
+                    sample: {
+                      label: '样本稳态',
+                      badge: 'bg-indigo-100 text-indigo-700',
+                      card:
+                        'border-indigo-200/80 bg-gradient-to-br from-white/85 via-indigo-50/60 to-violet-50/45 hover:from-indigo-50/75 hover:to-violet-50/65',
+                      bar: 'from-indigo-400 to-violet-400',
+                      roiTone: 'text-indigo-700',
+                    },
+                    yield: {
+                      label: '收益驱动',
+                      badge: 'bg-violet-100 text-violet-700',
+                      card:
+                        'border-violet-200/80 bg-gradient-to-br from-white/85 via-violet-50/60 to-fuchsia-50/45 hover:from-violet-50/75 hover:to-fuchsia-50/65',
+                      bar: 'from-violet-400 to-fuchsia-400',
+                      roiTone: 'text-violet-700',
+                    },
+                    risk: {
+                      label: '回撤警示',
+                      badge: 'bg-rose-100 text-rose-700',
+                      card:
+                        'border-rose-200/80 bg-gradient-to-br from-white/85 via-rose-50/60 to-fuchsia-50/45 hover:from-rose-50/75 hover:to-fuchsia-50/65',
+                      bar: 'from-rose-400 to-fuchsia-400',
+                      roiTone: 'text-rose-500',
+                    },
+                  }
+                  const profileMeta = isPositive ? profileMetaMap[profileKey] : profileMetaMap.risk
+                  const confidenceScore = Math.round((hitNorm * 0.5 + sampleNorm * 0.3 + roiNorm * 0.2) * 100)
+
                   return (
                     <div
                       key={row.combo}
                       onClick={() => openComboHistoryDetail(row.combo)}
-                      className={`group p-4 rounded-2xl border transition-all cursor-pointer lift-card backdrop-blur-sm shadow-[0_8px_24px_rgba(15,23,42,0.04)] ${
-                        isPositive
-                          ? 'border-emerald-200/80 bg-gradient-to-br from-white/85 via-emerald-50/60 to-cyan-50/45 hover:from-emerald-50/75 hover:to-cyan-50/65'
-                          : 'border-rose-200/80 bg-gradient-to-br from-white/85 via-rose-50/60 to-violet-50/45 hover:from-rose-50/70 hover:to-violet-50/65'
-                      }`}
+                      className={`group p-4 rounded-2xl border transition-all cursor-pointer lift-card backdrop-blur-sm shadow-[0_8px_24px_rgba(15,23,42,0.04)] ${profileMeta.card}`}
                     >
                       <div className="flex items-start justify-between gap-3 mb-2.5">
                         <div className="min-w-0">
@@ -1180,31 +1224,25 @@ export default function AnalysisPage({ openModal }) {
                             <span className="inline-flex items-center rounded-md bg-white/90 border border-stone-200 px-1.5 py-0.5 text-[10px] text-stone-500 font-medium">
                               #{index + 1}
                             </span>
-                            <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium ${
-                              row.hitRate >= 60
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : row.hitRate >= 45
-                                  ? 'bg-sky-100 text-sky-700'
-                                  : 'bg-amber-100 text-amber-700'
-                            }`}>
-                              {row.hitRate >= 60 ? '稳健' : row.hitRate >= 45 ? '平衡' : '激进'}
+                            <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium ${profileMeta.badge}`}>
+                              {profileMeta.label}
                             </span>
                           </div>
                           <p className="text-sm font-medium text-stone-700 truncate">{row.combo}</p>
                         </div>
-                        <span className={`text-lg font-semibold ${isPositive ? 'text-emerald-600' : 'text-rose-500'}`}>
+                        <span className={`text-lg font-semibold ${profileMeta.roiTone}`}>
                           {signed(row.roi, 1, '%')}
                         </span>
                       </div>
 
                       <div className="flex items-center justify-between text-[11px] text-stone-500 mb-2">
                         <span>{row.samples} 样本</span>
-                        <span>命中率 {row.hitRate.toFixed(1)}%</span>
+                        <span>命中率 {row.hitRate.toFixed(1)}% · 置信 {confidenceScore}</span>
                       </div>
 
                       <div className="h-1.5 rounded-full bg-white/80 border border-stone-200/70 overflow-hidden">
                         <div
-                          className={`h-full transition-all ${isPositive ? 'bg-gradient-to-r from-emerald-400 to-cyan-400' : 'bg-gradient-to-r from-rose-400 to-fuchsia-400'}`}
+                          className={`h-full transition-all bg-gradient-to-r ${profileMeta.bar}`}
                           style={{ width: `${barWidth}%` }}
                         />
                       </div>
