@@ -1,5 +1,20 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import {
+  Activity,
+  BarChart3,
+  Clock3,
+  Database,
+  FileText,
+  Gauge,
+  LineChart,
+  ShieldCheck,
+  SlidersHorizontal,
+  Target,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+} from 'lucide-react'
 import { getMetricsSnapshot } from '../lib/analytics'
 import TimeRangePicker from '../components/TimeRangePicker'
 
@@ -22,6 +37,39 @@ const signed = (value, digits = 2, suffix = '') => {
   const sign = num > 0 ? '+' : ''
   return `${sign}${num.toFixed(digits)}${suffix}`
 }
+
+const HitRateGlyph = ({ size = 14, className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden="true">
+    <path d="M3.8 16.2L16.2 3.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <path d="M11.9 3.8H16.2V8.1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M4 16H7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <path d="M9 16H12.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <path d="M13.7 16H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+)
+
+const ICON_TONE_CLASS = {
+  indigo:
+    'border-indigo-200 bg-gradient-to-b from-indigo-50 via-violet-50 to-white text-indigo-600 shadow-[0_1px_2px_rgba(99,102,241,0.16),inset_0_1px_0_rgba(255,255,255,0.88)]',
+  sky: 'border-sky-200 bg-gradient-to-b from-sky-50 via-cyan-50 to-white text-sky-600 shadow-[0_1px_2px_rgba(14,165,233,0.18),inset_0_1px_0_rgba(255,255,255,0.9)]',
+  emerald:
+    'border-emerald-200 bg-gradient-to-b from-emerald-50 via-teal-50 to-white text-emerald-600 shadow-[0_1px_2px_rgba(16,185,129,0.17),inset_0_1px_0_rgba(255,255,255,0.88)]',
+  amber:
+    'border-amber-200 bg-gradient-to-b from-amber-50 via-orange-50 to-white text-amber-600 shadow-[0_1px_2px_rgba(245,158,11,0.16),inset_0_1px_0_rgba(255,255,255,0.9)]',
+  violet:
+    'border-violet-200 bg-gradient-to-b from-violet-50 via-fuchsia-50 to-white text-violet-600 shadow-[0_1px_2px_rgba(139,92,246,0.16),inset_0_1px_0_rgba(255,255,255,0.9)]',
+  rose: 'border-rose-200 bg-gradient-to-b from-rose-50 via-pink-50 to-white text-rose-600 shadow-[0_1px_2px_rgba(244,63,94,0.16),inset_0_1px_0_rgba(255,255,255,0.9)]',
+  slate:
+    'border-stone-200 bg-gradient-to-b from-stone-50 via-zinc-50 to-white text-stone-600 shadow-[0_1px_2px_rgba(41,37,36,0.12),inset_0_1px_0_rgba(255,255,255,0.9)]',
+}
+
+const GlassCardIcon = ({ IconComp, tone = 'indigo', iconSize = 14, className = '' }) => (
+  <span
+    className={`inline-flex h-7 w-7 items-center justify-center rounded-xl border ${ICON_TONE_CLASS[tone] || ICON_TONE_CLASS.indigo} ${className}`}
+  >
+    <IconComp size={iconSize} strokeWidth={1.7} />
+  </span>
+)
 
 const toRmb = (value, digits = 0) => `¥${Number(value || 0).toFixed(digits)}`
 
@@ -140,23 +188,101 @@ export default function MetricsPage({ openModal }) {
   const noSettledData = snapshot.headline.totalInvestments === 0 || snapshot.headline.totalInputs === 0
 
   const metrics = [
-    { id: 'totalInvestments', label: '总投资次数', value: String(snapshot.headline.totalInvestments), description: '累计投资笔数（已结算）', icon: '◐' },
-    { id: 'totalInputs', label: '总投入金额', value: toRmb(snapshot.headline.totalInputs), description: '累计投入', icon: '◈' },
-    { id: 'totalProfit', label: '总收益', value: signed(snapshot.headline.totalProfit, 0), description: '累计盈亏', icon: '◉' },
-    { id: 'roi', label: '累计 ROI', value: signed(snapshot.headline.roi, 2, '%'), description: '总收益/总投入', icon: '❖' },
-    { id: 'maxWin', label: '最大单笔盈利', value: signed(snapshot.headline.maxWin, 0), description: '历史最高单笔收益', icon: '▲' },
-    { id: 'maxLoss', label: '最大单笔亏损', value: signed(snapshot.headline.maxLoss, 0), description: '历史最大单笔亏损', icon: '▼' },
-    { id: 'maxWinStreak', label: '连胜最高', value: `${snapshot.headline.maxWinStreak} 场`, description: '历史最长连胜', icon: '↗' },
-    { id: 'maxLoseStreak', label: '连败最高', value: `${snapshot.headline.maxLoseStreak} 场`, description: '历史最长连败', icon: '↘' },
-    { id: 'avgConf', label: '平均 Conf', value: snapshot.headline.avgConf.toFixed(2), description: '平均主观置信度', icon: '◆' },
-    { id: 'avgOdds', label: '平均 Odds', value: snapshot.headline.avgOdds.toFixed(2), description: '平均赔率', icon: '◇' },
-    { id: 'sharpe', label: 'Sharpe Ratio', value: snapshot.headline.sharpe.toFixed(2), description: '风险调整后收益', icon: '⬢' },
+    {
+      id: 'totalInvestments',
+      label: '总投资次数',
+      value: String(snapshot.headline.totalInvestments),
+      description: '累计投资笔数（已结算）',
+      IconComp: FileText,
+      tone: 'slate',
+    },
+    {
+      id: 'totalInputs',
+      label: '总投入金额',
+      value: toRmb(snapshot.headline.totalInputs),
+      description: '累计投入',
+      IconComp: Wallet,
+      tone: 'amber',
+    },
+    {
+      id: 'totalProfit',
+      label: '总收益',
+      value: signed(snapshot.headline.totalProfit, 0),
+      description: '累计盈亏',
+      IconComp: TrendingUp,
+      tone: 'emerald',
+    },
+    {
+      id: 'roi',
+      label: '累计 ROI',
+      value: signed(snapshot.headline.roi, 2, '%'),
+      description: '总收益/总投入',
+      IconComp: BarChart3,
+      tone: 'indigo',
+    },
+    {
+      id: 'maxWin',
+      label: '最大单笔盈利',
+      value: signed(snapshot.headline.maxWin, 0),
+      description: '历史最高单笔收益',
+      IconComp: TrendingUp,
+      tone: 'sky',
+    },
+    {
+      id: 'maxLoss',
+      label: '最大单笔亏损',
+      value: signed(snapshot.headline.maxLoss, 0),
+      description: '历史最大单笔亏损',
+      IconComp: TrendingDown,
+      tone: 'rose',
+    },
+    {
+      id: 'maxWinStreak',
+      label: '连胜最高',
+      value: `${snapshot.headline.maxWinStreak} 场`,
+      description: '历史最长连胜',
+      IconComp: Activity,
+      tone: 'emerald',
+    },
+    {
+      id: 'maxLoseStreak',
+      label: '连败最高',
+      value: `${snapshot.headline.maxLoseStreak} 场`,
+      description: '历史最长连败',
+      IconComp: Clock3,
+      tone: 'slate',
+    },
+    {
+      id: 'avgConf',
+      label: '平均 Conf',
+      value: snapshot.headline.avgConf.toFixed(2),
+      description: '平均主观置信度',
+      IconComp: SlidersHorizontal,
+      tone: 'indigo',
+    },
+    {
+      id: 'avgOdds',
+      label: '平均 Odds',
+      value: snapshot.headline.avgOdds.toFixed(2),
+      description: '平均赔率',
+      IconComp: LineChart,
+      tone: 'violet',
+    },
+    {
+      id: 'sharpe',
+      label: 'Sharpe Ratio',
+      value: snapshot.headline.sharpe.toFixed(2),
+      description: '风险调整后收益',
+      IconComp: Gauge,
+      tone: 'sky',
+    },
     {
       id: 'hitRateEdge',
       label: '胜率/期望值',
       value: `${snapshot.headline.hitRate.toFixed(1)}% / ${signed(snapshot.headline.avgExpectedEdge * 100, 1, '%')}`,
       description: '命中率与平均期望边际',
-      icon: '⬡',
+      IconComp: HitRateGlyph,
+      tone: 'indigo',
     },
   ]
 
@@ -357,11 +483,11 @@ export default function MetricsPage({ openModal }) {
           <div
             key={metric.label}
             onClick={() => openMetricDetail(metric)}
-            className="glow-card bg-white rounded-2xl p-5 border border-stone-100 cursor-pointer hover:shadow-lg transition-all"
+            className="glow-card group bg-white rounded-2xl p-5 border border-stone-100 cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]"
           >
             <div className="flex items-center justify-between mb-3">
               <span className="text-stone-400 text-xs uppercase tracking-wide">{metric.label}</span>
-              <span className="text-amber-400 text-lg">{metric.icon}</span>
+              <GlassCardIcon IconComp={metric.IconComp} tone={metric.tone} />
             </div>
             <span
               className={`text-xl font-semibold ${
@@ -377,7 +503,7 @@ export default function MetricsPage({ openModal }) {
       <div className="mt-8 grid grid-cols-3 gap-6">
         <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
           <h3 className="font-medium text-stone-700 mb-4 flex items-center gap-2">
-            <span className="text-amber-500">📈</span>
+            <GlassCardIcon IconComp={Activity} tone="sky" />
             近期趋势
           </h3>
           <div className="space-y-3">
@@ -398,6 +524,7 @@ export default function MetricsPage({ openModal }) {
 
         <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
           <h3 className="font-medium text-stone-700 mb-4 flex items-center gap-2">
+            <GlassCardIcon IconComp={ShieldCheck} tone="rose" />
             风险指标
           </h3>
           <div className="space-y-3">
@@ -418,7 +545,7 @@ export default function MetricsPage({ openModal }) {
 
         <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
           <h3 className="font-medium text-stone-700 mb-4 flex items-center gap-2">
-            <span className="text-amber-500">🎯</span>
+            <GlassCardIcon IconComp={Target} tone="emerald" />
             效率指标
           </h3>
           <div className="space-y-3">
@@ -443,7 +570,10 @@ export default function MetricsPage({ openModal }) {
       <div className="mt-8 grid grid-cols-3 gap-6">
         <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100 col-span-2">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium text-stone-700">参数表现矩阵</h3>
+            <h3 className="font-medium text-stone-700 flex items-center gap-2">
+              <GlassCardIcon IconComp={SlidersHorizontal} tone="indigo" />
+              参数表现矩阵
+            </h3>
             <div className="flex gap-2">
               {MATRIX_TABS.map((tab) => (
                 <button
@@ -608,7 +738,10 @@ export default function MetricsPage({ openModal }) {
         </div>
 
         <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
-          <h3 className="font-medium text-stone-700 mb-4">相关性系数</h3>
+          <h3 className="font-medium text-stone-700 mb-4 flex items-center gap-2">
+            <GlassCardIcon IconComp={Database} tone="violet" />
+            相关性系数
+          </h3>
           <div className="space-y-3 text-sm">
             {[
               { label: 'Conf vs AJR', value: snapshot.correlations.conf_vs_ajr },
@@ -633,7 +766,10 @@ export default function MetricsPage({ openModal }) {
 
       <div className="mt-8 glow-card bg-white rounded-2xl p-6 border border-stone-100">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium text-stone-700">样本明细预览</h3>
+          <h3 className="font-medium text-stone-700 flex items-center gap-2">
+            <GlassCardIcon IconComp={FileText} tone="slate" />
+            样本明细预览
+          </h3>
           <button onClick={openAllMatchesDetail} className="text-xs text-amber-600 hover:text-amber-700">
             查看全部明细 →
           </button>
