@@ -731,7 +731,7 @@ export default function HistoryPage() {
                     <button
                       type="button"
                       onClick={toggleExpandAllInModern}
-                      className="px-2 py-1 rounded-md border border-stone-200 text-[10px] text-stone-500 hover:text-stone-700 hover:bg-stone-50 transition-colors"
+                      className="history-expand-all-btn px-2 py-1 rounded-md border border-stone-200 text-[10px] text-stone-500 hover:text-stone-700 hover:bg-stone-50 transition-colors"
                     >
                       {allExpandedInModern ? '全部收起' : '全部展开'}
                     </button>
@@ -740,9 +740,10 @@ export default function HistoryPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((row) => {
+              {filteredRows.map((row, rowIndex) => {
                 const isSolo = row.parlaySize === 1
                 const isExpanded = isSolo ? Boolean(expandedSoloIds[row.id]) : Boolean(expandedComboIds[row.id])
+                const expandDelay = `${Math.min(rowIndex, 12) * 34}ms`
 
                 return (
                 <Fragment key={row.id}>
@@ -835,9 +836,9 @@ export default function HistoryPage() {
                   </tr>
 
                   {isSolo && isExpanded && (
-                    <tr className="border-t border-stone-100 bg-white text-[11px]">
+                    <tr className="history-expand-row border-t border-stone-100 bg-white text-[11px]">
                       <td colSpan={7} className="px-3 py-2.5">
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                        <div className="history-expand-content flex flex-wrap items-center gap-x-4 gap-y-2" style={{ '--history-expand-delay': expandDelay }}>
                           <div className="flex items-center gap-1.5">
                             <span className="text-stone-400">状态</span>
                             <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${getStatusBadgeTone(row.status)}`}>
@@ -866,12 +867,16 @@ export default function HistoryPage() {
                   )}
 
                   {!isSolo && isExpanded && (
-                    <tr className="border-t border-stone-100 bg-stone-50/60 text-[11px]">
+                    <tr className="history-expand-row border-t border-stone-100 bg-stone-50/60 text-[11px]">
                       <td colSpan={7} className="px-4 py-4">
-                        <div className="rounded-xl border border-stone-200 bg-white p-4">
+                        <div className="history-expand-content rounded-xl border border-stone-200 bg-white p-4" style={{ '--history-expand-delay': expandDelay }}>
                           <div className="space-y-2">
-                            {row.matchRows.map((matchRow) => (
-                              <div key={matchRow.id} className="rounded-lg border border-stone-100 px-3 py-2">
+                            {row.matchRows.map((matchRow, matchIndex) => (
+                              <div
+                                key={matchRow.id}
+                                className="history-expand-item rounded-lg border border-stone-100 px-3 py-2"
+                                style={{ '--history-expand-delay': `${Math.min(rowIndex * 26 + matchIndex * 24, 460)}ms` }}
+                              >
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                   <p className="text-stone-700 font-medium">
                                     {matchRow.seqLabel} · {matchRow.match}

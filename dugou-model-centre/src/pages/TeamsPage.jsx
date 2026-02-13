@@ -315,15 +315,17 @@ export default function TeamsPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-6">
-        {teams.map((team) => (
+        {teams.map((team) => {
+          const isSelected = selectedTeam?.name === team.name
+          return (
           <div
             key={team.name}
             onClick={() => {
               setSelectedTeamName(team.name)
               setTeamHistoryPage(1)
             }}
-            className={`glow-card bg-white rounded-2xl p-5 border cursor-pointer transition-all lift-card ${
-              selectedTeam?.name === team.name ? 'border-indigo-300 bg-indigo-50/20' : 'border-stone-100'
+            className={`team-select-card glow-card bg-white rounded-2xl p-5 border cursor-pointer transition-all lift-card ${
+              isSelected ? 'team-select-card--selected' : 'border-stone-100'
             }`}
           >
             <div className="flex items-center justify-between mb-3">
@@ -333,7 +335,10 @@ export default function TeamsPage() {
                   {team.abbr}
                 </span>
               </div>
-              <span className="text-[11px] text-stone-400 tabular-nums">{team.totalSamples} 场</span>
+              <div className="flex items-center gap-2">
+                {isSelected && <span className="team-select-pill">已选中</span>}
+                <span className={`text-[11px] tabular-nums ${isSelected ? 'text-amber-700' : 'text-stone-400'}`}>{team.totalSamples} 场</span>
+              </div>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div>
@@ -354,7 +359,8 @@ export default function TeamsPage() {
               </div>
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
 
       {selectedTeam && selectedTeamDetail && (

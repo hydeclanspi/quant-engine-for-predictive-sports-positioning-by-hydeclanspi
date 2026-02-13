@@ -1959,7 +1959,7 @@ export default function ParamsPage({ openModal }) {
   const currentLayoutMode = config.layoutMode || 'modern'
 
   return (
-    <div className="page-shell page-content-wide">
+    <div className="page-shell page-content-wide console-motion-scope">
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-stone-800 font-display">参数后台</h2>
         <p className="text-stone-400 text-sm mt-1">系统参数、动态校准系数与 Kelly 分母历史校准</p>
@@ -1977,7 +1977,10 @@ export default function ParamsPage({ openModal }) {
         </div>
       </div>
 
-      <div onClick={openRatingModal} className="glow-card bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 rounded-2xl p-6 border border-amber-200 mb-6 cursor-pointer">
+      <div
+        onClick={openRatingModal}
+        className="console-interactive-surface glow-card bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 rounded-2xl p-6 border border-amber-200 mb-6 cursor-pointer"
+      >
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -2718,7 +2721,7 @@ export default function ParamsPage({ openModal }) {
             <div
               key={item.label}
               onClick={() => setExpandedFactor((prev) => (prev === item.label ? null : item.label))}
-              className={`p-3 rounded-xl text-center cursor-pointer transition-all ${
+              className={`console-interactive-chip p-3 rounded-xl text-center cursor-pointer transition-all ${
                 expandedFactor === item.label ? 'bg-amber-100 border-2 border-amber-300' : 'bg-stone-50 hover:bg-amber-50/50'
               }`}
             >
@@ -2933,7 +2936,7 @@ export default function ParamsPage({ openModal }) {
 
       <div
         onClick={openFutureFeaturesModal}
-        className="glow-card mt-6 rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50/90 via-white/92 to-cyan-50/78 p-6 cursor-pointer backdrop-blur-sm shadow-[0_20px_45px_rgba(56,189,248,0.18),inset_0_1px_0_rgba(255,255,255,0.86)]"
+        className="console-interactive-surface glow-card mt-6 rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50/90 via-white/92 to-cyan-50/78 p-6 cursor-pointer backdrop-blur-sm shadow-[0_20px_45px_rgba(56,189,248,0.18),inset_0_1px_0_rgba(255,255,255,0.86)]"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
