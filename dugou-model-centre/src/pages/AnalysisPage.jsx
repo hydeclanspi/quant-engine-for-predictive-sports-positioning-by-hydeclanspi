@@ -103,6 +103,15 @@ const toRmb = (value, withSign = false) => {
   return `¥${Math.round(Math.abs(num))}`
 }
 
+const getComboRoiBlueTone = (roiValue) => {
+  const roi = Number(roiValue)
+  const ratio = clamp(Number.isFinite(roi) ? Math.max(0, roi) / 300 : 0, 0, 1)
+  const start = [125, 211, 252] // sky-300
+  const end = [3, 105, 161] // sky-700
+  const channels = start.map((channel, idx) => Math.round(channel + (end[idx] - channel) * ratio))
+  return `rgb(${channels[0]}, ${channels[1]}, ${channels[2]})`
+}
+
 const formatDate = (value) => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '--'
@@ -1231,6 +1240,7 @@ export default function AnalysisPage({ openModal }) {
                   }
                   const profileMeta = isPositive ? profileMetaMap[profileKey] : profileMetaMap.risk
                   const confidenceScore = Math.round((hitNorm * 0.5 + sampleNorm * 0.3 + roiNorm * 0.2) * 100)
+                  const roiColorStyle = isPositive ? { color: getComboRoiBlueTone(row.roi) } : undefined
 
                   return (
                     <div
@@ -1250,7 +1260,7 @@ export default function AnalysisPage({ openModal }) {
                           </div>
                           <p className="text-sm font-medium text-stone-700 truncate">{row.combo}</p>
                         </div>
-                        <span className={`text-lg font-semibold ${profileMeta.roiTone}`}>
+                        <span className={`text-lg font-semibold ${isPositive ? '' : profileMeta.roiTone}`} style={roiColorStyle}>
                           {signed(row.roi, 1, '%')}
                         </span>
                       </div>
