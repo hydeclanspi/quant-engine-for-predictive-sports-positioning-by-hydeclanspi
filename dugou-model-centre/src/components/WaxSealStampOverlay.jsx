@@ -25,7 +25,7 @@ export default function WaxSealStampOverlay({ burst, onDone }) {
     if (!burst?.active) return undefined
     const timer = window.setTimeout(() => {
       onDone?.()
-    }, 1650)
+    }, 1220)
     return () => window.clearTimeout(timer)
   }, [burst?.active, burst?.token, onDone])
 

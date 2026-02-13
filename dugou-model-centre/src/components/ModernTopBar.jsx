@@ -12,7 +12,7 @@ import {
   Flag,
 } from 'lucide-react'
 import { getInvestments } from '../lib/localData'
-import HdcsC19Logo from './HdcsC19Logo'
+import WaxSealS2Logo from './WaxSealS2Logo'
 
 /* ──────────────────────────────────────────────────
    Modern Navigation — Vercel/Linear design language
@@ -124,7 +124,7 @@ export default function ModernTopBar() {
     <header className="mn-bar">
       {/* ── Brand ── */}
       <button className="mn-brand" onClick={() => navigate('/new')}>
-        <HdcsC19Logo size="sm" />
+        <WaxSealS2Logo size="sm" />
         <span className="mn-brand-name">dugou</span>
       </button>
 

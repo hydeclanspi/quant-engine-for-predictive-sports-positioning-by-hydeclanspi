@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { 
+import {
   ChevronLeft,
   ChevronRight,
   Upload,
@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { exportDataBundle, getInvestments, importDataBundle } from '../lib/localData'
 import { exportDataBundleAsExcel } from '../lib/excel'
-import HdcsC19Logo from './HdcsC19Logo'
+import WaxSealS2Logo from './WaxSealS2Logo'
 
 export default function Sidebar({ collapsed, onToggleCollapse }) {
   const [showDataMenu, setShowDataMenu] = useState(false)
@@ -118,9 +118,9 @@ export default function Sidebar({ collapsed, onToggleCollapse }) {
 
   return (
     <div className={`h-screen bg-gradient-to-b from-stone-50 to-orange-50/30 border-r border-stone-200/60 flex flex-col transition-all duration-300 ${collapsed ? 'w-16' : 'w-56'}`}>
-      {/* Brand — Solo C19 Logo */}
+      {/* Brand — Wax Seal S2 Logo */}
       <div className="sidebar-brand-solo">
-        <HdcsC19Logo size="md" />
+        <WaxSealS2Logo size="md" />
       </div>
 
       {/* Navigation */}

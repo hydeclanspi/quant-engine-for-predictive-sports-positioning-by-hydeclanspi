@@ -399,7 +399,7 @@
     0 18px 40px -16px rgba(0, 0, 0, 0.56);
   transform-origin: center center;
   will-change: transform, opacity, filter;
-  animation: waxSealStampDrop 980ms cubic-bezier(0.2, 0.92, 0.28, 1) forwards;
+  animation: waxSealStampDrop 900ms cubic-bezier(0.2, 0.92, 0.28, 1) forwards;
 }
 
 .wax-seal-burst-seal::after {
@@ -482,12 +482,12 @@
 
 .wax-seal-burst-ripple-1 {
   border: 2px solid rgba(251, 191, 36, 0.45);
-  animation: waxSealRippleOne 1000ms ease-out forwards;
+  animation: waxSealRippleOne 920ms ease-out forwards;
 }
 
 .wax-seal-burst-ripple-2 {
   border: 1px solid rgba(251, 191, 36, 0.3);
-  animation: waxSealRippleTwo 1060ms ease-out forwards;
+  animation: waxSealRippleTwo 980ms ease-out forwards;
   animation-delay: 56ms;
 }
 
@@ -497,7 +497,7 @@
   border-radius: 999px;
   background: radial-gradient(circle, rgba(251, 191, 36, 0.26) 0%, rgba(251, 191, 36, 0) 72%);
   opacity: 0;
-  animation: waxSealImpactGlow 940ms ease-out forwards;
+  animation: waxSealImpactGlow 860ms ease-out forwards;
 }
 
 .wax-seal-burst-shadow {
@@ -509,7 +509,7 @@
   border-radius: 999px;
   background: radial-gradient(ellipse at center, rgba(15, 23, 42, 0.35) 0%, rgba(15, 23, 42, 0) 74%);
   opacity: 0;
-  animation: waxSealGroundShadow 960ms ease forwards;
+  animation: waxSealGroundShadow 880ms ease forwards;
 }
 
 @keyframes waxSealStampDrop {
@@ -691,6 +691,234 @@
   }
 }
 
+
+/* ============================================================
+   Wax Seal S2 — Dual Orbit Logo
+   ============================================================ */
+
+.wax-s2-logo-shell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+
+.wax-s2-logo-shell--md {
+  --s2-size: 48px;
+  --s2-ring-outer-inset: 2.5px;
+  --s2-ring-inner-inset: 5px;
+  --s2-font-size: 11px;
+  --s2-letter-space: 2.8px;
+  --s2-divider-width: 14px;
+  --s2-divider-thick: 1px;
+  --s2-dot-a-size: 3px;
+  --s2-dot-b-size: 2.4px;
+}
+
+.wax-s2-logo-shell--sm {
+  --s2-size: 32px;
+  --s2-ring-outer-inset: 1.8px;
+  --s2-ring-inner-inset: 3.8px;
+  --s2-font-size: 7.2px;
+  --s2-letter-space: 1.9px;
+  --s2-divider-width: 9px;
+  --s2-divider-thick: 0.8px;
+  --s2-dot-a-size: 2.2px;
+  --s2-dot-b-size: 1.8px;
+}
+
+.wax-s2-logo-shell--interactive {
+  transition: transform 460ms cubic-bezier(0.16, 1, 0.3, 1), filter 460ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: center;
+  will-change: transform;
+}
+
+.wax-s2-logo-shell--interactive:hover {
+  transform: translateY(-2px) scale(1.02);
+  filter: drop-shadow(0 6px 12px rgba(251, 191, 36, 0.14));
+}
+
+.wax-s2-logo-shell--sm.wax-s2-logo-shell--interactive:hover {
+  transform: translateY(-1px) scale(1.025);
+}
+
+.wax-s2-logo {
+  width: var(--s2-size);
+  height: var(--s2-size);
+  position: relative;
+  display: block;
+  flex-shrink: 0;
+}
+
+.wax-s2-seal {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #2f2a26, #171412 78%);
+  box-shadow:
+    0 2px 0 rgba(255, 255, 255, 0.05) inset,
+    0 -2px 7px rgba(0, 0, 0, 0.22) inset,
+    0 6px 18px -8px rgba(15, 23, 42, 0.48);
+  overflow: hidden;
+}
+
+.wax-s2-seal::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.13), transparent 42%);
+  pointer-events: none;
+}
+
+.wax-s2-ring-outer,
+.wax-s2-ring-inner {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.wax-s2-ring-outer {
+  inset: var(--s2-ring-outer-inset);
+  border: 1px solid rgba(245, 158, 11, 0.24);
+}
+
+.wax-s2-ring-inner {
+  inset: var(--s2-ring-inner-inset);
+  border: 0.5px solid rgba(245, 158, 11, 0.16);
+}
+
+.wax-s2-hd,
+.wax-s2-cs {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Fraunces', 'Cormorant Garamond', serif;
+  font-weight: 600;
+  font-size: var(--s2-font-size);
+  letter-spacing: var(--s2-letter-space);
+  line-height: 1;
+  text-transform: uppercase;
+  padding-left: var(--s2-letter-space);
+  user-select: none;
+}
+
+.wax-s2-hd {
+  top: 31%;
+  color: #fafaf9;
+}
+
+.wax-s2-cs {
+  top: 56%;
+  color: #fbbf24;
+}
+
+.wax-s2-divider {
+  position: absolute;
+  left: 50%;
+  top: 49%;
+  width: var(--s2-divider-width);
+  height: var(--s2-divider-thick);
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.95), transparent);
+}
+
+.wax-s2-orbit-track-a,
+.wax-s2-orbit-track-b {
+  position: absolute;
+  inset: -0.6px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.wax-s2-orbit-track-a {
+  animation: waxS2OrbitCW 5s linear infinite;
+}
+
+.wax-s2-orbit-track-b {
+  animation: waxS2OrbitCCW 7s linear infinite;
+}
+
+.wax-s2-dot-a,
+.wax-s2-dot-b,
+.wax-s2-trail-a1,
+.wax-s2-trail-a2,
+.wax-s2-trail-b1 {
+  position: absolute;
+  left: 50%;
+  border-radius: 50%;
+  transform-origin: center center;
+}
+
+.wax-s2-dot-a {
+  top: calc(var(--s2-dot-a-size) * -0.6);
+  width: var(--s2-dot-a-size);
+  height: var(--s2-dot-a-size);
+  margin-left: calc(var(--s2-dot-a-size) * -0.5);
+  background: radial-gradient(circle, #fcd34d, #f59e0b);
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.64), 0 0 16px rgba(251, 191, 36, 0.24);
+}
+
+.wax-s2-trail-a1 {
+  top: calc(var(--s2-dot-a-size) * 0.24);
+  width: calc(var(--s2-dot-a-size) * 0.72);
+  height: calc(var(--s2-dot-a-size) * 0.72);
+  margin-left: calc(var(--s2-dot-a-size) * -0.36);
+  margin-top: calc(var(--s2-dot-a-size) * 0.65);
+  background: rgba(251, 191, 36, 0.35);
+  transform: rotate(-8deg) translateY(calc(var(--s2-dot-a-size) * -0.7));
+  opacity: 0.56;
+}
+
+.wax-s2-trail-a2 {
+  top: calc(var(--s2-dot-a-size) * 0.95);
+  width: calc(var(--s2-dot-a-size) * 0.45);
+  height: calc(var(--s2-dot-a-size) * 0.45);
+  margin-left: calc(var(--s2-dot-a-size) * -0.225);
+  margin-top: calc(var(--s2-dot-a-size) * 0.85);
+  background: rgba(251, 191, 36, 0.2);
+  transform: rotate(-16deg) translateY(calc(var(--s2-dot-a-size) * -0.95));
+  opacity: 0.36;
+}
+
+.wax-s2-dot-b {
+  top: calc(var(--s2-dot-b-size) * -0.56);
+  width: var(--s2-dot-b-size);
+  height: var(--s2-dot-b-size);
+  margin-left: calc(var(--s2-dot-b-size) * -0.5);
+  background: radial-gradient(circle, #fde68a, #f59e0b);
+  box-shadow: 0 0 6px rgba(251, 191, 36, 0.52), 0 0 12px rgba(251, 191, 36, 0.22);
+}
+
+.wax-s2-trail-b1 {
+  top: calc(var(--s2-dot-b-size) * 0.6);
+  width: calc(var(--s2-dot-b-size) * 0.66);
+  height: calc(var(--s2-dot-b-size) * 0.66);
+  margin-left: calc(var(--s2-dot-b-size) * -0.33);
+  margin-top: calc(var(--s2-dot-b-size) * 0.8);
+  background: rgba(251, 191, 36, 0.24);
+  transform: rotate(11deg) translateY(calc(var(--s2-dot-b-size) * -0.8));
+  opacity: 0.42;
+}
+
+@keyframes waxS2OrbitCW {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes waxS2OrbitCCW {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
 
 /* ============================================================
    C19 Golden Frame — Sidebar Brand Logo (48px original)
@@ -2888,6 +3116,7 @@
   .theme-modern .console-motion-scope .console-interactive-surface,
   .theme-modern .console-motion-scope .console-interactive-chip,
   .theme-modern .console-motion-scope button:not(:disabled),
+  .wax-s2-logo-shell--interactive,
   .c19-logo-shell--interactive,
   .c19-logo-border,
   .c19-logo-content .c19-dot,
@@ -2902,6 +3131,8 @@
     transition: none !important;
   }
 
+  .wax-s2-orbit-track-a,
+  .wax-s2-orbit-track-b,
   .c19-a2a3a5,
   .c19-a2a3a5 .c19-dot,
   .c19-dot-ring,

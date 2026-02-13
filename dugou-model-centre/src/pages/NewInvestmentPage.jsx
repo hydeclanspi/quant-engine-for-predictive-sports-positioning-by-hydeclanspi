@@ -225,6 +225,7 @@ export default function NewInvestmentPage() {
   const [quickInputOpen, setQuickInputOpen] = useState(false)
   const [quickInputResult, setQuickInputResult] = useState(null)
   const [waxSealBurst, setWaxSealBurst] = useState({ active: false, token: 0, x: 0, y: 0 })
+  const [confirmPersistPending, setConfirmPersistPending] = useState(false)
   const [systemConfig] = useState(() => getSystemConfig())
   const persistTimerRef = useRef(null)
   const persistIdleRef = useRef(null)
@@ -860,20 +861,25 @@ export default function NewInvestmentPage() {
       persistIdleRef.current = null
       try {
         persistInvestmentFromPayload(payload)
-      } catch (error) {
-        console.error('[new-investment] background persist failed:', error)
+      } finally {
+        setConfirmPersistPending(false)
       }
     }
 
-    // Keep the front-end animation smooth first, persist in background when idle.
-    if (typeof window.requestIdleCallback === 'function') {
-      window.requestAnimationFrame(() => {
-        persistIdleRef.current = window.requestIdleCallback(runPersist, { timeout: 4000 })
-      })
-      return
+    const queueIdlePersist = () => {
+      if (typeof window.requestIdleCallback === 'function') {
+        persistIdleRef.current = window.requestIdleCallback(runPersist, { timeout: 2200 })
+        return
+      }
+      persistTimerRef.current = window.setTimeout(runPersist, 720)
     }
-    // Fallback for browsers without requestIdleCallback.
-    persistTimerRef.current = window.setTimeout(runPersist, 900)
+
+    // Let the seal animation fully enter first, then persist in background.
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        persistTimerRef.current = window.setTimeout(queueIdlePersist, 120)
+      })
+    })
   }
 
   const triggerWaxSealStamp = (target) => {
@@ -891,11 +897,11 @@ export default function NewInvestmentPage() {
   }
 
   const handleConfirmInvestment = (event) => {
+    if (confirmPersistPending) return
     const payload = buildInvestmentPayload()
     if (!payload) return
+    setConfirmPersistPending(true)
     triggerWaxSealStamp(event?.currentTarget)
-    setComboName('')
-    resetForm()
     queueBackgroundPersist(payload)
   }
 
@@ -1542,8 +1548,12 @@ export default function NewInvestmentPage() {
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <button onClick={(event) => handleConfirmInvestment(event)} className="btn-primary btn-hover">
-                  确认投资
+                <button
+                  onClick={(event) => handleConfirmInvestment(event)}
+                  disabled={confirmPersistPending}
+                  className={`btn-primary btn-hover ${confirmPersistPending ? 'opacity-80 cursor-not-allowed' : ''}`}
+                >
+                  {confirmPersistPending ? '印章确认中...' : '确认投资'}
                 </button>
                 <button
                   onClick={handleAddToCombo}
