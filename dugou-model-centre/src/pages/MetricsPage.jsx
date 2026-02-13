@@ -179,6 +179,75 @@ const PaginatedMatchTable = ({ rows }) => {
   )
 }
 
+const MetricDetailHistoryTable = ({ rows, columns, pageSize = 10 }) => {
+  const [page, setPage] = useState(1)
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize))
+  const currentPage = Math.min(page, totalPages)
+  const start = (currentPage - 1) * pageSize
+  const pageRows = rows.slice(start, start + pageSize)
+
+  if (!rows.length) {
+    return (
+      <div className="rounded-xl border border-stone-100 bg-stone-50/70 py-8 text-center text-sm text-stone-400">
+        当前窗口暂无可展示的历史明细
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-xl border border-stone-100 bg-white overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-stone-50/90">
+          <tr className="text-left text-stone-500">
+            {columns.map((col) => (
+              <th key={col.key} className={`py-2.5 px-3 text-xs font-medium ${col.align === 'right' ? 'text-right' : ''}`}>
+                {col.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {pageRows.map((row, rowIndex) => (
+            <tr key={row.id || `${row.date || 'row'}-${rowIndex}`} className="border-t border-stone-100/90 hover:bg-stone-50/55">
+              {columns.map((col) => (
+                <td key={`${col.key}-${rowIndex}`} className={`py-2.5 px-3 text-stone-600 ${col.align === 'right' ? 'text-right' : ''}`}>
+                  {typeof col.render === 'function' ? col.render(row, rowIndex) : row[col.key]}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {rows.length > pageSize && (
+        <div className="px-3 py-2 border-t border-stone-100 flex items-center justify-between bg-stone-50/65">
+          <button
+            onClick={() => setPage(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+            className={`px-2.5 py-1 rounded-md text-xs transition-colors ${
+              currentPage === 1 ? 'text-stone-300 cursor-not-allowed' : 'text-stone-500 hover:bg-stone-100'
+            }`}
+          >
+            ← 上一页
+          </button>
+          <span className="text-[11px] text-stone-400">
+            第 {currentPage} / {totalPages} 页 · 共 {rows.length} 条
+          </span>
+          <button
+            onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+            className={`px-2.5 py-1 rounded-md text-xs transition-colors ${
+              currentPage === totalPages ? 'text-stone-300 cursor-not-allowed' : 'text-stone-500 hover:bg-stone-100'
+            }`}
+          >
+            下一页 →
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function MetricsPage({ openModal }) {
   const navigate = useNavigate()
   const [timePeriod, setTimePeriod] = useState('all')
@@ -186,6 +255,56 @@ export default function MetricsPage({ openModal }) {
   const snapshot = useMemo(() => getMetricsSnapshot(timePeriod), [timePeriod])
 
   const noSettledData = snapshot.headline.totalInvestments === 0 || snapshot.headline.totalInputs === 0
+  const matchRowsChrono = useMemo(
+    () => [...snapshot.matchRows].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [snapshot.matchRows],
+  )
+  const matchRowsWithRunning = useMemo(() => {
+    let cumInput = 0
+    let cumProfit = 0
+    let winStreak = 0
+    let loseStreak = 0
+    let runningMean = 0
+    let runningM2 = 0
+
+    return matchRowsChrono.map((row, idx) => {
+      const input = Number(row.allocatedInput || 0)
+      const profit = Number(row.allocatedProfit || 0)
+      const roi = Number(row.roi || 0)
+      const isWin = row.isCorrect === true
+      const implied = Number.isFinite(row.odds) && row.odds > 1 ? 1 / row.odds : Number.NaN
+      const confEdge = Number.isFinite(row.conf) && Number.isFinite(implied) ? row.conf - implied : Number.NaN
+
+      cumInput += input
+      cumProfit += profit
+      winStreak = isWin ? winStreak + 1 : 0
+      loseStreak = isWin ? 0 : loseStreak + 1
+
+      const n = idx + 1
+      const ret = roi / 100
+      const delta = ret - runningMean
+      runningMean += delta / n
+      runningM2 += delta * (ret - runningMean)
+      const runningVolatility = n > 1 ? Math.sqrt(runningM2 / (n - 1)) * 100 : 0
+
+      return {
+        ...row,
+        chronologicalIndex: n,
+        cumulativeInput: cumInput,
+        cumulativeProfit: cumProfit,
+        cumulativeRoi: cumInput > 0 ? (cumProfit / cumInput) * 100 : 0,
+        winStreak,
+        loseStreak,
+        statusLabel: isWin ? '命中' : '未中',
+        statusTone: isWin ? 'text-emerald-600' : 'text-rose-500',
+        impliedProbability: implied,
+        confEdge,
+        runningMeanReturn: runningMean * 100,
+        runningVolatility,
+      }
+    })
+  }, [matchRowsChrono])
+  const matchRowsDesc = useMemo(() => [...matchRowsWithRunning].reverse(), [matchRowsWithRunning])
 
   const metrics = [
     {
@@ -286,6 +405,19 @@ export default function MetricsPage({ openModal }) {
     },
   ]
 
+  const formatRmbMaybe = (value, digits = 0) => (Number.isFinite(value) ? `¥${Number(value).toFixed(digits)}` : '--')
+  const formatNumberMaybe = (value, digits = 2) => (Number.isFinite(value) ? Number(value).toFixed(digits) : '--')
+  const formatPercentMaybe = (value, digits = 1) => (Number.isFinite(value) ? signed(value, digits, '%') : '--')
+  const formatStatusBadge = (row) => (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] border ${
+        row.isCorrect ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-200'
+      }`}
+    >
+      {row.statusLabel}
+    </span>
+  )
+
   const getMetricDetailRows = (metricId) => {
     const avgInput = snapshot.headline.totalInvestments > 0 ? snapshot.headline.totalInputs / snapshot.headline.totalInvestments : 0
     switch (metricId) {
@@ -365,33 +497,257 @@ export default function MetricsPage({ openModal }) {
     }
   }
 
+  const getMetricHistoryDetail = (metricId) => {
+    switch (metricId) {
+      case 'totalInvestments':
+        return {
+          title: '已结算样本流水（按时间）',
+          note: '覆盖当前时间窗口内每一场已结算样本，用于回看样本分布与命中节奏。',
+          rows: matchRowsDesc,
+          columns: [
+            { key: 'date', label: '日期', render: (row) => row.dateLabel },
+            { key: 'match', label: '比赛' },
+            { key: 'mode', label: 'Mode', render: (row) => row.mode || '--' },
+            { key: 'status', label: '结果', render: (row) => formatStatusBadge(row) },
+            { key: 'input', label: '投入', align: 'right', render: (row) => formatRmbMaybe(row.allocatedInput, 0) },
+            { key: 'roi', label: 'ROI', align: 'right', render: (row) => <span className={row.roi >= 0 ? 'text-emerald-600 font-medium' : 'text-rose-500 font-medium'}>{formatPercentMaybe(row.roi, 1)}</span> },
+          ],
+        }
+      case 'totalInputs':
+        return {
+          title: '投入流水与累计敞口',
+          note: '展示每场投入金额与累计投入轨迹，帮助判断仓位利用效率。',
+          rows: matchRowsDesc,
+          columns: [
+            { key: 'date', label: '日期', render: (row) => row.dateLabel },
+            { key: 'match', label: '比赛' },
+            { key: 'input', label: '单场投入', align: 'right', render: (row) => formatRmbMaybe(row.allocatedInput, 0) },
+            { key: 'cumInput', label: '累计投入', align: 'right', render: (row) => <span className="font-medium text-stone-700">{formatRmbMaybe(row.cumulativeInput, 0)}</span> },
+            { key: 'cumRoi', label: '累计 ROI', align: 'right', render: (row) => <span className={row.cumulativeRoi >= 0 ? 'text-emerald-600 font-medium' : 'text-rose-500 font-medium'}>{formatPercentMaybe(row.cumulativeRoi, 2)}</span> },
+          ],
+        }
+      case 'totalProfit':
+        return {
+          title: '盈亏流水与累计收益',
+          note: '记录每场贡献利润与累计收益曲线，便于识别收益主要来源。',
+          rows: matchRowsDesc,
+          columns: [
+            { key: 'date', label: '日期', render: (row) => row.dateLabel },
+            { key: 'match', label: '比赛' },
+            {
+              key: 'profit',
+              label: '单场盈亏',
+              align: 'right',
+              render: (row) => <span className={row.allocatedProfit >= 0 ? 'text-emerald-600 font-medium' : 'text-rose-500 font-medium'}>{signed(row.allocatedProfit, 2)}</span>,
+            },
+            {
+              key: 'cumProfit',
+              label: '累计盈亏',
+              align: 'right',
+              render: (row) => <span className={row.cumulativeProfit >= 0 ? 'text-emerald-600 font-semibold' : 'text-rose-500 font-semibold'}>{signed(row.cumulativeProfit, 2)}</span>,
+            },
+            { key: 'roi', label: 'ROI', align: 'right', render: (row) => <span className={row.roi >= 0 ? 'text-emerald-600 font-medium' : 'text-rose-500 font-medium'}>{formatPercentMaybe(row.roi, 1)}</span> },
+          ],
+        }
+      case 'roi':
+        return {
+          title: 'ROI 历史明细（含累计轨迹）',
+          note: '单场 ROI 与累计 ROI 同时展示，更容易判断回撤段与恢复段。',
+          rows: matchRowsDesc,
+          columns: [
+            { key: 'date', label: '日期', render: (row) => row.dateLabel },
+            { key: 'match', label: '比赛' },
+            { key: 'status', label: '结果', render: (row) => formatStatusBadge(row) },
+            { key: 'roi', label: '单场 ROI', align: 'right', render: (row) => <span className={row.roi >= 0 ? 'text-emerald-600 font-medium' : 'text-rose-500 font-medium'}>{formatPercentMaybe(row.roi, 2)}</span> },
+            { key: 'cumRoi', label: '累计 ROI', align: 'right', render: (row) => <span className={row.cumulativeRoi >= 0 ? 'text-emerald-600 font-semibold' : 'text-rose-500 font-semibold'}>{formatPercentMaybe(row.cumulativeRoi, 2)}</span> },
+          ],
+        }
+      case 'maxWin': {
+        const rows = [...matchRowsDesc]
+          .filter((row) => row.allocatedProfit > 0)
+          .sort((a, b) => b.allocatedProfit - a.allocatedProfit || new Date(b.date).getTime() - new Date(a.date).getTime())
+        return {
+          title: '盈利 Top 历史样本',
+          note: '按单场盈利从高到低排序，可快速定位高贡献样本与参数组合。',
+          rows,
+          columns: [
+            { key: 'rank', label: '#', render: (_row, idx) => <span className="text-stone-400">{idx + 1}</span> },
+            { key: 'date', label: '日期', render: (row) => row.dateLabel },
+            { key: 'match', label: '比赛' },
+            { key: 'conf', label: 'Conf', align: 'right', render: (row) => formatNumberMaybe(row.conf, 2) },
+            { key: 'odds', label: 'Odds', align: 'right', render: (row) => formatNumberMaybe(row.odds, 2) },
+            { key: 'profit', label: '盈利', align: 'right', render: (row) => <span className="text-emerald-600 font-semibold">{signed(row.allocatedProfit, 2)}</span> },
+          ],
+        }
+      }
+      case 'maxLoss': {
+        const rows = [...matchRowsDesc]
+          .filter((row) => row.allocatedProfit < 0)
+          .sort((a, b) => a.allocatedProfit - b.allocatedProfit || new Date(b.date).getTime() - new Date(a.date).getTime())
+        return {
+          title: '亏损 Bottom 历史样本',
+          note: '按单场亏损从低到高排序，便于复盘风险暴露与回撤来源。',
+          rows,
+          columns: [
+            { key: 'rank', label: '#', render: (_row, idx) => <span className="text-stone-400">{idx + 1}</span> },
+            { key: 'date', label: '日期', render: (row) => row.dateLabel },
+            { key: 'match', label: '比赛' },
+            { key: 'conf', label: 'Conf', align: 'right', render: (row) => formatNumberMaybe(row.conf, 2) },
+            { key: 'odds', label: 'Odds', align: 'right', render: (row) => formatNumberMaybe(row.odds, 2) },
+            { key: 'loss', label: '亏损', align: 'right', render: (row) => <span className="text-rose-500 font-semibold">{signed(row.allocatedProfit, 2)}</span> },
+          ],
+        }
+      }
+      case 'maxWinStreak':
+        return {
+          title: '连胜序列明细',
+          note: '显示每场对应的连胜长度，观察连胜峰值形成过程。',
+          rows: matchRowsDesc,
+          columns: [
+            { key: 'date', label: '日期', render: (row) => row.dateLabel },
+            { key: 'match', label: '比赛' },
+            { key: 'status', label: '结果', render: (row) => formatStatusBadge(row) },
+            { key: 'winStreak', label: '当前连胜', align: 'right', render: (row) => <span className="font-medium text-emerald-600">{row.winStreak}</span> },
+            { key: 'cumRoi', label: '累计 ROI', align: 'right', render: (row) => <span className={row.cumulativeRoi >= 0 ? 'text-emerald-600 font-medium' : 'text-rose-500 font-medium'}>{formatPercentMaybe(row.cumulativeRoi, 2)}</span> },
+          ],
+        }
+      case 'maxLoseStreak':
+        return {
+          title: '连败序列明细',
+          note: '显示每场对应的连败长度，定位回撤聚集区间。',
+          rows: matchRowsDesc,
+          columns: [
+            { key: 'date', label: '日期', render: (row) => row.dateLabel },
+            { key: 'match', label: '比赛' },
+            { key: 'status', label: '结果', render: (row) => formatStatusBadge(row) },
+            { key: 'loseStreak', label: '当前连败', align: 'right', render: (row) => <span className="font-medium text-rose-500">{row.loseStreak}</span> },
+            { key: 'cumRoi', label: '累计 ROI', align: 'right', render: (row) => <span className={row.cumulativeRoi >= 0 ? 'text-emerald-600 font-medium' : 'text-rose-500 font-medium'}>{formatPercentMaybe(row.cumulativeRoi, 2)}</span> },
+          ],
+        }
+      case 'avgConf': {
+        const rows = matchRowsDesc.filter((row) => Number.isFinite(row.conf))
+        return {
+          title: 'Conf 历史明细',
+          note: '按时间追踪每场 Conf、AJR 与偏差（AJR-Conf），用于置信度校准复盘。',
+          rows,
+          columns: [
+            { key: 'date', label: '日期', render: (row) => row.dateLabel },
+            { key: 'match', label: '比赛' },
+            { key: 'conf', label: 'Conf', align: 'right', render: (row) => <span className={getConfColor(row.conf)}>{formatNumberMaybe(row.conf, 2)}</span> },
+            { key: 'ajr', label: 'AJR', align: 'right', render: (row) => <span className={getAJRColor(row.ajr)}>{formatNumberMaybe(row.ajr, 2)}</span> },
+            {
+              key: 'diff',
+              label: 'AJR-Conf',
+              align: 'right',
+              render: (row) => {
+                const diff = Number.isFinite(row.ajr) && Number.isFinite(row.conf) ? row.ajr - row.conf : Number.NaN
+                return <span className={diff >= 0 ? 'text-emerald-600 font-medium' : 'text-rose-500 font-medium'}>{Number.isFinite(diff) ? signed(diff, 2) : '--'}</span>
+              },
+            },
+          ],
+        }
+      }
+      case 'avgOdds': {
+        const rows = matchRowsDesc.filter((row) => Number.isFinite(row.odds))
+        return {
+          title: 'Odds 历史明细',
+          note: '展示赔率、隐含概率与单场 ROI，观察赔率区间表现特征。',
+          rows,
+          columns: [
+            { key: 'date', label: '日期', render: (row) => row.dateLabel },
+            { key: 'match', label: '比赛' },
+            { key: 'odds', label: 'Odds', align: 'right', render: (row) => <span className="text-violet-600 font-medium">{formatNumberMaybe(row.odds, 2)}</span> },
+            { key: 'implied', label: '隐含胜率', align: 'right', render: (row) => (Number.isFinite(row.impliedProbability) ? `${(row.impliedProbability * 100).toFixed(1)}%` : '--') },
+            { key: 'roi', label: 'ROI', align: 'right', render: (row) => <span className={row.roi >= 0 ? 'text-emerald-600 font-medium' : 'text-rose-500 font-medium'}>{formatPercentMaybe(row.roi, 1)}</span> },
+          ],
+        }
+      }
+      case 'sharpe':
+        return {
+          title: '收益波动与风险调整轨迹',
+          note: '滚动展示均值收益与波动率（近似），用于解释 Sharpe 的历史形成过程。',
+          rows: matchRowsDesc,
+          columns: [
+            { key: 'date', label: '日期', render: (row) => row.dateLabel },
+            { key: 'match', label: '比赛' },
+            { key: 'roi', label: '单场 ROI', align: 'right', render: (row) => <span className={row.roi >= 0 ? 'text-emerald-600 font-medium' : 'text-rose-500 font-medium'}>{formatPercentMaybe(row.roi, 1)}</span> },
+            { key: 'mean', label: '滚动均值', align: 'right', render: (row) => <span className={row.runningMeanReturn >= 0 ? 'text-emerald-600' : 'text-rose-500'}>{formatPercentMaybe(row.runningMeanReturn, 2)}</span> },
+            { key: 'vol', label: '滚动波动率', align: 'right', render: (row) => `${formatNumberMaybe(row.runningVolatility, 2)}%` },
+          ],
+        }
+      case 'hitRateEdge':
+      default:
+        return {
+          title: '命中率与边际优势明细',
+          note: '展示命中结果、Conf 与赔率隐含概率之间的边际差，衡量边际优势稳定性。',
+          rows: matchRowsDesc,
+          columns: [
+            { key: 'date', label: '日期', render: (row) => row.dateLabel },
+            { key: 'match', label: '比赛' },
+            { key: 'status', label: '结果', render: (row) => formatStatusBadge(row) },
+            { key: 'conf', label: 'Conf', align: 'right', render: (row) => formatNumberMaybe(row.conf, 2) },
+            { key: 'implied', label: '隐含胜率', align: 'right', render: (row) => (Number.isFinite(row.impliedProbability) ? `${(row.impliedProbability * 100).toFixed(1)}%` : '--') },
+            {
+              key: 'edge',
+              label: '边际',
+              align: 'right',
+              render: (row) => <span className={row.confEdge >= 0 ? 'text-emerald-600 font-medium' : 'text-rose-500 font-medium'}>{Number.isFinite(row.confEdge) ? signed(row.confEdge * 100, 1, 'pp') : '--'}</span>,
+            },
+          ],
+        }
+    }
+  }
+
   const openMetricDetail = (metric) => {
     if (!openModal) return
     const rows = getMetricDetailRows(metric.id)
+    const history = getMetricHistoryDetail(metric.id)
     openModal({
       title: `${metric.label} · 详细数据`,
       content: (
         <div className="space-y-4">
-          <div className="p-4 bg-stone-50 rounded-xl">
-            <div className="text-3xl font-bold text-stone-800 mb-2">{metric.value}</div>
+          <div className="rounded-2xl border border-stone-100 bg-gradient-to-br from-stone-50 via-white to-stone-50 p-5">
+            <div className="flex items-center justify-between gap-4 mb-3">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.16em] text-stone-400">Metric Snapshot</p>
+                <div className="text-3xl font-semibold text-stone-800 mt-1">{metric.value}</div>
+              </div>
+              <GlassCardIcon IconComp={metric.IconComp} tone={metric.tone} className="h-9 w-9" iconSize={18} />
+            </div>
             <p className="text-sm text-stone-500">{metric.description}</p>
           </div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-stone-200 text-left text-stone-500">
-                <th className="py-2">指标项</th>
-                <th className="py-2">数值</th>
-              </tr>
-            </thead>
-            <tbody>
+
+          <div className="rounded-2xl border border-stone-100 bg-white p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-stone-400">Key Breakdown</p>
+              <span className="text-[11px] text-stone-400">窗口：{PERIOD_LABELS[timePeriod]}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
               {rows.map((row) => (
-                <tr key={`${metric.id}-${row.label}`} className="border-b border-stone-100">
-                  <td className="py-2 text-stone-600">{row.label}</td>
-                  <td className={`py-2 font-medium ${getToneClass(row.tone)}`}>{row.value}</td>
-                </tr>
+                <div key={`${metric.id}-${row.label}`} className="rounded-xl border border-stone-100 bg-stone-50/70 px-3 py-2">
+                  <p className="text-[11px] text-stone-400">{row.label}</p>
+                  <p className={`text-sm font-semibold mt-1 ${getToneClass(row.tone)}`}>{row.value}</p>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-stone-100 bg-white p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.14em] text-stone-400">Historical Ledger</p>
+                <h4 className="text-sm font-semibold text-stone-700 mt-0.5">{history.title}</h4>
+              </div>
+              <span className="text-[11px] text-stone-400">记录数：{history.rows.length}</span>
+            </div>
+            <MetricDetailHistoryTable
+              key={`${metric.id}-${history.rows.length}-${timePeriod}`}
+              rows={history.rows}
+              columns={history.columns}
+              pageSize={10}
+            />
+            {history.note && <p className="text-[11px] text-stone-400 mt-2">{history.note}</p>}
+          </div>
         </div>
       ),
     })
