@@ -419,8 +419,8 @@
   border-radius: 50%;
   border: 1px solid rgba(251, 191, 36, 0.3);
   opacity: 0;
-  animation: waxSealRingReveal 660ms ease forwards;
-  animation-delay: 170ms;
+  animation: waxSealRingRevealFade 860ms ease forwards;
+  animation-delay: 120ms;
 }
 
 .wax-seal-burst-ring-inner {
@@ -429,8 +429,8 @@
   border-radius: 50%;
   border: 0.5px solid rgba(251, 191, 36, 0.16);
   opacity: 0;
-  animation: waxSealRingReveal 660ms ease forwards;
-  animation-delay: 250ms;
+  animation: waxSealRingRevealFade 860ms ease forwards;
+  animation-delay: 180ms;
 }
 
 .wax-seal-burst-hd {
@@ -444,8 +444,8 @@
   position: relative;
   z-index: 2;
   opacity: 0;
-  animation: waxSealTextIn 460ms ease forwards;
-  animation-delay: 210ms;
+  animation: waxSealTextInOut 780ms ease forwards;
+  animation-delay: 120ms;
 }
 
 .wax-seal-burst-divider {
@@ -454,8 +454,8 @@
   margin: 5px 0;
   background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.95), transparent);
   opacity: 0;
-  animation: waxSealTextIn 420ms ease forwards;
-  animation-delay: 260ms;
+  animation: waxSealTextInOut 760ms ease forwards;
+  animation-delay: 170ms;
 }
 
 .wax-seal-burst-cs {
@@ -469,8 +469,8 @@
   position: relative;
   z-index: 2;
   opacity: 0;
-  animation: waxSealTextIn 460ms ease forwards;
-  animation-delay: 320ms;
+  animation: waxSealTextInOut 780ms ease forwards;
+  animation-delay: 210ms;
 }
 
 .wax-seal-burst-ripple {
@@ -531,12 +531,17 @@
   72% {
     transform: translateY(6px) scale(0.61) rotate(0.8deg);
   }
-  86% {
+  82% {
     transform: translateY(-2px) scale(0.66) rotate(-0.2deg);
+    opacity: 1;
+  }
+  92% {
+    transform: translateY(1px) scale(0.62) rotate(0);
+    opacity: 0.65;
   }
   100% {
-    transform: translateY(0) scale(0.64) rotate(0);
-    opacity: 1;
+    transform: translateY(2px) scale(0.57) rotate(0);
+    opacity: 0;
     filter: saturate(1);
   }
 }
@@ -594,25 +599,41 @@
   }
 }
 
-@keyframes waxSealRingReveal {
+@keyframes waxSealRingRevealFade {
   0% {
     opacity: 0;
     transform: scale(0.94);
   }
-  100% {
+  30% {
     opacity: 1;
     transform: scale(1);
   }
+  78% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.03);
+  }
 }
 
-@keyframes waxSealTextIn {
+@keyframes waxSealTextInOut {
   from {
     opacity: 0;
     transform: translateY(4px);
   }
-  to {
+  32% {
     opacity: 1;
     transform: translateY(0);
+  }
+  80% {
+    opacity: 0.95;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(1px);
   }
 }
 
@@ -630,8 +651,8 @@
     transform: scaleX(0.88);
   }
   100% {
-    opacity: 0.22;
-    transform: scaleX(1);
+    opacity: 0;
+    transform: scaleX(1.04);
   }
 }
 

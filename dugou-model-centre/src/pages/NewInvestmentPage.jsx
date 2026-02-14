@@ -863,6 +863,7 @@ export default function NewInvestmentPage() {
         persistInvestmentFromPayload(payload)
       } finally {
         setConfirmPersistPending(false)
+        setWaxSealBurst((prev) => (prev.active ? { ...prev, active: false } : prev))
       }
     }
 
