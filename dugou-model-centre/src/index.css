@@ -15,17 +15,10 @@
 
   html {
     scroll-behavior: smooth;
-    font-size: 90%;
   }
 
   body {
     @apply bg-stone-100/50 text-stone-800;
-  }
-}
-
-@media (max-width: 1024px) {
-  html {
-    font-size: 100%;
   }
 }
 
