@@ -2198,7 +2198,7 @@
   letter-spacing: -0.3px;
   color: #171717;
   display: inline-block;
-  transform: translateX(12px);
+  transform: translateX(0);
 }
 
 /* Breadcrumb separator */
