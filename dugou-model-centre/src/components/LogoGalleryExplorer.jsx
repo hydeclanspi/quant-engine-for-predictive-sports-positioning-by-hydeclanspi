@@ -348,7 +348,7 @@ export const LogoGalleryExplorer = () => {
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-sky-700">Logo Customization Gallery</p>
-            <h4 className="mt-1 text-lg font-semibold text-stone-800">logo自定义 · Motion 展览馆</h4>
+            <h4 className="mt-1 text-lg font-semibold text-stone-800">个性化Logo自定义 · Motion 展览馆</h4>
             <p className="mt-1.5 text-xs text-stone-500">V2 / V4 / V5 / V6、S2 / S3 / S4 / S5、A3 与 C16 / C15 / C25 原稿全量展陈。</p>
           </div>
           <span className="inline-flex items-center rounded-full border border-sky-200 bg-white/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-700">
