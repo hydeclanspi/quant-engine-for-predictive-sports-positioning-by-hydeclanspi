@@ -109,9 +109,10 @@ export default function ModernTopBar() {
       // Visual midpoint: center of the visible gap between logo and slash.
       const gapLeft = logoRect.right
       const gapRight = sepRect.left
-      const targetCenter = gapRight > gapLeft
+      const visualNudgeRight = 1.5
+      const targetCenter = (gapRight > gapLeft
         ? (gapLeft + gapRight) / 2
-        : (logoRect.left + logoRect.width / 2 + (sepRect.left + sepRect.width / 2)) / 2
+        : (logoRect.left + logoRect.width / 2 + (sepRect.left + sepRect.width / 2)) / 2) + visualNudgeRight
       const nameCenter = nameRect.left + nameRect.width / 2
       const delta = targetCenter - nameCenter
 
