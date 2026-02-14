@@ -102,8 +102,8 @@ function App() {
           <div key={location.pathname} className="page-enter">
             {pageRoutes}
           </div>
+          <BottomBar />
         </main>
-        <BottomBar />
         {modalData && <Modal data={modalData} onClose={closeModal} />}
       </div>
     )
@@ -121,8 +121,8 @@ function App() {
           <div key={location.pathname} className="page-enter">
             {pageRoutes}
           </div>
+          <BottomBar />
         </main>
-        <BottomBar />
         {modalData && <Modal data={modalData} onClose={closeModal} />}
       </div>
     )
@@ -130,22 +130,20 @@ function App() {
 
   /* ── Sidebar layout (legacy) ── */
   return (
-    <div className="flex flex-col h-screen bg-stone-100/50">
-      <div className="flex flex-1 min-h-0">
-        <Sidebar
-          collapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-        />
-        <main
-          ref={mainScrollRef}
-          className="app-main-scroll flex-1 overflow-auto custom-scrollbar min-w-0"
-        >
-          <div key={location.pathname} className="page-enter">
-            {pageRoutes}
-          </div>
-        </main>
-      </div>
-      <BottomBar />
+    <div className="flex h-screen bg-stone-100/50">
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
+      <main
+        ref={mainScrollRef}
+        className="app-main-scroll flex-1 overflow-auto custom-scrollbar min-w-0"
+      >
+        <div key={location.pathname} className="page-enter">
+          {pageRoutes}
+        </div>
+        <BottomBar />
+      </main>
       {modalData && <Modal data={modalData} onClose={closeModal} />}
     </div>
   )
