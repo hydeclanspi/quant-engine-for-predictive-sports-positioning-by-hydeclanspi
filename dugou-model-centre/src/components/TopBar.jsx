@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import { exportDataBundle, getInvestments, getSystemConfig, importDataBundle } from '../lib/localData'
 import { exportDataBundleAsExcel } from '../lib/excel'
-import WaxSealS2Logo from './WaxSealS2Logo'
+import C15DiamondCutV1Logo from './C15DiamondCutV1Logo'
 
 /* ──────────────────────────────────────────────────
    Navigation structure with Lucide icons
@@ -181,7 +181,7 @@ export default function TopBar() {
     <header className="topbar-v2">
       {/* ── Left: Brand ── */}
       <div className="topbar-v2-brand" onClick={() => navigate('/new')}>
-        <WaxSealS2Logo size="sm" />
+        <C15DiamondCutV1Logo size="sm" />
         <div className="topbar-v2-brand-text">
           <span className="topbar-v2-brand-name">dugou</span>
         </div>

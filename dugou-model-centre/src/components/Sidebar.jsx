@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { exportDataBundle, getInvestments, importDataBundle } from '../lib/localData'
 import { exportDataBundleAsExcel } from '../lib/excel'
-import WaxSealS2Logo from './WaxSealS2Logo'
+import C15DiamondCutV1Logo from './C15DiamondCutV1Logo'
 
 export default function Sidebar({ collapsed, onToggleCollapse }) {
   const [showDataMenu, setShowDataMenu] = useState(false)
@@ -118,9 +118,9 @@ export default function Sidebar({ collapsed, onToggleCollapse }) {
 
   return (
     <div className={`h-screen bg-gradient-to-b from-stone-50 to-orange-50/30 border-r border-stone-200/60 flex flex-col transition-all duration-300 ${collapsed ? 'w-16' : 'w-56'}`}>
-      {/* Brand — Wax Seal S2 Logo */}
+      {/* Brand — C15 Diamond Cut V1 */}
       <div className="sidebar-brand-solo">
-        <WaxSealS2Logo size="md" />
+        <C15DiamondCutV1Logo size="md" />
       </div>
 
       {/* Navigation */}
