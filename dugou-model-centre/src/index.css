@@ -3053,6 +3053,14 @@
   will-change: transform, box-shadow;
 }
 
+.theme-modern .motion-v2-scope .glow-card:hover {
+  box-shadow: none;
+}
+
+.theme-modern .motion-v2-scope .glow-card:hover::after {
+  opacity: 0;
+}
+
 .theme-modern .motion-v2-scope .motion-v2-surface:hover {
   transform: translateY(-2px);
   box-shadow:
