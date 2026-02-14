@@ -419,7 +419,7 @@
   border-radius: 50%;
   border: 1px solid rgba(251, 191, 36, 0.3);
   opacity: 0;
-  animation: waxSealRingRevealFade 860ms ease forwards;
+  animation: waxSealRingReveal 520ms ease forwards;
   animation-delay: 120ms;
 }
 
@@ -429,7 +429,7 @@
   border-radius: 50%;
   border: 0.5px solid rgba(251, 191, 36, 0.16);
   opacity: 0;
-  animation: waxSealRingRevealFade 860ms ease forwards;
+  animation: waxSealRingReveal 520ms ease forwards;
   animation-delay: 180ms;
 }
 
@@ -444,7 +444,7 @@
   position: relative;
   z-index: 2;
   opacity: 0;
-  animation: waxSealTextInOut 780ms ease forwards;
+  animation: waxSealTextIn 360ms ease forwards;
   animation-delay: 120ms;
 }
 
@@ -454,7 +454,7 @@
   margin: 5px 0;
   background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.95), transparent);
   opacity: 0;
-  animation: waxSealTextInOut 760ms ease forwards;
+  animation: waxSealTextIn 340ms ease forwards;
   animation-delay: 170ms;
 }
 
@@ -469,7 +469,7 @@
   position: relative;
   z-index: 2;
   opacity: 0;
-  animation: waxSealTextInOut 780ms ease forwards;
+  animation: waxSealTextIn 360ms ease forwards;
   animation-delay: 210ms;
 }
 
@@ -599,41 +599,25 @@
   }
 }
 
-@keyframes waxSealRingRevealFade {
+@keyframes waxSealRingReveal {
   0% {
     opacity: 0;
     transform: scale(0.94);
   }
-  30% {
+  100% {
     opacity: 1;
     transform: scale(1);
   }
-  78% {
-    opacity: 0.9;
-    transform: scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(1.03);
-  }
 }
 
-@keyframes waxSealTextInOut {
+@keyframes waxSealTextIn {
   from {
     opacity: 0;
     transform: translateY(4px);
   }
-  32% {
+  to {
     opacity: 1;
     transform: translateY(0);
-  }
-  80% {
-    opacity: 0.95;
-    transform: translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(1px);
   }
 }
 
