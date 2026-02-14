@@ -24,7 +24,12 @@
   <path d="M32 2 L58 2 L58 41 L32 62 L6 41 L6 2 Z" fill="none" stroke="#2b2522" stroke-width="1.2" />
   <path d="M32 4.2 L55.8 4.2 L55.8 39.8 L32 58.6 L8.2 39.8 L8.2 4.2 Z" fill="none" stroke="#fbbf24" stroke-opacity="0.18" stroke-width="0.78" />
 
-  <text x="32" y="25.3" text-anchor="middle" font-family="Cormorant Garamond, Georgia, serif" font-size="13.2" font-weight="700" letter-spacing="3" fill="#fafaf9">HD</text>
-  <line x1="23.5" y1="31.9" x2="40.5" y2="31.9" stroke="url(#c25Line)" stroke-width="1" />
-  <text x="32" y="43.8" text-anchor="middle" font-family="Cormorant Garamond, Georgia, serif" font-size="13.2" font-weight="700" letter-spacing="3" fill="#fbbf24">CS</text>
+  <!-- Explicit coordinates to keep optical centering stable across browser font renderers -->
+  <g font-family="Cormorant Garamond, Georgia, serif" font-size="13.2" font-weight="700" text-anchor="middle">
+    <text x="27.6" y="25.3" fill="#fafaf9">H</text>
+    <text x="36.4" y="25.3" fill="#fafaf9">D</text>
+    <line x1="23.5" y1="31.9" x2="40.5" y2="31.9" stroke="url(#c25Line)" stroke-width="1" />
+    <text x="27.6" y="43.8" fill="#fbbf24">C</text>
+    <text x="36.4" y="43.8" fill="#fbbf24">S</text>
+  </g>
 </svg>
