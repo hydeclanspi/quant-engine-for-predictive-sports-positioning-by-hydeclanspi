@@ -9,6 +9,7 @@ import {
   FileSpreadsheet,
   LayoutDashboard,
   LineChart,
+  Palette,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
@@ -33,6 +34,7 @@ import {
   FUTURE_FEATURE_OVERVIEW_TEXT,
   FUTURE_FEATURE_POINTS,
 } from '../data/futureFeaturesRoadmap'
+import { LogoGalleryExplorer, LogoGalleryPreview } from '../components/LogoGalleryExplorer'
 import * as XLSX from 'xlsx'
 
 const TYS_BASE_FACTORS = {
@@ -1768,6 +1770,13 @@ export default function ParamsPage({ openModal }) {
     })
   }
 
+  const openLogoGalleryModal = () => {
+    openModal({
+      title: 'logo自定义 · Motion Gallery',
+      content: <LogoGalleryExplorer />,
+    })
+  }
+
   const handleConfigChange = (field, value) => {
     setConfig((prev) => ({ ...prev, [field]: value }))
   }
@@ -2932,6 +2941,35 @@ export default function ParamsPage({ openModal }) {
           </button>
         </div>
         <p className="text-[11px] text-stone-400 mt-3 text-center">Layout changes take effect immediately.</p>
+      </div>
+
+      <div className="console-interactive-surface glow-card mt-6 rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50/90 via-white/92 to-cyan-50/82 p-6 backdrop-blur-sm shadow-[0_18px_42px_rgba(56,189,248,0.16),inset_0_1px_0_rgba(255,255,255,0.88)]">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-sky-200 bg-white/80 text-sky-600">
+                <Palette size={14} strokeWidth={1.8} />
+              </span>
+              <span className="text-xs text-sky-700 font-medium uppercase tracking-[0.1em]">logo customization</span>
+              <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-100/70 px-2 py-0.5 text-[10px] text-sky-700 font-semibold">
+                GALLERY
+              </span>
+            </div>
+            <h3 className="text-lg font-semibold text-stone-800">logo自定义</h3>
+            <p className="text-sm text-stone-500 mt-2 max-w-3xl">
+              理论上可用于左上角 logo 自定义；当前以展览馆形式陈列设计稿。默认展示 3 组，点击进入完整 8 组细节。
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={openLogoGalleryModal}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white/85 px-3 py-2 text-xs font-medium text-sky-700 hover:bg-sky-50 transition-colors"
+          >
+            展开画廊 <ChevronRight size={14} />
+          </button>
+        </div>
+
+        <LogoGalleryPreview onOpen={openLogoGalleryModal} />
       </div>
 
       <div
