@@ -5,6 +5,7 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
 import ModernTopBar from './components/ModernTopBar'
+import BottomBar from './components/BottomBar'
 import Modal from './components/Modal'
 
 // Pages
@@ -102,6 +103,7 @@ function App() {
             {pageRoutes}
           </div>
         </main>
+        <BottomBar />
         {modalData && <Modal data={modalData} onClose={closeModal} />}
       </div>
     )
@@ -120,6 +122,7 @@ function App() {
             {pageRoutes}
           </div>
         </main>
+        <BottomBar />
         {modalData && <Modal data={modalData} onClose={closeModal} />}
       </div>
     )
@@ -127,19 +130,22 @@ function App() {
 
   /* ── Sidebar layout (legacy) ── */
   return (
-    <div className="flex h-screen bg-stone-100/50">
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-      />
-      <main
-        ref={mainScrollRef}
-        className="flex-1 overflow-auto custom-scrollbar min-w-0"
-      >
-        <div key={location.pathname} className="page-enter">
-          {pageRoutes}
-        </div>
-      </main>
+    <div className="flex flex-col h-screen bg-stone-100/50">
+      <div className="flex flex-1 min-h-0">
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+        <main
+          ref={mainScrollRef}
+          className="flex-1 overflow-auto custom-scrollbar min-w-0"
+        >
+          <div key={location.pathname} className="page-enter">
+            {pageRoutes}
+          </div>
+        </main>
+      </div>
+      <BottomBar />
       {modalData && <Modal data={modalData} onClose={closeModal} />}
     </div>
   )

@@ -2196,6 +2196,37 @@
   align-items: center;
   justify-content: center;
   line-height: 0;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  isolation: isolate;
+  transition: filter 260ms ease;
+}
+
+.mn-brand-logo-wrap::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  pointer-events: none;
+  background: linear-gradient(
+    104deg,
+    transparent 24%,
+    rgba(255, 255, 255, 0) 42%,
+    rgba(255, 255, 255, 0.82) 50%,
+    rgba(255, 255, 255, 0) 58%,
+    transparent 76%
+  );
+  transform: translateX(-145%) rotate(10deg);
+  opacity: 0;
+  mix-blend-mode: screen;
+}
+
+.mn-brand:hover .mn-brand-logo-wrap {
+  filter: drop-shadow(0 1px 6px rgba(251, 191, 36, 0.2));
+}
+
+.mn-brand:hover .mn-brand-logo-wrap::after {
+  animation: mnLogoA3Sweep 820ms cubic-bezier(0.2, 0.9, 0.2, 1) 1;
 }
 
 .mn-brand-name {
@@ -2241,6 +2272,23 @@
 
 .mn-nav-group {
   position: relative;
+}
+
+@keyframes mnLogoA3Sweep {
+  0% {
+    transform: translateX(-145%) rotate(10deg);
+    opacity: 0;
+  }
+  14% {
+    opacity: 0.9;
+  }
+  62% {
+    opacity: 0.58;
+  }
+  100% {
+    transform: translateX(150%) rotate(10deg);
+    opacity: 0;
+  }
 }
 
 .mn-nav-item {
@@ -2466,6 +2514,58 @@
 .mn-settings-link-active {
   color: #4f46e5;
   background: #eef2ff;
+}
+
+/* ============================================================
+   Global Bottom Bar — brand micro-touchpoint
+   ============================================================ */
+
+.app-bottom-bar {
+  height: 30px;
+  border-top: 1px solid #eceef4;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  flex-shrink: 0;
+}
+
+.app-bottom-bar__inner {
+  width: min(100%, 1320px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-bottom-bar__kicker {
+  font-family: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: #6366f1;
+  opacity: 0.86;
+  flex-shrink: 0;
+}
+
+.app-bottom-bar__text {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: #6b7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.theme-modern .app-bottom-bar {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(244, 248, 255, 0.9));
+  border-top-color: rgba(201, 213, 225, 0.72);
 }
 
 
@@ -3546,7 +3646,9 @@
   .theme-modern .motion-v2-scope .motion-v2-row,
   .theme-modern .motion-v2-scope .motion-v2-row::after,
   .theme-modern .motion-v2-scope .motion-v2-ghost-btn,
-  .theme-modern .motion-v2-scope .motion-v2-match-card {
+  .theme-modern .motion-v2-scope .motion-v2-match-card,
+  .mn-brand-logo-wrap,
+  .mn-brand-logo-wrap::after {
     transition: none !important;
   }
 
@@ -3568,7 +3670,8 @@
   .c19-a2a3a5,
   .c19-a2a3a5 .c19-dot,
   .c19-dot-ring,
-  .c19-logo-shimmer::after {
+  .c19-logo-shimmer::after,
+  .mn-brand-logo-wrap::after {
     animation: none !important;
   }
 }
