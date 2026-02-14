@@ -97,7 +97,7 @@ function App() {
         <ModernTopBar />
         <main
           ref={mainScrollRef}
-          className="flex-1 overflow-auto custom-scrollbar min-w-0"
+          className="app-main-scroll flex-1 overflow-auto custom-scrollbar min-w-0"
         >
           <div key={location.pathname} className="page-enter">
             {pageRoutes}
@@ -116,7 +116,7 @@ function App() {
         <TopBar />
         <main
           ref={mainScrollRef}
-          className="flex-1 overflow-auto custom-scrollbar min-w-0"
+          className="app-main-scroll flex-1 overflow-auto custom-scrollbar min-w-0"
         >
           <div key={location.pathname} className="page-enter">
             {pageRoutes}
@@ -138,7 +138,7 @@ function App() {
         />
         <main
           ref={mainScrollRef}
-          className="flex-1 overflow-auto custom-scrollbar min-w-0"
+          className="app-main-scroll flex-1 overflow-auto custom-scrollbar min-w-0"
         >
           <div key={location.pathname} className="page-enter">
             {pageRoutes}

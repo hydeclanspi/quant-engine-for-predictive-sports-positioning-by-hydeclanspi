@@ -2530,6 +2530,10 @@
   flex-shrink: 0;
 }
 
+.app-main-scroll {
+  padding-bottom: 34px;
+}
+
 .app-bottom-bar__inner {
   width: min(100%, 1320px);
   display: flex;
