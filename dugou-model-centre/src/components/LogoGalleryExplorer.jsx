@@ -120,6 +120,57 @@ const WAX_S5_LOGO = (
   </div>
 )
 
+const HDCS_A3_LOGO = (
+  <div className="lg-a3-c19">
+    <div className="lg-a3-c19-border"></div>
+    <div className="lg-a3-c19-inner"></div>
+    <div className="lg-a3-c19-content">
+      <span className="lg-a3-c19-t">HD</span>
+      <div className="lg-a3-c19-d"></div>
+      <span className="lg-a3-c19-b">CS</span>
+    </div>
+    <div className="lg-a3-shimmer"></div>
+  </div>
+)
+
+const BATCH_C16_LOGO = (
+  <div className="lg-c16-icon">
+    <div className="lg-c16-ring"></div>
+    <div className="lg-c16-tick lg-c16-tick-n"></div>
+    <div className="lg-c16-tick lg-c16-tick-e"></div>
+    <div className="lg-c16-tick lg-c16-tick-s"></div>
+    <div className="lg-c16-tick lg-c16-tick-w"></div>
+    <span className="lg-c16-letter lg-c16-n">H</span>
+    <span className="lg-c16-letter lg-c16-e">D</span>
+    <span className="lg-c16-letter lg-c16-s">C</span>
+    <span className="lg-c16-letter lg-c16-w">S</span>
+    <div className="lg-c16-needle"></div>
+    <div className="lg-c16-needle-base"></div>
+  </div>
+)
+
+const BATCH_C15_LOGO = (
+  <div className="lg-c15-icon">
+    <div className="lg-c15-facet-tl"><span>H</span></div>
+    <div className="lg-c15-facet-tr"><span>D</span></div>
+    <div className="lg-c15-facet-bl"><span>C</span></div>
+    <div className="lg-c15-facet-br"><span>S</span></div>
+    <div className="lg-c15-center-gem"></div>
+  </div>
+)
+
+const BATCH_C25_LOGO = (
+  <div className="lg-c25-icon">
+    <div className="lg-c25-shield">
+      <div className="lg-c25-shield-inner">
+        <span className="lg-c25-top">HD</span>
+        <div className="lg-c25-line"></div>
+        <span className="lg-c25-bot">CS</span>
+      </div>
+    </div>
+  </div>
+)
+
 const LOGO_VARIANTS = [
   {
     id: 'V2',
@@ -193,19 +244,73 @@ const LOGO_VARIANTS = [
     infoDesc: '一束极细的高光在印章深色蜡面上缓慢扫过——像黑曜石在光下微微转动时表面那道不经意的光泽。5s周期。最subtle。',
     logo: WAX_S5_LOGO,
   },
+  {
+    id: 'A3',
+    stageClass: 'lg-a3-stage',
+    familyClass: 'logo-gallery-stage--c19',
+    infoNum: 'A3 · Idle',
+    infoName: 'Shimmer Sweep 光泽扫过',
+    infoDesc: '对角线光泽周期性掠过表面，如阳光划过抛光金属。极度克制但高级感拉满。',
+    infoTags: [
+      { label: '推荐常驻', primary: true },
+      { label: '光影质感' },
+      { label: '奢侈品感' },
+    ],
+    logo: HDCS_A3_LOGO,
+  },
+  {
+    id: 'C16',
+    stageClass: 'lg-c16-stage',
+    familyClass: 'logo-gallery-stage--batch',
+    infoNum: 'Concept 16',
+    infoName: 'Compass Calibrate',
+    infoHook: '🪝 记忆钩子: 指南针=校准导航',
+    infoDesc: '罗盘造型直接传达"calibration/校准"核心概念。HDCS替代了东南西北四个方位。金色指针偏转——暗喻系统正在寻找/校准方向。表盘刻度、双环、指针底座，每个细节都暗示precision仪器。',
+    logo: BATCH_C16_LOGO,
+  },
+  {
+    id: 'C15',
+    stageClass: 'lg-c15-stage',
+    familyClass: 'logo-gallery-stage--batch',
+    infoNum: 'Concept 15',
+    infoName: 'Diamond Cut',
+    infoHook: '🪝 记忆钩子: 45°旋转菱形 + 中心宝石',
+    infoDesc: '方块旋转45°成为钻石形态，四个切面各承载一个字母，明暗渐变模拟真实宝石的光折射。中心发光原点如同钻石的火彩。形态本身就跳脱了"方/圆"的惯性，但依然紧凑。传达：精确切割、高价值。',
+    logo: BATCH_C15_LOGO,
+  },
+  {
+    id: 'C25',
+    stageClass: 'lg-c25-stage',
+    familyClass: 'logo-gallery-stage--batch',
+    infoNum: 'Concept 25',
+    infoName: 'Shield Crest',
+    infoHook: '🪝 记忆钩子: 盾牌=风险守护 + 家族纹章',
+    infoDesc: '盾形纹章——直接传达"protection/风控"。底部尖端指向下方，如同一个护卫。衬线字体+金色分割线赋予家族办公室级别的heritage感。与C08(Wax Seal)的圆形seal感不同，盾形更有"守护"的行动感。可以作为跨品牌通用的信任标识。',
+    logo: BATCH_C25_LOGO,
+  },
 ]
 
-const PREVIEW_VARIANTS = ['V2', 'S2', 'S5']
+const PREVIEW_VARIANTS = ['V2', 'A3', 'C16']
 
 const findVariant = (id) => LOGO_VARIANTS.find((item) => item.id === id)
 
 const LogoCard = ({ variant }) => (
   <article className="logo-gallery-card">
     <div className={`logo-gallery-stage ${variant.familyClass} ${variant.stageClass}`}>{variant.logo}</div>
-    <div className="logo-gallery-info">
+      <div className="logo-gallery-info">
       <div className="logo-gallery-info-num">{variant.infoNum}</div>
       <div className="logo-gallery-info-name">{variant.infoName}</div>
+      {variant.infoHook ? <div className="logo-gallery-info-hook">{variant.infoHook}</div> : null}
       <div className="logo-gallery-info-desc">{variant.infoDesc}</div>
+      {Array.isArray(variant.infoTags) && variant.infoTags.length > 0 ? (
+        <div className="logo-gallery-info-tags">
+          {variant.infoTags.map((tag) => (
+            <span key={`${variant.id}-${tag.label}`} className={`logo-gallery-info-tag${tag.primary ? ' logo-gallery-info-tag--primary' : ''}`}>
+              {tag.label}
+            </span>
+          ))}
+        </div>
+      ) : null}
     </div>
   </article>
 )
@@ -244,10 +349,10 @@ export const LogoGalleryExplorer = () => {
           <div>
             <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-sky-700">Logo Customization Gallery</p>
             <h4 className="mt-1 text-lg font-semibold text-stone-800">logo自定义 · Motion 展览馆</h4>
-            <p className="mt-1.5 text-xs text-stone-500">V2 / V4 / V5 / V6 与 S2 / S3 / S4 / S5 原稿全量展陈。</p>
+            <p className="mt-1.5 text-xs text-stone-500">V2 / V4 / V5 / V6、S2 / S3 / S4 / S5、A3 与 C16 / C15 / C25 原稿全量展陈。</p>
           </div>
           <span className="inline-flex items-center rounded-full border border-sky-200 bg-white/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-700">
-            8 Concepts
+            12 Concepts
           </span>
         </div>
 
