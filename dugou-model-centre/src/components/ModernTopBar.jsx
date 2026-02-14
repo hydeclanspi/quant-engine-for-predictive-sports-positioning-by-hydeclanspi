@@ -13,7 +13,6 @@ import {
 } from 'lucide-react'
 import { getInvestments } from '../lib/localData'
 import C15DiamondCutV1Logo from './C15DiamondCutV1Logo'
-import ContextualPageMark from './ContextualPageMark'
 
 /* ──────────────────────────────────────────────────
    Modern Navigation — Vercel/Linear design language
@@ -58,19 +57,6 @@ const PAGE_TITLES = {
   '/history': 'History',
   '/history/teams': 'Team Archive',
   '/params': 'Console',
-}
-
-const PAGE_MARK_VARIANTS = {
-  '/': 'v2',
-  '/new': 'v2',
-  '/combo': 'v3',
-  '/settle': 'v4',
-  '/dashboard': 'v5',
-  '/dashboard/analysis': 'v5',
-  '/dashboard/metrics': 'v5',
-  '/history': 'v6',
-  '/history/teams': 'v6',
-  '/params': 'v6c',
 }
 
 const ConsoleIcon = ({ size = 14, className = '' }) => (
@@ -178,8 +164,6 @@ export default function ModernTopBar() {
   }
 
   const pageTitle = PAGE_TITLES[location.pathname] || ''
-  const pageMarkVariant = PAGE_MARK_VARIANTS[location.pathname] || 'v2'
-
   return (
     <header className="mn-bar">
       {/* ── Brand ── */}
@@ -200,10 +184,7 @@ export default function ModernTopBar() {
       <span ref={brandSepRef} className="mn-sep">/</span>
 
       {/* ── Page context ── */}
-      <span className="mn-page-title">
-        <ContextualPageMark variant={pageMarkVariant} />
-        <span>{pageTitle}</span>
-      </span>
+      <span className="mn-page-title">{pageTitle}</span>
 
       {/* ── Separator ── */}
       <div className="h-4 w-px bg-gradient-to-b from-transparent via-neutral-200 to-transparent mx-2 flex-shrink-0" />
