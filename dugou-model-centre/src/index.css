@@ -2610,6 +2610,11 @@
   margin: 0 auto;
 }
 
+.app-bottom-bar__micro-gap {
+  display: inline-block;
+  width: 0.55ch;
+}
+
 .theme-modern .app-bottom-bar {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(237, 246, 255, 0.92));
   border-top-color: rgba(196, 215, 245, 0.88);
