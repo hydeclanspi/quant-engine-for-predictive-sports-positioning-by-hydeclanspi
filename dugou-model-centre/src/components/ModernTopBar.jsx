@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   PlusCircle,
@@ -72,7 +72,11 @@ const ConsoleIcon = ({ size = 14, className = '' }) => (
 export default function ModernTopBar() {
   const [openDropdown, setOpenDropdown] = useState(null)
   const [dataVersion, setDataVersion] = useState(0)
+  const [brandNameOffset, setBrandNameOffset] = useState(0)
   const dropdownRef = useRef(null)
+  const brandLogoRef = useRef(null)
+  const brandNameRef = useRef(null)
+  const brandSepRef = useRef(null)
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -93,6 +97,43 @@ export default function ModernTopBar() {
   useEffect(() => {
     setOpenDropdown(null)
   }, [location.pathname])
+
+  useLayoutEffect(() => {
+    const computeBrandCenter = () => {
+      if (!brandLogoRef.current || !brandNameRef.current || !brandSepRef.current) return
+
+      const logoRect = brandLogoRef.current.getBoundingClientRect()
+      const nameRect = brandNameRef.current.getBoundingClientRect()
+      const sepRect = brandSepRef.current.getBoundingClientRect()
+
+      const logoCenter = logoRect.left + logoRect.width / 2
+      const sepCenter = sepRect.left + sepRect.width / 2
+      const targetCenter = (logoCenter + sepCenter) / 2
+      const nameCenter = nameRect.left + nameRect.width / 2
+      const delta = targetCenter - nameCenter
+
+      setBrandNameOffset((prev) => (Math.abs(prev - delta) < 0.1 ? prev : delta))
+    }
+
+    computeBrandCenter()
+    const rafId = window.requestAnimationFrame(computeBrandCenter)
+    window.addEventListener('resize', computeBrandCenter)
+
+    const resizeObserver = new ResizeObserver(computeBrandCenter)
+    if (brandLogoRef.current) resizeObserver.observe(brandLogoRef.current)
+    if (brandNameRef.current) resizeObserver.observe(brandNameRef.current)
+    if (brandSepRef.current) resizeObserver.observe(brandSepRef.current)
+
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(computeBrandCenter).catch(() => {})
+    }
+
+    return () => {
+      window.cancelAnimationFrame(rafId)
+      window.removeEventListener('resize', computeBrandCenter)
+      resizeObserver.disconnect()
+    }
+  }, [])
 
   const stats = useMemo(() => {
     const investments = getInvestments()
@@ -124,12 +165,20 @@ export default function ModernTopBar() {
     <header className="mn-bar">
       {/* ── Brand ── */}
       <button className="mn-brand" onClick={() => navigate('/new')}>
-        <C15DiamondCutV1Logo size="sm" />
-        <span className="mn-brand-name">dugou</span>
+        <span ref={brandLogoRef} className="mn-brand-logo-wrap">
+          <C15DiamondCutV1Logo size="sm" />
+        </span>
+        <span
+          ref={brandNameRef}
+          className="mn-brand-name"
+          style={{ transform: `translateX(${brandNameOffset}px)` }}
+        >
+          dugou
+        </span>
       </button>
 
       {/* ── Breadcrumb separator ── */}
-      <span className="mn-sep">/</span>
+      <span ref={brandSepRef} className="mn-sep">/</span>
 
       {/* ── Page context ── */}
       <span className="mn-page-title">{pageTitle}</span>

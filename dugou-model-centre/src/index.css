@@ -2191,6 +2191,13 @@
   color: #171717;
 }
 
+.mn-brand-logo-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
 .mn-brand-name {
   font-family: 'DM Sans', system-ui, sans-serif;
   font-weight: 600;
@@ -2199,6 +2206,7 @@
   color: #171717;
   display: inline-block;
   transform: translateX(0);
+  transition: transform 140ms ease-out;
 }
 
 /* Breadcrumb separator */
