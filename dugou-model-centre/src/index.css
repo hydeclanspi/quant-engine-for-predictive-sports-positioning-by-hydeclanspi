@@ -2589,23 +2589,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.app-bottom-bar__kicker {
-  font-family: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 9.5px;
-  letter-spacing: 0.17em;
-  text-transform: uppercase;
-  color: #5464ff;
-  opacity: 0.88;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.48);
-  flex-shrink: 0;
-  position: relative;
-  z-index: 1;
 }
 
 .app-bottom-bar__text {
@@ -2614,10 +2601,24 @@
   letter-spacing: 0.03em;
   color: #667086;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.42);
+  display: inline-flex;
+  align-items: baseline;
   overflow: hidden;
   text-overflow: ellipsis;
   position: relative;
   z-index: 1;
+}
+
+.app-bottom-bar__text-cn {
+  font-size: 10px;
+}
+
+.app-bottom-bar__text-en {
+  font-size: 10.5px;
+}
+
+.app-bottom-bar__dot {
+  opacity: 0.72;
 }
 
 .theme-modern .app-bottom-bar {
