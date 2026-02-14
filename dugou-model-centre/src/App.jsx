@@ -99,10 +99,12 @@ function App() {
           ref={mainScrollRef}
           className="app-main-scroll flex-1 overflow-auto custom-scrollbar min-w-0"
         >
-          <div key={location.pathname} className="page-enter">
-            {pageRoutes}
+          <div className="app-main-flow">
+            <div key={location.pathname} className="page-enter app-main-content">
+              {pageRoutes}
+            </div>
+            <BottomBar />
           </div>
-          <BottomBar />
         </main>
         {modalData && <Modal data={modalData} onClose={closeModal} />}
       </div>
@@ -118,10 +120,12 @@ function App() {
           ref={mainScrollRef}
           className="app-main-scroll flex-1 overflow-auto custom-scrollbar min-w-0"
         >
-          <div key={location.pathname} className="page-enter">
-            {pageRoutes}
+          <div className="app-main-flow">
+            <div key={location.pathname} className="page-enter app-main-content">
+              {pageRoutes}
+            </div>
+            <BottomBar />
           </div>
-          <BottomBar />
         </main>
         {modalData && <Modal data={modalData} onClose={closeModal} />}
       </div>
@@ -139,10 +143,12 @@ function App() {
         ref={mainScrollRef}
         className="app-main-scroll flex-1 overflow-auto custom-scrollbar min-w-0"
       >
-        <div key={location.pathname} className="page-enter">
-          {pageRoutes}
+        <div className="app-main-flow">
+          <div key={location.pathname} className="page-enter app-main-content">
+            {pageRoutes}
+          </div>
+          <BottomBar />
         </div>
-        <BottomBar />
       </main>
       {modalData && <Modal data={modalData} onClose={closeModal} />}
     </div>
