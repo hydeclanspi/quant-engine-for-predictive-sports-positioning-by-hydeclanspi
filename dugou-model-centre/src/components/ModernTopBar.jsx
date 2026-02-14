@@ -106,9 +106,12 @@ export default function ModernTopBar() {
       const nameRect = brandNameRef.current.getBoundingClientRect()
       const sepRect = brandSepRef.current.getBoundingClientRect()
 
-      const logoCenter = logoRect.left + logoRect.width / 2
-      const sepCenter = sepRect.left + sepRect.width / 2
-      const targetCenter = (logoCenter + sepCenter) / 2
+      // Visual midpoint: center of the visible gap between logo and slash.
+      const gapLeft = logoRect.right
+      const gapRight = sepRect.left
+      const targetCenter = gapRight > gapLeft
+        ? (gapLeft + gapRight) / 2
+        : (logoRect.left + logoRect.width / 2 + (sepRect.left + sepRect.width / 2)) / 2
       const nameCenter = nameRect.left + nameRect.width / 2
       const delta = targetCenter - nameCenter
 
