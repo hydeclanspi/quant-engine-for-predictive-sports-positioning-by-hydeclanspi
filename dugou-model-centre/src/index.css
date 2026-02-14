@@ -2619,6 +2619,8 @@
 
 .app-bottom-bar__dot {
   opacity: 0.72;
+  display: inline-block;
+  margin: 0 11px;
 }
 
 .theme-modern .app-bottom-bar {
