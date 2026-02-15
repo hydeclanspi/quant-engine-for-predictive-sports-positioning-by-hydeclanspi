@@ -290,7 +290,7 @@ const LOGO_VARIANTS = [
   },
 ]
 
-const PREVIEW_VARIANTS = ['V2', 'A3', 'C16']
+const PREVIEW_VARIANTS = ['V2', 'S2', 'V5']
 
 const findVariant = (id) => LOGO_VARIANTS.find((item) => item.id === id)
 
