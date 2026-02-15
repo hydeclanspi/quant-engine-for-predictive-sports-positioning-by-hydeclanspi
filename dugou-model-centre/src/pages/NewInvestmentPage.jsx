@@ -913,7 +913,7 @@ export default function NewInvestmentPage() {
   }
 
   return (
-    <div className="page-shell page-content-fluid motion-v2-scope new-investment-ambient">
+    <div className="page-shell page-content-fluid motion-v2-scope">
       <div className="mb-8">
         <h2 className="text-2xl font-semibold text-stone-800 font-display">新建投资</h2>
         <p className="text-stone-400 text-sm mt-1.5 leading-relaxed">录入比赛信息与预测参数 · Record match predictions & calibration parameters</p>

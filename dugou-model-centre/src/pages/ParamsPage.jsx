@@ -26,7 +26,7 @@ import {
   getPredictionCalibrationContext,
   normalizeAjrForModel,
 } from '../lib/analytics'
-import { exportDataBundle, getCloudSyncStatus, getInvestments, getSystemConfig, importDataBundle, pullCloudSnapshotNow, runCloudSyncNow, saveSystemConfig, setCloudSyncEnabled } from '../lib/localData'
+import { PAGE_AMBIENT_THEME_DEFAULTS, exportDataBundle, getCloudSyncStatus, getInvestments, getSystemConfig, importDataBundle, pullCloudSnapshotNow, runCloudSyncNow, saveSystemConfig, setCloudSyncEnabled } from '../lib/localData'
 import { getPrimaryEntryMarket, normalizeEntryRecord } from '../lib/entryParsing'
 import {
   FUTURE_FEATURE_DETAIL_SOURCE,
@@ -132,6 +132,113 @@ const ConsoleCardIcon = ({ IconComp }) => (
     <IconComp size={14} strokeWidth={1.7} />
   </span>
 )
+
+const PAGE_AMBIENT_ITEMS = [
+  { key: 'new', label: 'New', hint: '新建投资' },
+  { key: 'combo', label: 'Portfolio', hint: '智能组合建议' },
+  { key: 'settle', label: 'Settle', hint: '待结算' },
+  { key: 'dashboard_overview', label: 'Dashboard Overview', hint: '数据总览' },
+  { key: 'dashboard_analysis', label: 'Dashboard Analysis', hint: '深度分析' },
+  { key: 'dashboard_metrics', label: 'Dashboard Metrics', hint: '指标总览' },
+  { key: 'history', label: 'History', hint: '历史记录' },
+  { key: 'teams', label: 'Teams', hint: '球队档案馆' },
+  { key: 'params', label: 'Console', hint: '参数后台' },
+]
+
+const PAGE_AMBIENT_TONE_OPTIONS = [
+  { value: 'classic_white', label: '经典白' },
+  { value: 'soft_blue', label: '淡蓝色' },
+  { value: 'soft_orange', label: '浅橙色' },
+]
+
+const normalizeAmbientThemeMap = (value) => {
+  const incoming = value && typeof value === 'object' ? value : {}
+  const next = { ...PAGE_AMBIENT_THEME_DEFAULTS }
+  PAGE_AMBIENT_ITEMS.forEach((item) => {
+    const raw = String(incoming[item.key] || '').trim()
+    if (PAGE_AMBIENT_TONE_OPTIONS.some((option) => option.value === raw)) {
+      next[item.key] = raw
+    }
+  })
+  return next
+}
+
+function ThemeSettingsExplorer({ value, onChange, onReset }) {
+  const [themes, setThemes] = useState(() => normalizeAmbientThemeMap(value))
+
+  useEffect(() => {
+    setThemes(normalizeAmbientThemeMap(value))
+  }, [value])
+
+  const pickTone = (pageKey, tone) => {
+    const next = {
+      ...themes,
+      [pageKey]: tone,
+    }
+    setThemes(next)
+    onChange(next)
+  }
+
+  const resetDefaults = () => {
+    const next = { ...PAGE_AMBIENT_THEME_DEFAULTS }
+    setThemes(next)
+    onReset(next)
+  }
+
+  return (
+    <div className="rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50/85 via-white/94 to-cyan-50/75 p-4 sm:p-5 shadow-[0_20px_45px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.82)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.12em] text-sky-600 font-semibold">Themes Settings</p>
+          <h4 className="text-[15px] font-semibold text-stone-800 mt-1">页面浮层主题</h4>
+          <p className="text-xs text-stone-500 mt-1">每个页面可独立设置：经典白 / 淡蓝色 / 浅橙色，修改即时生效并随云同步保留。</p>
+        </div>
+        <button
+          type="button"
+          onClick={resetDefaults}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white/85 px-3 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-50 transition-colors"
+        >
+          一键恢复默认
+        </button>
+      </div>
+
+      <div className="space-y-2.5">
+        {PAGE_AMBIENT_ITEMS.map((item) => (
+          <div
+            key={item.key}
+            className="rounded-xl border border-sky-100/80 bg-white/78 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.86)]"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-stone-700 leading-tight">{item.label}</p>
+                <p className="text-[11px] text-stone-400 mt-0.5">{item.hint}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {PAGE_AMBIENT_TONE_OPTIONS.map((option) => {
+                  const active = themes[item.key] === option.value
+                  return (
+                    <button
+                      key={`${item.key}-${option.value}`}
+                      type="button"
+                      onClick={() => pickTone(item.key, option.value)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                        active
+                          ? 'border-sky-300 bg-sky-100/80 text-sky-700'
+                          : 'border-stone-200 bg-white text-stone-500 hover:border-sky-200 hover:text-sky-600'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 const parseInlineTokens = (text, keyPrefix) => {
   const source = String(text || '')
@@ -1824,6 +1931,31 @@ export default function ParamsPage({ openModal }) {
     })
   }
 
+  const applyPageAmbientThemes = (nextThemes) => {
+    const normalized = normalizeAmbientThemeMap(nextThemes)
+    saveSystemConfig({ pageAmbientThemes: normalized })
+    setConfig((prev) => ({ ...prev, pageAmbientThemes: normalized }))
+    setSaveStatus('Theme 已保存')
+    setTimeout(() => setSaveStatus(''), 1200)
+  }
+
+  const resetPageAmbientThemes = (defaultThemes = PAGE_AMBIENT_THEME_DEFAULTS) => {
+    applyPageAmbientThemes(defaultThemes)
+  }
+
+  const openThemeSettingsModal = () => {
+    openModal({
+      title: 'themes settings',
+      content: (
+        <ThemeSettingsExplorer
+          value={config.pageAmbientThemes}
+          onChange={applyPageAmbientThemes}
+          onReset={resetPageAmbientThemes}
+        />
+      ),
+    })
+  }
+
   const openLogoGalleryModal = () => {
     openModal({
       title: '个性化Logo自定义 · Motion Gallery',
@@ -2944,7 +3076,13 @@ export default function ParamsPage({ openModal }) {
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={LayoutDashboard} /> 界面布局
           </h3>
-          <span className="text-xs text-stone-400">Navigation Layout Preference</span>
+          <button
+            type="button"
+            onClick={openThemeSettingsModal}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white/85 px-3 py-2 text-xs font-medium text-sky-700 hover:bg-sky-50 transition-colors"
+          >
+            themes settings <ChevronRight size={14} />
+          </button>
         </div>
         <div className="grid grid-cols-3 gap-4">
           {/* Modern */}

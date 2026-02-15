@@ -19,10 +19,24 @@ import TeamsPage from './pages/TeamsPage'
 import AnalysisPage from './pages/AnalysisPage'
 import MetricsPage from './pages/MetricsPage'
 
-import { getSystemConfig } from './lib/localData'
+import { getSystemConfig, PAGE_AMBIENT_THEME_DEFAULTS } from './lib/localData'
 
 const LAYOUT_KEY = 'dugou:layout-mode'
 const VALID_MODES = ['topbar', 'sidebar', 'modern']
+const SYSTEM_CONFIG_KEY = 'dugou.system_config.v1'
+const PAGE_AMBIENT_ROUTE_MAP = {
+  '/': 'new',
+  '/new': 'new',
+  '/combo': 'combo',
+  '/settle': 'settle',
+  '/dashboard': 'dashboard_overview',
+  '/dashboard/analysis': 'dashboard_analysis',
+  '/dashboard/metrics': 'dashboard_metrics',
+  '/history': 'history',
+  '/history/teams': 'teams',
+  '/params': 'params',
+}
+const VALID_AMBIENT_TONES = ['classic_white', 'soft_blue', 'soft_orange']
 
 function App() {
   const [layoutMode, setLayoutMode] = useState(() => {
@@ -33,6 +47,7 @@ function App() {
   })
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [modalData, setModalData] = useState(null)
+  const [systemConfigSnapshot, setSystemConfigSnapshot] = useState(() => getSystemConfig())
   const mainScrollRef = useRef(null)
   const location = useLocation()
 
@@ -47,6 +62,17 @@ function App() {
     }
     window.addEventListener('dugou:layout-changed', onLayoutChange)
     return () => window.removeEventListener('dugou:layout-changed', onLayoutChange)
+  }, [])
+
+  useEffect(() => {
+    const onDataChanged = (event) => {
+      const key = event?.detail?.key
+      if (!key || key === SYSTEM_CONFIG_KEY) {
+        setSystemConfigSnapshot(getSystemConfig())
+      }
+    }
+    window.addEventListener('dugou:data-changed', onDataChanged)
+    return () => window.removeEventListener('dugou:data-changed', onDataChanged)
   }, [])
 
   // Glow card mouse tracking effect
@@ -74,6 +100,11 @@ function App() {
 
   const openModal = (data) => setModalData(data)
   const closeModal = () => setModalData(null)
+  const ambientPageKey = PAGE_AMBIENT_ROUTE_MAP[location.pathname] || 'new'
+  const ambientThemes = systemConfigSnapshot?.pageAmbientThemes || PAGE_AMBIENT_THEME_DEFAULTS
+  const ambientToneCandidate = ambientThemes[ambientPageKey] || PAGE_AMBIENT_THEME_DEFAULTS[ambientPageKey] || 'classic_white'
+  const ambientTone = VALID_AMBIENT_TONES.includes(ambientToneCandidate) ? ambientToneCandidate : 'classic_white'
+  const ambientClassName = `app-ambient-scope app-ambient-tone-${ambientTone}`
 
   const pageRoutes = (
     <Routes>
@@ -100,7 +131,7 @@ function App() {
           className="app-main-scroll flex-1 overflow-auto custom-scrollbar min-w-0"
         >
           <div className="app-main-flow">
-            <div key={location.pathname} className="page-enter app-main-content">
+            <div key={location.pathname} className={`page-enter app-main-content ${ambientClassName}`}>
               {pageRoutes}
             </div>
             <BottomBar />
@@ -121,7 +152,7 @@ function App() {
           className="app-main-scroll flex-1 overflow-auto custom-scrollbar min-w-0"
         >
           <div className="app-main-flow">
-            <div key={location.pathname} className="page-enter app-main-content">
+            <div key={location.pathname} className={`page-enter app-main-content ${ambientClassName}`}>
               {pageRoutes}
             </div>
             <BottomBar />
@@ -144,7 +175,7 @@ function App() {
         className="app-main-scroll flex-1 overflow-auto custom-scrollbar min-w-0"
       >
         <div className="app-main-flow">
-          <div key={location.pathname} className="page-enter app-main-content">
+          <div key={location.pathname} className={`page-enter app-main-content ${ambientClassName}`}>
             {pageRoutes}
           </div>
           <BottomBar />

@@ -13,6 +13,32 @@ const DATA_PATCH_V20260205_KEY = 'dugou.data_patch.v20260205'
 const DATA_PATCH_V20260206_KEY = 'dugou.data_patch.v20260206'
 let cloudBootstrapInProgress = false
 
+export const PAGE_AMBIENT_THEME_DEFAULTS = {
+  new: 'soft_blue',
+  combo: 'classic_white',
+  settle: 'classic_white',
+  dashboard_overview: 'classic_white',
+  dashboard_analysis: 'classic_white',
+  dashboard_metrics: 'classic_white',
+  history: 'classic_white',
+  teams: 'classic_white',
+  params: 'classic_white',
+}
+
+export const PAGE_AMBIENT_THEME_VALUES = ['classic_white', 'soft_blue', 'soft_orange']
+
+const normalizePageAmbientThemes = (themes) => {
+  const incoming = themes && typeof themes === 'object' ? themes : {}
+  const next = { ...PAGE_AMBIENT_THEME_DEFAULTS }
+  Object.keys(PAGE_AMBIENT_THEME_DEFAULTS).forEach((key) => {
+    const candidate = String(incoming[key] || '').trim()
+    if (PAGE_AMBIENT_THEME_VALUES.includes(candidate)) {
+      next[key] = candidate
+    }
+  })
+  return next
+}
+
 const DEFAULT_SYSTEM_CONFIG = {
   initialCapital: 600,
   riskCapRatio: 0.12,
@@ -60,6 +86,7 @@ const DEFAULT_SYSTEM_CONFIG = {
       weightFse: 0.07,
     },
   },
+  pageAmbientThemes: { ...PAGE_AMBIENT_THEME_DEFAULTS },
 }
 
 const DEFAULT_TEAM_PROFILES = [
@@ -252,7 +279,9 @@ const withTeamDefaults = (profile) => ({
 export const getSystemConfig = () => {
   ensureGenesisApplied()
   const saved = readJSON(STORAGE_KEYS.systemConfig, null)
-  return { ...DEFAULT_SYSTEM_CONFIG, ...(saved || {}) }
+  const merged = { ...DEFAULT_SYSTEM_CONFIG, ...(saved || {}) }
+  merged.pageAmbientThemes = normalizePageAmbientThemes(saved?.pageAmbientThemes)
+  return merged
 }
 
 export const saveSystemConfig = (configPatch) => {
@@ -260,6 +289,12 @@ export const saveSystemConfig = (configPatch) => {
   const next = {
     ...current,
     ...(configPatch || {}),
+  }
+  if (Object.prototype.hasOwnProperty.call(configPatch || {}, 'pageAmbientThemes')) {
+    next.pageAmbientThemes = normalizePageAmbientThemes({
+      ...current.pageAmbientThemes,
+      ...((configPatch && configPatch.pageAmbientThemes) || {}),
+    })
   }
   writeJSON(STORAGE_KEYS.systemConfig, next)
   return next
