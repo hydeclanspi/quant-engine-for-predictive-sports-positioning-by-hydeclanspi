@@ -290,6 +290,55 @@ const LongFormDocument = ({ text, keyPrefix }) => {
   )
 }
 
+const CopulaRemarks = () => (
+  <section className="mt-5 rounded-xl border border-stone-200/70 bg-stone-50/65 px-4 py-3">
+    <p className="text-[11px] uppercase tracking-[0.14em] text-stone-400 font-medium">Remarks</p>
+
+    <div className="mt-2 space-y-3 text-[12px] leading-6 text-stone-500">
+      <div className="space-y-1.5">
+        <p className="font-medium text-stone-500">
+          3) 何时可以明确判断“相关性必须处理”？——同场串关（Same-Game Parlay / Bet Builder）
+        </p>
+        <p>
+          真正的相关性高压区，通常发生在同一场比赛内多市场联动（例如主胜 + 大球 + 球员进球）。这类组合在行业语境里就是
+          correlated parlays / same-game parlays，实务上不会直接用独立相乘，而是一定会做相关性定价或限制管理。
+        </p>
+        <p>
+          公开资料里也常见以 Gaussian Copula 作为 SGP 定价思路的说明。虽然多数不是官方模型披露，但足够说明
+          “copula 作为方法论”在圈内非常常见。
+        </p>
+        <p>更稳妥的结论是：</p>
+        <ul className="list-disc pl-5 space-y-1 marker:text-stone-400">
+          <li>跨比赛：相关性通常较弱，是否建模取决于样本规模与收益增益。</li>
+          <li>同场多腿：相关性通常较强，职业机构必然会处理（名称可不同，但机制一定存在）。</li>
+        </ul>
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="font-medium text-stone-500">
+          5) 一个可立刻验证“是否存在同天相关”的实用检验
+        </p>
+        <p>用你现有数据就可以做：</p>
+        <p>
+          对每场比赛 <span className="font-mono text-[11px]">i</span>（位于同一天{' '}
+          <span className="font-mono text-[11px]">d</span>）定义“惊讶值/误差”
+        </p>
+        <p className="text-center font-serif italic text-[18px] text-stone-500">
+          s<sub>i</sub> = result<sub>i</sub> − p<sup>market</sup>
+          <sub>i</sub>
+        </p>
+        <p>（例如 result 取“主胜是否发生”的 0/1）</p>
+        <p>
+          然后在每个 <span className="font-mono text-[11px]">d</span> 内检验{' '}
+          <span className="font-mono text-[11px]">s_i</span> 的相关/方差是否显著大于独立情形。
+          若你观察到某些日期全部 <span className="font-mono text-[11px]">s_i</span> 倾向同号（整轮一起热门穿，或一起爆冷），
+          往往意味着“同天共同因子/市场误差相关”正在主导，此时引入 copula 或 matchday 因子就有明确价值。
+        </p>
+      </div>
+    </div>
+  </section>
+)
+
 const FutureFeaturesExplorer = () => {
   const [activePointId, setActivePointId] = useState(null)
   const detailScrollRef = useRef(null)
@@ -397,10 +446,13 @@ const FutureFeaturesExplorer = () => {
 
               <div className="mt-4 pr-1 pb-2">
                 {activePoint ? (
-                  <LongFormDocument
-                    text={FUTURE_FEATURE_DETAIL_TEXT[String(activePoint.id)] || ''}
-                    keyPrefix={`future-detail-${activePoint.id}`}
-                  />
+                  <>
+                    <LongFormDocument
+                      text={FUTURE_FEATURE_DETAIL_TEXT[String(activePoint.id)] || ''}
+                      keyPrefix={`future-detail-${activePoint.id}`}
+                    />
+                    {String(activePoint.id) === '4' ? <CopulaRemarks /> : null}
+                  </>
                 ) : (
                   <div className="min-h-[220px] rounded-xl border border-dashed border-sky-200 bg-sky-50/40 flex items-center justify-center text-sm text-sky-600">
                     请选择左侧任一进阶方向
