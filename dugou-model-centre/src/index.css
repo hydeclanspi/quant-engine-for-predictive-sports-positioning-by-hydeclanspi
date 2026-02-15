@@ -3801,6 +3801,7 @@
 }
 
 /* Fix: avoid first-frame white strip on orange ambient when page-enter animates */
+.theme-modern .page-enter.app-ambient-tone-soft_blue,
 .theme-modern .page-enter.app-ambient-tone-soft_orange {
   animation: mnPageEnterFadeOnly 220ms ease-out;
 }
