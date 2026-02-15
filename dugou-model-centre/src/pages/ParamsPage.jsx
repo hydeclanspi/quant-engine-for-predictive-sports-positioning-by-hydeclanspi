@@ -2247,7 +2247,7 @@ export default function ParamsPage({ openModal }) {
                 GALLERY
               </span>
             </div>
-            <h3 className="text-lg font-semibold text-stone-800">个性化Logo自定义</h3>
+            <h3 className="text-lg font-semibold text-stone-800">个性化Logo · 设计自定义</h3>
             <p className="text-sm text-stone-500 mt-2 max-w-3xl">
               设计精美的个性化logo可供选择；当前以展览馆形式陈列设计稿。默认展示 3 组，点击进入完整 12 组细节。
             </p>
