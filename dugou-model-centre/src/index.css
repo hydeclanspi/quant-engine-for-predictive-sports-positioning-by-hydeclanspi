@@ -3822,12 +3822,18 @@
 }
 
 .logo-gallery-preview-stage.lg-v2-stage .lg-v2-icon {
-  transform: rotate(45deg) scale(0.86);
+  transform: rotate(45deg) scale(0.874);
 }
 
 /* Preview-only: reduce V5 icon size by 17.5% while keeping original design intact. */
 .logo-gallery-preview-stage.lg-v5-stage .lg-v5-icon {
   transform: rotate(45deg) scale(0.825);
+}
+
+/* Preview-only: reduce S2 icon size by 17.5% while keeping original design intact. */
+.logo-gallery-preview-stage.lg-s2 .lg-seal {
+  transform: scale(0.825);
+  transform-origin: center;
 }
 
 .logo-gallery-preview-meta {
