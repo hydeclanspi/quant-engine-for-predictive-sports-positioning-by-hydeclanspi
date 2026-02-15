@@ -2227,10 +2227,13 @@
 }
 
 .mn-brand-name {
-  font-family: 'DM Sans', system-ui, sans-serif;
+  font-family: 'Avenir Next', 'SF Pro Display', 'Segoe UI', 'Helvetica Neue', 'DM Sans', system-ui, sans-serif;
   font-weight: 600;
   font-size: 14px;
-  letter-spacing: -0.3px;
+  letter-spacing: 0.45px;
+  text-transform: lowercase;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
   color: #171717;
   display: inline-block;
   transform: translateX(0);
