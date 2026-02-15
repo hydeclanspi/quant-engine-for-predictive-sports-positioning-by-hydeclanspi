@@ -150,6 +150,7 @@ const PAGE_AMBIENT_TONE_OPTIONS = [
   { value: 'soft_blue', label: '淡蓝色' },
   { value: 'soft_orange', label: '浅橙色' },
 ]
+const LAYOUT_MODE_OPTIONS = ['modern', 'topbar', 'sidebar']
 
 const normalizeAmbientThemeMap = (value) => {
   const incoming = value && typeof value === 'object' ? value : {}
@@ -1931,16 +1932,29 @@ export default function ParamsPage({ openModal }) {
     })
   }
 
-  const applyPageAmbientThemes = (nextThemes) => {
+  const getCurrentLayoutMode = () => {
+    if (typeof window === 'undefined') return config.layoutMode || 'modern'
+    const cached = window.localStorage.getItem('dugou:layout-mode')
+    if (LAYOUT_MODE_OPTIONS.includes(cached)) return cached
+    if (LAYOUT_MODE_OPTIONS.includes(config.layoutMode)) return config.layoutMode
+    return 'modern'
+  }
+
+  const applyPageAmbientThemes = (nextThemes, options = {}) => {
     const normalized = normalizeAmbientThemeMap(nextThemes)
-    saveSystemConfig({ pageAmbientThemes: normalized })
-    setConfig((prev) => ({ ...prev, pageAmbientThemes: normalized }))
+    const layoutMode = LAYOUT_MODE_OPTIONS.includes(options.layoutMode) ? options.layoutMode : getCurrentLayoutMode()
+    saveSystemConfig({ pageAmbientThemes: normalized, layoutMode })
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('dugou:layout-mode', layoutMode)
+      window.dispatchEvent(new CustomEvent('dugou:layout-changed', { detail: { mode: layoutMode } }))
+    }
+    setConfig((prev) => ({ ...prev, pageAmbientThemes: normalized, layoutMode }))
     setSaveStatus('Theme 已保存')
     setTimeout(() => setSaveStatus(''), 1200)
   }
 
   const resetPageAmbientThemes = (defaultThemes = PAGE_AMBIENT_THEME_DEFAULTS) => {
-    applyPageAmbientThemes(defaultThemes)
+    applyPageAmbientThemes(defaultThemes, { layoutMode: 'modern' })
   }
 
   const openThemeSettingsModal = () => {
