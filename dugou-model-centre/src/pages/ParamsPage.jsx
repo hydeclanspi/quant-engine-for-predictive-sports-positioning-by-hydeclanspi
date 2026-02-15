@@ -1832,7 +1832,7 @@ export default function ParamsPage({ openModal }) {
           ? {
               label: 'At Risk',
               tone: 'text-rose-700',
-              badge: 'bg-rose-50 border-rose-200 text-rose-700',
+              badge: 'bg-rose-50/70 border-rose-100 text-rose-500',
             }
           : {
               label: '样本不足',
