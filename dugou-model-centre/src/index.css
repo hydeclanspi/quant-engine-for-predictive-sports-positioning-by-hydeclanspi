@@ -3825,6 +3825,11 @@
   transform: rotate(45deg) scale(0.86);
 }
 
+/* Preview-only: reduce V5 icon size by 17.5% while keeping original design intact. */
+.logo-gallery-preview-stage.lg-v5-stage .lg-v5-icon {
+  transform: rotate(45deg) scale(0.825);
+}
+
 .logo-gallery-preview-meta {
   border-top: 1px solid rgba(231, 229, 228, 0.8);
   padding: 10px 12px 11px;
