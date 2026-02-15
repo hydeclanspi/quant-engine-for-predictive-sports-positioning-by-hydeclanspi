@@ -2264,7 +2264,7 @@ export default function ParamsPage({ openModal }) {
         <LogoGalleryPreview onOpen={openLogoGalleryModal} />
       </div>
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
+      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mt-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="font-medium text-stone-700 flex items-center gap-2">
