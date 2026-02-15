@@ -1830,7 +1830,7 @@ export default function ParamsPage({ openModal }) {
           }
         : modelValidation.stability === 'risk'
           ? {
-              label: '风险',
+              label: 'At Risk',
               tone: 'text-rose-700',
               badge: 'bg-rose-50 border-rose-200 text-rose-700',
             }
