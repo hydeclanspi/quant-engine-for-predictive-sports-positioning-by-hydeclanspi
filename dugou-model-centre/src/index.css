@@ -3811,6 +3811,20 @@
   height: 128px;
 }
 
+/* Preview-only normalization: keep V2 outer frame aligned with wax previews (S2/S5). */
+.logo-gallery-preview-stage.lg-v2-stage {
+  height: 128px;
+}
+
+.logo-gallery-preview-stage.lg-v2-stage::before {
+  width: 170px;
+  height: 170px;
+}
+
+.logo-gallery-preview-stage.lg-v2-stage .lg-v2-icon {
+  transform: rotate(45deg) scale(0.86);
+}
+
 .logo-gallery-preview-meta {
   border-top: 1px solid rgba(231, 229, 228, 0.8);
   padding: 10px 12px 11px;
