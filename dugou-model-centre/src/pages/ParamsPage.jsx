@@ -336,6 +336,8 @@ const CopulaRemarks = () => (
         </p>
       </div>
     </div>
+
+    <p className="mt-3 text-right text-[12px] font-bold text-stone-500">Feb 15, 2026.</p>
   </section>
 )
 
