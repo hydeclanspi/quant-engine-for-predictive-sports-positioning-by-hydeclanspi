@@ -449,6 +449,92 @@ const CopulaRemarks = () => (
   </section>
 )
 
+const BayesianRemarks = () => (
+  <section className="mt-5 rounded-xl border border-stone-200/70 bg-stone-50/65 px-4 py-3">
+    <p className="text-[11px] uppercase tracking-[0.14em] text-stone-400 font-medium">Remarks</p>
+
+    <div className="mt-2 space-y-3 text-[12px] leading-6 text-stone-500">
+      <div className="space-y-1.5">
+        <p className="font-medium text-stone-500">结论先说</p>
+        <ul className="list-disc pl-5 space-y-1 marker:text-stone-400">
+          <li>有必要做贝叶斯更新，但不建议“全量替换”现有引擎。</li>
+          <li>
+            在当前场景下（更看重精度、且认为同天比赛独立），最优不是“纯贝叶斯”或“纯现有算法”，而是 Hybrid：保留现有复合校准主干
+            （回归+保序+赔率锚定+团队校准），在稀疏分层（队伍/mode/conf 桶/FID/FSE 桶）上加分层贝叶斯后验与不确定性惩罚。
+          </li>
+          <li>
+            如果二选一只选一个：按当前可见信息利用量，现有算法通常比“纯 Beta-Binomial 桶更新”更准；但在小样本稳定性上贝叶斯更好。
+          </li>
+        </ul>
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="font-medium text-stone-500">我基于代码看到的当前真实算法</p>
+        <p>
+          现有系统并非“简单频率重算”，而是复合校准管线：Conf→AJR 加权回归、PAV 保序混合、Conf×Odds 分桶偏差修正、球队残差校准、
+          与市场隐含概率融合（含 walk-forward 反馈）、以及 MODE/TYS/FID/FSE 的 shrinkage 因子学习。
+        </p>
+        <p>
+          关键实现路径：<span className="font-mono text-[11px]">src/lib/analytics.js:1509</span>（回归校准）、
+          <span className="font-mono text-[11px]">:3663</span>（保序回归）、
+          <span className="font-mono text-[11px]">:1936</span>（Conf×Odds 校准）、
+          <span className="font-mono text-[11px]">:1630</span>（Team 校准）、
+          <span className="font-mono text-[11px]">:2187</span>（最终概率融合）。
+        </p>
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="font-medium text-stone-500">做成贝叶斯后，产品里会产生区别的路径</p>
+        <ul className="list-disc pl-5 space-y-1 marker:text-stone-400">
+          <li>New：推荐投资额、综合 odds、expected rating 会变化（因概率入口改变）。</li>
+          <li>Portfolio：最优组合排名会变化，ev / p / sharpe / utility 全链路重排。</li>
+          <li>Monte Carlo：分布会变化，因为采样直接使用 calibratedP。</li>
+          <li>Console/Validation：Brier/LogLoss/ROI 回测窗口会变化。</li>
+        </ul>
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="font-medium text-stone-500">在两个前提下的关键判断</p>
+        <ul className="list-disc pl-5 space-y-1 marker:text-stone-400">
+          <li>不在意全量重算成本时，在线更新速度优势不再是主价值；主价值变为小样本稳健和不确定性可量化。</li>
+          <li>
+            若认为同天比赛独立，应弱化/关闭同天相关修正，不把 Copula 当优先；与“同场多腿”相关性问题分开处理更科学。
+          </li>
+        </ul>
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="font-medium text-stone-500">哪种更精准：两条路线优劣</p>
+        <ul className="list-disc pl-5 space-y-1 marker:text-stone-400">
+          <li>纯现有算法：信息利用更全（Conf、Odds、队伍残差、保序非线性、walk-forward）；缺点是低样本桶易抖。</li>
+          <li>纯贝叶斯桶更新：小样本稳且自带可信区间；缺点是若只做桶级会丢结构信息，容易欠拟合。</li>
+          <li>Hybrid：在“稳定性 + 解释性 + 可控风险”上通常是产品最优折中。</li>
+        </ul>
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="font-medium text-stone-500">建议采用的贝叶斯形态（精度优先版）</p>
+        <ul className="list-disc pl-5 space-y-1 marker:text-stone-400">
+          <li>不做“只按 conf 三档”的简化版，改做分层贝叶斯：team × mode × conf 桶 × odds 桶（支持部分池化）。</li>
+          <li>输出不仅有 p_hat，还要有 uncertainty（后验方差/置信区间）。</li>
+          <li>组合优化与 Kelly 使用保守概率：p_used = p_hat - z * sigma_post（z 按风险偏好调节）。</li>
+          <li>持续全量 walk-forward 对照 Brier/LogLoss/ROI/top-k 命中，连续无提升则自动回退。</li>
+        </ul>
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="font-medium text-stone-500">一句话决策</p>
+        <p>
+          对当前应用，贝叶斯更新值得做，但应作为增强层而不是替代层；优先引入分层后验与不确定性折扣，让 New 的下注建议和
+          Portfolio 的最优组合排序在小样本阶段更稳健。
+        </p>
+      </div>
+    </div>
+
+    <p className="mt-3 text-right text-[12px] font-bold text-stone-500">Feb 16, 2026.</p>
+  </section>
+)
+
 const FutureFeaturesExplorer = () => {
   const [activePointId, setActivePointId] = useState(null)
   const detailScrollRef = useRef(null)
@@ -561,6 +647,7 @@ const FutureFeaturesExplorer = () => {
                       text={FUTURE_FEATURE_DETAIL_TEXT[String(activePoint.id)] || ''}
                       keyPrefix={`future-detail-${activePoint.id}`}
                     />
+                    {String(activePoint.id) === '2' ? <BayesianRemarks /> : null}
                     {String(activePoint.id) === '4' ? <CopulaRemarks /> : null}
                   </>
                 ) : (
