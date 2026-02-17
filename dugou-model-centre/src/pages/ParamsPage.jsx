@@ -2257,10 +2257,12 @@ export default function ParamsPage({ openModal }) {
     <div className="page-shell page-content-wide console-motion-scope">
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-stone-800 font-display">参数后台</h2>
-        <p className="text-stone-400 text-sm mt-1">系统参数、动态校准系数与 Kelly 分母历史校准</p>
-        <p className="text-[11px] font-semibold text-slate-500/85 mt-1.5 tracking-[0.01em]">
-          (calibration and tracking) quant engine for predictive sports positioning
-        </p>
+        <div className="mt-1 flex flex-wrap items-center gap-2.5">
+          <p className="text-stone-400 text-sm">系统参数、动态校准系数与 Kelly 分母历史校准</p>
+          <span className="inline-flex max-w-[460px] rounded-xl border border-sky-200/90 bg-gradient-to-r from-sky-100/75 via-cyan-50/85 to-blue-100/75 px-3 py-1.5 text-[10.5px] font-semibold leading-4 tracking-[0.03em] text-sky-700/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_8px_18px_rgba(14,165,233,0.14)] backdrop-blur-md">
+            (calibration and tracking) quant engine for predictive sports positioning
+          </span>
+        </div>
         <div className="mt-2 flex items-center gap-2">
           {isAnalyticsComputing && (
             <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[11px]">
