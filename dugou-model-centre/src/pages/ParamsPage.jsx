@@ -455,7 +455,6 @@ const BayesianRemarks = () => (
 
     <div className="mt-2 space-y-3 text-[12px] leading-6 text-stone-500">
       <div className="space-y-1.5">
-        <p className="font-medium text-stone-500">结论先说</p>
         <ul className="list-disc pl-5 space-y-1 marker:text-stone-400">
           <li>有必要做贝叶斯更新，但不建议“全量替换”现有引擎。</li>
           <li>
@@ -2259,6 +2258,9 @@ export default function ParamsPage({ openModal }) {
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-stone-800 font-display">参数后台</h2>
         <p className="text-stone-400 text-sm mt-1">系统参数、动态校准系数与 Kelly 分母历史校准</p>
+        <p className="text-[11px] font-semibold text-slate-500/85 mt-1.5 tracking-[0.01em]">
+          (calibration and tracking) quant engine for predictive sports positioning
+        </p>
         <div className="mt-2 flex items-center gap-2">
           {isAnalyticsComputing && (
             <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[11px]">
