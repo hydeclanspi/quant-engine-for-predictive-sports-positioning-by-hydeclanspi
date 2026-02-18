@@ -2177,9 +2177,15 @@ export const getPredictionCalibrationContext = () => {
   // ── FIX #6: Comprehensive combo hyperparameter calibration ──
   const comboHyperparams = backtestComboHyperparams()
 
-  // ── FIX #7: Auto-apply adaptive weight suggestions ──
-  // Run once per calibration cycle — updates systemConfig weights when confident
-  const adaptiveWeightResult = comboHyperparams.ready ? autoApplyAdaptiveWeights() : { applied: false, reason: 'combo_calibration_not_ready' }
+  // ── FIX #7: Adaptive weight evaluation (side-effect free in render path) ──
+  // IMPORTANT: do not write system config while pages are rendering.
+  // Auto-apply can be triggered from explicit user actions in Console.
+  const adaptiveWeightSnapshot = computeAdaptiveWeightSuggestions()
+  const adaptiveWeightResult = {
+    ...adaptiveWeightSnapshot,
+    applied: false,
+    reason: comboHyperparams.ready ? 'deferred_apply' : 'combo_calibration_not_ready',
+  }
 
   // ── Composite calibrate function: linear → isotonic blend ──
   const compositeCalibrate = (rawConf) => {
@@ -3416,42 +3422,6 @@ export const computeAdaptiveWeightSuggestions = () => {
 
   // 计算梯度
   const { gradients, baseScore } = estimateWeightGradients(investments, currentWeights)
-
-  // 计算建议
-  const suggestions = WEIGHT_KEYS.forEach((key) => {
-    const gradient = gradients[key] || 0
-    const current = currentWeights[key]
-    const prior = priors[key]
-    const [minBound, maxBound] = bounds[key] || DEFAULT_WEIGHT_BOUNDS[key]
-
-    // 梯度下降更新 + 向先验回归
-    let rawChange = learningRate * gradient - priorStrength * (current - prior)
-
-    // 限制单次变化幅度
-    rawChange = clamp(rawChange, -maxSingleChange, maxSingleChange)
-
-    // 计算建议值并约束在边界内
-    const suggested = clamp(current + rawChange, minBound, maxBound)
-    const actualChange = suggested - current
-
-    // 置信度计算：基于梯度一致性和样本量
-    const gradientMagnitude = Math.abs(gradient)
-    const sampleFactor = Math.min(1, sampleCount / 100)
-    const confidence = clamp(gradientMagnitude * 10 * sampleFactor, 0, 1)
-
-    return {
-      key,
-      label: key.replace('weight', ''),
-      current: Number(current.toFixed(4)),
-      suggested: Number(suggested.toFixed(4)),
-      prior,
-      bounds: [minBound, maxBound],
-      gradient: Number(gradient.toFixed(6)),
-      confidence: Number(confidence.toFixed(2)),
-      change: Number(actualChange.toFixed(4)),
-      reason: actualChange > 0 ? '建议上调' : actualChange < 0 ? '建议下调' : '维持不变',
-    }
-  })
 
   const suggestionsList = WEIGHT_KEYS.map((key) => {
     const gradient = gradients[key] || 0
