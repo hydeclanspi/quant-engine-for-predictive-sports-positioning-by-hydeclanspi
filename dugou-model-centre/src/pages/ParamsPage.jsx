@@ -2257,7 +2257,7 @@ export default function ParamsPage({ openModal }) {
     <div className="page-shell page-content-wide console-motion-scope">
       <div className="mb-6">
         <div className="mb-2.5">
-          <span className="inline-flex max-w-[460px] rounded-xl border border-sky-200/90 bg-gradient-to-r from-sky-100/75 via-cyan-50/85 to-blue-100/75 px-3 py-1.5 text-[10.5px] font-semibold leading-4 tracking-[0.03em] text-sky-700/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_8px_18px_rgba(14,165,233,0.14)] backdrop-blur-md">
+          <span className="inline-flex max-w-[460px] rounded-r-xl rounded-l-none border border-sky-200/90 bg-gradient-to-r from-sky-100/75 via-cyan-50/85 to-blue-100/75 px-3 py-1.5 text-[10.5px] font-semibold leading-4 tracking-[0.03em] text-sky-700/90 backdrop-blur-md">
             (calibration and tracking) quant engine for predictive sports positioning
           </span>
         </div>
