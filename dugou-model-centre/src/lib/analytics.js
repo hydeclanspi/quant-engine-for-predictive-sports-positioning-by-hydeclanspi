@@ -2307,6 +2307,8 @@ export const getPredictionCalibrationContext = () => {
     comboHyperparams,
     // FIX #7: Adaptive weight auto-apply result
     adaptiveWeightResult,
+    // FIX #8: Per-match EJR diagnostics (was dead code — now wired in)
+    ejrDiagnostics: getPerMatchEjrSnapshot(),
   }
 
   analyticsMemo.calibrationContext.set(cacheKey, context)
@@ -3926,6 +3928,199 @@ export const buildEntryCorrelationMatrix = () => {
     pairs: pairsWithCorrelation.sort((a, b) => Math.abs(b.rho) - Math.abs(a.rho)),
     avgCorrelation: Number(avgCorrelation.toFixed(4)),
     sampleCount: combos.length,
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FIX #9 — Combo-Level Retrospective Learning Engine
+// After matches settle, evaluates recommended combos vs actual
+// outcomes to extract structural feedback signals:
+//   - Layer hit rates (core/satellite/covering/moonshot)
+//   - Counter-consensus (surplus) miss rate
+//   - Optimal legs distribution vs recommended
+//   - Anchor match success rate
+// These signals feed back into generateRecommendations to improve
+// future combo generation and selection.
+// ═══════════════════════════════════════════════════════════════
+
+export const buildComboRetrospective = (planHistory) => {
+  const fallback = {
+    ready: false,
+    reliability: 0,
+    epochCount: 0,
+    layerHitRates: { core: null, satellite: null, covering: null, moonshot: null },
+    surplusMissRate: null,
+    optimalLegsQuotaShift: {},
+    anchorSuccessRate: null,
+    stratifiedQuotaAdj: {},
+    surplusBonusAdj: 0,
+    anchorBonusAdj: 0,
+  }
+
+  if (!Array.isArray(planHistory) || planHistory.length === 0) return fallback
+
+  // Build settled match lookup: "home vs away" → is_correct
+  const settled = getSettledInvestments(getActiveInvestments())
+  const settledMatchMap = new Map() // key → { isCorrect, odds }
+  settled.forEach((inv) => {
+    const matches = Array.isArray(inv.matches) ? inv.matches : []
+    matches.forEach((m) => {
+      if (typeof m.is_correct !== 'boolean') return
+      const key = `${(m.home_team || '-').trim()} vs ${(m.away_team || '-').trim()}`
+      // Store the most recent result for this match
+      settledMatchMap.set(key, { isCorrect: m.is_correct, odds: toNumber(m.odds, 2.0) })
+    })
+  })
+
+  if (settledMatchMap.size < 3) return fallback
+
+  // Analyze each historical plan epoch
+  const layerStats = { core: { hit: 0, total: 0 }, satellite: { hit: 0, total: 0 }, covering: { hit: 0, total: 0 }, moonshot: { hit: 0, total: 0 } }
+  const legsHitMap = {} // legCount → { hit, total }
+  let anchorHits = 0
+  let anchorTotal = 0
+  let surplusMissHits = 0 // high-surplus legs NOT in any recommended combo that actually hit
+  let surplusMissTotal = 0
+  let epochsWithData = 0
+
+  const FT_LAYER_ALIAS = { '主推': 'core', '次推': 'satellite', '博冷': 'moonshot' }
+
+  planHistory.forEach((epoch) => {
+    const recs = Array.isArray(epoch.recommendations) ? epoch.recommendations : []
+    if (recs.length === 0) return
+
+    // Check if ANY match in this epoch has settled
+    let hasSettledMatch = false
+    const allMatchKeys = new Set()
+    recs.forEach((rec) => {
+      const subset = Array.isArray(rec.subset) ? rec.subset : []
+      subset.forEach((leg) => {
+        const mk = `${(leg.homeTeam || '-').trim()} vs ${(leg.awayTeam || '-').trim()}`
+        allMatchKeys.add(mk)
+        if (settledMatchMap.has(mk)) hasSettledMatch = true
+      })
+    })
+    if (!hasSettledMatch) return
+    epochsWithData += 1
+
+    // --- Layer hit rates ---
+    recs.forEach((rec) => {
+      const subset = Array.isArray(rec.subset) ? rec.subset : []
+      const legs = subset.length
+      const ftTag = rec.explain?.ftLayerTag || FT_LAYER_ALIAS[rec.layer] || null
+      const layerKey = ftTag && layerStats[ftTag] ? ftTag : null
+
+      // Check if all legs of this combo have settled
+      const legResults = subset.map((leg) => {
+        const mk = `${(leg.homeTeam || '-').trim()} vs ${(leg.awayTeam || '-').trim()}`
+        return settledMatchMap.get(mk)
+      })
+      const allSettled = legResults.every((r) => r != null)
+      if (!allSettled) return
+
+      const comboHit = legResults.every((r) => r.isCorrect)
+
+      if (layerKey) {
+        layerStats[layerKey].total += 1
+        if (comboHit) layerStats[layerKey].hit += 1
+      }
+
+      // Legs distribution
+      const lk = String(legs)
+      if (!legsHitMap[lk]) legsHitMap[lk] = { hit: 0, total: 0 }
+      legsHitMap[lk].total += 1
+      if (comboHit) legsHitMap[lk].hit += 1
+
+      // Anchor success: highest-conf leg in combo
+      if (subset.length > 0) {
+        const anchor = [...subset].sort((a, b) => (b.conf || 0) - (a.conf || 0))[0]
+        const anchorMk = `${(anchor.homeTeam || '-').trim()} vs ${(anchor.awayTeam || '-').trim()}`
+        const anchorResult = settledMatchMap.get(anchorMk)
+        if (anchorResult) {
+          anchorTotal += 1
+          if (anchorResult.isCorrect) anchorHits += 1
+        }
+      }
+    })
+
+    // --- Surplus miss detection ---
+    // Collect all match keys that were part of ANY recommended combo
+    const recommendedMatchKeys = new Set()
+    recs.forEach((rec) => {
+      const subset = Array.isArray(rec.subset) ? rec.subset : []
+      subset.forEach((leg) => {
+        const mk = `${(leg.homeTeam || '-').trim()} vs ${(leg.awayTeam || '-').trim()}`
+        recommendedMatchKeys.add(mk)
+      })
+    })
+
+    // Check candidate matches from this epoch that had high surplus but weren't recommended
+    // We approximate candidates from the first rec's subset + any extra matches in the epoch
+    const candidateKeys = epoch.candidateMatchKeys || []
+    candidateKeys.forEach((candidateKey) => {
+      if (typeof candidateKey !== 'object') return
+      const mk = candidateKey.matchKey
+      const surplus = toNumber(candidateKey.surplus, 0)
+      if (surplus < 0.08 || recommendedMatchKeys.has(mk)) return // only care about high-surplus misses
+      const result = settledMatchMap.get(mk)
+      if (!result) return
+      surplusMissTotal += 1
+      if (result.isCorrect) surplusMissHits += 1
+    })
+  })
+
+  if (epochsWithData < 1) return fallback
+
+  // Compute learning signals
+  const reliability = clamp((epochsWithData - 1) / 9, 0, 1) // ramp: 2 epochs → 0.11, 10 epochs → 1.0
+
+  // Layer hit rates
+  const layerHitRates = {}
+  for (const [key, stats] of Object.entries(layerStats)) {
+    layerHitRates[key] = stats.total >= 2 ? Number((stats.hit / stats.total).toFixed(3)) : null
+  }
+
+  // Optimal legs distribution shift: compare actual hit rates per leg count
+  // If 2-leg combos hit more than their share, shift quota toward them
+  const totalComboHits = Object.values(legsHitMap).reduce((s, v) => s + v.hit, 0)
+  const totalCombos = Object.values(legsHitMap).reduce((s, v) => s + v.total, 0)
+  const globalHitRate = totalCombos > 0 ? totalComboHits / totalCombos : 0
+
+  const stratifiedQuotaAdj = {}
+  for (const [legs, stats] of Object.entries(legsHitMap)) {
+    if (stats.total < 3) continue
+    const legHitRate = stats.hit / stats.total
+    // positive = this leg count hits more than average → boost its quota
+    const delta = legHitRate - globalHitRate
+    stratifiedQuotaAdj[legs] = Number((delta * reliability * 0.15).toFixed(4)) // conservative scaling
+  }
+
+  // Surplus miss rate → adjust surplusBonusScale
+  const surplusMissRate = surplusMissTotal >= 2 ? Number((surplusMissHits / surplusMissTotal).toFixed(3)) : null
+  // If high-surplus misses actually hit >50%, we're missing edge → boost surplus bonus
+  const surplusBonusAdj = surplusMissRate !== null
+    ? Number((clamp(surplusMissRate - 0.4, -0.1, 0.2) * reliability * 0.08).toFixed(4))
+    : 0
+
+  // Anchor success rate → adjust tierAnchorBonus
+  const anchorSuccessRate = anchorTotal >= 3 ? Number((anchorHits / anchorTotal).toFixed(3)) : null
+  // If anchor matches miss a lot, reduce anchor bonus
+  const anchorBonusAdj = anchorSuccessRate !== null
+    ? Number((clamp(anchorSuccessRate - 0.65, -0.15, 0.1) * reliability * 0.06).toFixed(4))
+    : 0
+
+  return {
+    ready: true,
+    reliability: Number(reliability.toFixed(3)),
+    epochCount: epochsWithData,
+    layerHitRates,
+    legsHitMap,
+    globalComboHitRate: Number(globalHitRate.toFixed(3)),
+    surplusMissRate,
+    anchorSuccessRate,
+    stratifiedQuotaAdj,
+    surplusBonusAdj,
+    anchorBonusAdj,
   }
 }
 

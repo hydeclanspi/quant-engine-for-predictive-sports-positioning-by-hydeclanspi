@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DUGOU Model Centre v5.8 - UI Design</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'DM Sans', sans-serif; }
+    .font-display { font-family: 'Playfair Display', serif; }
+    
+    /* Subtle glow effect - no rotating rainbow */
+    .glow-card {
+      position: relative;
+      background: white;
+      border-radius: 1rem;
+      transition: all 0.3s ease;
+    }
+    
+    .glow-card:hover {
+      box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.3), 0 8px 30px -12px rgba(251, 191, 36, 0.2);
+    }
+    
+    .glow-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 1rem;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      background: radial-gradient(
+        600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+        rgba(251, 191, 36, 0.06),
+        transparent 40%
+      );
+      pointer-events: none;
+    }
+    
+    .glow-card:hover::after {
+      opacity: 1;
+    }
+    
+    /* Lift effect */
+    .lift-card {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .lift-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px -12px rgba(0, 0, 0, 0.12);
+    }
+    
+    /* Button hover */
+    .btn-hover {
+      transition: all 0.2s ease;
+    }
+    
+    .btn-hover:hover {
+      transform: scale(1.02);
+    }
+    
+    .btn-hover:active {
+      transform: scale(0.98);
+    }
+    
+    /* Sidebar item */
+    .sidebar-item {
+      transition: all 0.2s ease;
+    }
+    
+    .sidebar-item:hover {
+      transform: translateX(3px);
+    }
+    
+    /* Input focus */
+    .input-glow:focus {
+      box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.15);
+    }
+    
+    /* Range slider */
+    input[type="range"] {
+      -webkit-appearance: none;
+      height: 6px;
+      background: #e7e5e4;
+      border-radius: 999px;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      background: linear-gradient(135deg, #fbbf24, #f97316);
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(251, 191, 36, 0.5);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      box-shadow: 0 4px 12px rgba(251, 191, 36, 0.6);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
+    
+    /* Chart bar */
+    .chart-bar {
+      transition: all 0.2s ease;
+    }
+    .chart-bar:hover {
+      transform: scaleY(1.05);
+      filter: brightness(1.1);
+    }
+    
+    /* Modal overlay */
+    .modal-overlay {
+      animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .modal-content {
+      animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const DugouDesign = () => {
+      const [activePage, setActivePage] = useState('new');
+      const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+      const [modalData, setModalData] = useState(null);
+
+      // Mouse tracking for glow
+      useEffect(() => {
+        const handleMouseMove = (e) => {
+          const cards = document.querySelectorAll('.glow-card');
+          cards.forEach(card => {
+            const rect = card.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            card.style.setProperty('--mouse-x', `${x}%`);
+            card.style.setProperty('--mouse-y', `${y}%`);
+          });
+        };
+        window.addEventListener('mousemove', handleMouseMove);
+        return () => window.removeEventListener('mousemove', handleMouseMove);
+      }, []);
+
+      // Modal Component
+      const Modal = ({ data, onClose }) => (
+        <div className="modal-overlay fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
+          <div className="modal-content bg-white rounded-2xl p-6 max-w-lg w-full mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-stone-800">{data.label} 历史数据</h3>
+              <button onClick={onClose} className="text-stone-400 hover:text-stone-600 text-xl">×</button>
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-stone-200">
+                  <th className="py-2 text-left text-stone-500 font-medium">周次</th>
+                  <th className="py-2 text-left text-stone-500 font-medium">日期</th>
+                  <th className="py-2 text-left text-stone-500 font-medium">系数值</th>
+                  <th className="py-2 text-left text-stone-500 font-medium">变化</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.tableData.map((row, i) => (
+                  <tr key={i} className="border-b border-stone-100 hover:bg-stone-50">
+                    <td className="py-2 text-stone-600">{row.week}</td>
+                    <td className="py-2 text-stone-600">{row.date}</td>
+                    <td className="py-2 font-medium text-stone-800">{row.value}</td>
+                    <td className={`py-2 ${row.change.startsWith('+') ? 'text-emerald-600' : row.change.startsWith('-') ? 'text-rose-500' : 'text-stone-400'}`}>{row.change}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="mt-4 pt-4 border-t border-stone-100 flex justify-between text-sm">
+              <span className="text-stone-500">平均值: <span className="font-medium text-stone-700">{data.avg}</span></span>
+              <span className="text-stone-500">标准差: <span className="font-medium text-stone-700">{data.std}</span></span>
+            </div>
+          </div>
+        </div>
+      );
+
+      // Sidebar - 新顺序
+      const Sidebar = () => (
+        <div className={`h-screen bg-gradient-to-b from-stone-50 to-orange-50/30 border-r border-stone-200/60 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-56'}`}>
+          <div className="p-4 border-b border-stone-200/40">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-200/50 btn-hover cursor-pointer">
+                <span className="text-white font-bold text-sm">DG</span>
+              </div>
+              {!sidebarCollapsed && (
+                <div>
+                  <h1 className="font-semibold text-stone-800 text-sm tracking-tight">DUGOU</h1>
+                  <p className="text-[10px] text-stone-400">Model Centre v5.8</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <nav className="flex-1 p-3 space-y-1">
+            {[
+              { id: 'new', icon: '◈', label: '新建投资', badge: null },
+              { id: 'combo', icon: '❖', label: '智能组合', badge: null },
+              { id: 'settle', icon: '◉', label: '待结算', badge: '3' },
+              { id: 'dashboard', icon: '◐', label: 'Dashboard', badge: null },
+              { id: 'history', icon: '☰', label: '历史记录', badge: '93' },
+              { id: 'params', icon: '⚙', label: '参数后台', badge: null },
+            ].map(item => (
+              <button
+                key={item.id}
+                onClick={() => setActivePage(item.id)}
+                className={`sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 group
+                  ${activePage === item.id 
+                    ? 'bg-white shadow-sm shadow-stone-200/50 text-stone-800' 
+                    : 'text-stone-500 hover:bg-white/60 hover:text-stone-700'}`}
+              >
+                <span className={`text-base transition-colors ${activePage === item.id ? 'text-amber-500' : 'text-stone-400 group-hover:text-stone-500'}`}>
+                  {item.icon}
+                </span>
+                {!sidebarCollapsed && (
+                  <>
+                    <span className="flex-1 text-left">{item.label}</span>
+                    {item.badge && <span className="text-xs text-stone-400">{item.badge}</span>}
+                  </>
+                )}
+              </button>
+            ))}
+          </nav>
+
+          <div className="p-3 border-t border-stone-200/40">
+            <button 
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-white/60 transition-all text-xs"
+            >
+              {sidebarCollapsed ? '→' : '← 收起'}
+            </button>
+          </div>
+        </div>
+      );
+
+      // Dashboard
+      const DashboardPage = () => (
+        <div className="p-8 space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold text-stone-800 font-display">Dashboard</h2>
+              <p className="text-stone-400 text-sm mt-1">2026年2月 · 本月投资 12 笔</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button className="px-4 py-2 text-sm text-stone-600 hover:text-stone-800 transition-colors btn-hover">导出报告</button>
+              <button onClick={() => setActivePage('new')} className="px-5 py-2.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl text-sm font-medium shadow-lg shadow-orange-200/40 hover:shadow-orange-300/50 transition-all btn-hover">
+                + 新建投资
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-4 gap-4">
+            {[
+              { label: '蓄水池余额', value: '¥2,847', change: '+18.2%', icon: '◐' },
+              { label: '本月 ROI', value: '+12.4%', change: '↑ 3.1%', icon: '◈' },
+              { label: '命中率', value: '67.3%', change: '稳定', icon: '◉' },
+              { label: 'Exp. vs Act. Rating', value: '0.92', change: '校准良好', icon: '❖' },
+            ].map((m, i) => (
+              <div key={i} className="glow-card bg-white rounded-2xl p-5 border border-stone-100 cursor-pointer">
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-stone-400 text-xs uppercase tracking-wide">{m.label}</span>
+                    <span className="text-amber-400 text-lg">{m.icon}</span>
+                  </div>
+                  <div className="text-2xl font-semibold text-stone-800">{m.value}</div>
+                  <div className="text-xs mt-1 text-emerald-500">{m.change}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-2 glow-card bg-white rounded-2xl p-6 border border-stone-100">
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-medium text-stone-700">资金走势</h3>
+                  <div className="flex gap-2">
+                    {['7D', '1M', '3M', 'ALL'].map(p => (
+                      <button key={p} className={`px-3 py-1 text-xs rounded-lg transition-all btn-hover ${p === '1M' ? 'bg-amber-100 text-amber-700' : 'text-stone-400 hover:bg-stone-50'}`}>{p}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="h-48 flex items-end gap-1 px-4">
+                  {[40, 45, 42, 55, 48, 62, 58, 70, 65, 75, 72, 85, 80, 88, 92].map((h, i) => (
+                    <div key={i} className="flex-1">
+                      <div className="chart-bar w-full rounded-t-sm bg-gradient-to-t from-amber-400 to-orange-300 opacity-80 hover:opacity-100 cursor-pointer origin-bottom" style={{ height: `${h}%` }} />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between mt-4 px-4 text-xs text-stone-400">
+                  <span>1月18日</span><span>1月25日</span><span>2月1日</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+              <div className="relative z-10">
+                <h3 className="font-medium text-stone-700 mb-4">Conf 校准曲线</h3>
+                <div className="space-y-3">
+                  {[
+                    { conf: '0.8+', actual: '76%' },
+                    { conf: '0.6~0.8', actual: '68%' },
+                    { conf: '0.4~0.6', actual: '52%' },
+                    { conf: '0.2~0.4', actual: '34%' },
+                  ].map((r, i) => (
+                    <div key={i} className="flex items-center gap-3 group cursor-pointer">
+                      <span className="text-xs text-stone-500 w-14 group-hover:text-amber-600 transition-colors">{r.conf}</span>
+                      <div className="flex-1 h-2 bg-stone-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-amber-300 to-orange-400 rounded-full transition-all group-hover:from-amber-400 group-hover:to-orange-500" style={{ width: r.actual }} />
+                      </div>
+                      <span className="text-xs text-stone-600 w-10 group-hover:text-amber-600 transition-colors">{r.actual}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-stone-400 mt-4 text-center">整体校准偏差: -2.3%</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+              <div className="relative z-10">
+                <h3 className="font-medium text-stone-700 mb-4">优势领域识别</h3>
+                <div className="space-y-2">
+                  {[
+                    { combo: 'Conf 0.6+ × 常规模式 × 英超', roi: '+23.4%', samples: 18 },
+                    { combo: 'TYS-M × FID 0.5+ × 单关', roi: '+18.7%', samples: 24 },
+                    { combo: 'Conf 0.4~0.6 × 保险产品', roi: '+15.2%', samples: 15 },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-stone-50 hover:bg-amber-50 transition-all cursor-pointer lift-card border border-transparent hover:border-amber-200">
+                      <div>
+                        <p className="text-sm text-stone-700">{item.combo}</p>
+                        <p className="text-xs text-stone-400 mt-0.5">{item.samples} samples</p>
+                      </div>
+                      <span className="text-sm font-medium text-emerald-600">{item.roi}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium text-stone-700">近期投资</h3>
+                  <button onClick={() => setActivePage('history')} className="text-xs text-amber-500 hover:text-amber-600 transition-colors">查看全部 →</button>
+                </div>
+                <div className="space-y-2">
+                  {[
+                    { match: '阿森纳 vs 切尔西', entries: '主胜', status: 'pending', amount: '¥180' },
+                    { match: '利物浦 vs 曼城', entries: '大2.5', status: 'win', amount: '+¥220' },
+                    { match: '热刺 vs 曼联', entries: '平局', status: 'lose', amount: '-¥150' },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-xl hover:bg-stone-50 transition-all cursor-pointer lift-card">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full transition-transform hover:scale-150 ${
+                          item.status === 'pending' ? 'bg-amber-400' : item.status === 'win' ? 'bg-emerald-400' : 'bg-rose-400'
+                        }`} />
+                        <div>
+                          <p className="text-sm text-stone-700">{item.match}</p>
+                          <p className="text-xs text-stone-400">{item.entries}</p>
+                        </div>
+                      </div>
+                      <span className={`text-sm font-medium ${item.status === 'win' ? 'text-emerald-600' : item.status === 'lose' ? 'text-rose-500' : 'text-stone-600'}`}>{item.amount}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+
+      // New Investment - 新增"加入今日备选"按钮
+      const NewInvestmentPage = () => {
+        const [parlaySize, setParlaySize] = useState(1);
+        const [confValue, setConfValue] = useState(65);
+        const [fseHome, setFseHome] = useState(70);
+        const [fseAway, setFseAway] = useState(55);
+        const [selectedTysHome, setSelectedTysHome] = useState('M');
+        const [selectedTysAway, setSelectedTysAway] = useState('L');
+        const [selectedFid, setSelectedFid] = useState('0.5');
+
+        return (
+          <div className="p-8 max-w-4xl">
+            <div className="mb-8">
+              <h2 className="text-2xl font-semibold text-stone-800 font-display">新建投资</h2>
+              <p className="text-stone-400 text-sm mt-1">录入比赛信息与预测参数</p>
+            </div>
+
+            <div className="glow-card bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
+              <div className="relative z-10">
+                {/* Parlay */}
+                <div className="px-6 py-4 border-b border-stone-100 bg-stone-50/50">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-stone-600">串关数</span>
+                    <div className="flex gap-2">
+                      {[1, 2, 3, 4, 5].map(n => (
+                        <button key={n} onClick={() => setParlaySize(n)}
+                          className={`w-10 h-10 rounded-xl text-sm font-medium transition-all btn-hover ${
+                            n === parlaySize 
+                              ? 'bg-gradient-to-br from-amber-400 to-orange-400 text-white shadow-lg shadow-orange-200/40' 
+                              : 'bg-white border border-stone-200 text-stone-500 hover:border-amber-300 hover:text-amber-600'
+                          }`}>{n}</button>
+                      ))}
+                    </div>
+                    <span className="text-xs text-stone-400 ml-2">（1 = 单场投资）</span>
+                  </div>
+                </div>
+
+                {/* Form */}
+                <div className="p-6 space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center">
+                      <span className="text-amber-600 text-xs font-bold">1</span>
+                    </div>
+                    <span className="text-sm font-medium text-stone-700">比赛信息</span>
+                  </div>
+
+                  {/* Teams */}
+                  <div className="grid grid-cols-11 gap-3 items-center">
+                    <div className="col-span-5">
+                      <label className="text-xs text-stone-400 mb-1.5 block">主队</label>
+                      <div className="relative">
+                        <input type="text" placeholder="输入球队名或缩写..." defaultValue="ARS"
+                          className="input-glow w-full px-4 py-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400 transition-all" />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-stone-400">阿森纳 · 18场 · REP 0.42</div>
+                      </div>
+                    </div>
+                    <div className="col-span-1 text-center text-stone-300 text-lg">vs</div>
+                    <div className="col-span-5">
+                      <label className="text-xs text-stone-400 mb-1.5 block">客队</label>
+                      <input type="text" placeholder="输入球队名或缩写..." defaultValue="CHE"
+                        className="input-glow w-full px-4 py-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400 transition-all" />
+                    </div>
+                  </div>
+
+                  {/* Core Params */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-xs text-stone-400 mb-1.5 block">Entries 预测结果</label>
+                      <input type="text" placeholder="主胜 / 平 / 客胜 / 大2.5..." defaultValue="主胜"
+                        className="input-glow w-full px-4 py-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400 transition-all" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-stone-400 mb-1.5 block">Odds 赔率</label>
+                      <input type="number" step="0.01" defaultValue="2.15"
+                        className="input-glow w-full px-4 py-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400 transition-all" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-stone-400 mb-1.5 block">Conf 置信度</label>
+                      <input type="range" min="0" max="100" value={confValue} onChange={(e) => setConfValue(e.target.value)} className="w-full" />
+                      <div className="flex justify-between mt-1">
+                        <span className="text-xs text-stone-400">0</span>
+                        <span className="text-sm font-medium text-amber-600">{(confValue / 100).toFixed(2)}</span>
+                        <span className="text-xs text-stone-400">1</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Calibration */}
+                  <div className="pt-4 border-t border-stone-100">
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-sm font-medium text-stone-700">校准参数</span>
+                      <span className="text-xs text-stone-400">影响建议金额的系数</span>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-4">
+                      <div>
+                        <label className="text-xs text-stone-400 mb-1.5 block">Mode 模式</label>
+                        <select className="input-glow w-full px-3 py-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400 bg-white cursor-pointer">
+                          <option>常规</option><option>常规-稳</option><option>常规-杠杆</option>
+                          <option>半彩票半保险</option><option>保险产品</option><option>赌一把</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs text-stone-400 mb-1.5 block">TYS-base (主)</label>
+                        <div className="flex gap-1">
+                          {['S', 'M', 'L', 'H'].map(v => (
+                            <button key={v} onClick={() => setSelectedTysHome(v)}
+                              className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-all btn-hover ${
+                                v === selectedTysHome ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-stone-50 text-stone-500 border border-stone-100 hover:border-stone-200'
+                              }`}>{v}</button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-xs text-stone-400 mb-1.5 block">TYS-base (客)</label>
+                        <div className="flex gap-1">
+                          {['S', 'M', 'L', 'H'].map(v => (
+                            <button key={v} onClick={() => setSelectedTysAway(v)}
+                              className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-all btn-hover ${
+                                v === selectedTysAway ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-stone-50 text-stone-500 border border-stone-100 hover:border-stone-200'
+                              }`}>{v}</button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-xs text-stone-400 mb-1.5 block">FID 信息深度</label>
+                        <div className="flex gap-1">
+                          {['0', '0.25', '0.5', '0.75'].map(v => (
+                            <button key={v} onClick={() => setSelectedFid(v)}
+                              className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-all btn-hover ${
+                                v === selectedFid ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-stone-50 text-stone-500 border border-stone-100 hover:border-stone-200'
+                              }`}>{v}</button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* FSE */}
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      <div>
+                        <label className="text-xs text-stone-400 mb-1.5 block">FSE (主) Feature Sensor</label>
+                        <div className="flex items-center gap-3">
+                          <input type="range" min="0" max="100" value={fseHome} onChange={(e) => setFseHome(e.target.value)} className="flex-1" />
+                          <span className="text-sm font-medium text-stone-600 w-10">{(fseHome / 100).toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs text-stone-400 mb-1.5 block">FSE (客) Feature Sensor</label>
+                        <div className="flex items-center gap-3">
+                          <input type="range" min="0" max="100" value={fseAway} onChange={(e) => setFseAway(e.target.value)} className="flex-1" />
+                          <span className="text-sm font-medium text-stone-600 w-10">{(fseAway / 100).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Result - 新增加入备选按钮 */}
+                <div className="px-6 py-5 bg-gradient-to-r from-stone-50 to-orange-50/30 border-t border-stone-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-8">
+                      <div>
+                        <span className="text-xs text-stone-400 block">Expected Rating</span>
+                        <span className="text-xl font-semibold text-stone-800">0.62</span>
+                      </div>
+                      <div className="w-px h-10 bg-stone-200" />
+                      <div>
+                        <span className="text-xs text-stone-400 block">Recom. Invest</span>
+                        <span className="text-xl font-semibold text-amber-600">¥ 185</span>
+                      </div>
+                      <div className="w-px h-10 bg-stone-200" />
+                      <div>
+                        <span className="text-xs text-stone-400 block">风控上限</span>
+                        <span className="text-sm text-stone-500">¥ 341 (12%)</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <label className="text-xs text-stone-400 mb-1 block">Inputs 实际投资</label>
+                        <input type="number" defaultValue="180"
+                          className="input-glow w-28 px-3 py-2 rounded-xl border border-stone-200 text-sm font-medium focus:outline-none focus:border-amber-400" />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <button className="px-5 py-2.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl text-sm font-medium shadow-lg shadow-orange-200/40 hover:shadow-orange-300/50 transition-all btn-hover">
+                          确认投资
+                        </button>
+                        <button 
+                          onClick={() => setActivePage('combo')}
+                          className="px-5 py-2 border border-stone-300 text-stone-600 rounded-xl text-xs font-medium hover:bg-stone-50 hover:border-amber-300 hover:text-amber-600 transition-all btn-hover"
+                        >
+                          + 加入今日备选
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      // History - 球队全称
+      const HistoryPage = () => (
+        <div className="p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-semibold text-stone-800 font-display">历史记录</h2>
+              <p className="text-stone-400 text-sm mt-1">共 93 条投资记录</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <input type="text" placeholder="搜索球队、日期..."
+                className="input-glow px-4 py-2 rounded-xl border border-stone-200 text-sm w-64 focus:outline-none focus:border-amber-400" />
+              <button className="px-4 py-2 rounded-xl border border-stone-200 text-sm text-stone-600 hover:bg-stone-50 transition-all btn-hover">筛选</button>
+            </div>
+          </div>
+
+          <div className="flex gap-2 mb-4">
+            {['全部', '待结算', '已中', '未中', '单关', '串关'].map((tag, i) => (
+              <button key={tag} className={`px-4 py-1.5 rounded-full text-sm transition-all btn-hover ${i === 0 ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}>{tag}</button>
+            ))}
+          </div>
+
+          <div className="glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden">
+            <div className="relative z-10">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-stone-50 text-xs text-stone-500">
+                    <th className="px-4 py-3 text-left font-medium">日期</th>
+                    <th className="px-4 py-3 text-left font-medium">比赛</th>
+                    <th className="px-4 py-3 text-left font-medium">Entries</th>
+                    <th className="px-4 py-3 text-left font-medium">Odds</th>
+                    <th className="px-4 py-3 text-left font-medium">Conf</th>
+                    <th className="px-4 py-3 text-left font-medium">Inputs</th>
+                    <th className="px-4 py-3 text-left font-medium">状态</th>
+                    <th className="px-4 py-3 text-left font-medium">盈亏</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { date: '02-02', match: '阿森纳 vs 切尔西', entries: '主胜', odds: 2.15, conf: 0.65, inputs: 180, status: 'pending', profit: '-' },
+                    { date: '02-01', match: '利物浦 vs 曼城', entries: '大2.5', odds: 1.85, conf: 0.72, inputs: 200, status: 'win', profit: '+170' },
+                    { date: '01-31', match: '热刺 vs 曼联', entries: '平局', odds: 3.40, conf: 0.42, inputs: 120, status: 'lose', profit: '-120' },
+                    { date: '01-30', match: '纽卡斯尔 vs 阿斯顿维拉', entries: '客胜', odds: 2.60, conf: 0.55, inputs: 150, status: 'win', profit: '+240' },
+                    { date: '01-29', match: '切尔西 vs 布莱顿', entries: '主胜', odds: 1.75, conf: 0.68, inputs: 220, status: 'win', profit: '+165' },
+                    { date: '01-28', match: '曼城 vs 狼队', entries: '大3.5', odds: 2.10, conf: 0.52, inputs: 100, status: 'lose', profit: '-100' },
+                  ].map((row, i) => (
+                    <tr key={i} className="border-t border-stone-100 hover:bg-amber-50/30 cursor-pointer transition-colors">
+                      <td className="px-4 py-3 text-sm text-stone-500">{row.date}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-stone-700">{row.match}</td>
+                      <td className="px-4 py-3 text-sm text-stone-600">{row.entries}</td>
+                      <td className="px-4 py-3 text-sm text-stone-600">{row.odds}</td>
+                      <td className="px-4 py-3 text-sm text-stone-600">{row.conf}</td>
+                      <td className="px-4 py-3 text-sm text-stone-600">¥{row.inputs}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          row.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                          row.status === 'win' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                        }`}>{row.status === 'pending' ? '待结算' : row.status === 'win' ? '已中' : '未中'}</span>
+                      </td>
+                      <td className={`px-4 py-3 text-sm font-medium ${
+                        row.profit === '-' ? 'text-stone-400' : row.profit.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'
+                      }`}>{row.profit}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+
+      // Settle - placeholder用~
+      const SettlePage = () => (
+        <div className="p-8">
+          <div className="mb-6">
+            <h2 className="text-2xl font-semibold text-stone-800 font-display">待结算</h2>
+            <p className="text-stone-400 text-sm mt-1">3 场比赛待录入结果</p>
+          </div>
+
+          <div className="space-y-4">
+            {[
+              { match: '阿森纳 vs 切尔西', entries: '主胜', odds: 2.15, inputs: 180, date: '02-02' },
+              { match: '巴塞罗那 vs 皇家马德里', entries: '大2.5', odds: 1.95, inputs: 150, date: '02-02' },
+              { match: '拜仁慕尼黑 vs 多特蒙德', entries: '主胜', odds: 1.65, inputs: 200, date: '02-01' },
+            ].map((item, i) => (
+              <div key={i} className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="font-medium text-stone-700">{item.match}</p>
+                      <p className="text-sm text-stone-400">{item.date} · {item.entries} @ {item.odds}</p>
+                    </div>
+                    <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs">待结算</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-4 gap-4">
+                    <div>
+                      <label className="text-xs text-stone-400 mb-1.5 block">Results 实际结果</label>
+                      <input type="text" placeholder="比分或结果..."
+                        className="input-glow w-full px-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-stone-400 mb-1.5 block">是否命中</label>
+                      <div className="flex gap-2">
+                        <button className="flex-1 py-2 rounded-lg text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200 btn-hover">✓ 中</button>
+                        <button className="flex-1 py-2 rounded-lg text-xs font-medium bg-stone-50 text-stone-500 border border-stone-100 btn-hover">✗ 未中</button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-stone-400 mb-1.5 block">Actual Rating</label>
+                      <input type="number" step="0.01" placeholder="0~1"
+                        className="input-glow w-full px-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-stone-400 mb-1.5 block">REP 随机事件</label>
+                      <input type="number" step="0.1" placeholder="0~1.8"
+                        className="input-glow w-full px-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4 flex items-center justify-between">
+                    <div>
+                      <label className="text-xs text-stone-400 mb-1.5 block">备注（复盘心得）</label>
+                      <input type="text" placeholder="选填..."
+                        className="input-glow w-96 px-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                    </div>
+                    <button className="px-5 py-2.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl text-sm font-medium shadow-lg shadow-orange-200/40 btn-hover">确认结算</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
+      // Combo - 备选来自新建投资
+      const ComboPage = () => (
+        <div className="p-8">
+          <div className="mb-6">
+            <h2 className="text-2xl font-semibold text-stone-800 font-display">智能组合建议</h2>
+            <p className="text-stone-400 text-sm mt-1">基于 Portfolio Optimization 的最优下注方案</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium text-stone-700">今日备选比赛</h3>
+                  <button onClick={() => setActivePage('new')} className="text-xs text-amber-500 hover:text-amber-600 transition-colors">+ 添加比赛</button>
+                </div>
+                <div className="space-y-3">
+                  {[
+                    { match: '阿森纳 vs 切尔西', conf: 0.65, odds: 2.15, ev: '+8.2%' },
+                    { match: '利物浦 vs 曼城', conf: 0.58, odds: 1.95, ev: '+5.1%' },
+                    { match: '巴塞罗那 vs 皇家马德里', conf: 0.45, odds: 2.80, ev: '+3.6%' },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-stone-50 border border-stone-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all cursor-pointer lift-card">
+                      <div className="flex items-center gap-3">
+                        <input type="checkbox" defaultChecked className="w-4 h-4 accent-amber-500 cursor-pointer" />
+                        <div>
+                          <p className="text-sm font-medium text-stone-700">{item.match}</p>
+                          <p className="text-xs text-stone-400">Conf {item.conf} · Odds {item.odds}</p>
+                        </div>
+                      </div>
+                      <span className="text-sm font-medium text-emerald-600">{item.ev}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 pt-6 border-t border-stone-100">
+                  <label className="text-sm text-stone-600 mb-3 block">风险偏好</label>
+                  <div className="flex items-center gap-4">
+                    <span className="text-xs text-stone-400">保守</span>
+                    <input type="range" min="0" max="100" defaultValue="50" className="flex-1" />
+                    <span className="text-xs text-stone-400">激进</span>
+                  </div>
+                </div>
+
+                <button className="w-full mt-6 py-3 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl text-sm font-medium shadow-lg shadow-orange-200/40 btn-hover">生成最优组合</button>
+              </div>
+            </div>
+
+            <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+              <div className="relative z-10">
+                <h3 className="font-medium text-stone-700 mb-4">推荐方案</h3>
+                <div className="space-y-3">
+                  {[
+                    { tier: 'T1 主推', combo: '阿森纳主胜 × 利物浦大2.5', allocation: '¥280', ev: '+12.4%', sharpe: '1.82' },
+                    { tier: 'T2 次推', combo: '阿森纳主胜 单关', allocation: '¥180', ev: '+8.2%', sharpe: '1.45' },
+                    { tier: 'T3 博冷', combo: '三串一', allocation: '¥60', ev: '+18.7%', sharpe: '0.92' },
+                  ].map((item, i) => (
+                    <div key={i} className={`p-4 rounded-xl border transition-all cursor-pointer lift-card ${i === 0 ? 'border-amber-200 bg-amber-50/50 hover:bg-amber-50' : 'border-stone-100 bg-stone-50 hover:bg-stone-100/80'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`text-xs font-medium ${i === 0 ? 'text-amber-600' : 'text-stone-500'}`}>{item.tier}</span>
+                        <span className="text-sm font-semibold text-stone-800">{item.allocation}</span>
+                      </div>
+                      <p className="text-sm text-stone-700 mb-2">{item.combo}</p>
+                      <div className="flex gap-4 text-xs text-stone-500">
+                        <span>EV: <span className="text-emerald-600">{item.ev}</span></span>
+                        <span>Sharpe: {item.sharpe}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 p-4 rounded-xl bg-stone-50 border border-stone-100">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-stone-500">总投资</span>
+                    <span className="font-semibold text-stone-800">¥520</span>
+                  </div>
+                  <div className="flex justify-between text-sm mt-2">
+                    <span className="text-stone-500">组合 EV</span>
+                    <span className="font-medium text-emerald-600">+11.2%</span>
+                  </div>
+                </div>
+
+                <button className="w-full mt-4 py-3 border border-amber-300 text-amber-600 rounded-xl text-sm font-medium hover:bg-amber-50 transition-colors btn-hover">一键采纳方案</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+
+      // Params - 折线图 + 弹窗表格
+      const ParamsPage = () => {
+        const [expandedFactor, setExpandedFactor] = useState(null);
+        
+        const factorsData = [
+          { 
+            label: 'Conf Factor', 
+            value: '1.08', 
+            data: [1.02, 1.05, 1.08, 1.06, 1.08],
+            tableData: [
+              { week: 'W5', date: '01-27', value: '1.08', change: '+0.02' },
+              { week: 'W4', date: '01-20', value: '1.06', change: '-0.02' },
+              { week: 'W3', date: '01-13', value: '1.08', change: '+0.03' },
+              { week: 'W2', date: '01-06', value: '1.05', change: '+0.03' },
+              { week: 'W1', date: '12-30', value: '1.02', change: '-' },
+            ],
+            avg: '1.058',
+            std: '0.024'
+          },
+          { 
+            label: 'Mode Factor', 
+            value: '0.95', 
+            data: [0.92, 0.94, 0.96, 0.95, 0.95],
+            tableData: [
+              { week: 'W5', date: '01-27', value: '0.95', change: '0.00' },
+              { week: 'W4', date: '01-20', value: '0.95', change: '-0.01' },
+              { week: 'W3', date: '01-13', value: '0.96', change: '+0.02' },
+              { week: 'W2', date: '01-06', value: '0.94', change: '+0.02' },
+              { week: 'W1', date: '12-30', value: '0.92', change: '-' },
+            ],
+            avg: '0.944',
+            std: '0.015'
+          },
+          { 
+            label: 'TYS Factor', 
+            value: '1.02', 
+            data: [1.00, 1.01, 1.03, 1.02, 1.02],
+            tableData: [
+              { week: 'W5', date: '01-27', value: '1.02', change: '0.00' },
+              { week: 'W4', date: '01-20', value: '1.02', change: '-0.01' },
+              { week: 'W3', date: '01-13', value: '1.03', change: '+0.02' },
+              { week: 'W2', date: '01-06', value: '1.01', change: '+0.01' },
+              { week: 'W1', date: '12-30', value: '1.00', change: '-' },
+            ],
+            avg: '1.016',
+            std: '0.011'
+          },
+          { 
+            label: 'FID Factor', 
+            value: '1.12', 
+            data: [1.08, 1.10, 1.11, 1.12, 1.12],
+            tableData: [
+              { week: 'W5', date: '01-27', value: '1.12', change: '0.00' },
+              { week: 'W4', date: '01-20', value: '1.12', change: '+0.01' },
+              { week: 'W3', date: '01-13', value: '1.11', change: '+0.01' },
+              { week: 'W2', date: '01-06', value: '1.10', change: '+0.02' },
+              { week: 'W1', date: '12-30', value: '1.08', change: '-' },
+            ],
+            avg: '1.106',
+            std: '0.016'
+          },
+          { 
+            label: 'Odds Factor', 
+            value: '0.98', 
+            data: [1.00, 0.99, 0.98, 0.97, 0.98],
+            tableData: [
+              { week: 'W5', date: '01-27', value: '0.98', change: '+0.01' },
+              { week: 'W4', date: '01-20', value: '0.97', change: '-0.01' },
+              { week: 'W3', date: '01-13', value: '0.98', change: '-0.01' },
+              { week: 'W2', date: '01-06', value: '0.99', change: '-0.01' },
+              { week: 'W1', date: '12-30', value: '1.00', change: '-' },
+            ],
+            avg: '0.984',
+            std: '0.011'
+          },
+          { 
+            label: 'FSE Factor', 
+            value: '1.05', 
+            data: [1.02, 1.03, 1.04, 1.05, 1.05],
+            tableData: [
+              { week: 'W5', date: '01-27', value: '1.05', change: '0.00' },
+              { week: 'W4', date: '01-20', value: '1.05', change: '+0.01' },
+              { week: 'W3', date: '01-13', value: '1.04', change: '+0.01' },
+              { week: 'W2', date: '01-06', value: '1.03', change: '+0.01' },
+              { week: 'W1', date: '12-30', value: '1.02', change: '-' },
+            ],
+            avg: '1.038',
+            std: '0.013'
+          },
+        ];
+
+        // 折线图SVG
+        const LineChart = ({ data }) => {
+          const min = Math.min(...data) - 0.02;
+          const max = Math.max(...data) + 0.02;
+          const range = max - min;
+          const points = data.map((v, i) => {
+            const x = 10 + (i / (data.length - 1)) * 80;
+            const y = 45 - ((v - min) / range) * 35;
+            return `${x},${y}`;
+          }).join(' ');
+          
+          return (
+            <svg viewBox="0 0 100 50" className="w-full h-12">
+              {/* Grid lines */}
+              <line x1="10" y1="10" x2="10" y2="45" stroke="#e7e5e4" strokeWidth="0.5" />
+              <line x1="10" y1="45" x2="90" y2="45" stroke="#e7e5e4" strokeWidth="0.5" />
+              {/* Line */}
+              <polyline
+                fill="none"
+                stroke="url(#lineGradient)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                points={points}
+              />
+              {/* Dots */}
+              {data.map((v, i) => {
+                const x = 10 + (i / (data.length - 1)) * 80;
+                const y = 45 - ((v - min) / range) * 35;
+                return (
+                  <circle key={i} cx={x} cy={y} r="2.5" fill="#f59e0b" className="hover:r-4 transition-all" />
+                );
+              })}
+              <defs>
+                <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#fbbf24" />
+                  <stop offset="100%" stopColor="#f97316" />
+                </linearGradient>
+              </defs>
+            </svg>
+          );
+        };
+        
+        return (
+          <div className="p-8 max-w-4xl">
+            <div className="mb-6">
+              <h2 className="text-2xl font-semibold text-stone-800 font-display">参数后台</h2>
+              <p className="text-stone-400 text-sm mt-1">系统参数与校准系数配置</p>
+            </div>
+
+            <div className="glow-card bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-100 mb-6">
+              <div className="relative z-10 flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-amber-600 font-medium">核心指标</span>
+                  <h3 className="text-lg font-semibold text-stone-800 mt-1">Expected vs Actual Judgmental Rating</h3>
+                </div>
+                <div className="text-right">
+                  <div className="text-3xl font-bold text-amber-600">0.92</div>
+                  <p className="text-xs text-stone-500 mt-1">偏差 -8% · 校准良好</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-4">
+              <div className="relative z-10">
+                <h3 className="font-medium text-stone-700 mb-4">系统参数</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { label: '初始本金', value: 600 },
+                    { label: '风控比例上限', value: '12%' },
+                    { label: '默认赔率', value: 2.5 },
+                    { label: 'Kelly 分母', value: 4 },
+                  ].map(item => (
+                    <div key={item.label} className="flex items-center justify-between p-3 rounded-xl bg-stone-50 hover:bg-amber-50/50 transition-all lift-card cursor-pointer">
+                      <span className="text-sm text-stone-600">{item.label}</span>
+                      <input type="text" defaultValue={item.value}
+                        className="input-glow w-20 px-2 py-1 text-right text-sm rounded-lg border border-stone-200 focus:outline-none focus:border-amber-400" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium text-stone-700">动态校准系数</h3>
+                  <span className="text-xs text-stone-400">点击展开趋势 · 再点查看详细数据</span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {factorsData.map(item => (
+                    <div 
+                      key={item.label} 
+                      onClick={() => {
+                        if (expandedFactor === item.label) {
+                          // 第二次点击 - 打开弹窗
+                          setModalData(item);
+                        } else {
+                          // 第一次点击 - 展开折线图
+                          setExpandedFactor(item.label);
+                        }
+                      }}
+                      className={`p-3 rounded-xl text-center cursor-pointer transition-all lift-card ${
+                        expandedFactor === item.label ? 'bg-amber-50 border border-amber-200' : 'bg-stone-50 hover:bg-amber-50/50 border border-transparent'
+                      }`}
+                    >
+                      <span className="text-xs text-stone-400 block">{item.label}</span>
+                      <span className="text-lg font-semibold text-stone-700">{item.value}</span>
+                      {expandedFactor === item.label && (
+                        <div className="mt-3 pt-3 border-t border-amber-200">
+                          <div className="flex justify-between text-xs text-stone-500 mb-1">
+                            <span>近5周趋势</span>
+                            <span className="text-amber-500">点击查看详情 →</span>
+                          </div>
+                          <LineChart data={item.data} />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            {/* Modal */}
+            {modalData && <Modal data={modalData} onClose={() => setModalData(null)} />}
+          </div>
+        );
+      };
+
+      const renderPage = () => {
+        switch(activePage) {
+          case 'dashboard': return <DashboardPage />;
+          case 'new': return <NewInvestmentPage />;
+          case 'history': return <HistoryPage />;
+          case 'settle': return <SettlePage />;
+          case 'combo': return <ComboPage />;
+          case 'params': return <ParamsPage />;
+          default: return <NewInvestmentPage />;
+        }
+      };
+
+      return (
+        <div className="flex h-screen bg-stone-100/50">
+          <Sidebar />
+          <main className="flex-1 overflow-auto">{renderPage()}</main>
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<DugouDesign />);
+  </script>
+</body>
+</html>

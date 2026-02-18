@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>hd·cs Brand Icon Concepts — Batch III: Memorable</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&family=Sora:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Cormorant+Garamond:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --w50: #fafaf9; --w100: #f5f5f4; --w200: #e7e5e4; --w300: #d6d3d1;
+    --w400: #a8a29e; --w500: #78716c; --w600: #57534e; --w700: #44403c;
+    --w800: #292524; --w900: #1c1917;
+    --a300: #fcd34d; --a400: #fbbf24; --a500: #f59e0b;
+    --o400: #fb923c; --o500: #f97316;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'DM Sans', sans-serif; background: linear-gradient(160deg, #fafaf9, #fef7ed 40%, #fafaf9); min-height: 100vh; color: var(--w800); }
+  .page { max-width: 1200px; margin: 0 auto; padding: 56px 40px 80px; }
+  .page-header { text-align: center; margin-bottom: 56px; }
+  .page-header h1 { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 600; margin-bottom: 6px; letter-spacing: -0.5px; }
+  .page-header p { color: var(--w400); font-size: 13px; letter-spacing: 2px; text-transform: uppercase; }
+  .page-header .sub { color: var(--w500); font-size: 13px; letter-spacing: 0; text-transform: none; margin-top: 12px; max-width: 600px; margin-left: auto; margin-right: auto; line-height: 1.7; }
+
+  .concepts-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 28px; margin-bottom: 64px; }
+  .concept-card { background: white; border-radius: 20px; border: 1px solid var(--w200); overflow: hidden; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+  .concept-card:hover { transform: translateY(-4px); box-shadow: 0 20px 60px -20px rgba(0,0,0,0.12), 0 0 0 1px rgba(251,191,36,0.2); }
+  .icon-stage { height: 200px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+  .concept-info { padding: 16px 20px 20px; border-top: 1px solid var(--w100); }
+  .concept-number { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--a500); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+  .concept-name { font-family: 'Sora', sans-serif; font-weight: 600; font-size: 15px; color: var(--w800); margin-bottom: 4px; }
+  .concept-hook { font-size: 11px; color: var(--a500); font-weight: 500; margin-bottom: 4px; }
+  .concept-desc { font-size: 11px; color: var(--w400); line-height: 1.6; }
+
+  /* ===== C13: FOLDED REVEAL ===== */
+  .c13-stage { background: linear-gradient(135deg, #f5f2ed, #ede8e0); }
+  .c13-icon {
+    width: 82px; height: 82px; border-radius: 16px; position: relative;
+    background: linear-gradient(145deg, var(--w800), #1a1714);
+    box-shadow: 0 8px 32px -8px rgba(0,0,0,0.35);
+    overflow: hidden;
+  }
+  .c13-main {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 22px; letter-spacing: 5px;
+    color: rgba(250,250,249,0.85); text-transform: uppercase; padding-left: 5px;
+  }
+  .c13-fold {
+    position: absolute; top: 0; right: 0; width: 28px; height: 28px;
+    background: linear-gradient(135deg, var(--a400), var(--o500));
+    clip-path: polygon(100% 0, 100% 100%, 0 0);
+  }
+  .c13-fold-shadow {
+    position: absolute; top: 0; right: 0; width: 30px; height: 30px;
+    background: linear-gradient(135deg, transparent 48%, rgba(0,0,0,0.15) 50%, transparent 52%);
+    clip-path: polygon(100% 0, 100% 100%, 0 0);
+    filter: blur(1px);
+  }
+  .c13-fold-text {
+    position: absolute; top: 5px; right: 3px;
+    font-family: 'JetBrains Mono', monospace; font-size: 7px; font-weight: 600;
+    color: white; letter-spacing: 1px; transform: rotate(45deg);
+  }
+
+  /* ===== C14: SPLIT PRISM ===== */
+  .c14-stage { background: linear-gradient(160deg, #fefdfb, #faf5ee); }
+  .c14-icon {
+    width: 80px; height: 80px; border-radius: 18px; position: relative; overflow: hidden;
+    box-shadow: 0 6px 24px -6px rgba(0,0,0,0.12);
+  }
+  .c14-left {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 50%;
+    background: var(--w800);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .c14-right {
+    position: absolute; right: 0; top: 0; bottom: 0; width: 50%;
+    background: linear-gradient(180deg, #fef9ef, #fdf2d8);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .c14-left span {
+    font-family: 'Fraunces', serif; font-weight: 700; font-size: 26px;
+    color: var(--w50); letter-spacing: 2px; padding-left: 2px;
+  }
+  .c14-right span {
+    font-family: 'Fraunces', serif; font-weight: 700; font-size: 26px;
+    color: var(--w800); letter-spacing: 2px; padding-left: 2px;
+  }
+  .c14-seam {
+    position: absolute; left: 50%; top: 0; bottom: 0; width: 3px; transform: translateX(-50%);
+    background: linear-gradient(180deg, var(--a400), var(--o500));
+    box-shadow: 0 0 12px rgba(251,191,36,0.4);
+    z-index: 2;
+  }
+  .c14-seam-dot {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+    width: 9px; height: 9px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--a300), var(--a500));
+    box-shadow: 0 0 14px rgba(251,191,36,0.6);
+    z-index: 3;
+    border: 1.5px solid white;
+  }
+
+  /* ===== C15: DIAMOND CUT ===== */
+  .c15-stage { background: linear-gradient(160deg, #1c1917, #292524); }
+  .c15-icon {
+    width: 76px; height: 76px; position: relative;
+    transform: rotate(45deg);
+    border-radius: 6px; overflow: hidden;
+    box-shadow: 0 8px 32px -8px rgba(0,0,0,0.5);
+  }
+  .c15-facet-tl, .c15-facet-tr, .c15-facet-bl, .c15-facet-br {
+    position: absolute; width: 50%; height: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .c15-facet-tl {
+    top: 0; left: 0;
+    background: linear-gradient(135deg, #3a3632, #2e2a27);
+    border-right: 0.5px solid rgba(251,191,36,0.15);
+    border-bottom: 0.5px solid rgba(251,191,36,0.15);
+  }
+  .c15-facet-tr {
+    top: 0; right: 0;
+    background: linear-gradient(135deg, #2e2a27, #252220);
+    border-bottom: 0.5px solid rgba(251,191,36,0.15);
+  }
+  .c15-facet-bl {
+    bottom: 0; left: 0;
+    background: linear-gradient(135deg, #2e2a27, #252220);
+    border-right: 0.5px solid rgba(251,191,36,0.15);
+  }
+  .c15-facet-br {
+    bottom: 0; right: 0;
+    background: linear-gradient(135deg, #252220, #1c1917);
+  }
+  .c15-facet-tl span, .c15-facet-tr span, .c15-facet-bl span, .c15-facet-br span {
+    font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 16px;
+    text-transform: uppercase; transform: rotate(-45deg);
+  }
+  .c15-facet-tl span { color: rgba(250,250,249,0.9); }
+  .c15-facet-tr span { color: rgba(251,191,36,0.85); }
+  .c15-facet-bl span { color: rgba(250,250,249,0.5); }
+  .c15-facet-br span { color: rgba(251,191,36,0.6); }
+  .c15-center-gem {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-45deg);
+    width: 10px; height: 10px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fef3c7, var(--a400), var(--o500));
+    box-shadow: 0 0 16px rgba(251,191,36,0.7), 0 0 32px rgba(251,191,36,0.3);
+    z-index: 2;
+  }
+
+  /* ===== C16: COMPASS CALIBRATE ===== */
+  .c16-stage { background: linear-gradient(135deg, #fafaf9, #f0ece6); }
+  .c16-icon {
+    width: 82px; height: 82px; border-radius: 50%; position: relative;
+    background: white;
+    border: 1.5px solid var(--w200);
+    box-shadow: 0 4px 20px -4px rgba(0,0,0,0.08);
+  }
+  .c16-ring {
+    position: absolute; inset: 5px; border-radius: 50%;
+    border: 1px solid rgba(251,191,36,0.2);
+  }
+  .c16-letter {
+    position: absolute; font-family: 'Sora', sans-serif; font-weight: 600; font-size: 13px;
+    text-transform: uppercase;
+  }
+  .c16-n { top: 9px; left: 50%; transform: translateX(-50%); color: var(--w700); }
+  .c16-e { right: 9px; top: 50%; transform: translateY(-50%); color: var(--a500); }
+  .c16-s { bottom: 9px; left: 50%; transform: translateX(-50%); color: var(--w500); }
+  .c16-w { left: 10px; top: 50%; transform: translateY(-50%); color: var(--a500); }
+  .c16-needle {
+    position: absolute; top: 50%; left: 50%;
+    width: 2px; height: 28px;
+    background: linear-gradient(180deg, var(--o500), var(--a400));
+    transform-origin: bottom center;
+    transform: translate(-50%, -100%) rotate(25deg);
+    border-radius: 1px;
+    box-shadow: 0 0 8px rgba(251,191,36,0.3);
+  }
+  .c16-needle-base {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 7px; height: 7px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--a400), var(--o500));
+    box-shadow: 0 0 8px rgba(251,191,36,0.5);
+    z-index: 2;
+  }
+  .c16-tick { position: absolute; background: var(--w300); }
+  .c16-tick-n { top: 3px; left: 50%; transform: translateX(-50%); width: 1px; height: 4px; }
+  .c16-tick-e { right: 3px; top: 50%; transform: translateY(-50%); width: 4px; height: 1px; }
+  .c16-tick-s { bottom: 3px; left: 50%; transform: translateX(-50%); width: 1px; height: 4px; }
+  .c16-tick-w { left: 3px; top: 50%; transform: translateY(-50%); width: 4px; height: 1px; }
+
+  /* ===== C17: KEYSTONE ARCH ===== */
+  .c17-stage { background: linear-gradient(135deg, #f8f6f3, #ede8e0); }
+  .c17-icon {
+    width: 74px; height: 82px; position: relative;
+    clip-path: polygon(12% 0, 88% 0, 100% 100%, 0 100%);
+    background: linear-gradient(170deg, var(--w800), #1a1714);
+    box-shadow: 0 6px 24px -6px rgba(0,0,0,0.3);
+  }
+  .c17-inner {
+    position: absolute; inset: 2px;
+    clip-path: polygon(12% 0, 88% 0, 100% 100%, 0 100%);
+    background: linear-gradient(170deg, var(--w800), var(--w900));
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  }
+  .c17-top-row {
+    font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 20px;
+    letter-spacing: 6px; color: var(--w50); text-transform: uppercase; padding-left: 6px;
+  }
+  .c17-divider {
+    width: 24px; height: 1.5px; border-radius: 1px;
+    background: linear-gradient(90deg, transparent, var(--a400), transparent);
+    margin: 3px 0;
+  }
+  .c17-bot-row {
+    font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 20px;
+    letter-spacing: 6px; color: var(--a400); text-transform: uppercase; padding-left: 6px;
+  }
+  .c17-edge-line {
+    position: absolute; inset: 4px;
+    clip-path: polygon(12% 0, 88% 0, 100% 100%, 0 100%);
+    border: 0.5px solid rgba(251,191,36,0.15);
+  }
+
+  /* ===== C18: CIRCUIT NODE ===== */
+  .c18-stage { background: var(--w900); position: relative; }
+  .c18-stage::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(rgba(251,191,36,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(251,191,36,0.02) 1px, transparent 1px);
+    background-size: 16px 16px;
+  }
+  .c18-icon {
+    width: 80px; height: 80px; border-radius: 16px; position: relative;
+    background: linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+    border: 1px solid rgba(251,191,36,0.15);
+    backdrop-filter: blur(4px);
+  }
+  .c18-center {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 20px; height: 20px; border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #fef3c7, var(--a400));
+    box-shadow: 0 0 20px rgba(251,191,36,0.5), 0 0 40px rgba(251,191,36,0.15);
+    z-index: 2;
+  }
+  .c18-center::after {
+    content: ''; position: absolute; inset: -4px; border-radius: 50%;
+    border: 1px solid rgba(251,191,36,0.2);
+  }
+  .c18-path { position: absolute; background: rgba(251,191,36,0.15); z-index: 1; }
+  .c18-path-h { top: 50%; left: 0; right: 0; height: 1px; transform: translateY(-0.5px); }
+  .c18-path-v { left: 50%; top: 0; bottom: 0; width: 1px; transform: translateX(-0.5px); }
+  .c18-letter {
+    position: absolute; font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 12px;
+    text-transform: uppercase; z-index: 3;
+  }
+  .c18-h { top: 12px; left: 14px; color: rgba(250,250,249,0.8); }
+  .c18-d { top: 12px; right: 13px; color: rgba(251,191,36,0.8); }
+  .c18-c { bottom: 12px; left: 14px; color: rgba(250,250,249,0.5); }
+  .c18-s { bottom: 12px; right: 13px; color: rgba(251,191,36,0.55); }
+  .c18-node {
+    position: absolute; width: 5px; height: 5px; border-radius: 50%;
+    background: rgba(251,191,36,0.4); z-index: 2;
+  }
+  .c18-node-tl { top: 14px; left: 50%; transform: translateX(-50%); }
+  .c18-node-bl { bottom: 14px; left: 50%; transform: translateX(-50%); }
+  .c18-node-ml { top: 50%; left: 14px; transform: translateY(-50%); }
+  .c18-node-mr { top: 50%; right: 14px; transform: translateY(-50%); }
+
+  /* ===== C19: GOLDEN FRAME ===== */
+  .c19-stage { background: linear-gradient(160deg, #fefdfb, #faf5ee); }
+  .c19-icon {
+    width: 80px; height: 80px; border-radius: 16px; position: relative;
+    background: white;
+    box-shadow: 0 4px 20px -4px rgba(0,0,0,0.08);
+  }
+  .c19-outer-frame {
+    position: absolute; inset: 0; border-radius: 16px;
+    border: 2.5px solid transparent;
+    background: linear-gradient(white, white) padding-box,
+                linear-gradient(145deg, var(--a400), var(--o500), var(--a300)) border-box;
+  }
+  .c19-inner-frame {
+    position: absolute; inset: 8px; border-radius: 10px;
+    border: 0.5px solid var(--w200);
+  }
+  .c19-content {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 0;
+  }
+  .c19-top {
+    font-family: 'Fraunces', serif; font-weight: 600; font-size: 18px;
+    letter-spacing: 5px; color: var(--w800); text-transform: uppercase; padding-left: 5px;
+    line-height: 1.1;
+  }
+  .c19-dot {
+    width: 3px; height: 3px; border-radius: 50%;
+    background: var(--a400); margin: 4px 0;
+    box-shadow: 0 0 6px rgba(251,191,36,0.4);
+  }
+  .c19-bot {
+    font-family: 'Fraunces', serif; font-weight: 600; font-size: 18px;
+    letter-spacing: 5px; color: var(--a500); text-transform: uppercase; padding-left: 5px;
+    line-height: 1.1;
+  }
+
+  /* ===== C20: SIGNAL PULSE ===== */
+  .c20-stage { background: linear-gradient(160deg, var(--w900), #292524); }
+  .c20-icon {
+    width: 82px; height: 82px; border-radius: 16px; position: relative;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(251,191,36,0.12);
+    overflow: hidden;
+  }
+  .c20-pulse-bg {
+    position: absolute; top: 50%; left: 0; right: 0; height: 1px;
+    background: rgba(251,191,36,0.08);
+  }
+  .c20-pulse {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  }
+  .c20-pulse svg { display: block; }
+  .c20-text-area {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  }
+  .c20-h-text {
+    font-family: 'Sora', sans-serif; font-weight: 700; font-size: 28px;
+    color: rgba(250,250,249,0.12);
+    text-transform: uppercase; letter-spacing: 3px;
+  }
+  .c20-annotation {
+    position: absolute; bottom: 10px; right: 10px;
+    font-family: 'JetBrains Mono', monospace; font-size: 7px; font-weight: 500;
+    color: rgba(251,191,36,0.5); letter-spacing: 2px; text-transform: uppercase;
+  }
+
+  /* ===== C21: MÖBIUS LOOP ===== */
+  .c21-stage { background: linear-gradient(135deg, #fafaf9, #f0ece6); }
+  .c21-icon {
+    width: 80px; height: 80px; position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .c21-loop svg { display: block; }
+  .c21-label-tl {
+    position: absolute; top: 14px; left: 14px;
+    font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 14px;
+    color: var(--w800); text-transform: uppercase; letter-spacing: 1px;
+  }
+  .c21-label-br {
+    position: absolute; bottom: 14px; right: 12px;
+    font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 14px;
+    color: var(--a500); text-transform: uppercase; letter-spacing: 1px;
+  }
+
+  /* ===== C22: QUADRANT SHIFT ===== */
+  .c22-stage { background: linear-gradient(135deg, #f5f2ed, #ede8e0); }
+  .c22-icon {
+    width: 78px; height: 78px; position: relative;
+    display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 3px;
+  }
+  .c22-q {
+    border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 18px; text-transform: uppercase;
+    transition: all 0.3s;
+  }
+  .c22-q1 {
+    background: var(--w800); color: var(--w50); border-radius: 14px 10px 10px 10px;
+    box-shadow: 0 4px 12px -4px rgba(0,0,0,0.2);
+  }
+  .c22-q2 {
+    background: linear-gradient(135deg, var(--a400), var(--o400)); color: white;
+    border-radius: 10px 14px 10px 10px;
+    box-shadow: 0 4px 12px -4px rgba(251,191,36,0.3);
+  }
+  .c22-q3 {
+    background: rgba(255,255,255,0.7); color: var(--w500);
+    border: 1px solid var(--w200); border-radius: 10px 10px 14px 10px;
+  }
+  .c22-q4 {
+    background: rgba(254,243,199,0.5); color: var(--a500);
+    border: 1px solid rgba(251,191,36,0.2); border-radius: 10px 10px 10px 14px;
+  }
+
+  /* ===== C23: CROWNED H ===== */
+  .c23-stage { background: linear-gradient(160deg, #fefdfb, #faf5ee); }
+  .c23-icon {
+    width: 78px; height: 86px; position: relative;
+    display: flex; flex-direction: column; align-items: center; gap: 0;
+  }
+  .c23-crown {
+    display: flex; align-items: flex-end; gap: 2px; margin-bottom: -2px; z-index: 2;
+  }
+  .c23-crown-peak {
+    width: 3px; height: 10px; border-radius: 2px 2px 0 0;
+    background: linear-gradient(180deg, var(--a400), var(--o500));
+  }
+  .c23-crown-peak:nth-child(2) { height: 14px; }
+  .c23-body {
+    width: 60px; height: 60px; border-radius: 14px; position: relative;
+    background: linear-gradient(150deg, var(--w800), var(--w900));
+    box-shadow: 0 6px 24px -6px rgba(0,0,0,0.3);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .c23-letter {
+    font-family: 'Fraunces', serif; font-weight: 800; font-size: 32px;
+    color: var(--w50); text-transform: lowercase; line-height: 1;
+  }
+  .c23-sub {
+    position: absolute; bottom: 8px; right: 8px;
+    font-family: 'JetBrains Mono', monospace; font-size: 8px; font-weight: 600;
+    color: var(--a400); letter-spacing: 2px; text-transform: lowercase;
+  }
+  .c23-base-line {
+    width: 40px; height: 2px; border-radius: 1px; margin-top: 4px;
+    background: linear-gradient(90deg, transparent, var(--a400), transparent);
+  }
+
+  /* ===== C24: BRACKET FRAME ===== */
+  .c24-stage { background: var(--w900); }
+  .c24-icon {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .c24-bracket {
+    font-family: 'JetBrains Mono', monospace; font-weight: 300; font-size: 42px;
+    color: rgba(251,191,36,0.35); line-height: 1;
+  }
+  .c24-inner {
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+  }
+  .c24-row {
+    font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 16px;
+    letter-spacing: 6px; text-transform: uppercase; padding-left: 6px;
+  }
+  .c24-top { color: rgba(250,250,249,0.85); }
+  .c24-mid {
+    width: 20px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--a400), transparent);
+    margin: 2px 0;
+  }
+  .c24-bot { color: var(--a400); }
+
+  /* ===== C25: SHIELD CREST ===== */
+  .c25-stage { background: linear-gradient(160deg, #f5f2ed, #ede8e0); }
+  .c25-icon {
+    width: 72px; height: 84px; position: relative;
+  }
+  .c25-shield {
+    width: 100%; height: 100%;
+    background: linear-gradient(160deg, var(--w800), var(--w900));
+    clip-path: polygon(0 0, 100% 0, 100% 65%, 50% 100%, 0 65%);
+    position: relative;
+    box-shadow: 0 8px 32px -8px rgba(0,0,0,0.3);
+  }
+  .c25-shield-inner {
+    position: absolute; inset: 3px; inset-bottom: 4px;
+    clip-path: polygon(0 0, 100% 0, 100% 65%, 50% 100%, 0 65%);
+    border: 0.5px solid rgba(251,191,36,0.15);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding-bottom: 10px; gap: 1px;
+  }
+  .c25-top {
+    font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 17px;
+    letter-spacing: 5px; color: var(--w50); text-transform: uppercase; padding-left: 5px;
+    line-height: 1.1;
+  }
+  .c25-line {
+    width: 22px; height: 1px; background: linear-gradient(90deg, transparent, var(--a400), transparent);
+    margin: 3px 0;
+  }
+  .c25-bot {
+    font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 17px;
+    letter-spacing: 5px; color: var(--a400); text-transform: uppercase; padding-left: 5px;
+    line-height: 1.1;
+  }
+
+  /* ===== SIDEBAR PREVIEW ===== */
+  .preview-section { margin-top: 56px; text-align: center; }
+  .preview-section h2 { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+  .preview-section > p { color: var(--w400); font-size: 12px; margin-bottom: 36px; }
+  .sidebar-previews { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+
+  .sidebar-mock {
+    width: 200px; background: linear-gradient(180deg, #fafaf9, #fef7ed08);
+    border: 1px solid var(--w200); border-radius: 14px; padding: 14px; text-align: left;
+  }
+  .sidebar-mock-header { display: flex; align-items: center; gap: 9px; padding-bottom: 10px; border-bottom: 1px solid rgba(231,229,228,0.5); margin-bottom: 10px; }
+  .sidebar-mock-text h3 { font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 600; color: var(--w800); }
+  .sidebar-mock-text p { font-size: 8px; color: var(--w400); letter-spacing: 0.5px; }
+  .sidebar-mock-nav { display: flex; flex-direction: column; gap: 3px; }
+  .sidebar-mock-nav-item { display: flex; align-items: center; gap: 7px; padding: 7px 9px; border-radius: 9px; font-size: 11px; color: var(--w500); }
+  .sidebar-mock-nav-item.active { background: white; color: var(--w800); box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .sidebar-mock-nav-item .nav-icon { font-size: 9px; width: 14px; text-align: center; }
+  .active .nav-icon { color: var(--a500); }
+  .sb-label { padding-top: 8px; text-align: center; font-size: 8px; color: var(--w400); font-family: 'Space Mono', monospace; letter-spacing: 1px; }
+
+  /* Mini icons */
+  .mini-c14 {
+    width: 34px; height: 34px; border-radius: 9px; position: relative; overflow: hidden;
+    box-shadow: 0 3px 10px -3px rgba(0,0,0,0.12); flex-shrink: 0;
+  }
+  .mini-c14-l { position: absolute; left: 0; top: 0; bottom: 0; width: 50%; background: var(--w800); display: flex; align-items: center; justify-content: center; }
+  .mini-c14-r { position: absolute; right: 0; top: 0; bottom: 0; width: 50%; background: linear-gradient(180deg, #fef9ef, #fdf2d8); display: flex; align-items: center; justify-content: center; }
+  .mini-c14 span { font-family: 'Fraunces', serif; font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .mini-c14-l span { color: var(--w50); }
+  .mini-c14-r span { color: var(--w800); }
+  .mini-c14-seam { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); background: linear-gradient(180deg, var(--a400), var(--o500)); z-index: 2; }
+  .mini-c14-dot { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 5px; height: 5px; border-radius: 50%; background: var(--a400); border: 1px solid white; z-index: 3; box-shadow: 0 0 6px rgba(251,191,36,0.5); }
+
+  .mini-c15 {
+    width: 34px; height: 34px; transform: rotate(45deg); border-radius: 4px;
+    background: linear-gradient(145deg, #2e2a27, var(--w900)); position: relative; overflow: hidden;
+    box-shadow: 0 3px 10px -3px rgba(0,0,0,0.3); flex-shrink: 0;
+  }
+  .mini-c15 span {
+    position: absolute; font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 7px;
+    text-transform: uppercase; transform: rotate(-45deg);
+  }
+  .mini-c15 .m15-h { top: 5px; left: 5px; color: rgba(250,250,249,0.85); }
+  .mini-c15 .m15-d { top: 5px; right: 4px; color: rgba(251,191,36,0.8); }
+  .mini-c15 .m15-c { bottom: 4px; left: 5px; color: rgba(250,250,249,0.45); }
+  .mini-c15 .m15-s { bottom: 4px; right: 4px; color: rgba(251,191,36,0.5); }
+  .mini-c15-gem {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-45deg);
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--a400); box-shadow: 0 0 8px rgba(251,191,36,0.6);
+  }
+
+  .mini-c19 {
+    width: 34px; height: 34px; border-radius: 9px; position: relative;
+    background: white; flex-shrink: 0;
+  }
+  .mini-c19-frame {
+    position: absolute; inset: 0; border-radius: 9px;
+    border: 2px solid transparent;
+    background: linear-gradient(white, white) padding-box,
+                linear-gradient(145deg, var(--a400), var(--o500)) border-box;
+  }
+  .mini-c19-content {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .mini-c19 span {
+    font-family: 'Fraunces', serif; font-weight: 600; font-size: 8px;
+    text-transform: uppercase; letter-spacing: 2px; padding-left: 2px; line-height: 1.3;
+  }
+  .mini-c19 .m19-t { color: var(--w800); }
+  .mini-c19 .m19-b { color: var(--a500); }
+  .mini-c19-dot { width: 2px; height: 2px; border-radius: 50%; background: var(--a400); }
+
+  .mini-c22 {
+    width: 34px; height: 34px; display: grid;
+    grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 2px;
+    flex-shrink: 0;
+  }
+  .mini-c22 div {
+    border-radius: 5px; display: flex; align-items: center; justify-content: center;
+    font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 8px; text-transform: uppercase;
+  }
+  .mini-c22 .mq1 { background: var(--w800); color: var(--w50); border-radius: 7px 5px 5px 5px; }
+  .mini-c22 .mq2 { background: linear-gradient(135deg, var(--a400), var(--o400)); color: white; border-radius: 5px 7px 5px 5px; }
+  .mini-c22 .mq3 { background: rgba(255,255,255,0.7); color: var(--w500); border: 0.5px solid var(--w200); border-radius: 5px 5px 7px 5px; }
+  .mini-c22 .mq4 { background: rgba(254,243,199,0.5); color: var(--a500); border: 0.5px solid rgba(251,191,36,0.2); border-radius: 5px 5px 5px 7px; }
+
+  .mini-c25 {
+    width: 30px; height: 36px; flex-shrink: 0; position: relative;
+  }
+  .mini-c25-shield {
+    width: 100%; height: 100%;
+    background: linear-gradient(160deg, var(--w800), var(--w900));
+    clip-path: polygon(0 0, 100% 0, 100% 65%, 50% 100%, 0 65%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding-bottom: 5px; gap: 0;
+    box-shadow: 0 3px 10px -3px rgba(0,0,0,0.3);
+  }
+  .mini-c25 span {
+    font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 8px;
+    letter-spacing: 2px; text-transform: uppercase; padding-left: 2px; line-height: 1.2;
+  }
+  .mini-c25 .m25-t { color: var(--w50); }
+  .mini-c25 .m25-b { color: var(--a400); }
+  .mini-c25-line { width: 10px; height: 0.5px; background: linear-gradient(90deg, transparent, rgba(251,191,36,0.4), transparent); margin: 1px 0; }
+
+  .mini-c23 {
+    width: 34px; height: 38px; display: flex; flex-direction: column; align-items: center; flex-shrink: 0;
+  }
+  .mini-c23-crown { display: flex; gap: 1px; margin-bottom: -1px; z-index: 2; }
+  .mini-c23-peak { width: 2px; border-radius: 1px 1px 0 0; background: linear-gradient(180deg, var(--a400), var(--o500)); }
+  .mini-c23-peak:nth-child(1) { height: 5px; }
+  .mini-c23-peak:nth-child(2) { height: 7px; }
+  .mini-c23-peak:nth-child(3) { height: 5px; }
+  .mini-c23-body {
+    width: 28px; height: 28px; border-radius: 7px;
+    background: linear-gradient(150deg, var(--w800), var(--w900));
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 10px -3px rgba(0,0,0,0.25);
+    position: relative;
+  }
+  .mini-c23-body span {
+    font-family: 'Fraunces', serif; font-weight: 800; font-size: 15px;
+    color: var(--w50); text-transform: lowercase;
+  }
+  .mini-c23-sub {
+    position: absolute; bottom: 3px; right: 3px;
+    font-family: 'JetBrains Mono', monospace; font-size: 5px; font-weight: 600;
+    color: var(--a400); letter-spacing: 1px;
+  }
+
+  @media (max-width: 900px) {
+    .concepts-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 600px) {
+    .concepts-grid { grid-template-columns: 1fr; max-width: 380px; margin: 0 auto 64px; }
+    .sidebar-previews { flex-direction: column; align-items: center; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="page-header">
+    <h1>hd·cs Icon Concepts — Batch III</h1>
+    <p>Memorable × Compact × Investor-Ready</p>
+    <div class="sub">聚焦"方正/圆形的sidebar logo"形态，每个方案都有一个清晰的视觉钩子（visual hook），在保持高端质感的前提下追求"让人记住"的差异化。</div>
+  </div>
+
+  <div class="concepts-grid">
+
+    <!-- C13: Folded Reveal -->
+    <div class="concept-card">
+      <div class="icon-stage c13-stage">
+        <div class="c13-icon">
+          <div class="c13-main">HC</div>
+          <div class="c13-fold-shadow"></div>
+          <div class="c13-fold"></div>
+          <div class="c13-fold-text">ds</div>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 13</div>
+        <div class="concept-name">Folded Reveal</div>
+        <div class="concept-hook">🪝 记忆钩子: 翻折角藏着秘密</div>
+        <div class="concept-desc">深色底面显示"HC"，右上角金色翻折揭示隐藏的"ds"。暗喻"表面之下还有更多"——正如QCTE在表面数据下挖掘深层校准。翻折角本身就是conversation starter。</div>
+      </div>
+    </div>
+
+    <!-- C14: Split Prism -->
+    <div class="concept-card">
+      <div class="icon-stage c14-stage">
+        <div class="c14-icon">
+          <div class="c14-left"><span>HD</span></div>
+          <div class="c14-right"><span>CS</span></div>
+          <div class="c14-seam"></div>
+          <div class="c14-seam-dot"></div>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 14</div>
+        <div class="concept-name">Split Prism</div>
+        <div class="concept-hook">🪝 记忆钩子: 一刀两面，中间发光</div>
+        <div class="concept-desc">精确居中的金色光缝将方块一分为二——左暗右明。中心发光节点如同校准原点。极致对称中的微妙不对称（暗/明），产生视觉张力。像一扇门的两半，或一枚被精确切割的宝石。</div>
+      </div>
+    </div>
+
+    <!-- C15: Diamond Cut -->
+    <div class="concept-card">
+      <div class="icon-stage c15-stage">
+        <div class="c15-icon">
+          <div class="c15-facet-tl"><span>H</span></div>
+          <div class="c15-facet-tr"><span>D</span></div>
+          <div class="c15-facet-bl"><span>C</span></div>
+          <div class="c15-facet-br"><span>S</span></div>
+          <div class="c15-center-gem"></div>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 15</div>
+        <div class="concept-name">Diamond Cut</div>
+        <div class="concept-hook">🪝 记忆钩子: 45°旋转菱形 + 中心宝石</div>
+        <div class="concept-desc">方块旋转45°成为钻石形态，四个切面各承载一个字母，明暗渐变模拟真实宝石的光折射。中心发光原点如同钻石的火彩。形态本身就跳脱了"方/圆"的惯性，但依然紧凑。传达：精确切割、高价值。</div>
+      </div>
+    </div>
+
+    <!-- C16: Compass Calibrate -->
+    <div class="concept-card">
+      <div class="icon-stage c16-stage">
+        <div class="c16-icon">
+          <div class="c16-ring"></div>
+          <div class="c16-tick c16-tick-n"></div>
+          <div class="c16-tick c16-tick-e"></div>
+          <div class="c16-tick c16-tick-s"></div>
+          <div class="c16-tick c16-tick-w"></div>
+          <span class="c16-letter c16-n">H</span>
+          <span class="c16-letter c16-e">D</span>
+          <span class="c16-letter c16-s">C</span>
+          <span class="c16-letter c16-w">S</span>
+          <div class="c16-needle"></div>
+          <div class="c16-needle-base"></div>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 16</div>
+        <div class="concept-name">Compass Calibrate</div>
+        <div class="concept-hook">🪝 记忆钩子: 指南针=校准导航</div>
+        <div class="concept-desc">罗盘造型直接传达"calibration/校准"核心概念。HDCS替代了东南西北四个方位。金色指针偏转——暗喻系统正在寻找/校准方向。表盘刻度、双环、指针底座，每个细节都暗示precision仪器。</div>
+      </div>
+    </div>
+
+    <!-- C17: Keystone Arch -->
+    <div class="concept-card">
+      <div class="icon-stage c17-stage">
+        <div class="c17-icon">
+          <div class="c17-inner">
+            <span class="c17-top-row">HD</span>
+            <div class="c17-divider"></div>
+            <span class="c17-bot-row">CS</span>
+          </div>
+          <div class="c17-edge-line"></div>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 17</div>
+        <div class="concept-name">Keystone</div>
+        <div class="concept-hook">🪝 记忆钩子: 梯形=拱心石=关键一环</div>
+        <div class="concept-desc">建筑学中的Keystone（拱顶石）——拱门中最后放入、也是最关键的那块石头。梯形轮廓本身就不同于任何常见logo形态，自带辨识度。金色内边框线和衬线字体赋予建筑感的庄重与永恒。</div>
+      </div>
+    </div>
+
+    <!-- C18: Circuit Node -->
+    <div class="concept-card">
+      <div class="icon-stage c18-stage">
+        <div class="c18-icon">
+          <div class="c18-path c18-path-h"></div>
+          <div class="c18-path c18-path-v"></div>
+          <span class="c18-letter c18-h">H</span>
+          <span class="c18-letter c18-d">D</span>
+          <span class="c18-letter c18-c">C</span>
+          <span class="c18-letter c18-s">S</span>
+          <div class="c18-node c18-node-tl"></div>
+          <div class="c18-node c18-node-bl"></div>
+          <div class="c18-node c18-node-ml"></div>
+          <div class="c18-node c18-node-mr"></div>
+          <div class="c18-center"></div>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 18</div>
+        <div class="concept-name">Circuit Node</div>
+        <div class="concept-hook">🪝 记忆钩子: 四字母=四节点 汇入中央处理核心</div>
+        <div class="concept-desc">在Batch I的Breathing Corners基础上进化——加入电路板的连接线和节点。四个字母不再只是被摆放在角落，而是通过信号路径连接到中央发光核心。暗示：这是一个系统，数据从四个维度汇入。对比C03(Batch I)更有叙事感和技术感。</div>
+      </div>
+    </div>
+
+    <!-- C19: Golden Frame -->
+    <div class="concept-card">
+      <div class="icon-stage c19-stage">
+        <div class="c19-icon">
+          <div class="c19-outer-frame"></div>
+          <div class="c19-inner-frame"></div>
+          <div class="c19-content">
+            <span class="c19-top">HD</span>
+            <div class="c19-dot"></div>
+            <span class="c19-bot">CS</span>
+          </div>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 19</div>
+        <div class="concept-name">Golden Frame</div>
+        <div class="concept-hook">🪝 记忆钩子: 渐变金色描边=高端画框感</div>
+        <div class="concept-desc">白底上一圈流动的渐变金色描边，如同美术馆的金色画框。双层边框（外金内灰）营造深度。内容极简——只有字母和一个发光中点。框本身就是品牌资产：让人联想到"被框裱的价值"。在所有方案中最clean、最百搭，但金色描边确保它不会平庸。</div>
+      </div>
+    </div>
+
+    <!-- C20: Signal Pulse -->
+    <div class="concept-card">
+      <div class="icon-stage c20-stage">
+        <div class="c20-icon">
+          <div class="c20-pulse-bg"></div>
+          <div class="c20-text-area">
+            <span class="c20-h-text">HC</span>
+          </div>
+          <div class="c20-pulse">
+            <svg width="60" height="36" viewBox="0 0 60 36" fill="none">
+              <polyline points="0,18 10,18 15,4 22,32 28,10 34,24 40,18 50,18 55,12 60,18" stroke="url(#pg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+              <defs><linearGradient id="pg" x1="0" y1="0" x2="60" y2="0"><stop offset="0%" stop-color="rgba(251,191,36,0.3)"/><stop offset="40%" stop-color="#fbbf24"/><stop offset="60%" stop-color="#f97316"/><stop offset="100%" stop-color="rgba(249,115,22,0.3)"/></linearGradient></defs>
+            </svg>
+          </div>
+          <span class="c20-annotation">d·s</span>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 20</div>
+        <div class="concept-name">Signal Pulse</div>
+        <div class="concept-hook">🪝 记忆钩子: 心电图/信号波=活的系统</div>
+        <div class="concept-desc">背景大字HC几乎透明，前景的金色脉冲线横穿——如同系统正在实时运行的信号监测。角落的d·s作为技术标注。传达：这不是静态logo，是一个有生命的、正在运转的引擎。在深色背景下辉光效果极佳。</div>
+      </div>
+    </div>
+
+    <!-- C21: Möbius Loop -->
+    <div class="concept-card">
+      <div class="icon-stage c21-stage">
+        <div class="c21-icon">
+          <div class="c21-loop">
+            <svg width="64" height="48" viewBox="0 0 64 48" fill="none">
+              <!-- Infinity/möbius shape -->
+              <path d="M16,24 C16,14 24,8 32,14 C40,20 48,14 48,24 C48,34 40,40 32,34 C24,28 16,34 16,24Z" stroke="url(#mg)" stroke-width="3" stroke-linecap="round" fill="none"/>
+              <path d="M16,24 C16,14 24,8 32,14 C40,20 48,14 48,24" stroke="url(#mg2)" stroke-width="5" stroke-linecap="round" fill="none" opacity="0.15"/>
+              <defs>
+                <linearGradient id="mg" x1="0" y1="0" x2="64" y2="0">
+                  <stop offset="0%" stop-color="#44403c"/>
+                  <stop offset="50%" stop-color="#f59e0b"/>
+                  <stop offset="100%" stop-color="#44403c"/>
+                </linearGradient>
+                <linearGradient id="mg2" x1="0" y1="0" x2="64" y2="0">
+                  <stop offset="0%" stop-color="#44403c"/>
+                  <stop offset="50%" stop-color="#fbbf24"/>
+                  <stop offset="100%" stop-color="#44403c"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <span class="c21-label-tl">hd</span>
+          <span class="c21-label-br">cs</span>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 21</div>
+        <div class="concept-name">Möbius Loop</div>
+        <div class="concept-hook">🪝 记忆钩子: ∞循环=持续校准永不停歇</div>
+        <div class="concept-desc">莫比乌斯环/∞符号：HD在左上、CS在右下，被一条渐变色的无限循环线连接。暗喻系统的持续校准——Expected和Actual之间的无尽对话。渐变从深灰过渡到琥珀金再回到深灰，如同能量在环中流动。</div>
+      </div>
+    </div>
+
+    <!-- C22: Quadrant Shift -->
+    <div class="concept-card">
+      <div class="icon-stage c22-stage">
+        <div class="c22-icon">
+          <div class="c22-q c22-q1">H</div>
+          <div class="c22-q c22-q2">D</div>
+          <div class="c22-q c22-q3">C</div>
+          <div class="c22-q c22-q4">S</div>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 22</div>
+        <div class="concept-name">Quadrant Shift</div>
+        <div class="concept-hook">🪝 记忆钩子: 四色象限 各有性格</div>
+        <div class="concept-desc">四个圆角方块拼合，每块有独立的视觉性格——深色沉稳(H)、琥珀明亮(D)、白透轻盈(C)、暖金内敛(S)。整体如同一个矩阵/象限图，四种力量构成平衡。外角略大的圆角打破完美对称，产生"呼吸"。类似Slack、微软的四色logo思路但更精致克制。</div>
+      </div>
+    </div>
+
+    <!-- C23: Crowned H -->
+    <div class="concept-card">
+      <div class="icon-stage c23-stage">
+        <div class="c23-icon">
+          <div class="c23-crown">
+            <div class="c23-crown-peak"></div>
+            <div class="c23-crown-peak"></div>
+            <div class="c23-crown-peak"></div>
+          </div>
+          <div class="c23-body">
+            <span class="c23-letter">h</span>
+            <span class="c23-sub">d·cs</span>
+          </div>
+          <div class="c23-base-line"></div>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 23</div>
+        <div class="concept-name">Crowned H</div>
+        <div class="concept-hook">🪝 记忆钩子: 皇冠=王者判断力</div>
+        <div class="concept-desc">Batch I中Mono H的进化版——衬线大h作为主角，头顶三根极简金色柱体构成抽象皇冠。d·cs以monospace微标注在右下角。传达：Judgmental Rating中"judgment"的王者姿态。皇冠元素极度克制（三根线条而非写实皇冠），不会显得浮夸。</div>
+      </div>
+    </div>
+
+    <!-- C24: Bracket Frame (bonus, slightly wider) -->
+    <div class="concept-card">
+      <div class="icon-stage c24-stage">
+        <div class="c24-icon">
+          <span class="c24-bracket">{</span>
+          <div class="c24-inner">
+            <span class="c24-row c24-top">HD</span>
+            <div class="c24-mid"></div>
+            <span class="c24-row c24-bot">CS</span>
+          </div>
+          <span class="c24-bracket">}</span>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 24</div>
+        <div class="concept-name">Bracket Frame</div>
+        <div class="concept-hook">🪝 记忆钩子: 花括号=代码美学=量化系统</div>
+        <div class="concept-desc">程序员美学的直接表达——花括号{ }包裹品牌名。左右对称的大括号用低透明度的琥珀色，内部HD/CS上下排列。传达：这是一个被精确定义的系统/对象。代码感+金融感的独特交叉点。略宽不够方正，但可以缩窄括号间距适配。</div>
+      </div>
+    </div>
+
+    <!-- C25: Shield Crest -->
+    <div class="concept-card">
+      <div class="icon-stage c25-stage">
+        <div class="c25-icon">
+          <div class="c25-shield">
+            <div class="c25-shield-inner">
+              <span class="c25-top">HD</span>
+              <div class="c25-line"></div>
+              <span class="c25-bot">CS</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 25</div>
+        <div class="concept-name">Shield Crest</div>
+        <div class="concept-hook">🪝 记忆钩子: 盾牌=风险守护 + 家族纹章</div>
+        <div class="concept-desc">盾形纹章——直接传达"protection/风控"。底部尖端指向下方，如同一个护卫。衬线字体+金色分割线赋予家族办公室级别的heritage感。与C08(Wax Seal)的圆形seal感不同，盾形更有"守护"的行动感。可以作为跨品牌通用的信任标识。</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Sidebar Previews -->
+  <div class="preview-section">
+    <h2>Sidebar Context Preview — 36px</h2>
+    <p>实际sidebar尺寸下的观感对比</p>
+
+    <div class="sidebar-previews">
+      <!-- C14 -->
+      <div class="sidebar-mock">
+        <div class="sidebar-mock-header">
+          <div class="mini-c14">
+            <div class="mini-c14-l"><span>HD</span></div>
+            <div class="mini-c14-r"><span>CS</span></div>
+            <div class="mini-c14-seam"></div>
+            <div class="mini-c14-dot"></div>
+          </div>
+          <div class="sidebar-mock-text"><h3>hydecaside</h3><p>QCTE · v7.0</p></div>
+        </div>
+        <div class="sidebar-mock-nav">
+          <div class="sidebar-mock-nav-item active"><span class="nav-icon">◈</span> 新建投资</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◆</span> 智能组合</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◉</span> 待结算</div>
+        </div>
+        <div class="sb-label">SPLIT PRISM</div>
+      </div>
+
+      <!-- C15 -->
+      <div class="sidebar-mock">
+        <div class="sidebar-mock-header">
+          <div class="mini-c15">
+            <span class="m15-h">H</span><span class="m15-d">D</span>
+            <span class="m15-c">C</span><span class="m15-s">S</span>
+            <div class="mini-c15-gem"></div>
+          </div>
+          <div class="sidebar-mock-text"><h3>hydecaside</h3><p>QCTE · v7.0</p></div>
+        </div>
+        <div class="sidebar-mock-nav">
+          <div class="sidebar-mock-nav-item active"><span class="nav-icon">◈</span> 新建投资</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◆</span> 智能组合</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◉</span> 待结算</div>
+        </div>
+        <div class="sb-label">DIAMOND CUT</div>
+      </div>
+
+      <!-- C19 -->
+      <div class="sidebar-mock">
+        <div class="sidebar-mock-header">
+          <div class="mini-c19">
+            <div class="mini-c19-frame"></div>
+            <div class="mini-c19-content">
+              <span class="m19-t">HD</span>
+              <div class="mini-c19-dot"></div>
+              <span class="m19-b">CS</span>
+            </div>
+          </div>
+          <div class="sidebar-mock-text"><h3>hydecaside</h3><p>QCTE · v7.0</p></div>
+        </div>
+        <div class="sidebar-mock-nav">
+          <div class="sidebar-mock-nav-item active"><span class="nav-icon">◈</span> 新建投资</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◆</span> 智能组合</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◉</span> 待结算</div>
+        </div>
+        <div class="sb-label">GOLDEN FRAME</div>
+      </div>
+
+      <!-- C22 -->
+      <div class="sidebar-mock">
+        <div class="sidebar-mock-header">
+          <div class="mini-c22">
+            <div class="mq1">H</div><div class="mq2">D</div>
+            <div class="mq3">C</div><div class="mq4">S</div>
+          </div>
+          <div class="sidebar-mock-text"><h3>hydecaside</h3><p>QCTE · v7.0</p></div>
+        </div>
+        <div class="sidebar-mock-nav">
+          <div class="sidebar-mock-nav-item active"><span class="nav-icon">◈</span> 新建投资</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◆</span> 智能组合</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◉</span> 待结算</div>
+        </div>
+        <div class="sb-label">QUADRANT SHIFT</div>
+      </div>
+
+      <!-- C23 -->
+      <div class="sidebar-mock">
+        <div class="sidebar-mock-header">
+          <div class="mini-c23">
+            <div class="mini-c23-crown">
+              <div class="mini-c23-peak"></div>
+              <div class="mini-c23-peak"></div>
+              <div class="mini-c23-peak"></div>
+            </div>
+            <div class="mini-c23-body">
+              <span>h</span>
+              <span class="mini-c23-sub">d·cs</span>
+            </div>
+          </div>
+          <div class="sidebar-mock-text"><h3>hydecaside</h3><p>QCTE · v7.0</p></div>
+        </div>
+        <div class="sidebar-mock-nav">
+          <div class="sidebar-mock-nav-item active"><span class="nav-icon">◈</span> 新建投资</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◆</span> 智能组合</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◉</span> 待结算</div>
+        </div>
+        <div class="sb-label">CROWNED H</div>
+      </div>
+
+      <!-- C25 -->
+      <div class="sidebar-mock">
+        <div class="sidebar-mock-header">
+          <div class="mini-c25">
+            <div class="mini-c25-shield">
+              <span class="m25-t">HD</span>
+              <div class="mini-c25-line"></div>
+              <span class="m25-b">CS</span>
+            </div>
+          </div>
+          <div class="sidebar-mock-text"><h3>hydecaside</h3><p>QCTE · v7.0</p></div>
+        </div>
+        <div class="sidebar-mock-nav">
+          <div class="sidebar-mock-nav-item active"><span class="nav-icon">◈</span> 新建投资</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◆</span> 智能组合</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◉</span> 待结算</div>
+        </div>
+        <div class="sb-label">SHIELD CREST</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

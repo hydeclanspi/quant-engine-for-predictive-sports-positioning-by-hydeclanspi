@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>hd·cs Brand Icon Concepts — Batch II</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&family=Sora:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Cormorant+Garamond:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --warm-50: #fafaf9;
+    --warm-100: #f5f5f4;
+    --warm-200: #e7e5e4;
+    --warm-300: #d6d3d1;
+    --warm-400: #a8a29e;
+    --warm-500: #78716c;
+    --warm-600: #57534e;
+    --warm-700: #44403c;
+    --warm-800: #292524;
+    --warm-900: #1c1917;
+    --amber-300: #fcd34d;
+    --amber-400: #fbbf24;
+    --amber-500: #f59e0b;
+    --orange-400: #fb923c;
+    --orange-500: #f97316;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: linear-gradient(160deg, #fafaf9 0%, #fef7ed 40%, #fafaf9 100%);
+    min-height: 100vh;
+    color: var(--warm-800);
+  }
+
+  .page { max-width: 1100px; margin: 0 auto; padding: 60px 40px 80px; }
+
+  .page-header { text-align: center; margin-bottom: 64px; }
+  .page-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 32px; font-weight: 600;
+    color: var(--warm-800);
+    margin-bottom: 8px; letter-spacing: -0.5px;
+  }
+  .page-header p { color: var(--warm-400); font-size: 14px; letter-spacing: 2px; text-transform: uppercase; }
+
+  .concepts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+    margin-bottom: 64px;
+  }
+
+  .concept-card {
+    background: white;
+    border-radius: 20px;
+    border: 1px solid var(--warm-200);
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .concept-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 60px -20px rgba(0,0,0,0.12), 0 0 0 1px rgba(251,191,36,0.2);
+  }
+
+  .icon-stage {
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .concept-info { padding: 20px 24px 24px; border-top: 1px solid var(--warm-100); }
+  .concept-number { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--amber-500); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+  .concept-name { font-family: 'Sora', sans-serif; font-weight: 600; font-size: 16px; color: var(--warm-800); margin-bottom: 6px; }
+  .concept-desc { font-size: 12px; color: var(--warm-400); line-height: 1.6; }
+
+  /* ===== CONCEPT 7: Glass Layers ===== */
+  .c7-stage {
+    background: linear-gradient(135deg, #f0ece6 0%, #e8e4dd 100%);
+  }
+  .c7-icon {
+    position: relative;
+    width: 88px;
+    height: 88px;
+  }
+  .c7-back {
+    position: absolute;
+    width: 68px; height: 68px;
+    border-radius: 16px;
+    background: linear-gradient(145deg, rgba(255,255,255,0.7), rgba(255,255,255,0.3));
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.6);
+    top: 0; left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px -4px rgba(0,0,0,0.08);
+  }
+  .c7-front {
+    position: absolute;
+    width: 68px; height: 68px;
+    border-radius: 16px;
+    background: linear-gradient(145deg, rgba(251,191,36,0.15), rgba(249,115,22,0.1));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(251,191,36,0.3);
+    bottom: 0; right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px -4px rgba(251,191,36,0.15);
+  }
+  .c7-back span {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: 3px;
+    color: var(--warm-700);
+    text-transform: uppercase;
+  }
+  .c7-front span {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: 3px;
+    color: var(--amber-500);
+    text-transform: uppercase;
+  }
+
+  /* ===== CONCEPT 8: Wax Seal ===== */
+  .c8-stage {
+    background: linear-gradient(160deg, #faf8f5 0%, #f5f0e8 100%);
+  }
+  .c8-icon {
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, var(--warm-800), #1a1714);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-shadow:
+      0 2px 0 rgba(255,255,255,0.05) inset,
+      0 -2px 8px rgba(0,0,0,0.2) inset,
+      0 8px 32px -8px rgba(0,0,0,0.35);
+  }
+  .c8-icon::before {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    border: 1px solid rgba(251,191,36,0.25);
+  }
+  .c8-icon::after {
+    content: '';
+    position: absolute;
+    inset: 8px;
+    border-radius: 50%;
+    border: 0.5px solid rgba(251,191,36,0.12);
+  }
+  .c8-top-text {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: 6px;
+    color: var(--warm-50);
+    text-transform: uppercase;
+    padding-left: 6px;
+    line-height: 1;
+  }
+  .c8-divider {
+    width: 28px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--amber-400), transparent);
+    margin: 5px 0;
+  }
+  .c8-bot-text {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: 6px;
+    color: var(--amber-400);
+    text-transform: uppercase;
+    padding-left: 6px;
+    line-height: 1;
+  }
+
+  /* ===== CONCEPT 9: Data Grid ===== */
+  .c9-stage {
+    background: var(--warm-900);
+    position: relative;
+  }
+  .c9-stage::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(rgba(251,191,36,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(251,191,36,0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  .c9-icon {
+    width: 80px; height: 80px;
+    border-radius: 4px;
+    border: 1px solid rgba(251,191,36,0.2);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    position: relative;
+    overflow: hidden;
+    background: rgba(0,0,0,0.3);
+  }
+  .c9-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+    font-size: 18px;
+    text-transform: uppercase;
+    position: relative;
+    transition: all 0.3s;
+  }
+  .c9-cell::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .c9-c1 {
+    color: rgba(250,250,249,0.9);
+    border-right: 0.5px solid rgba(251,191,36,0.15);
+    border-bottom: 0.5px solid rgba(251,191,36,0.15);
+  }
+  .c9-c2 {
+    color: rgba(251,191,36,0.9);
+    border-bottom: 0.5px solid rgba(251,191,36,0.15);
+  }
+  .c9-c3 {
+    color: rgba(250,250,249,0.5);
+    border-right: 0.5px solid rgba(251,191,36,0.15);
+  }
+  .c9-c4 {
+    color: rgba(251,191,36,0.6);
+  }
+  .c9-crosshair-h {
+    position: absolute;
+    top: 50%; left: -4px; right: -4px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(251,191,36,0.3), transparent);
+  }
+  .c9-crosshair-v {
+    position: absolute;
+    left: 50%; top: -4px; bottom: -4px;
+    width: 1px;
+    background: linear-gradient(180deg, transparent, rgba(251,191,36,0.3), transparent);
+  }
+  .c9-dot {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--amber-400);
+    box-shadow: 0 0 10px rgba(251,191,36,0.8);
+  }
+
+  /* ===== CONCEPT 10: Embossed Card ===== */
+  .c10-stage {
+    background: linear-gradient(145deg, #f8f6f3, #eee9e2);
+  }
+  .c10-icon {
+    width: 88px; height: 88px;
+    border-radius: 16px;
+    background: linear-gradient(155deg, #f5f2ed, #ebe6de);
+    box-shadow:
+      6px 6px 16px rgba(0,0,0,0.08),
+      -4px -4px 12px rgba(255,255,255,0.9),
+      inset 0 0.5px 0 rgba(255,255,255,0.6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    position: relative;
+  }
+  .c10-letter-row {
+    display: flex;
+    gap: 8px;
+  }
+  .c10-letter {
+    font-family: 'Sora', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    text-transform: uppercase;
+    background: linear-gradient(165deg, var(--warm-600), var(--warm-400));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 1px 0 rgba(255,255,255,0.8));
+  }
+  .c10-letter.gold {
+    background: linear-gradient(165deg, var(--amber-500), var(--orange-400));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .c10-mid-line {
+    width: 32px; height: 1.5px;
+    background: linear-gradient(90deg, var(--warm-300), var(--amber-300), var(--warm-300));
+    border-radius: 1px;
+    margin: 2px 0;
+  }
+
+  /* ===== CONCEPT 11: Overlap Monogram ===== */
+  .c11-stage {
+    background: linear-gradient(135deg, #fafaf9, #f5f0eb);
+  }
+  .c11-icon {
+    position: relative;
+    width: 100px;
+    height: 80px;
+  }
+  .c11-h {
+    position: absolute;
+    left: 0; top: 0;
+    font-family: 'Playfair Display', serif;
+    font-weight: 800;
+    font-size: 68px;
+    line-height: 0.85;
+    color: var(--warm-800);
+    z-index: 2;
+  }
+  .c11-d {
+    position: absolute;
+    left: 28px; top: 4px;
+    font-family: 'Playfair Display', serif;
+    font-weight: 800;
+    font-size: 68px;
+    line-height: 0.85;
+    color: rgba(251,191,36,0.25);
+    z-index: 1;
+  }
+  .c11-cs-label {
+    position: absolute;
+    right: 2px;
+    bottom: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 400;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--warm-400);
+    text-transform: lowercase;
+  }
+  .c11-accent-line {
+    position: absolute;
+    bottom: 12px;
+    left: 0;
+    width: 48px;
+    height: 2.5px;
+    background: linear-gradient(90deg, var(--amber-400), var(--orange-500));
+    border-radius: 2px;
+  }
+
+  /* ===== CONCEPT 12: Capsule Badge ===== */
+  .c12-stage {
+    background: linear-gradient(160deg, #1c1917 0%, #292524 50%, #1c1917 100%);
+    position: relative;
+  }
+  .c12-stage::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 180px; height: 180px;
+    background: radial-gradient(circle, rgba(251,191,36,0.06) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .c12-icon {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+    border: 1px solid rgba(251,191,36,0.2);
+    border-radius: 40px;
+    padding: 10px 4px;
+    position: relative;
+    backdrop-filter: blur(4px);
+    box-shadow:
+      0 0 40px -10px rgba(251,191,36,0.1),
+      inset 0 0.5px 0 rgba(255,255,255,0.08);
+  }
+  .c12-segment {
+    padding: 6px 14px;
+    border-radius: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .c12-seg-left {
+    background: rgba(250,250,249,0.08);
+  }
+  .c12-seg-right {
+    background: linear-gradient(135deg, rgba(251,191,36,0.2), rgba(249,115,22,0.15));
+    border: 0.5px solid rgba(251,191,36,0.25);
+  }
+  .c12-segment span {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 500;
+    font-size: 16px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    padding-left: 4px;
+  }
+  .c12-seg-left span { color: rgba(250,250,249,0.85); }
+  .c12-seg-right span { color: var(--amber-400); }
+  .c12-mid-dot {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--amber-400);
+    box-shadow: 0 0 8px rgba(251,191,36,0.6);
+    margin: 0 2px;
+    flex-shrink: 0;
+  }
+
+  /* ===== Sidebar Preview Section ===== */
+  .preview-section { margin-top: 64px; text-align: center; }
+  .preview-section h2 { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+  .preview-section > p { color: var(--warm-400); font-size: 13px; margin-bottom: 40px; }
+  .sidebar-previews { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; }
+
+  .sidebar-mock {
+    width: 220px;
+    background: linear-gradient(180deg, #fafaf9, #fef7ed08);
+    border: 1px solid var(--warm-200);
+    border-radius: 16px;
+    padding: 16px;
+    text-align: left;
+  }
+  .sidebar-mock-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(231,229,228,0.5);
+    margin-bottom: 12px;
+  }
+  .sidebar-mock-text h3 { font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 600; color: var(--warm-800); }
+  .sidebar-mock-text p { font-size: 9px; color: var(--warm-400); letter-spacing: 0.5px; }
+  .sidebar-mock-nav { display: flex; flex-direction: column; gap: 4px; }
+  .sidebar-mock-nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; font-size: 12px; color: var(--warm-500); }
+  .sidebar-mock-nav-item.active { background: white; color: var(--warm-800); box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .sidebar-mock-nav-item .nav-icon { font-size: 10px; width: 16px; text-align: center; }
+  .active .nav-icon { color: var(--amber-500); }
+
+  /* Mini icons for sidebar */
+  .mini-c7 {
+    width: 36px; height: 36px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .mini-c7-back {
+    position: absolute;
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(145deg, rgba(255,255,255,0.8), rgba(255,255,255,0.4));
+    border: 1px solid rgba(255,255,255,0.7);
+    top: 0; left: 0;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px -2px rgba(0,0,0,0.06);
+  }
+  .mini-c7-front {
+    position: absolute;
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(145deg, rgba(251,191,36,0.12), rgba(249,115,22,0.08));
+    border: 1px solid rgba(251,191,36,0.25);
+    bottom: 0; right: 0;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px -2px rgba(251,191,36,0.15);
+  }
+  .mini-c7 span {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+  .mini-c7-back span { color: var(--warm-700); }
+  .mini-c7-front span { color: var(--amber-500); }
+
+  .mini-c8 {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, var(--warm-800), #1a1714);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    position: relative;
+    box-shadow: 0 4px 12px -4px rgba(0,0,0,0.3);
+    flex-shrink: 0;
+  }
+  .mini-c8::before {
+    content: '';
+    position: absolute; inset: 2px;
+    border-radius: 50%;
+    border: 0.5px solid rgba(251,191,36,0.2);
+  }
+  .mini-c8 span {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding-left: 2px;
+    line-height: 1;
+  }
+  .mini-c8 .m8-top { color: var(--warm-50); }
+  .mini-c8 .m8-div {
+    width: 12px; height: 0.5px;
+    background: linear-gradient(90deg, transparent, rgba(251,191,36,0.4), transparent);
+  }
+  .mini-c8 .m8-bot { color: var(--amber-400); }
+
+  .mini-c9 {
+    width: 36px; height: 36px;
+    border-radius: 3px;
+    background: var(--warm-900);
+    border: 0.5px solid rgba(251,191,36,0.2);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    position: relative;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px -4px rgba(0,0,0,0.3);
+    overflow: hidden;
+  }
+  .mini-c9 span {
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500; font-size: 8px; text-transform: uppercase;
+  }
+  .mini-c9 .m9-h { color: rgba(250,250,249,0.85); border-right: 0.5px solid rgba(251,191,36,0.1); border-bottom: 0.5px solid rgba(251,191,36,0.1); }
+  .mini-c9 .m9-d { color: rgba(251,191,36,0.85); border-bottom: 0.5px solid rgba(251,191,36,0.1); }
+  .mini-c9 .m9-c { color: rgba(250,250,249,0.45); border-right: 0.5px solid rgba(251,191,36,0.1); }
+  .mini-c9 .m9-s { color: rgba(251,191,36,0.55); }
+  .mini-c9-dot {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 3px; height: 3px;
+    border-radius: 50%;
+    background: var(--amber-400);
+    box-shadow: 0 0 6px rgba(251,191,36,0.7);
+  }
+
+  .mini-c10 {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(155deg, #f5f2ed, #ebe6de);
+    box-shadow:
+      3px 3px 8px rgba(0,0,0,0.06),
+      -2px -2px 6px rgba(255,255,255,0.8),
+      inset 0 0.5px 0 rgba(255,255,255,0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    flex-shrink: 0;
+  }
+  .mini-c10 .m10-row {
+    display: flex; gap: 3px;
+  }
+  .mini-c10 .m10-row span {
+    font-family: 'Sora', sans-serif;
+    font-weight: 700;
+    font-size: 8px;
+    text-transform: uppercase;
+  }
+  .mini-c10 .m10-dark {
+    background: linear-gradient(165deg, var(--warm-600), var(--warm-400));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .mini-c10 .m10-gold {
+    background: linear-gradient(165deg, var(--amber-500), var(--orange-400));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .mini-c10 .m10-line {
+    width: 14px; height: 1px;
+    background: linear-gradient(90deg, var(--warm-300), var(--amber-300), var(--warm-300));
+    margin: 1px 0;
+  }
+
+  .mini-c12 {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(145deg, var(--warm-900), #1a1714);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px -4px rgba(0,0,0,0.3);
+    position: relative;
+  }
+  .mini-c12-inner {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: rgba(255,255,255,0.04);
+    border: 0.5px solid rgba(251,191,36,0.15);
+    border-radius: 20px;
+    padding: 3px 5px;
+  }
+  .mini-c12 span {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 500;
+    font-size: 7px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding-left: 1.5px;
+  }
+  .mini-c12 .m12-l { color: rgba(250,250,249,0.8); }
+  .mini-c12 .m12-r { color: rgba(251,191,36,0.85); }
+  .mini-c12-dot {
+    width: 2.5px; height: 2.5px;
+    border-radius: 50%;
+    background: var(--amber-400);
+    box-shadow: 0 0 4px rgba(251,191,36,0.5);
+  }
+
+  @media (max-width: 800px) {
+    .concepts-grid { grid-template-columns: 1fr; max-width: 400px; margin: 0 auto 64px; }
+    .sidebar-previews { flex-direction: column; align-items: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="page-header">
+    <h1>hd·cs Icon Concepts — Batch II</h1>
+    <p>Six more directions for hydecaside</p>
+  </div>
+
+  <div class="concepts-grid">
+
+    <!-- Concept 7: Glass Layers -->
+    <div class="concept-card">
+      <div class="icon-stage c7-stage">
+        <div class="c7-icon">
+          <div class="c7-back"><span>HD</span></div>
+          <div class="c7-front"><span>CS</span></div>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 07</div>
+        <div class="concept-name">Glass Layers</div>
+        <div class="concept-desc">双层毛玻璃交错叠放。后层冷灰承载HD，前层琥珀薄纱承载CS。透明质感，Apple设计语言的精致。</div>
+      </div>
+    </div>
+
+    <!-- Concept 8: Wax Seal -->
+    <div class="concept-card">
+      <div class="icon-stage c8-stage">
+        <div class="c8-icon">
+          <span class="c8-top-text">HD</span>
+          <div class="c8-divider"></div>
+          <span class="c8-bot-text">CS</span>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 08</div>
+        <div class="concept-name">Wax Seal</div>
+        <div class="concept-desc">圆形印章，衬线体刻印。双环线框 + 金线分割。私人银行/家族办公室的信任感与奢华感。</div>
+      </div>
+    </div>
+
+    <!-- Concept 9: Data Grid -->
+    <div class="concept-card">
+      <div class="icon-stage c9-stage">
+        <div class="c9-icon">
+          <div class="c9-cell c9-c1">H</div>
+          <div class="c9-cell c9-c2">D</div>
+          <div class="c9-cell c9-c3">C</div>
+          <div class="c9-cell c9-c4">S</div>
+          <div class="c9-crosshair-h"></div>
+          <div class="c9-crosshair-v"></div>
+          <div class="c9-dot"></div>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 09</div>
+        <div class="concept-name">Data Grid</div>
+        <div class="concept-desc">等宽字体 × 数据矩阵。十字准星交汇于校准原点。量化金融终端的冷峻专业感，HUD仪表盘气质。</div>
+      </div>
+    </div>
+
+    <!-- Concept 10: Embossed Card -->
+    <div class="concept-card">
+      <div class="icon-stage c10-stage">
+        <div class="c10-icon">
+          <div class="c10-letter-row">
+            <span class="c10-letter">H</span>
+            <span class="c10-letter gold">D</span>
+          </div>
+          <div class="c10-mid-line"></div>
+          <div class="c10-letter-row">
+            <span class="c10-letter">C</span>
+            <span class="c10-letter gold">S</span>
+          </div>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 10</div>
+        <div class="concept-name">Embossed Card</div>
+        <div class="concept-desc">新拟态浮雕质感。光影塑造立体字母，金色点缀D和S。如同触摸到的高端名片，陶瓷般的温润。</div>
+      </div>
+    </div>
+
+    <!-- Concept 11: Overlap Monogram -->
+    <div class="concept-card">
+      <div class="icon-stage c11-stage">
+        <div class="c11-icon">
+          <span class="c11-h">h</span>
+          <span class="c11-d">d</span>
+          <div class="c11-accent-line"></div>
+          <span class="c11-cs-label">c · s</span>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 11</div>
+        <div class="concept-name">Overlap Monogram</div>
+        <div class="concept-desc">大衬线h与半透明d交叠，形成视觉深度。底部渐变线 + 等宽c·s签名。编辑风、杂志感、有张力。</div>
+      </div>
+    </div>
+
+    <!-- Concept 12: Capsule Badge -->
+    <div class="concept-card">
+      <div class="icon-stage c12-stage">
+        <div class="c12-icon">
+          <div class="c12-segment c12-seg-left"><span>HD</span></div>
+          <div class="c12-mid-dot"></div>
+          <div class="c12-segment c12-seg-right"><span>CS</span></div>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 12</div>
+        <div class="concept-name">Capsule Badge</div>
+        <div class="concept-desc">胶囊形徽章，双段分割。内嵌子胶囊各自承载HD和CS，中点连接。既是pill badge又是品牌标识。</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Sidebar Previews -->
+  <div class="preview-section">
+    <h2>Sidebar Context Preview</h2>
+    <p>实际36px尺寸下的侧边栏观感</p>
+
+    <div class="sidebar-previews">
+
+      <!-- C7 -->
+      <div class="sidebar-mock">
+        <div class="sidebar-mock-header">
+          <div class="mini-c7">
+            <div class="mini-c7-back"><span>HD</span></div>
+            <div class="mini-c7-front"><span>CS</span></div>
+          </div>
+          <div class="sidebar-mock-text"><h3>hydecaside</h3><p>QCTE · v7.0</p></div>
+        </div>
+        <div class="sidebar-mock-nav">
+          <div class="sidebar-mock-nav-item active"><span class="nav-icon">◈</span> 新建投资</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◆</span> 智能组合</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◉</span> 待结算</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◐</span> Dashboard</div>
+        </div>
+        <div style="padding-top:10px;text-align:center;"><span style="font-size:9px;color:var(--warm-400);font-family:'Space Mono',monospace;letter-spacing:1px;">GLASS LAYERS</span></div>
+      </div>
+
+      <!-- C8 -->
+      <div class="sidebar-mock">
+        <div class="sidebar-mock-header">
+          <div class="mini-c8">
+            <span class="m8-top">HD</span>
+            <div class="m8-div"></div>
+            <span class="m8-bot">CS</span>
+          </div>
+          <div class="sidebar-mock-text"><h3>hydecaside</h3><p>QCTE · v7.0</p></div>
+        </div>
+        <div class="sidebar-mock-nav">
+          <div class="sidebar-mock-nav-item active"><span class="nav-icon">◈</span> 新建投资</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◆</span> 智能组合</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◉</span> 待结算</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◐</span> Dashboard</div>
+        </div>
+        <div style="padding-top:10px;text-align:center;"><span style="font-size:9px;color:var(--warm-400);font-family:'Space Mono',monospace;letter-spacing:1px;">WAX SEAL</span></div>
+      </div>
+
+      <!-- C9 -->
+      <div class="sidebar-mock">
+        <div class="sidebar-mock-header">
+          <div class="mini-c9">
+            <span class="m9-h">H</span>
+            <span class="m9-d">D</span>
+            <span class="m9-c">C</span>
+            <span class="m9-s">S</span>
+            <div class="mini-c9-dot"></div>
+          </div>
+          <div class="sidebar-mock-text"><h3>hydecaside</h3><p>QCTE · v7.0</p></div>
+        </div>
+        <div class="sidebar-mock-nav">
+          <div class="sidebar-mock-nav-item active"><span class="nav-icon">◈</span> 新建投资</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◆</span> 智能组合</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◉</span> 待结算</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◐</span> Dashboard</div>
+        </div>
+        <div style="padding-top:10px;text-align:center;"><span style="font-size:9px;color:var(--warm-400);font-family:'Space Mono',monospace;letter-spacing:1px;">DATA GRID</span></div>
+      </div>
+
+      <!-- C10 -->
+      <div class="sidebar-mock">
+        <div class="sidebar-mock-header">
+          <div class="mini-c10">
+            <div class="m10-row"><span class="m10-dark">H</span><span class="m10-gold">D</span></div>
+            <div class="m10-line"></div>
+            <div class="m10-row"><span class="m10-dark">C</span><span class="m10-gold">S</span></div>
+          </div>
+          <div class="sidebar-mock-text"><h3>hydecaside</h3><p>QCTE · v7.0</p></div>
+        </div>
+        <div class="sidebar-mock-nav">
+          <div class="sidebar-mock-nav-item active"><span class="nav-icon">◈</span> 新建投资</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◆</span> 智能组合</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◉</span> 待结算</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◐</span> Dashboard</div>
+        </div>
+        <div style="padding-top:10px;text-align:center;"><span style="font-size:9px;color:var(--warm-400);font-family:'Space Mono',monospace;letter-spacing:1px;">EMBOSSED CARD</span></div>
+      </div>
+
+      <!-- C12 -->
+      <div class="sidebar-mock">
+        <div class="sidebar-mock-header">
+          <div class="mini-c12">
+            <div class="mini-c12-inner">
+              <span class="m12-l">HD</span>
+              <div class="mini-c12-dot"></div>
+              <span class="m12-r">CS</span>
+            </div>
+          </div>
+          <div class="sidebar-mock-text"><h3>hydecaside</h3><p>QCTE · v7.0</p></div>
+        </div>
+        <div class="sidebar-mock-nav">
+          <div class="sidebar-mock-nav-item active"><span class="nav-icon">◈</span> 新建投资</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◆</span> 智能组合</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◉</span> 待结算</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◐</span> Dashboard</div>
+        </div>
+        <div style="padding-top:10px;text-align:center;"><span style="font-size:9px;color:var(--warm-400);font-family:'Space Mono',monospace;letter-spacing:1px;">CAPSULE BADGE</span></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

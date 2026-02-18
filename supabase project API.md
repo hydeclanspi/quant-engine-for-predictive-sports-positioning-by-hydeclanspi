@@ -1,0 +1,10 @@
+supabase project API
+
+project url https://ifwczbobrmbchfroltqe.supabase.co
+
+publishable key sb_publishable_kySrN1OYRFsscJimZ8SjFA_TkNLX0mc
+
+anon public key eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlmd2N6Ym9icm1iY2hmcm9sdHFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA2MjQyNjYsImV4cCI6MjA4NjIwMDI2Nn0.UPlWBPxULbSR8_jrs0yAS6HXj3cq-Z44NLM3btzwcBo
+
+
+

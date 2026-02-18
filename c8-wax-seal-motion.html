@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C8 Wax Seal — Motion Design · 8 Variants</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Sora:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --w50: #fafaf9; --w100: #f5f5f4; --w200: #e7e5e4; --w300: #d6d3d1;
+    --w400: #a8a29e; --w500: #78716c; --w600: #57534e; --w700: #44403c; --w800: #292524; --w900: #1c1917;
+    --a200: #fde68a; --a300: #fcd34d; --a400: #fbbf24; --a500: #f59e0b;
+    --o400: #fb923c; --o500: #f97316;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #fcfbf9;
+    min-height: 100vh;
+    color: var(--w800);
+  }
+  .page { max-width: 1200px; margin: 0 auto; padding: 60px 40px 100px; }
+  .page-header { text-align: center; margin-bottom: 56px; }
+  .page-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px; font-weight: 600;
+    color: var(--w800); letter-spacing: -0.5px; margin-bottom: 8px;
+  }
+  .page-header p { color: var(--w400); font-size: 13px; letter-spacing: 2px; text-transform: uppercase; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    margin-bottom: 56px;
+  }
+
+  .card {
+    background: white;
+    border-radius: 20px;
+    border: 1px solid var(--w200);
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 60px -20px rgba(0,0,0,0.1), 0 0 0 1px rgba(251,191,36,0.15);
+  }
+  .stage {
+    height: 200px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+    background: linear-gradient(160deg, #faf8f5 0%, #f5f0e8 100%);
+  }
+  .info { padding: 16px 18px 20px; border-top: 1px solid var(--w100); }
+  .info-num { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--a500); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+  .info-name { font-family: 'Sora', sans-serif; font-weight: 600; font-size: 14px; color: var(--w800); margin-bottom: 4px; }
+  .info-desc { font-size: 11px; color: var(--w400); line-height: 1.6; }
+
+  /* ============================================================
+     BASE C8 SEAL — shared structure
+     ============================================================ */
+  .seal {
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, var(--w800), #1a1714);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-shadow:
+      0 2px 0 rgba(255,255,255,0.05) inset,
+      0 -2px 8px rgba(0,0,0,0.2) inset,
+      0 8px 32px -8px rgba(0,0,0,0.35);
+  }
+  /* Outer ring */
+  .seal-ring-outer {
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    border: 1px solid rgba(251,191,36,0.25);
+    pointer-events: none;
+  }
+  /* Inner ring */
+  .seal-ring-inner {
+    position: absolute;
+    inset: 8px;
+    border-radius: 50%;
+    border: 0.5px solid rgba(251,191,36,0.12);
+    pointer-events: none;
+  }
+  .seal-hd {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: 6px;
+    color: var(--w50);
+    text-transform: uppercase;
+    padding-left: 6px;
+    line-height: 1;
+    position: relative;
+    z-index: 2;
+  }
+  .seal-divider {
+    width: 28px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--a400), transparent);
+    margin: 5px 0;
+    position: relative;
+    z-index: 2;
+  }
+  .seal-cs {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: 6px;
+    color: var(--a400);
+    text-transform: uppercase;
+    padding-left: 6px;
+    line-height: 1;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* ============================================================
+     KEYFRAMES
+     ============================================================ */
+
+  /* S1: Seal Stamp */
+  @keyframes sealStampDrop {
+    0% { transform: scale(1.08) translateY(-12px); opacity: 0.6; }
+    60% { transform: scale(0.98) translateY(1px); opacity: 1; }
+    80% { transform: scale(1.01) translateY(-1px); }
+    100% { transform: scale(1) translateY(0); }
+  }
+  @keyframes sealStampRipple {
+    0% { transform: translate(-50%,-50%) scale(0.5); opacity: 0.6; border-width: 2px; }
+    100% { transform: translate(-50%,-50%) scale(2.2); opacity: 0; border-width: 0.5px; }
+  }
+  @keyframes sealRingReveal {
+    0%, 55% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+
+  /* S2: Ring Breathe */
+  @keyframes ringBreatheOuter {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.015); opacity: 1; }
+  }
+  @keyframes ringBreatheInner {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.01); opacity: 0.9; }
+  }
+  @keyframes dividerBreathe {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+
+  /* S3: Emboss Glow */
+  @keyframes embossGlow {
+    0% {
+      box-shadow:
+        -4px -4px 16px rgba(251,191,36,0.08),
+        0 2px 0 rgba(255,255,255,0.05) inset,
+        0 -2px 8px rgba(0,0,0,0.2) inset,
+        0 8px 32px -8px rgba(0,0,0,0.35);
+    }
+    33% {
+      box-shadow:
+        0 6px 20px rgba(251,191,36,0.06),
+        0 2px 0 rgba(255,255,255,0.03) inset,
+        -2px -4px 12px rgba(0,0,0,0.15) inset,
+        0 8px 32px -8px rgba(0,0,0,0.35);
+    }
+    66% {
+      box-shadow:
+        4px -4px 16px rgba(251,191,36,0.08),
+        2px 2px 0 rgba(255,255,255,0.04) inset,
+        0 -2px 8px rgba(0,0,0,0.2) inset,
+        0 8px 32px -8px rgba(0,0,0,0.35);
+    }
+    100% {
+      box-shadow:
+        -4px -4px 16px rgba(251,191,36,0.08),
+        0 2px 0 rgba(255,255,255,0.05) inset,
+        0 -2px 8px rgba(0,0,0,0.2) inset,
+        0 8px 32px -8px rgba(0,0,0,0.35);
+    }
+  }
+  @keyframes textShadowShift {
+    0% { text-shadow: -1px -1px 3px rgba(251,191,36,0.15), 1px 1px 2px rgba(0,0,0,0.4); }
+    33% { text-shadow: 0 2px 4px rgba(251,191,36,0.1), 0 -1px 2px rgba(0,0,0,0.3); }
+    66% { text-shadow: 1px -1px 3px rgba(251,191,36,0.15), -1px 1px 2px rgba(0,0,0,0.4); }
+    100% { text-shadow: -1px -1px 3px rgba(251,191,36,0.15), 1px 1px 2px rgba(0,0,0,0.4); }
+  }
+
+  /* S4: Gold Line Ignite */
+  @keyframes lineIgnite {
+    0%, 70% { transform: scaleX(0); opacity: 1; }
+    85% { transform: scaleX(1); opacity: 1; }
+    100% { transform: scaleX(1); opacity: 0.7; }
+  }
+  @keyframes textGlow {
+    0%, 75% { text-shadow: none; }
+    90% { text-shadow: 0 0 8px rgba(251,191,36,0.35); }
+    100% { text-shadow: 0 0 4px rgba(251,191,36,0.15); }
+  }
+
+  /* S5: Wax Surface Shimmer */
+  @keyframes waxShimmer {
+    0%, 100% { background-position: -200% 0; }
+    50% { background-position: 200% 0; }
+  }
+
+  /* S6: Seal Tilt (3D perspective) */
+  @keyframes sealTilt {
+    0%, 100% { transform: perspective(400px) rotateX(0deg) rotateY(0deg); }
+    25% { transform: perspective(400px) rotateX(2deg) rotateY(-3deg); }
+    50% { transform: perspective(400px) rotateX(-1deg) rotateY(2deg); }
+    75% { transform: perspective(400px) rotateX(1.5deg) rotateY(-1.5deg); }
+  }
+
+  /* S7: Gold Orbit */
+  @keyframes goldOrbit {
+    0% { transform: rotate(0deg) translateX(38px) rotate(0deg); }
+    100% { transform: rotate(360deg) translateX(38px) rotate(-360deg); }
+  }
+  @keyframes particleGlow {
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1); }
+  }
+
+  /* S8: Heartbeat */
+  @keyframes sealHeartbeat {
+    0%, 100% { transform: scale(1); }
+    7% { transform: scale(1.025); }
+    14% { transform: scale(1); }
+    21% { transform: scale(1.015); }
+    28% { transform: scale(1); }
+  }
+  @keyframes ringFlash {
+    0%, 100% { border-color: rgba(251,191,36,0.25); }
+    7% { border-color: rgba(251,191,36,0.55); }
+    14% { border-color: rgba(251,191,36,0.25); }
+    21% { border-color: rgba(251,191,36,0.4); }
+    28% { border-color: rgba(251,191,36,0.25); }
+  }
+
+  /* ============================================================
+     S1: SEAL STAMP — entrance animation (loops for demo)
+     ============================================================ */
+  .s1 .seal {
+    animation: sealStampDrop 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation-iteration-count: infinite;
+    animation-delay: 0s;
+    animation-duration: 4s;
+  }
+  @keyframes sealStampLoop {
+    0% { transform: scale(1.08) translateY(-12px); opacity: 0.6; }
+    15% { transform: scale(0.98) translateY(1px); opacity: 1; }
+    20% { transform: scale(1.01) translateY(-1px); }
+    25% { transform: scale(1) translateY(0); }
+    100% { transform: scale(1) translateY(0); }
+  }
+  .s1 .seal { animation: sealStampLoop 5s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+  .s1 .seal-ring-outer { animation: sealRingReveal 5s ease infinite; }
+  .s1 .seal-ring-inner { animation: sealRingReveal 5s ease infinite 0.15s; }
+  /* Pressure ripple */
+  .s1 .seal-ripple {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(251,191,36,0.3);
+    pointer-events: none;
+    animation: sealStampRipple 5s ease-out infinite;
+    animation-delay: 0.6s;
+  }
+
+  /* ============================================================
+     S2: RING BREATHE
+     ============================================================ */
+  .s2 .seal-ring-outer {
+    animation: ringBreatheOuter 5s ease-in-out infinite;
+    transform-origin: center;
+  }
+  .s2 .seal-ring-inner {
+    animation: ringBreatheInner 5s ease-in-out infinite 0.3s;
+    transform-origin: center;
+  }
+  .s2 .seal-divider {
+    animation: dividerBreathe 5s ease-in-out infinite;
+  }
+
+  /* ============================================================
+     S3: EMBOSS GLOW
+     ============================================================ */
+  .s3 .seal {
+    animation: embossGlow 6s ease-in-out infinite;
+  }
+  .s3 .seal-hd {
+    animation: textShadowShift 6s ease-in-out infinite;
+  }
+  .s3 .seal-cs {
+    animation: textShadowShift 6s ease-in-out infinite 0.5s;
+  }
+
+  /* ============================================================
+     S4: GOLD LINE IGNITE
+     ============================================================ */
+  .s4 .seal-divider {
+    background: none;
+    overflow: visible;
+  }
+  .s4 .seal-divider::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(90deg, transparent, var(--a400), transparent);
+    transform-origin: center;
+    animation: lineIgnite 3.5s ease-in-out infinite;
+  }
+  .s4 .seal-hd {
+    animation: textGlow 3.5s ease-in-out infinite;
+  }
+  .s4 .seal-cs {
+    animation: textGlow 3.5s ease-in-out infinite 0.15s;
+  }
+
+  /* ============================================================
+     S5: WAX SURFACE SHIMMER — subtle surface light catch
+     ============================================================ */
+  .s5 .seal::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: linear-gradient(
+      115deg,
+      transparent 30%,
+      rgba(255,255,255,0.06) 40%,
+      rgba(255,255,255,0.1) 42%,
+      rgba(255,255,255,0.06) 44%,
+      transparent 55%
+    );
+    background-size: 200% 100%;
+    animation: waxShimmer 5s ease-in-out infinite;
+    z-index: 3;
+    pointer-events: none;
+  }
+  /* Keep original rings via separate elements */
+  .s5 .seal-ring-outer { z-index: 4; }
+  .s5 .seal-ring-inner { z-index: 4; }
+
+  /* ============================================================
+     S6: SEAL TILT — subtle 3D perspective rock
+     ============================================================ */
+  .s6 .seal {
+    animation: sealTilt 8s ease-in-out infinite;
+    transform-style: preserve-3d;
+  }
+
+  /* ============================================================
+     S7: GOLD ORBIT — particle circling the outer ring
+     ============================================================ */
+  .s7 .seal-orbit-particle {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 4px; height: 4px;
+    margin: -2px 0 0 -2px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--a400), var(--a500));
+    box-shadow: 0 0 8px rgba(251,191,36,0.6), 0 0 16px rgba(251,191,36,0.25);
+    animation: goldOrbit 4s linear infinite;
+    z-index: 5;
+  }
+  /* Trailing particles */
+  .s7 .seal-orbit-trail1 {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 2.5px; height: 2.5px;
+    margin: -1.25px 0 0 -1.25px;
+    border-radius: 50%;
+    background: rgba(251,191,36,0.4);
+    box-shadow: 0 0 6px rgba(251,191,36,0.3);
+    animation: goldOrbit 4s linear infinite -0.12s;
+    z-index: 5;
+    opacity: 0.5;
+  }
+  .s7 .seal-orbit-trail2 {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 1.5px; height: 1.5px;
+    margin: -0.75px 0 0 -0.75px;
+    border-radius: 50%;
+    background: rgba(251,191,36,0.25);
+    box-shadow: 0 0 4px rgba(251,191,36,0.2);
+    animation: goldOrbit 4s linear infinite -0.25s;
+    z-index: 5;
+    opacity: 0.3;
+  }
+  /* Ring breathe synced with orbit */
+  .s7 .seal-ring-outer {
+    animation: ringBreatheOuter 4s ease-in-out infinite;
+  }
+
+  /* ============================================================
+     S8: HEARTBEAT — double-pump organic rhythm
+     ============================================================ */
+  .s8 .seal {
+    animation: sealHeartbeat 3s ease-in-out infinite;
+  }
+  .s8 .seal-ring-outer {
+    animation: ringFlash 3s ease-in-out infinite;
+  }
+  .s8 .seal-ring-inner {
+    animation: ringFlash 3s ease-in-out infinite 0.07s;
+  }
+  .s8 .seal-divider {
+    animation: dividerBreathe 3s ease-in-out infinite;
+  }
+
+  /* ============================================================
+     LEGEND
+     ============================================================ */
+  .legend {
+    margin-top: 48px;
+    padding: 28px 32px;
+    background: white;
+    border-radius: 20px;
+    border: 1px solid var(--w200);
+  }
+  .legend h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px; font-weight: 600; margin-bottom: 20px;
+    text-align: center;
+  }
+  .legend-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  .legend-item {
+    padding: 14px 16px;
+    background: var(--w50);
+    border-radius: 12px;
+    border: 1px solid var(--w100);
+  }
+  .legend-item.new { border-color: rgba(251,191,36,0.2); background: linear-gradient(135deg, var(--w50), #fefcf3); }
+  .legend-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px; color: var(--a500);
+    letter-spacing: 1.5px; margin-bottom: 5px;
+    text-transform: uppercase;
+  }
+  .legend-name {
+    font-family: 'Sora', sans-serif;
+    font-weight: 600; font-size: 12px;
+    color: var(--w800); margin-bottom: 3px;
+  }
+  .legend-desc {
+    font-size: 10.5px; color: var(--w400); line-height: 1.5;
+  }
+
+  /* ============================================================
+     SCENE MATRIX
+     ============================================================ */
+  .scene-section {
+    margin-top: 48px;
+    text-align: center;
+  }
+  .scene-section h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px; font-weight: 600; margin-bottom: 6px;
+  }
+  .scene-section > p {
+    color: var(--w400); font-size: 12px; margin-bottom: 28px;
+  }
+  .scene-table {
+    margin: 0 auto;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .scene-table th {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px; letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--w400);
+    padding: 8px 20px;
+    border-bottom: 1px solid var(--w200);
+    font-weight: 400;
+  }
+  .scene-table td {
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--w100);
+    color: var(--w600);
+  }
+  .scene-table td:first-child {
+    font-weight: 600;
+    color: var(--w800);
+  }
+  .scene-rec {
+    display: inline-block;
+    padding: 2px 8px;
+    background: linear-gradient(135deg, #fef9e7, #fef3c7);
+    border-radius: 4px;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.5px;
+    color: var(--a500);
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="page-header">
+    <h1>C8 Wax Seal — Motion Design</h1>
+    <p>S1~S8 · Eight Animation Variants · Living Seal</p>
+  </div>
+
+  <div class="grid">
+
+    <!-- S1: Seal Stamp -->
+    <div class="card">
+      <div class="stage s1">
+        <div class="seal">
+          <div class="seal-ring-outer"></div>
+          <div class="seal-ring-inner"></div>
+          <span class="seal-hd">HD</span>
+          <div class="seal-divider"></div>
+          <span class="seal-cs">CS</span>
+        </div>
+        <div class="seal-ripple"></div>
+      </div>
+      <div class="info">
+        <div class="info-num">S1 · Seal Stamp</div>
+        <div class="info-name">印章落下</div>
+        <div class="info-desc">入场动画——印章从上方落下，落地瞬间pressure ripple向外扩散，双环线框延迟显现。火漆印在信封上的一刻。</div>
+      </div>
+    </div>
+
+    <!-- S2: Ring Breathe -->
+    <div class="card">
+      <div class="stage s2">
+        <div class="seal">
+          <div class="seal-ring-outer"></div>
+          <div class="seal-ring-inner"></div>
+          <span class="seal-hd">HD</span>
+          <div class="seal-divider"></div>
+          <span class="seal-cs">CS</span>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">S2 · Ring Breathe</div>
+        <div class="info-name">环线呼吸</div>
+        <div class="info-desc">双层环线极其轻微的scale脉冲，外环先expand、内环延迟0.3s跟随。金线opacity同步呼吸。5s超慢周期。</div>
+      </div>
+    </div>
+
+    <!-- S3: Emboss Glow -->
+    <div class="card">
+      <div class="stage s3">
+        <div class="seal">
+          <div class="seal-ring-outer"></div>
+          <div class="seal-ring-inner"></div>
+          <span class="seal-hd">HD</span>
+          <div class="seal-divider"></div>
+          <span class="seal-cs">CS</span>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">S3 · Emboss Glow</div>
+        <div class="info-name">浮雕光晕</div>
+        <div class="info-desc">模拟侧光缓慢移动——box-shadow角度偏移 + 文字text-shadow跟随变化。桌上灯在缓慢移动，浮雕质感随之变化。6s周期。</div>
+      </div>
+    </div>
+
+    <!-- S4: Gold Line Ignite -->
+    <div class="card">
+      <div class="stage s4">
+        <div class="seal">
+          <div class="seal-ring-outer"></div>
+          <div class="seal-ring-inner"></div>
+          <span class="seal-hd">HD</span>
+          <div class="seal-divider"></div>
+          <span class="seal-cs">CS</span>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">S4 · Gold Line Ignite</div>
+        <div class="info-name">金线点燃</div>
+        <div class="info-desc">金色分割线从中心向两端展开"点燃"，HD和CS随后出现golden text-shadow。火漆加热时金箔发光的瞬间。3.5s周期。</div>
+      </div>
+    </div>
+
+    <!-- S5: Wax Surface Shimmer (NEW) -->
+    <div class="card">
+      <div class="stage s5">
+        <div class="seal">
+          <div class="seal-ring-outer"></div>
+          <div class="seal-ring-inner"></div>
+          <span class="seal-hd">HD</span>
+          <div class="seal-divider"></div>
+          <span class="seal-cs">CS</span>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">S5 · Wax Shimmer ✦ New</div>
+        <div class="info-name">蜡面流光</div>
+        <div class="info-desc">一束极细的高光在印章深色蜡面上缓慢扫过——像黑曜石在光下微微转动时表面那道不经意的光泽。5s周期。最subtle。</div>
+      </div>
+    </div>
+
+    <!-- S6: Seal Tilt (NEW) -->
+    <div class="card">
+      <div class="stage s6">
+        <div class="seal">
+          <div class="seal-ring-outer"></div>
+          <div class="seal-ring-inner"></div>
+          <span class="seal-hd">HD</span>
+          <div class="seal-divider"></div>
+          <span class="seal-cs">CS</span>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">S6 · Seal Tilt ✦ New</div>
+        <div class="info-name">微倾呼吸</div>
+        <div class="info-desc">极轻微的3D perspective晃动——像一枚硬币在桌面上尚未完全停稳时最后几个几乎看不见的摇晃。8s超慢周期。</div>
+      </div>
+    </div>
+
+    <!-- S7: Gold Orbit (NEW) -->
+    <div class="card">
+      <div class="stage s7">
+        <div class="seal">
+          <div class="seal-ring-outer"></div>
+          <div class="seal-ring-inner"></div>
+          <span class="seal-hd">HD</span>
+          <div class="seal-divider"></div>
+          <span class="seal-cs">CS</span>
+          <div class="seal-orbit-particle"></div>
+          <div class="seal-orbit-trail1"></div>
+          <div class="seal-orbit-trail2"></div>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">S7 · Gold Orbit ✦ New</div>
+        <div class="info-name">金点巡环</div>
+        <div class="info-desc">一颗金色光粒子沿外环持续运行，拖曳两颗渐隐尾迹。像精密钟表的秒针巡回，或卫星绕行轨道。4s一圈。</div>
+      </div>
+    </div>
+
+    <!-- S8: Heartbeat (NEW) -->
+    <div class="card">
+      <div class="stage s8">
+        <div class="seal">
+          <div class="seal-ring-outer"></div>
+          <div class="seal-ring-inner"></div>
+          <span class="seal-hd">HD</span>
+          <div class="seal-divider"></div>
+          <span class="seal-cs">CS</span>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">S8 · Heartbeat ✦ New</div>
+        <div class="info-name">心跳韵律</div>
+        <div class="info-desc">医学级心跳节奏——两次快速pump（大+小）然后长静止。双环金色同步闪亮。"活着的精密系统"。3s周期。</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <h2>Animation Library — S1~S8</h2>
+    <div class="legend-grid">
+      <div class="legend-item">
+        <div class="legend-tag">S1</div>
+        <div class="legend-name">Seal Stamp · 印章落下</div>
+        <div class="legend-desc">入场一次性动画。scale弹跳 + ripple + 环线延迟reveal。1.2s。</div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-tag">S2</div>
+        <div class="legend-name">Ring Breathe · 环线呼吸</div>
+        <div class="legend-desc">双环相位差scale + 金线opacity呼吸。5s周期。最适合idle。</div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-tag">S3</div>
+        <div class="legend-name">Emboss Glow · 浮雕光晕</div>
+        <div class="legend-desc">box-shadow角度偏移 + text-shadow跟随。6s周期。hover佳选。</div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-tag">S4</div>
+        <div class="legend-name">Gold Line Ignite · 金线点燃</div>
+        <div class="legend-desc">分割线从0展开 + 文字golden glow。3.5s周期。Hero展示。</div>
+      </div>
+      <div class="legend-item new">
+        <div class="legend-tag">S5 ✦</div>
+        <div class="legend-name">Wax Shimmer · 蜡面流光</div>
+        <div class="legend-desc">深色蜡面上极细高光扫过。5s。最克制最subtle的选择。</div>
+      </div>
+      <div class="legend-item new">
+        <div class="legend-tag">S6 ✦</div>
+        <div class="legend-name">Seal Tilt · 微倾呼吸</div>
+        <div class="legend-desc">3D perspective微晃。8s超慢。硬币停稳前最后的摇晃。</div>
+      </div>
+      <div class="legend-item new">
+        <div class="legend-tag">S7 ✦</div>
+        <div class="legend-name">Gold Orbit · 金点巡环</div>
+        <div class="legend-desc">金色粒子沿外环运行 + 尾迹。4s一圈。精密钟表感。</div>
+      </div>
+      <div class="legend-item new">
+        <div class="legend-tag">S8 ✦</div>
+        <div class="legend-name">Heartbeat · 心跳韵律</div>
+        <div class="legend-desc">双pump + 长静止。环线同步闪金。3s。有机生命力。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scene Matrix -->
+  <div class="scene-section">
+    <h2>Scene Recommendations</h2>
+    <p>不同使用场景下的推荐搭配</p>
+    <table class="scene-table">
+      <thead>
+        <tr>
+          <th>场景</th>
+          <th>首选</th>
+          <th>备选</th>
+          <th>气质</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Sidebar idle</td>
+          <td><span class="scene-rec">S2</span> Ring Breathe</td>
+          <td><span class="scene-rec">S5</span> Wax Shimmer</td>
+          <td>沉稳 · 有节律</td>
+        </tr>
+        <tr>
+          <td>Page loading</td>
+          <td><span class="scene-rec">S1</span> Seal Stamp</td>
+          <td><span class="scene-rec">S4</span> Gold Ignite</td>
+          <td>仪式感 · 入场</td>
+        </tr>
+        <tr>
+          <td>Hover 交互</td>
+          <td><span class="scene-rec">S3</span> Emboss Glow</td>
+          <td><span class="scene-rec">S6</span> Seal Tilt</td>
+          <td>响应 · 质感</td>
+        </tr>
+        <tr>
+          <td>Hero 展示</td>
+          <td><span class="scene-rec">S4</span> Gold Ignite</td>
+          <td><span class="scene-rec">S7</span> Gold Orbit</td>
+          <td>张力 · 精密</td>
+        </tr>
+        <tr>
+          <td>Loading 状态</td>
+          <td><span class="scene-rec">S7</span> Gold Orbit</td>
+          <td><span class="scene-rec">S8</span> Heartbeat</td>
+          <td>进行中 · 节奏</td>
+        </tr>
+        <tr>
+          <td>通知 / Alert</td>
+          <td><span class="scene-rec">S8</span> Heartbeat</td>
+          <td><span class="scene-rec">S1</span> Seal Stamp</td>
+          <td>注意力 · 脉冲</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+</body>
+</html>

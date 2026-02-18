@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp, Check, X, Trash2 } from 'lucide-react'
 import { deleteInvestment, getInvestments, updateInvestment } from '../lib/localData'
+import { autoApplyAdaptiveWeights } from '../lib/analytics'
 import { handleNoteShortcut } from '../lib/noteFormatting'
 import { normalizeEntryName } from '../lib/entryParsing'
 import WaxSealStampOverlay, { getWaxSealStampPoint } from '../components/WaxSealStampOverlay'
@@ -440,6 +441,9 @@ export default function SettlePage() {
     }
     triggerWaxSealStamp(event?.currentTarget)
     applySettlement(combo, form)
+
+    // 结算后自动微调自适应权重（安全约束：单次 ±0.02，总量 ≤0.08）
+    try { autoApplyAdaptiveWeights() } catch (_) { /* non-critical */ }
 
     // 找到当前结算项的下一条，用于自动展开
     const currentIndex = pendingCombos.findIndex((c) => c.id === combo.id)

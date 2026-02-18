@@ -1,0 +1,2451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DUGOU Model Centre v6.1 - UI Prototype (Requested Iterations)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'DM Sans', sans-serif; }
+    .font-display { font-family: 'Playfair Display', serif; }
+    .glow-card { position: relative; background: white; border-radius: 1rem; transition: all 0.3s ease; }
+    .glow-card:hover { box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.3), 0 8px 30px -12px rgba(251, 191, 36, 0.2); }
+    .glow-card::after { content: ''; position: absolute; inset: 0; border-radius: 1rem; opacity: 0; transition: opacity 0.3s ease; background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(251, 191, 36, 0.06), transparent 40%); pointer-events: none; }
+    .glow-card:hover::after { opacity: 1; }
+    .lift-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .lift-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px -12px rgba(0, 0, 0, 0.12); }
+    .btn-hover { transition: all 0.2s ease; }
+    .btn-hover:hover { transform: scale(1.02); }
+    .btn-hover:active { transform: scale(0.98); }
+    .sidebar-item { transition: all 0.2s ease; }
+    .sidebar-item:hover { transform: translateX(3px); }
+    .input-glow:focus { box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.15); }
+    input[type="range"] { -webkit-appearance: none; height: 6px; background: #e7e5e4; border-radius: 999px; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: linear-gradient(135deg, #fbbf24, #f97316); border-radius: 50%; cursor: pointer; box-shadow: 0 2px 8px rgba(251, 191, 36, 0.5); transition: transform 0.15s ease; }
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
+    .chart-bar { transition: all 0.2s ease; }
+    .chart-bar:hover { transform: scaleY(1.05); filter: brightness(1.1); }
+    .modal-overlay { animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .modal-content { animation: slideUp 0.3s ease; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .animate-pulse { animation: pulse 2s infinite; }
+    .stat-value { font-weight: 600; font-style: italic; }
+  
+  .line-clamp-1{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;}
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const DugouDesign = () => {
+      const [activePage, setActivePage] = useState('new');
+      const [activeSubPage, setActiveSubPage] = useState(null);
+      const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+      const [modalData, setModalData] = useState(null);
+      const [notePopup, setNotePopup] = useState(null);
+      const [showDataMenu, setShowDataMenu] = useState(false);
+
+      // Subtle value-color mapping (higher value => deeper tone, with exponential depth)
+      const valueColor = (v, hue=210) => {
+        const t = Math.max(0, Math.min(1, Number(v) || 0));
+        const depth = Math.pow(t, 1.6);
+        const light = 76 - depth * 26; // keep 0.8 from being too dark
+        return `hsl(${hue}, 70%, ${light}%)`;
+      };
+      const confStyle = (c) => ({ color: valueColor(c, 210) });
+      const ajrStyle = (a) => ({ color: valueColor(a, 145) });
+
+      const openNotePopup = (title, text, evt) => {
+        const pad = 16;
+        const w = 440;
+        const h = 220;
+        const x0 = evt?.clientX ?? (window.innerWidth / 2);
+        const y0 = evt?.clientY ?? (window.innerHeight / 2);
+        const x = Math.max(pad, Math.min(window.innerWidth - w - pad, x0));
+        const y = Math.max(pad, Math.min(window.innerHeight - h - pad, y0));
+        setNotePopup({ title, text, x, y });
+      };
+
+      useEffect(() => {
+        const handleMouseMove = (e) => {
+          const cards = document.querySelectorAll('.glow-card');
+          cards.forEach(card => {
+            const rect = card.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            card.style.setProperty('--mouse-x', `${x}%`);
+            card.style.setProperty('--mouse-y', `${y}%`);
+          });
+        };
+        window.addEventListener('mousemove', handleMouseMove);
+        return () => window.removeEventListener('mousemove', handleMouseMove);
+      }, []);
+
+      // Modal Component
+      const Modal = ({ data, onClose }) => (
+        <div className="modal-overlay fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
+          <div className="modal-content bg-white rounded-2xl p-6 max-w-3xl w-full mx-4 shadow-2xl max-h-[85vh] overflow-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-stone-800">{data.title}</h3>
+              <button onClick={onClose} className="text-stone-400 hover:text-stone-600 text-xl leading-none">×</button>
+            </div>
+            {data.content}
+          </div>
+        </div>
+      );
+
+      // Floating Note Popup (for long pre/post notes in tables)
+      const NotePopup = ({ data, onClose }) => (
+        <div className="fixed inset-0 z-50" onClick={onClose}>
+          <div
+            className="absolute bg-white rounded-2xl border border-stone-200 shadow-2xl p-4 w-[440px] max-w-[92vw]"
+            style={{ left: data.x, top: data.y }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 mb-2">
+              <div className="font-medium text-stone-800 text-sm">{data.title}</div>
+              <button onClick={onClose} className="text-stone-400 hover:text-stone-600 text-lg leading-none">×</button>
+            </div>
+            <div className="text-sm text-stone-600 leading-relaxed whitespace-pre-wrap">
+              {data.text || '-'}
+            </div>
+          </div>
+        </div>
+      );
+
+      // Sidebar with nested items
+      const Sidebar = () => (
+        <div className={`h-screen bg-gradient-to-b from-stone-50 to-orange-50/30 border-r border-stone-200/60 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-56'}`}>
+          <div className="p-4 border-b border-stone-200/40">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-200/50 btn-hover cursor-pointer">
+                <span className="text-white font-bold text-sm">DG</span>
+              </div>
+              {!sidebarCollapsed && (
+                <div>
+                  <h1 className="font-semibold text-stone-800 text-sm tracking-tight">DUGOU</h1>
+                  <p className="text-[10px] text-stone-400">Model Centre v5.8</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <nav className="flex-1 p-3 space-y-1">
+            {[
+              { id: 'new', icon: '◈', label: '新建投资', badge: null },
+              { id: 'combo', icon: '❖', label: '智能组合', badge: null },
+              { id: 'settle', icon: '◉', label: '待结算', badge: '3', highlight: true },
+              { id: 'dashboard', icon: '◐', label: 'Dashboard', badge: null, children: [
+                { id: 'analysis', icon: '◇', label: '深度分析' },
+                { id: 'metrics', icon: '◑', label: '数据总览' }
+              ]},
+              { id: 'history', icon: '☰', label: '历史记录', badge: '93', children: [
+                { id: 'teams', icon: '⚑', label: '球队档案馆' }
+              ]},
+              { id: 'params', icon: '⚙', label: '参数后台', badge: null },
+            ].map(item => (
+              <div key={item.id}>
+                <button
+                  onClick={() => { setActivePage(item.id); setActiveSubPage(null); }}
+                  className={`sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 group
+                    ${activePage === item.id && !activeSubPage ? 'bg-white shadow-sm shadow-stone-200/50 text-stone-800' : 'text-stone-500 hover:bg-white/60 hover:text-stone-700'}`}
+                >
+                  <span className={`text-base transition-colors ${activePage === item.id && !activeSubPage ? 'text-amber-500' : 'text-stone-400 group-hover:text-stone-500'}`}>{item.icon}</span>
+                  {!sidebarCollapsed && (
+                    <>
+                      <span className="flex-1 text-left">{item.label}</span>
+                      {item.badge && <span className={`text-xs ${item.highlight ? 'px-2 py-0.5 rounded-full bg-amber-100 text-amber-600 font-medium' : 'text-stone-400'}`}>{item.badge}</span>}
+                    </>
+                  )}
+                </button>
+                {item.children && !sidebarCollapsed && (
+                  <div className="ml-6 mt-1 space-y-1">
+                    {item.children.map(child => (
+                      <button key={child.id} onClick={() => { setActivePage(item.id); setActiveSubPage(child.id); }}
+                        className={`sidebar-item w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all duration-200 ${activeSubPage === child.id ? 'bg-amber-50 text-amber-700' : 'text-stone-400 hover:bg-white/60 hover:text-stone-600'}`}>
+                        <span className="text-sm">{child.icon}</span>
+                        <span>{child.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </nav>
+
+          <div className="p-3 border-t border-stone-200/40 space-y-1">
+            {!sidebarCollapsed && (
+              <div className="relative">
+                <button onClick={() => setShowDataMenu(!showDataMenu)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-stone-500 hover:text-stone-700 hover:bg-white/60 transition-all text-sm">
+                  <span className="text-stone-400">⇄</span><span>数据管理</span><span className="ml-auto text-xs">{showDataMenu ? '▲' : '▼'}</span>
+                </button>
+                {showDataMenu && (
+                  <div className="mt-1 space-y-1">
+                    <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-stone-500 hover:text-amber-600 hover:bg-amber-50 transition-all text-xs"><span>↓</span> 导入 Excel</button>
+                    <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-stone-500 hover:text-amber-600 hover:bg-amber-50 transition-all text-xs"><span>↑</span> 导出备份</button>
+                  </div>
+                )}
+              </div>
+            )}
+            <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-white/60 transition-all text-xs">
+              {sidebarCollapsed ? '→' : '← 收起'}
+            </button>
+          </div>
+        </div>
+      );
+
+      // Dashboard with sub-tabs
+      const DashboardPage = () => {
+  const [timePeriod, setTimePeriod] = useState('2W');
+  const [showTimePicker, setShowTimePicker] = useState(false);
+
+  const periodLabels = {
+    '2W': { label: '近两周', investments: 12, yoy: '+2.1%' },
+    '1M': { label: '本月', investments: 23, yoy: '+1.4%' },
+    '3M': { label: '近三月', investments: 68, yoy: '+0.8%' },
+    '1Y': { label: '本年度', investments: 93, yoy: '+3.6%' },
+  };
+
+  const openMetricDetail = (type) => {
+    const contents = {
+      balance: {
+        title: '蓄水池余额 · 历史明细',
+        content: (
+          <table className="w-full text-sm">
+            <thead><tr className="border-b border-stone-200 text-left text-stone-500">
+              <th className="py-2 font-medium">日期</th><th className="py-2 font-medium">比赛</th><th className="py-2 font-medium">操作前</th><th className="py-2 font-medium">盈亏</th><th className="py-2 font-medium">操作后</th>
+            </tr></thead>
+            <tbody>
+              {[
+                { date: '02-02', match: '阿森纳 vs 切尔西', before: '2,667', change: '-', after: '2,667' },
+                { date: '02-01', match: '利物浦 vs 曼城', before: '2,447', change: '+220', after: '2,667' },
+                { date: '01-31', match: '热刺 vs 曼联', before: '2,567', change: '-120', after: '2,447' },
+              ].map((r,i)=>(
+                <tr key={i} className="border-b border-stone-100">
+                  <td className="py-2">{r.date}</td>
+                  <td className="py-2">{r.match}</td>
+                  <td className="py-2">{r.before} rmb</td>
+                  <td className={`py-2 font-medium ${String(r.change).startsWith('+') ? 'text-emerald-600' : 'text-stone-500'}`}>{r.change === '-' ? '-' : `${r.change} rmb`}</td>
+                  <td className="py-2 font-medium">{r.after} rmb</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
+      },
+      roi: {
+        title: 'ROI · 详情',
+        content: (
+          <table className="w-full text-sm">
+            <thead><tr className="border-b border-stone-200 text-left text-stone-500">
+              <th className="py-2 font-medium">区间</th><th className="py-2 font-medium">投入</th><th className="py-2 font-medium">回收</th><th className="py-2 font-medium">ROI</th>
+            </tr></thead>
+            <tbody>
+              {[
+                { range: '近两周', inpt: 1120, out: 1290, roi: 0.152 },
+                { range: '近四周', inpt: 1920, out: 2030, roi: 0.057 },
+                { range: '近三月', inpt: 4880, out: 5120, roi: 0.049 },
+              ].map((r,i)=>(
+                <tr key={i} className="border-b border-stone-100">
+                  <td className="py-2">{r.range}</td>
+                  <td className="py-2">{r.inpt} rmb</td>
+                  <td className="py-2">{r.out} rmb</td>
+                  <td className={`py-2 font-medium ${r.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>{(r.roi*100).toFixed(1)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
+      },
+      hitrate: {
+        title: '命中率 · 详情',
+        content: (
+          <table className="w-full text-sm">
+            <thead><tr className="border-b border-stone-200 text-left text-stone-500">
+              <th className="py-2 font-medium">日期</th><th className="py-2 font-medium">比赛</th><th className="py-2 font-medium">结果</th><th className="py-2 font-medium">Conf</th><th className="py-2 font-medium">投入</th>
+            </tr></thead>
+            <tbody>
+              {[
+                { date: '02-01', match: '利物浦 vs 曼城', r: '已中', conf: 0.72, inpt: 200 },
+                { date: '01-31', match: '热刺 vs 曼联', r: '未中', conf: 0.42, inpt: 120 },
+                { date: '01-30', match: '纽卡 vs 维拉', r: '已中', conf: 0.55, inpt: 150 },
+              ].map((r,i)=>(
+                <tr key={i} className="border-b border-stone-100">
+                  <td className="py-2">{r.date}</td>
+                  <td className="py-2">{r.match}</td>
+                  <td className={`py-2 font-medium ${r.r === '已中' ? 'text-emerald-600' : 'text-rose-500'}`}>{r.r}</td>
+                  <td className="py-2" style={confStyle(r.conf)}>{r.conf.toFixed(2)}</td>
+                  <td className="py-2">{r.inpt} rmb</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
+      },
+      rating: {
+        title: 'Conf vs AJR · 明细',
+        content: (
+          <table className="w-full text-sm">
+            <thead><tr className="border-b border-stone-200 text-left text-stone-500">
+              <th className="py-2 font-medium">日期</th><th className="py-2 font-medium">比赛</th><th className="py-2 font-medium">Conf</th><th className="py-2 font-medium">AJR</th><th className="py-2 font-medium">差值</th>
+            </tr></thead>
+            <tbody>
+              {[
+                { date: '02-01', match: '利物浦 vs 曼城', conf: 0.72, ajr: 0.75 },
+                { date: '01-31', match: '热刺 vs 曼联', conf: 0.42, ajr: 0.38 },
+                { date: '01-30', match: '纽卡 vs 维拉', conf: 0.55, ajr: 0.62 },
+              ].map((r,i)=>(
+                <tr key={i} className="border-b border-stone-100">
+                  <td className="py-2">{r.date}</td>
+                  <td className="py-2">{r.match}</td>
+                  <td className="py-2 font-medium" style={confStyle(r.conf)}>{r.conf.toFixed(2)}</td>
+                  <td className="py-2 font-medium" style={ajrStyle(r.ajr)}>{r.ajr.toFixed(2)}</td>
+                  <td className="py-2 text-stone-600">{(r.ajr - r.conf).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
+      },
+      noise: {
+        title: 'REP (噪音过滤) · 说明',
+        content: (
+          <div className="text-sm text-stone-700 leading-relaxed space-y-3">
+            <p><span className="font-medium">REP（Random Events Parameter）</span>用于估计“随机事件/偶然性”对单场结果的扰动强度。它是用于风险调整与稳健性的技术参数。</p>
+            <ul className="list-disc pl-5 space-y-1 text-stone-600">
+              <li>组合优化时：REP 越高的比赛会被降低权重，以减少尾部风险。</li>
+              <li>统计归因时：REP 用于把“运气/噪音”从判断质量中分离出来。</li>
+              <li>动态校准时：REP 会影响 Conf→AJR 映射斜率（高 REP 区间更保守）。</li>
+            </ul>
+            <p className="text-stone-500">直观理解：REP = “随机性强度”的量化刻度。</p>
+          </div>
+        )
+      },
+      conf: {
+        title: 'Conf 校准曲线 · 说明',
+        content: (
+          <div className="text-sm text-stone-700 leading-relaxed space-y-3">
+            <p>Conf 校准曲线对比 <span className="font-medium">你主观给出的 Conf</span> 与 <span className="font-medium">赛后 AJR</span> 的一致性，反映你判断的“校准程度”。</p>
+            <p className="text-stone-500">Dashboard 展示 Conf vs AJR；而“Expected vs Actual Judgmental Rating（模型拟合）”已移动到参数后台。</p>
+          </div>
+        )
+      },
+      recent: {
+        title: '近期投资 · 明细',
+        content: (
+          <table className="w-full text-sm">
+            <thead><tr className="border-b border-stone-200 text-left text-stone-500">
+              <th className="py-2 font-medium">日期</th><th className="py-2 font-medium">类型</th><th className="py-2 font-medium">比赛数</th><th className="py-2 font-medium">投入</th><th className="py-2 font-medium">备注</th>
+            </tr></thead>
+            <tbody>
+              {[
+                { date: '02-02', type: '2 Matches Combo', m: 2, inpt: 300, note: '偏稳健' },
+                { date: '02-01', type: 'Single Match', m: 1, inpt: 200, note: '高信心' },
+                { date: '01-31', type: 'Single Match', m: 1, inpt: 120, note: '试探性' },
+              ].map((r,i)=>(
+                <tr key={i} className="border-b border-stone-100">
+                  <td className="py-2">{r.date}</td>
+                  <td className="py-2">{r.type}</td>
+                  <td className="py-2">{r.m}</td>
+                  <td className="py-2">{r.inpt} rmb</td>
+                  <td className="py-2 text-stone-500">{r.note}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
+      },
+    };
+    setModalData(contents[type]);
+  };
+
+  const totalInvest = periodLabels[timePeriod].investments;
+  const totalMatches = 18;
+
+  return (
+    <div className="p-8 max-w-6xl">
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold text-stone-800 font-display">Dashboard</h2>
+            <div className="flex items-center gap-2 mt-1">
+              <div className="relative">
+                <button onClick={() => setShowTimePicker(!showTimePicker)} className="text-stone-500 text-sm hover:text-amber-600 flex items-center gap-1">
+                  {periodLabels[timePeriod].label} <span className="text-xs">▼</span>
+                </button>
+                {showTimePicker && (
+                  <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-stone-200 py-1 z-50">
+                    {Object.entries(periodLabels).map(([key, val]) => (
+                      <button key={key} onClick={() => { setTimePeriod(key); setShowTimePicker(false); }}
+                        className={`block w-full px-4 py-1.5 text-left text-sm ${timePeriod === key ? 'bg-amber-50 text-amber-700' : 'text-stone-600 hover:bg-stone-50'}`}>
+                        {val.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <span className="text-stone-300">·</span>
+              <span className="text-sm text-stone-400">{totalInvest} 份投资 / {totalMatches} 场比赛</span>
+            </div>
+          </div>
+
+          <button onClick={() => setActiveSubPage('metrics')} className="px-4 py-2 rounded-xl border border-stone-200 text-sm text-stone-600 hover:bg-stone-50 btn-hover">
+            打开 数据总览
+          </button>
+        </div>
+      </div>
+
+      {/* Top Row */}
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <div onClick={() => openMetricDetail('balance')} className="glow-card bg-white rounded-2xl border border-stone-100 p-5 cursor-pointer lift-card">
+          <div className="relative z-10">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-stone-500">蓄水池余额</span>
+              <span className="text-amber-400">◈</span>
+            </div>
+            <div className="text-xl font-semibold text-stone-800 mt-2">2,667 rmb</div>
+            <div className="text-xs text-stone-400 mt-1">vs 上期 <span className="text-emerald-600">+220 rmb</span></div>
+          </div>
+        </div>
+
+        <div onClick={() => openMetricDetail('roi')} className="glow-card bg-white rounded-2xl border border-stone-100 p-5 cursor-pointer lift-card">
+          <div className="relative z-10">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-stone-500">ROI</span>
+              <span className="text-amber-400">❖</span>
+            </div>
+            <div className="text-xl font-semibold text-stone-800 mt-2">+15.2%</div>
+            <div className="text-xs text-stone-400 mt-1">vs 上期 <span className="text-emerald-600">+5.7%</span></div>
+          </div>
+        </div>
+
+        <div onClick={() => openMetricDetail('hitrate')} className="glow-card bg-white rounded-2xl border border-stone-100 p-5 cursor-pointer lift-card">
+          <div className="relative z-10">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-stone-500">命中率</span>
+              <span className="text-amber-400">◉</span>
+            </div>
+            <div className="text-xl font-semibold text-stone-800 mt-2">67.3%</div>
+            <div className="text-xs text-stone-400 mt-1">vs 上期 <span className="text-emerald-600">{periodLabels[timePeriod].yoy}</span></div>
+          </div>
+        </div>
+
+        <div onClick={() => openMetricDetail('rating')} className="glow-card bg-white rounded-2xl border border-stone-100 p-5 cursor-pointer lift-card">
+          <div className="relative z-10">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-stone-500">Conf vs AJR</span>
+              <span className="text-amber-400">◐</span>
+            </div>
+            <div className="text-xl font-semibold text-stone-800 mt-2">0.71</div>
+            <div className="text-xs text-stone-400 mt-1">相关系数（校准）</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Second Row */}
+      <div className="grid grid-cols-3 gap-4 mb-4">
+        <div onClick={() => openMetricDetail('noise')} className="glow-card bg-white rounded-2xl border border-stone-100 p-5 cursor-pointer lift-card">
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <div className="text-sm font-medium text-stone-800">REP (噪音过滤)</div>
+                <div className="text-xs text-stone-400">Random Events Parameter</div>
+              </div>
+              <span className="text-amber-400">◎</span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <div className="p-2 rounded-xl bg-emerald-50/70 border border-emerald-100">
+                <div className="text-xs text-stone-500">低噪音</div>
+                <div className="text-sm font-semibold text-emerald-700">7</div>
+              </div>
+              <div className="p-2 rounded-xl bg-stone-50 border border-stone-100">
+                <div className="text-xs text-stone-500">中等</div>
+                <div className="text-sm font-semibold text-stone-700">9</div>
+              </div>
+              <div className="p-2 rounded-xl bg-rose-50/70 border border-rose-100">
+                <div className="text-xs text-stone-500">高噪音</div>
+                <div className="text-sm font-semibold text-rose-600">2</div>
+              </div>
+            </div>
+
+            <div className="text-xs text-stone-500 leading-relaxed">
+              通过 REP 对“随机事件扰动”做加权：降低高噪音比赛在组合中的权重，并用于把运气因素从 AJR 校准中剥离。
+            </div>
+          </div>
+        </div>
+
+        <div onClick={() => openMetricDetail('recent')} className="glow-card bg-white rounded-2xl border border-stone-100 p-5 cursor-pointer lift-card">
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <div className="text-sm font-medium text-stone-800">近期投资</div>
+                <div className="text-xs text-stone-400">最近 7 天</div>
+              </div>
+              <span className="text-amber-400">☰</span>
+            </div>
+            <div className="space-y-2 text-xs">
+              {[
+                { t: '2 Matches Combo', inpt: 300, d: '02-02' },
+                { t: 'Single Match', inpt: 200, d: '02-01' },
+                { t: 'Single Match', inpt: 120, d: '01-31' },
+              ].map((r,i)=>(
+                <div key={i} className="flex items-center justify-between p-2 rounded-xl bg-stone-50 border border-stone-100">
+                  <span className="text-stone-600">{r.d} · {r.t}</span>
+                  <span className="font-medium text-stone-800">{r.inpt} rmb</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div onClick={() => openMetricDetail('conf')} className="glow-card bg-white rounded-2xl border border-stone-100 p-5 cursor-pointer lift-card">
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <div className="text-sm font-medium text-stone-800">Conf 校准曲线</div>
+                <div className="text-xs text-stone-400">conf. 主观置信度 ↔ AJR</div>
+              </div>
+              <span className="text-amber-400">◇</span>
+            </div>
+
+            <div className="h-28 flex items-center">
+              <svg viewBox="0 0 120 60" className="w-full h-full">
+                <line x1="10" y1="50" x2="110" y2="10" stroke="#e7e5e4" strokeWidth="2" />
+                <polyline fill="none" stroke="#f59e0b" strokeWidth="2" points="10,48 30,42 50,35 70,26 90,18 110,14" />
+                <circle cx="90" cy="18" r="2.5" fill="#f59e0b" />
+                <text x="10" y="58" fontSize="6" fill="#a8a29e">low</text>
+                <text x="102" y="12" fontSize="6" fill="#a8a29e">high</text>
+              </svg>
+            </div>
+
+            <div className="text-xs text-stone-500">整体略保守（高 Conf 区间更接近对角线）</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Third Row: funds line chart */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 col-span-2">
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-stone-700">资金走势</h3>
+              <span className="text-xs text-stone-400">{periodLabels[timePeriod].label}</span>
+            </div>
+            <div className="h-36 flex items-center">
+              <svg viewBox="0 0 300 120" className="w-full h-full">
+                <polyline fill="none" stroke="#f59e0b" strokeWidth="3" points="5,95 25,88 45,92 65,78 85,82 105,68 125,74 145,60 165,66 185,52 205,58 225,44 245,50 265,38 285,42" />
+                <line x1="0" y1="100" x2="300" y2="100" stroke="#e7e5e4" strokeWidth="2" />
+              </svg>
+            </div>
+            <div className="text-xs text-stone-400 mt-2">线图用于更稳定地观察趋势；细节可在 “数据总览” 查看。</div>
+          </div>
+        </div>
+
+        <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+          <div className="relative z-10">
+            <h3 className="font-medium text-stone-700 mb-3">Exposure / Inputs</h3>
+            <div className="space-y-3">
+              {[
+                { k: 'Single Match', v: 520 },
+                { k: '2 Matches Combo', v: 300 },
+                { k: '3+ Matches', v: 180 },
+              ].map((r,i)=>(
+                <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-100">
+                  <span className="text-xs text-stone-500">{r.k}</span>
+                  <span className="text-sm font-semibold text-stone-800">{r.v} rmb</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setActiveSubPage('metrics')} className="mt-4 w-full py-2.5 rounded-xl border border-stone-200 text-sm text-stone-600 hover:bg-stone-50 btn-hover">
+              打开更多指标
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};// Dashboard - Metrics sub page (high density tables)
+const MetricsPage = () => {
+  const metrics = {
+    roiByMode: [
+      { mode: '常规', samples: 42, roi: 0.128, sharpe: 1.41, kDen: 4 },
+      { mode: '常规-稳', samples: 18, roi: 0.082, sharpe: 1.08, kDen: 5 },
+      { mode: '常规-杠杆', samples: 11, roi: -0.034, sharpe: 0.62, kDen: 6 },
+      { mode: '保险产品', samples: 9, roi: 0.041, sharpe: 0.89, kDen: 8 },
+      { mode: '赌一把', samples: 6, roi: -0.12, sharpe: 0.35, kDen: 12 },
+    ],
+    inputsByMode: [
+      { mode: '常规', inputs: 1600, avg: 38 },
+      { mode: '常规-稳', inputs: 720, avg: 40 },
+      { mode: '常规-杠杆', inputs: 540, avg: 49 },
+      { mode: '保险产品', inputs: 420, avg: 47 },
+      { mode: '赌一把', inputs: 260, avg: 43 },
+    ],
+    confBuckets: [
+      { bucket: '0.00–0.20', samples: 7, hit: 2, roi: -0.18 },
+      { bucket: '0.20–0.40', samples: 19, hit: 9, roi: -0.03 },
+      { bucket: '0.40–0.60', samples: 28, hit: 18, roi: 0.06 },
+      { bucket: '0.60–0.80', samples: 31, hit: 23, roi: 0.13 },
+      { bucket: '0.80–1.00', samples: 8, hit: 7, roi: 0.21 },
+    ],
+    correlations: [
+      { a: 'Conf', b: 'AJR', r: 0.71 },
+      { a: 'Conf', b: 'ROI', r: 0.22 },
+      { a: 'REP', b: 'ROI', r: -0.18 },
+      { a: 'Odds', b: 'ROI', r: -0.09 },
+    ],
+  };
+
+  const open = (title, content) => setModalData({ title, content });
+
+  return (
+    <div className="p-8 max-w-6xl">
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-semibold text-stone-800 font-display">Dashboard · 数据总览</h2>
+          <p className="text-stone-400 text-sm mt-1">ROI / Inputs / Conf buckets / 相关性（信息密度更高的一览表）</p>
+        </div>
+        <button onClick={() => { setActivePage('dashboard'); setActiveSubPage(null); }} className="px-4 py-2 rounded-xl border border-stone-200 text-sm text-stone-600 hover:bg-stone-50 btn-hover">
+          返回 Dashboard
+        </button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div onClick={() => open('ROI by Mode · 详情', (
+          <table className="w-full text-sm">
+            <thead><tr className="border-b border-stone-200 text-left text-stone-500">
+              <th className="py-2 font-medium">Mode</th><th className="py-2 font-medium">Samples</th><th className="py-2 font-medium">ROI</th><th className="py-2 font-medium">Sharpe</th><th className="py-2 font-medium">Kelly 分母</th>
+            </tr></thead>
+            <tbody>
+              {metrics.roiByMode.map((r,i)=>(
+                <tr key={i} className="border-b border-stone-100">
+                  <td className="py-2">{r.mode}</td>
+                  <td className="py-2">{r.samples}</td>
+                  <td className={`py-2 font-medium ${r.roi>=0?'text-emerald-600':'text-rose-500'}`}>{(r.roi*100).toFixed(1)}%</td>
+                  <td className="py-2">{r.sharpe.toFixed(2)}</td>
+                  <td className="py-2">{r.kDen}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ))} className="glow-card bg-white rounded-2xl border border-stone-100 p-5 cursor-pointer lift-card">
+          <div className="relative z-10">
+            <div className="text-xs text-stone-400 mb-1">ROI of different modes</div>
+            <div className="text-sm font-medium text-stone-800">ROI by Mode</div>
+            <div className="mt-3 space-y-2">
+              {metrics.roiByMode.slice(0,4).map((r,i)=>(
+                <div key={i} className="flex items-center justify-between text-xs">
+                  <span className="text-stone-500">{r.mode}</span>
+                  <span className="font-medium text-stone-800">{(r.roi*100).toFixed(1)}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div onClick={() => open('Inputs by Mode · 详情', (
+          <table className="w-full text-sm">
+            <thead><tr className="border-b border-stone-200 text-left text-stone-500">
+              <th className="py-2 font-medium">Mode</th><th className="py-2 font-medium">Total Inputs</th><th className="py-2 font-medium">Avg/entry</th>
+            </tr></thead>
+            <tbody>
+              {metrics.inputsByMode.map((r,i)=>(
+                <tr key={i} className="border-b border-stone-100">
+                  <td className="py-2">{r.mode}</td>
+                  <td className="py-2 font-medium">{r.inputs} rmb</td>
+                  <td className="py-2">{r.avg} rmb</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ))} className="glow-card bg-white rounded-2xl border border-stone-100 p-5 cursor-pointer lift-card">
+          <div className="relative z-10">
+            <div className="text-xs text-stone-400 mb-1">total input of each mode</div>
+            <div className="text-sm font-medium text-stone-800">Inputs by Mode</div>
+            <div className="mt-3 space-y-2 text-xs">
+              {metrics.inputsByMode.map((r,i)=>(
+                <div key={i} className="flex items-center justify-between">
+                  <span className="text-stone-500">{r.mode}</span>
+                  <span className="font-medium text-stone-800">{r.inputs}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div onClick={() => open('Correlations · 详情', (
+          <table className="w-full text-sm">
+            <thead><tr className="border-b border-stone-200 text-left text-stone-500">
+              <th className="py-2 font-medium">A</th><th className="py-2 font-medium">B</th><th className="py-2 font-medium">r</th>
+            </tr></thead>
+            <tbody>
+              {metrics.correlations.map((r,i)=>(
+                <tr key={i} className="border-b border-stone-100">
+                  <td className="py-2">{r.a}</td><td className="py-2">{r.b}</td><td className="py-2 font-medium">{r.r.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ))} className="glow-card bg-white rounded-2xl border border-stone-100 p-5 cursor-pointer lift-card">
+          <div className="relative z-10">
+            <div className="text-xs text-stone-400 mb-1">correlations / coefficients</div>
+            <div className="text-sm font-medium text-stone-800">Correlations</div>
+            <div className="mt-3 space-y-2 text-xs">
+              {metrics.correlations.map((r,i)=>(
+                <div key={i} className="flex items-center justify-between">
+                  <span className="text-stone-500">{r.a} ↔ {r.b}</span>
+                  <span className="font-medium text-stone-800">{r.r.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-medium text-stone-700">Conf buckets</h3>
+            <button onClick={() => open('Conf buckets · 详情', (
+              <table className="w-full text-sm">
+                <thead><tr className="border-b border-stone-200 text-left text-stone-500">
+                  <th className="py-2 font-medium">Bucket</th><th className="py-2 font-medium">Samples</th><th className="py-2 font-medium">Hit</th><th className="py-2 font-medium">ROI</th>
+                </tr></thead>
+                <tbody>
+                  {metrics.confBuckets.map((r,i)=>(
+                    <tr key={i} className="border-b border-stone-100">
+                      <td className="py-2">{r.bucket}</td>
+                      <td className="py-2">{r.samples}</td>
+                      <td className="py-2">{r.hit}/{r.samples}</td>
+                      <td className={`py-2 font-medium ${r.roi>=0?'text-emerald-600':'text-rose-500'}`}>{(r.roi*100).toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ))} className="text-xs text-amber-600 hover:text-amber-700">展开详情</button>
+          </div>
+
+          <table className="w-full text-sm">
+            <thead><tr className="border-b border-stone-200 text-left text-stone-500">
+              <th className="py-2 font-medium">Bucket</th><th className="py-2 font-medium">Samples</th><th className="py-2 font-medium">Hit</th><th className="py-2 font-medium">ROI</th>
+            </tr></thead>
+            <tbody>
+              {metrics.confBuckets.map((r,i)=>(
+                <tr key={i} className="border-b border-stone-100">
+                  <td className="py-2">{r.bucket}</td>
+                  <td className="py-2">{r.samples}</td>
+                  <td className="py-2">{r.hit}/{r.samples}</td>
+                  <td className={`py-2 font-medium ${r.roi>=0?'text-emerald-600':'text-rose-500'}`}>{(r.roi*100).toFixed(1)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <p className="text-xs text-stone-400 mt-4">提示：Conf bucket 的 ROI 只是“基础版统计”，更细节的稳健性需要结合 REP 与赔率区间分层。</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+      // Deep Analysis Page
+      const AnalysisPage = () => {
+        const [analysisTab, setAnalysisTab] = useState('parlay');
+        
+
+        const totalSamples = 150; // prototype: matches sample size
+        const n = Math.max(1, Math.floor(totalSamples / 50));
+        const posLabel = (k) => ({1:'Solo Position',2:'Double Position',3:'Triple Position',4:'Quad Position',5:'Multi Position'}[k] || 'Multi Position');
+        const posCn = (k) => ({1:'单标的持仓',2:'双标的持仓',3:'三标的持仓',4:'四标的持仓',5:'多标的持仓'}[k] || '多标的持仓');
+        const openModal = (title, content) => setModalData({ title, content });
+
+        const openConfRangeDetail = (item) => {
+          const weeks = ['W-8','W-7','W-6','W-5','W-4','W-3','W-2','W-1'];
+          const base = parseFloat(item.actual);
+          const series = weeks.map((w, i) => {
+            const drift = (i - 3.5) * 0.006;
+            const actual = Math.max(0, Math.min(1, base + drift));
+            const expected = parseFloat(item.expected);
+            const diff = (actual - expected);
+            return { w, expected, actual, diff, s: Math.max(2, Math.round(item.samples/8 + (i%3))) };
+          });
+
+          const points = (vals) => {
+            const n = vals.length;
+            const min = Math.min(...vals);
+            const max = Math.max(...vals);
+            const pad = (max - min) * 0.15 + 1e-6;
+            const lo = min - pad;
+            const hi = max + pad;
+            return vals.map((v, i) => {
+              const x = 6 + (88 * (i / (n - 1)));
+              const y = 46 - (40 * ((v - lo) / (hi - lo)));
+              return `${x.toFixed(1)},${y.toFixed(1)}`;
+            }).join(' ');
+          };
+
+          openModal(`Conf 区间 ${item.range} · 历史明细`, (
+            <div className="space-y-4">
+              <div className="text-sm text-stone-600">
+                该区间展示 <span className="font-medium text-stone-800">Conf（主观）</span> 与 <span className="font-medium text-stone-800">AJR（赛后）</span> 的偏差分布。
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="p-4 rounded-xl bg-stone-50 border border-stone-100">
+                  <div className="text-xs text-stone-400">区间</div>
+                  <div className="text-lg font-semibold text-stone-800 mt-1">{item.range}</div>
+                </div>
+                <div className="p-4 rounded-xl bg-stone-50 border border-stone-100">
+                  <div className="text-xs text-stone-400">样本</div>
+                  <div className="text-lg font-semibold text-stone-800 mt-1">{item.samples}</div>
+                </div>
+                <div className="p-4 rounded-xl bg-stone-50 border border-stone-100">
+                  <div className="text-xs text-stone-400">平均偏差 (AJR-Conf)</div>
+                  <div className={`text-lg font-semibold mt-1 ${item.diff.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}`}>{item.diff}</div>
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-stone-50 border border-stone-100 p-3">
+                <svg viewBox="0 0 100 52" className="w-full h-36">
+                  <line x1="0" y1="46" x2="100" y2="46" stroke="#e7e5e4" strokeWidth="0.7" />
+                  <polyline fill="none" stroke="#94a3b8" strokeWidth="2.2" points={points(series.map(x=>x.expected))} />
+                  <polyline fill="none" stroke="#34d399" strokeWidth="2.2" points={points(series.map(x=>x.actual))} />
+                </svg>
+                <div className="flex items-center gap-3 text-[11px] text-stone-500 mt-2">
+                  <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-400"></span>Conf 预期</span>
+                  <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400"></span>AJR 实际</span>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-stone-100 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-stone-50 text-stone-500 text-xs">
+                      <th className="px-3 py-2 text-left font-medium">周</th>
+                      <th className="px-3 py-2 text-left font-medium">Conf 预期</th>
+                      <th className="px-3 py-2 text-left font-medium">AJR 实际</th>
+                      <th className="px-3 py-2 text-left font-medium">偏差</th>
+                      <th className="px-3 py-2 text-left font-medium">样本</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {series.map((r, i) => (
+                      <tr key={i} className="border-t border-stone-100">
+                        <td className="px-3 py-2 text-stone-600">{r.w}</td>
+                        <td className="px-3 py-2 text-stone-700">{r.expected.toFixed(2)}</td>
+                        <td className="px-3 py-2 text-stone-700">{r.actual.toFixed(2)}</td>
+                        <td className={`px-3 py-2 font-medium ${r.diff >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>{(r.diff>=0?'+':'') + r.diff.toFixed(2)}</td>
+                        <td className="px-3 py-2 text-stone-500">{r.s}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="text-xs text-stone-400">提示：这是原型数据，用于展示交互与信息密度；真实数据接入后会自动更新。</div>
+            </div>
+          ));
+        };
+
+        const timeWindows = [
+          { period: `最近 6n 场（${6*n} 场）`, weight: '1.4×', color: 'amber' },
+          { period: `第 7n~11n 场（${7*n}~${11*n} 场）`, weight: '1.15×', color: 'stone' },
+          { period: `第 12n+ 场（≥${12*n} 场）`, weight: '1.0×', color: 'stone' },
+        ];
+        return (
+          <div className="p-8">
+            <div className="mb-6">
+              <h2 className="text-2xl font-semibold text-stone-800 font-display">深度分析</h2>
+              <p className="text-stone-400 text-sm mt-1">多维度历史表现分析与策略优化</p>
+            </div>
+
+            <div className="flex gap-2 mb-6">
+              {[
+                { id: 'parlay', label: '组合策略分析' },
+                { id: 'mode', label: 'Mode 表现分析' },
+                { id: 'conf', label: 'Conf 区间分析' },
+                { id: 'time', label: '时间近因权重' },
+              ].map(tab => (
+                <button key={tab.id} onClick={() => setAnalysisTab(tab.id)}
+                  className={`px-4 py-2 rounded-xl text-sm transition-all btn-hover ${analysisTab === tab.id ? 'bg-amber-100 text-amber-700 font-medium' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {analysisTab === 'parlay' && (
+              <div className="grid grid-cols-2 gap-6">
+                <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+                  <div className="relative z-10">
+                    <h3 className="font-medium text-stone-700 mb-4">不同 Position 规模表现</h3>
+                    <div className="space-y-3">
+                      {[
+                        { parlay: 'Solo Position', samples: 52, roi: '+15.2%', hitrate: '71%', partial: null, best: true },
+                        { parlay: 'Double Position', samples: 28, roi: '+8.4%', hitrate: '54%', partial: '部分命中: 18/28', best: false },
+                        { parlay: 'Triple Position', samples: 10, roi: '-12.3%', hitrate: '30%', partial: '部分命中: 6/10', best: false },
+                        { parlay: 'Quad Position', samples: 3, roi: '-45.0%', hitrate: '0%', partial: '部分命中: 2/3', best: false },
+                      ].map((item, i) => (
+                        <div key={i} className={`p-4 rounded-xl border ${item.best ? 'border-emerald-200 bg-emerald-50/50' : 'border-stone-100 bg-stone-50'}`}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <span className="font-medium text-stone-700">{item.parlay}</span>
+                              {item.best && <span className="text-[10px] px-2 py-0.5 bg-emerald-200 text-emerald-700 rounded-full">最优</span>}
+                              {item.partial && <span className="text-[10px] text-stone-400 bg-stone-100 px-2 py-0.5 rounded">{item.partial}</span>}
+                            </div>
+                            <span className={`font-semibold ${item.roi.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}`}>{item.roi}</span>
+                          </div>
+                          <div className="flex gap-4 mt-2 text-xs text-stone-500">
+                            <span>{item.samples} 样本</span>
+                            <span>命中率 {item.hitrate}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+                  <div className="relative z-10">
+                    <h3 className="font-medium text-stone-700 mb-4">最优组合发现</h3>
+                    <div className="space-y-3">
+                      {[
+                        { combo: 'Solo Position + 常规模式 + Conf 0.6+', roi: '+28.4%', samples: 24 },
+                        { combo: 'Solo Position + 保险产品 + Conf 0.7+', roi: '+22.1%', samples: 12 },
+                        { combo: 'Double Position + 常规-稳 + Conf 0.5+', roi: '+12.8%', samples: 15 },
+                      ].map((item, i) => (
+                        <div key={i} className="p-4 rounded-xl bg-stone-50 hover:bg-amber-50 transition-all cursor-pointer lift-card">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium text-stone-700">{item.combo}</span>
+                            <span className="font-semibold text-emerald-600">{item.roi}</span>
+                          </div>
+                          <span className="text-xs text-stone-400">{item.samples} 样本</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {analysisTab === 'mode' && (
+              <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+                <div className="relative z-10">
+                  <h3 className="font-medium text-stone-700 mb-4">各 Mode 历史表现</h3>
+                  <table className="w-full text-sm">
+                    <thead><tr className="border-b border-stone-200 text-left text-stone-500">
+                      <th className="py-2 font-medium">Mode</th>
+                      <th className="py-2 font-medium">样本数</th>
+                      <th className="py-2 font-medium">ROI</th>
+                      <th className="py-2 font-medium">命中率</th>
+                      <th className="py-2 font-medium">Avg (Act-Conf)</th>
+                      <th className="py-2 font-medium">平均 Odds</th>
+                      <th className="py-2 font-medium">建议 Kelly</th>
+                    </tr></thead>
+                    <tbody>
+                      {[
+                        { mode: '常规', samples: 45, roi: '+12.4%', hit: '68%', ratingDiff: '+0.03', odds: '2.1', kelly: '4.0' },
+                        { mode: '常规-稳', samples: 18, roi: '+8.2%', hit: '75%', ratingDiff: '+0.05', odds: '1.7', kelly: '3.5' },
+                        { mode: '保险产品', samples: 15, roi: '+18.5%', hit: '82%', ratingDiff: '+0.08', odds: '1.5', kelly: '3.0' },
+                        { mode: '半彩票半保险', samples: 10, roi: '-5.2%', hit: '45%', ratingDiff: '-0.12', odds: '2.8', kelly: '5.0' },
+                        { mode: '赌一把', samples: 5, roi: '-32.0%', hit: '20%', ratingDiff: '-0.25', odds: '4.2', kelly: '6.0' },
+                      ].map((r, i) => (
+                        <tr key={i} className="border-b border-stone-100">
+                          <td className="py-3 font-medium text-stone-700">{r.mode}</td>
+                          <td className="py-3 text-stone-600">{r.samples}</td>
+                          <td className={`py-3 font-medium ${r.roi.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}`}>{r.roi}</td>
+                          <td className="py-3 text-stone-600">{r.hit}</td>
+                          <td className={`py-3 font-medium ${r.ratingDiff.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}`}>{r.ratingDiff}</td>
+                          <td className="py-3 text-stone-600">{r.odds}</td>
+                          <td className="py-3 text-amber-600 font-medium">{r.kelly}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p className="text-xs text-stone-400 mt-4">💡 此表 Kelly 建议已同步至参数后台</p>
+                </div>
+              </div>
+            )}
+
+            {analysisTab === 'conf' && (
+              <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+                <div className="relative z-10">
+                  <h3 className="font-medium text-stone-700 mb-4">Conf 区间分析</h3>
+                  <div className="grid grid-cols-5 gap-4">
+                    {[
+                      { range: '0.8+', expected: '0.80', actual: '0.76', diff: '-0.04', samples: 8 },
+                      { range: '0.7~0.8', expected: '0.75', actual: '0.72', diff: '-0.03', samples: 15 },
+                      { range: '0.6~0.7', expected: '0.65', actual: '0.67', diff: '+0.02', samples: 22 },
+                      { range: '0.5~0.6', expected: '0.55', actual: '0.52', diff: '-0.03', samples: 28 },
+                      { range: '0.4~0.5', expected: '0.45', actual: '0.48', diff: '+0.03', samples: 15 },
+                    ].map((item, i) => (
+                      <div key={i} className="p-4 rounded-xl bg-stone-50 text-center cursor-pointer lift-card hover:bg-amber-50/40 transition-all\"">
+                        <span className="text-lg font-semibold text-stone-700">{item.range}</span>
+                        <div className="mt-3 space-y-1 text-sm">
+                          <div className="flex justify-between"><span className="text-stone-400">预期</span><span>{item.expected}</span></div>
+                          <div className="flex justify-between"><span className="text-stone-400">实际</span><span>{item.actual}</span></div>
+                          <div className="flex justify-between"><span className="text-stone-400">偏差</span><span className={item.diff.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}>{item.diff}</span></div>
+                        </div>
+                        <p className="text-xs text-stone-400 mt-2">{item.samples} 样本</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {analysisTab === 'time' && (
+              <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-4">
+                    <h3 className="font-medium text-stone-700">时间近因机制</h3>
+                    <span className="text-[10px] px-2 py-0.5 bg-stone-100 text-stone-500 rounded">S10</span>
+                  </div>
+                  <p className="text-sm text-stone-500">Conf、FSE 等参数应用时间衰减权重，近期表现影响更大</p>
+                  <p className="text-xs text-stone-400 mt-2 mb-6">当前总样本量约 {totalSamples}（=50×n，n=⌊{totalSamples}/50⌋={n}）。时间窗口使用 6n / 7n~11n / 12n+。</p>
+                  <div className="grid grid-cols-3 gap-6">
+                    {timeWindows.map((item, i) => (
+                      <div key={i} className={`p-6 rounded-xl text-center ${item.color === 'amber' ? 'bg-amber-50 border border-amber-200' : 'bg-stone-50'}`}>
+                        <span className={`text-3xl font-bold ${item.color === 'amber' ? 'text-amber-600' : 'text-stone-400'}`}>{item.weight}</span>
+                        <p className="text-sm text-stone-600 mt-2">{item.period}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      };
+
+      // New Investment - Updated with multi-entry support (v6.1 step2)
+      const NewInvestmentPage = () => {
+        const [parlaySize, setParlaySize] = useState(1);
+        const [openModeIdx, setOpenModeIdx] = useState(null);
+
+
+        const posLabel = (k) => ({1:'Solo Position',2:'Double Position',3:'Triple Position',4:'Quad Position',5:'Multi Position'}[k] || 'Multi Position');
+        const posCn = (k) => ({1:'单标的持仓',2:'双标的持仓',3:'三标的持仓',4:'四标的持仓',5:'多标的持仓'}[k] || '多标的持仓');
+        // Minimal team meta for UI prototype (supports cn / abbr / en)
+        const TEAM_META = [
+          { name: '阿森纳', abbr: ['ARS', 'Arsenal'], samples: 128, rep: 0.62 },
+          { name: '切尔西', abbr: ['CHE', 'Chelsea'], samples: 115, rep: 0.48 },
+          { name: '利物浦', abbr: ['LIV', 'Liverpool'], samples: 132, rep: 0.59 },
+          { name: '曼城', abbr: ['MCI', 'Man City', 'Manchester City'], samples: 141, rep: 0.46 },
+          { name: '巴塞罗那', abbr: ['BAR', 'FCB', 'Barcelona'], samples: 96, rep: 0.41 },
+          { name: '皇家马德里', abbr: ['RMA', 'RM', 'Real Madrid'], samples: 102, rep: 0.44 },
+          { name: '热刺', abbr: ['TOT', 'Spurs', 'Tottenham'], samples: 88, rep: 0.51 },
+          { name: '曼联', abbr: ['MUN', 'MU', 'Man United', 'Manchester United'], samples: 110, rep: 0.49 },
+        ];
+
+        const lookupTeam = (q) => {
+          const s = (q || '').trim();
+          if (!s) return null;
+          const lower = s.toLowerCase();
+          for (const t of TEAM_META) {
+            if (t.name.toLowerCase().includes(lower) || lower.includes(t.name.toLowerCase())) return t;
+            if ((t.abbr || []).some(a => a.toLowerCase() === lower || a.toLowerCase().includes(lower) || lower.includes(a.toLowerCase()))) return t;
+          }
+          return null;
+        };
+
+        const MODES = ['常规', '常规-稳', '常规-杠杆', '半彩票半保险', '保险产品', '赌一把'];
+
+        const [matches, setMatches] = useState([{
+          homeTeam: '', awayTeam: '',
+          entries: [{ name: '', odds: '' }],
+          conf: 65, mode: '常规',
+          tys_home: 'M', tys_away: 'L', fid: '0.4',
+          fse_home: 70, fse_away: 55,
+          note: ''
+        }]);
+
+        const handleParlayChange = (size) => {
+          setParlaySize(size);
+          const newMatches = [...matches];
+          while (newMatches.length < size) {
+            newMatches.push({
+              homeTeam: '', awayTeam: '',
+              entries: [{ name: '', odds: '' }],
+              conf: 50, mode: '常规',
+              tys_home: 'M', tys_away: 'M', fid: '0.4',
+              fse_home: 50, fse_away: 50,
+              note: ''
+            });
+          }
+          newMatches.splice(size);
+          setMatches(newMatches);
+          setOpenModeIdx(null);
+        };
+
+        const updateMatch = (idx, field, value) => {
+          const newMatches = [...matches];
+          newMatches[idx][field] = value;
+          setMatches(newMatches);
+        };
+
+        const addEntry = (matchIdx) => {
+          const newMatches = [...matches];
+          newMatches[matchIdx].entries.push({ name: '', odds: '' });
+          setMatches(newMatches);
+        };
+
+        const updateEntry = (matchIdx, entryIdx, field, value) => {
+          const newMatches = [...matches];
+          newMatches[matchIdx].entries[entryIdx][field] = value;
+          setMatches(newMatches);
+        };
+
+        const removeEntry = (matchIdx, entryIdx) => {
+          const newMatches = [...matches];
+          if (newMatches[matchIdx].entries.length > 1) {
+            newMatches[matchIdx].entries.splice(entryIdx, 1);
+            setMatches(newMatches);
+          }
+        };
+
+        const calcHarmonicMean = (entries) => {
+          const validOdds = entries.filter(e => e.odds && parseFloat(e.odds) > 0).map(e => parseFloat(e.odds));
+          if (validOdds.length === 0) return null;
+          if (validOdds.length === 1) return validOdds[0].toFixed(2);
+          const sum = validOdds.reduce((acc, o) => acc + (1 / o), 0);
+          return (validOdds.length / sum).toFixed(2);
+        };
+
+        const quickVals = [0.2, 0.4, 0.6, 0.8];
+        const setConfQuick = (idx, v) => updateMatch(idx, 'conf', Math.round(v * 100));
+        const setFseQuick = (idx, side, v) => updateMatch(idx, side === 'home' ? 'fse_home' : 'fse_away', Math.round(v * 100));
+
+        return (
+          <div className="p-8 max-w-5xl" onClick={() => setOpenModeIdx(null)}>
+            <div className="mb-6">
+              <h2 className="text-2xl font-semibold text-stone-800 font-display">新建投资</h2>
+              <p className="text-stone-400 text-sm mt-1">录入比赛信息与预测参数</p>
+            </div>
+
+            <div className="glow-card bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
+              <div className="relative z-10">
+                {/* Parlay Selector */}
+                <div className="px-6 py-4 border-b border-stone-100 bg-stone-50/50">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-stone-600">Position size <span className="text-xs text-stone-400 ml-1">持仓标的数</span></span>
+                    <div className="flex gap-2">
+                      {[1, 2, 3, 4, 5].map(n => (
+                        <button key={n} onClick={(e) => { e.stopPropagation(); handleParlayChange(n); }}
+                          className={`w-10 h-10 rounded-xl text-sm font-medium transition-all btn-hover ${n === parlaySize ? 'bg-gradient-to-br from-amber-400 to-orange-400 text-white shadow-lg shadow-orange-200/40' : 'bg-white border border-stone-200 text-stone-500 hover:border-amber-300'}`}>{n}</button>
+                      ))}
+                    </div>
+                    <span className="text-xs text-stone-400">（{posLabel(parlaySize)} · {posCn(parlaySize)}）</span>
+                  </div>
+                </div>
+
+                {/* Match Cards */}
+                <div className="p-6 space-y-6">
+                  {matches.map((match, idx) => {
+                    const homeInfo = lookupTeam(match.homeTeam);
+                    const awayInfo = lookupTeam(match.awayTeam);
+
+                    return (
+                      <div key={idx} className={`${idx > 0 ? 'pt-6 border-t border-stone-200' : ''}`} onClick={(e) => e.stopPropagation()}>
+                        {/* Match Header */}
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center">
+                            <span className="text-amber-600 text-xs font-bold">{idx + 1}</span>
+                          </div>
+                          <span className="text-sm font-medium text-stone-700">{`Position ${idx + 1}`}</span>
+                        </div>
+
+                        {/* Teams */}
+                        <div className="grid grid-cols-11 gap-3 items-center mb-4">
+                          <div className="col-span-5">
+                            <label className="text-xs text-stone-400 mb-1.5 block">主队</label>
+                            <input type="text" placeholder="输入球队名或缩写..." value={match.homeTeam} onChange={(e) => updateMatch(idx, 'homeTeam', e.target.value)}
+                              className="input-glow w-full px-4 py-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                            {homeInfo && (
+                              <div className="mt-1 flex items-center gap-2 text-[11px] text-stone-500">
+                                <span className="px-2 py-0.5 bg-stone-100 rounded-full">{homeInfo.samples} 样本</span>
+                                <span className="text-stone-300">·</span>
+                                <span className="px-2 py-0.5 bg-stone-100 rounded-full">REP <span className="font-medium text-stone-700">{homeInfo.rep.toFixed(2)}</span></span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="col-span-1 text-center text-stone-300 text-lg">vs</div>
+                          <div className="col-span-5">
+                            <label className="text-xs text-stone-400 mb-1.5 block">客队</label>
+                            <input type="text" placeholder="输入球队名或缩写..." value={match.awayTeam} onChange={(e) => updateMatch(idx, 'awayTeam', e.target.value)}
+                              className="input-glow w-full px-4 py-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                            {awayInfo && (
+                              <div className="mt-1 flex items-center gap-2 text-[11px] text-stone-500">
+                                <span className="px-2 py-0.5 bg-stone-100 rounded-full">{awayInfo.samples} 样本</span>
+                                <span className="text-stone-300">·</span>
+                                <span className="px-2 py-0.5 bg-stone-100 rounded-full">REP <span className="font-medium text-stone-700">{awayInfo.rep.toFixed(2)}</span></span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Entries - Multi support (shorter width, left-shifted) */}
+                        <div className="mb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="text-xs text-stone-400">Entries 预测结果</label>
+                            <button onClick={() => addEntry(idx)} className="text-xs text-amber-500 hover:text-amber-600 flex items-center gap-1">+ 添加 Entry</button>
+                          </div>
+                          <div className="space-y-2">
+                            {match.entries.map((entry, eIdx) => (
+                              <div key={eIdx} className="flex items-center gap-3 max-w-3xl">
+                                <div className="flex-1">
+                                  <input type="text" placeholder="主胜 / 平 / 大2.5..." value={entry.name} onChange={(e) => updateEntry(idx, eIdx, 'name', e.target.value)}
+                                    className="input-glow w-full px-4 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                                </div>
+                                <div className="w-24">
+                                  <input type="number" step="0.01" placeholder="Odds" value={entry.odds} onChange={(e) => updateEntry(idx, eIdx, 'odds', e.target.value)}
+                                    className="input-glow w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                                </div>
+                                {match.entries.length > 1 && (
+                                  <button onClick={() => removeEntry(idx, eIdx)} className="text-stone-400 hover:text-rose-500 text-sm">×</button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          {match.entries.length > 1 && (
+                            <div className="mt-2 flex items-center gap-2 text-sm">
+                              <span className="text-stone-400">Overall Odds（调和平均）:</span>
+                              <span className="font-semibold text-amber-600">{calcHarmonicMean(match.entries) || '-'}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Conf + Mode Row */}
+                        <div className="grid grid-cols-3 gap-4 mb-4">
+                          <div>
+                            <label className="text-xs text-stone-400 mb-1.5 block">Mode 模式</label>
+                            <div className="relative" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => setOpenModeIdx(openModeIdx === idx ? null : idx)}
+                                className="input-glow w-full px-3 py-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400 bg-white cursor-pointer flex items-center justify-between"
+                              >
+                                <span className="text-stone-700">{match.mode}</span>
+                                <span className="text-stone-400 text-xs">▼</span>
+                              </button>
+                              {openModeIdx === idx && (
+                                <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-lg border border-stone-200 py-1 z-50 w-full">
+                                  {MODES.map((m) => (
+                                    <button
+                                      key={m}
+                                      onClick={() => { updateMatch(idx, 'mode', m); setOpenModeIdx(null); }}
+                                      className={`block w-full px-3 py-2 text-left text-sm ${m === match.mode ? 'bg-amber-50 text-amber-700' : 'text-stone-600 hover:bg-stone-50'}`}
+                                    >
+                                      {m}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="col-span-2">
+                            <label className="text-xs text-stone-400 mb-1.5 block">Conf. 主观置信度</label>
+                            <div className="flex items-center gap-3">
+                              <input type="range" min="0" max="100" value={match.conf} onChange={(e) => updateMatch(idx, 'conf', Number(e.target.value))} className="flex-1" />
+                              <span className="text-sm font-medium text-amber-600 w-10">{(Number(match.conf) / 100).toFixed(2)}</span>
+                            </div>
+                            <div className="mt-2 flex items-center justify-between text-[11px] text-stone-500">
+                              {quickVals.map((v) => (
+                                <button
+                                  key={v}
+                                  onClick={() => setConfQuick(idx, v)}
+                                  className={`px-2 py-1 rounded-lg border btn-hover ${Math.round(Number(match.conf)) === Math.round(v * 100) ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-stone-200 hover:border-amber-200 hover:bg-amber-50/50'}`}
+                                >
+                                  {v.toFixed(1)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Calibration Params - Default Open */}
+                        <details className="group" open>
+                          <summary className="flex items-center gap-2 cursor-pointer text-sm text-stone-500 hover:text-stone-700 mb-3">
+                            <span className="text-xs group-open:rotate-90 transition-transform">▶</span>
+                            <span>校准参数（TYS / FID / FSE）</span>
+                          </summary>
+                          <div className="pl-4 border-l-2 border-amber-100">
+                            <div className="grid grid-cols-4 gap-4 mb-3">
+                              <div>
+                                <label className="text-xs text-stone-400 mb-1.5 block">TYS-base (主)</label>
+                                <div className="flex gap-1">
+                                  {['S', 'M', 'L', 'H'].map(v => (
+                                    <button key={v} onClick={() => updateMatch(idx, 'tys_home', v)}
+                                      className={`flex-1 py-2 rounded-lg text-xs font-medium btn-hover ${v === match.tys_home ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-stone-50 text-stone-500 border border-stone-100'}`}>{v}</button>
+                                  ))}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-xs text-stone-400 mb-1.5 block">TYS-base (客)</label>
+                                <div className="flex gap-1">
+                                  {['S', 'M', 'L', 'H'].map(v => (
+                                    <button key={v} onClick={() => updateMatch(idx, 'tys_away', v)}
+                                      className={`flex-1 py-2 rounded-lg text-xs font-medium btn-hover ${v === match.tys_away ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-stone-50 text-stone-500 border border-stone-100'}`}>{v}</button>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="col-span-2">
+                                <label className="text-xs text-stone-400 mb-1.5 block">FID 信息深度</label>
+                                <div className="flex gap-1">
+                                  {['0', '0.25', '0.4', '0.6', '0.75'].map(v => (
+                                    <button key={v} onClick={() => updateMatch(idx, 'fid', v)}
+                                      className={`flex-1 py-2 rounded-lg text-xs font-medium btn-hover ${v === match.fid ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-stone-50 text-stone-500 border border-stone-100'}`}>{v}</button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-xs text-stone-400 mb-1.5 block">FSE (主) Feature Sensor Beta</label>
+                                <div className="flex items-center gap-3">
+                                  <input type="range" min="0" max="100" value={match.fse_home} onChange={(e) => updateMatch(idx, 'fse_home', Number(e.target.value))} className="flex-1" />
+                                  <span className="text-sm font-medium text-stone-600 w-10">{(Number(match.fse_home) / 100).toFixed(2)}</span>
+                                </div>
+                                <div className="mt-2 flex items-center justify-between text-[11px] text-stone-500">
+                                  {quickVals.map((v) => (
+                                    <button key={v} onClick={() => setFseQuick(idx, 'home', v)}
+                                      className={`px-2 py-1 rounded-lg border btn-hover ${Math.round(Number(match.fse_home)) === Math.round(v * 100) ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-stone-200 hover:border-amber-200 hover:bg-amber-50/50'}`}>
+                                      {v.toFixed(1)}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-xs text-stone-400 mb-1.5 block">FSE (客) Feature Sensor Beta</label>
+                                <div className="flex items-center gap-3">
+                                  <input type="range" min="0" max="100" value={match.fse_away} onChange={(e) => updateMatch(idx, 'fse_away', Number(e.target.value))} className="flex-1" />
+                                  <span className="text-sm font-medium text-stone-600 w-10">{(Number(match.fse_away) / 100).toFixed(2)}</span>
+                                </div>
+                                <div className="mt-2 flex items-center justify-between text-[11px] text-stone-500">
+                                  {quickVals.map((v) => (
+                                    <button key={v} onClick={() => setFseQuick(idx, 'away', v)}
+                                      className={`px-2 py-1 rounded-lg border btn-hover ${Math.round(Number(match.fse_away)) === Math.round(v * 100) ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-stone-200 hover:border-amber-200 hover:bg-amber-50/50'}`}>
+                                      {v.toFixed(1)}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </details>
+
+                        {/* Pre-match Note */}
+                        <div className="mt-4">
+                          <label className="text-xs text-stone-400 mb-1.5 block">赛前备注</label>
+                          <input type="text" placeholder="选填，记录预判依据或关注点..." value={match.note} onChange={(e) => updateMatch(idx, 'note', e.target.value)}
+                            className="input-glow w-full px-4 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Result Panel */}
+                <div className="px-6 py-5 bg-gradient-to-r from-stone-50 to-orange-50/30 border-t border-stone-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-6">
+                      <div>
+                        <span className="text-xs text-stone-400 block">综合 Odds</span>
+                        <span className="text-xl font-semibold text-stone-800">{parlaySize > 1 ? '4.32' : '2.15'}</span>
+                      </div>
+                      <div className="w-px h-10 bg-stone-200" />
+                      <div>
+                        <span className="text-xs text-stone-400 block">Expected Rating</span>
+                        <span className="text-xl font-semibold text-stone-800">0.62</span>
+                      </div>
+                      <div className="w-px h-10 bg-stone-200" />
+                      <div>
+                        <span className="text-xs text-stone-400 block">Recom. Invest</span>
+                        <span className="text-xl font-semibold text-amber-600">¥ {parlaySize > 1 ? '85' : '185'}</span>
+                      </div>
+                      <div className="w-px h-10 bg-stone-200" />
+                      <div>
+                        <span className="text-xs text-stone-400 block">风控上限</span>
+                        <span className="text-sm text-stone-500">¥ 341 (12%)</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <label className="text-xs text-stone-400 mb-1 block">Inputs 实际投资</label>
+                        <input type="number" defaultValue={parlaySize > 1 ? 80 : 180}
+                          className="input-glow w-28 px-3 py-2 rounded-xl border border-stone-200 text-sm font-medium focus:outline-none focus:border-amber-400" />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <button className="px-5 py-2.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl text-sm font-medium shadow-lg shadow-orange-200/40 btn-hover">确认投资</button>
+                        <button onClick={() => setActivePage('combo')}
+                          className="px-5 py-2 border border-stone-300 text-stone-600 rounded-xl text-xs font-medium hover:bg-stone-50 hover:border-amber-300 hover:text-amber-600 transition-all btn-hover">+ 加入今日备选</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      // History with pre/post notes
+      const HistoryPage = () => {
+        const rows = [
+          { date: '02-02', match: '阿森纳 vs 切尔西', entries: '主胜', results: '—', odds: 2.15, conf: 0.65, ajr: 0.62, inputs: 180, status: 'pending', profit: '-', preNote: '主场强势，边路压制明显；对手防线速度偏慢。', postNote: '—' },
+          { date: '02-01', match: '利物浦 vs 曼城', entries: '大2.5', results: '3-2', odds: 1.85, conf: 0.72, ajr: 0.69, inputs: 200, status: 'win', profit: '+170', preNote: '双方进攻端近期状态持续拉满；防守端失误率偏高。', postNote: '进球节奏与预期一致；临场换人影响不大。' },
+          { date: '01-31', match: '热刺 vs 曼联', entries: '平局', results: '2-0', odds: 3.40, conf: 0.42, ajr: 0.28, inputs: 120, status: 'lose', profit: '-120', preNote: '双方中场控制力一般，可能互相牵制。', postNote: '热刺高位逼抢超预期；曼联后场出球受阻。' },
+        ];
+
+        const NoteCell = ({ title, text }) => {
+          const val = (text && text !== '-' && text !== '—') ? text : '—';
+          const clickable = val !== '—';
+          if (!clickable) return <div className="text-xs text-stone-400">—</div>;
+          return (
+            <button
+              className="text-left text-xs text-stone-500 hover:text-stone-700 hover:underline line-clamp-1 transition-colors"
+              onClick={(e) => openNotePopup(title, val, e)}
+              title="点击查看完整内容"
+            >
+              {val}
+            </button>
+          );
+        };
+
+        return (
+          <div className="p-8">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-semibold text-stone-800 font-display">历史记录</h2>
+                <p className="text-stone-400 text-sm mt-1">共 93 条投资记录</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="text"
+                  placeholder="搜索球队、日期..."
+                  className="input-glow px-4 py-2 rounded-xl border border-stone-200 text-sm w-64 focus:outline-none focus:border-amber-400"
+                />
+                <button className="px-4 py-2 rounded-xl border border-stone-200 text-sm text-stone-600 hover:bg-stone-50 btn-hover">
+                  筛选
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mb-4 flex-wrap">
+              {['全部', '待结算', '已中', '未中', 'Single', 'Combo'].map((tag, i) => (
+                <button
+                  key={tag}
+                  className={`px-4 py-1.5 rounded-full text-sm transition-all btn-hover ${
+                    i === 0 ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+
+            <div className="glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden">
+              <div className="relative z-10 overflow-auto">
+                <table className="w-full min-w-[1150px]">
+                  <thead>
+                    <tr className="bg-stone-50 text-xs text-stone-500">
+                      <th className="px-4 py-3 text-left font-medium">日期</th>
+                      <th className="px-4 py-3 text-left font-medium">比赛</th>
+                      <th className="px-4 py-3 text-left font-medium">Entries</th>
+                      <th className="px-4 py-3 text-left font-medium">Results</th>
+                      <th className="px-4 py-3 text-left font-medium">Odds</th>
+                      <th className="px-4 py-3 text-left font-medium">Conf</th>
+                      <th className="px-4 py-3 text-left font-medium">AJR</th>
+                      <th className="px-4 py-3 text-left font-medium">Inputs</th>
+                      <th className="px-4 py-3 text-left font-medium">状态</th>
+                      <th className="px-4 py-3 text-left font-medium">盈亏</th>
+                      <th className="px-4 py-3 text-left font-medium">赛前备注</th>
+                      <th className="px-4 py-3 text-left font-medium">赛后备注</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row, i) => (
+                      <tr key={i} className="border-t border-stone-100 hover:bg-amber-50/30 transition-colors">
+                        <td className="px-4 py-3 text-sm text-stone-500">{row.date}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-stone-700">{row.match}</td>
+                     
+
+      // Teams
+      const TeamsPage = () => {
+        const [selectedTeam, setSelectedTeam] = useState(null);
+        const [searchQuery, setSearchQuery] = useState('');
+        const [filterLeague, setFilterLeague] = useState('all');
+
+        const teams = [
+          { name: '阿森纳', abbr: 'ARS', league: '英超', samples: 18, roi: '+12.4%', avgRep: 0.42, confAjrDiff: '+0.03' },
+          { name: '切尔西', abbr: 'CHE', league: '英超', samples: 15, roi: '+8.2%', avgRep: 0.38, confAjrDiff: '-0.02' },
+          { name: '利物浦', abbr: 'LIV', league: '英超', samples: 22, roi: '+18.7%', avgRep: 0.45, confAjrDiff: '+0.05' },
+          { name: '曼城', abbr: 'MCI', league: '英超', samples: 20, roi: '-3.2%', avgRep: 0.52, confAjrDiff: '-0.08' },
+          { name: '巴塞罗那', abbr: 'BAR', league: '西甲', samples: 8, roi: '+15.2%', avgRep: 0.35, confAjrDiff: '+0.08' },
+          { name: '皇家马德里', abbr: 'RMA', league: '西甲', samples: 10, roi: '+6.8%', avgRep: 0.40, confAjrDiff: '-0.03' },
+        ];
+
+        const filteredTeams = teams.filter(team => {
+          const matchSearch = team.name.toLowerCase().includes(searchQuery.toLowerCase()) || team.abbr.toLowerCase().includes(searchQuery.toLowerCase());
+          const matchLeague = filterLeague === 'all' || team.league === filterLeague;
+          return matchSearch && matchLeague;
+        });
+
+        // simple helper to build polyline points within 100x50 viewbox
+        const poly = (vals) => {
+          const n = vals.length;
+          const min = Math.min(...vals);
+          const max = Math.max(...vals);
+          const pad = (max - min) * 0.15 + 1e-6;
+          const lo = min - pad;
+          const hi = max + pad;
+          return vals.map((v, i) => {
+            const x = 5 + (90 * (i / (n - 1)));
+            const y = 45 - (40 * ((v - lo) / (hi - lo)));
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+          }).join(' ');
+        };
+
+        return (
+          <div className="p-8">
+            <div className="mb-6">
+              <h2 className="text-2xl font-semibold text-stone-800 font-display">球队档案馆</h2>
+              <p className="text-stone-400 text-sm mt-1">每支球队的历史表现追踪与分析</p>
+            </div>
+
+            <div className="glow-card bg-white rounded-2xl p-4 border border-stone-100 mb-6">
+              <div className="relative z-10 flex items-center gap-4">
+                <div className="flex-1 relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400">🔍</span>
+                  <input type="text" placeholder="搜索球队名称或缩写..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                    className="input-glow w-full pl-10 pr-4 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-stone-500">联赛:</span>
+                  <div className="flex gap-1">
+                    {['all', '英超', '西甲', '德甲'].map(league => (
+                      <button key={league} onClick={() => setFilterLeague(league)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-hover ${filterLeague === league ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}>
+                        {league === 'all' ? '全部' : league}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="text-sm text-stone-400">共 {filteredTeams.length} 支球队</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              {filteredTeams.map((team, i) => (
+                <div key={i} onClick={() => setSelectedTeam(team)}
+                  className={`glow-card bg-white rounded-2xl p-5 border cursor-pointer transition-all ${selectedTeam?.name === team.name ? 'border-amber-300 bg-amber-50/30' : 'border-stone-100'}`}>
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <span className="font-medium text-stone-800">{team.name}</span>
+                        <span className="text-xs text-stone-400 ml-2">{team.abbr}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] px-2 py-0.5 bg-stone-100 text-stone-500 rounded-full">{team.league}</span>
+                        <span className="text-xs text-stone-400">{team.samples} 场</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div>
+                        <span className="text-xs text-stone-400 block">ROI</span>
+                        <span className={`text-sm font-medium ${team.roi.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}`}>{team.roi}</span>
+                      </div>
+                      <div>
+                        <span className="text-xs text-stone-400 block">Avg REP</span>
+                        <span className="text-sm font-medium text-stone-700">{team.avgRep}</span>
+                      </div>
+                      <div>
+                        <span className="text-xs text-stone-400 block">Conf-AJR Δ</span>
+                        <span className={`text-sm font-medium ${team.confAjrDiff.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}`}>{team.confAjrDiff}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {selectedTeam && (
+              <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <h3 className="font-medium text-stone-800">{selectedTeam.name} · 详细档案</h3>
+                      <span className="text-xs px-2 py-0.5 bg-stone-100 text-stone-500 rounded-full">{selectedTeam.league}</span>
+                    </div>
+                    <button onClick={() => setSelectedTeam(null)} className="text-stone-400 hover:text-stone-600">×</button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-medium text-stone-600">ROI 走势</h4>
+                        <span className="text-xs text-stone-400">近 8 周</span>
+                      </div>
+                      <div className="h-36 rounded-xl bg-stone-50 border border-stone-100 p-3">
+                        <svg viewBox="0 0 100 50" className="w-full h-full">
+                          <line x1="0" y1="45" x2="100" y2="45" stroke="#e7e5e4" strokeWidth="0.7" />
+                          <polyline fill="none" stroke="url(#roiGrad)" strokeWidth="2.4" points={poly([2, 4, 1, 6, 3, 7, 5, 9])} />
+                          <defs>
+                            <linearGradient id="roiGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                              <stop offset="0%" stopColor="#fbbf24" />
+                              <stop offset="100%" stopColor="#f97316" />
+                            </linearGradient>
+                          </defs>
+                        </svg>
+                      </div>
+                      <div className="mt-2 text-xs text-stone-400">折线仅用于原型展示（真实数据后续接入）</div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-medium text-stone-600">Conf vs AJR 走势</h4>
+                        <div className="flex items-center gap-3 text-[11px] text-stone-400">
+                          <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: 'hsl(210,70%,70%)' }}></span>Conf</span>
+                          <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: 'hsl(145,55%,60%)' }}></span>AJR</span>
+                        </div>
+                      </div>
+                      <div className="h-36 rounded-xl bg-stone-50 border border-stone-100 p-3">
+                        <svg viewBox="0 0 100 50" className="w-full h-full">
+                          <line x1="0" y1="45" x2="100" y2="45" stroke="#e7e5e4" strokeWidth="0.7" />
+                          <polyline fill="none" stroke="hsl(210,70%,62%)" strokeWidth="2.2" points={poly([0.55,0.58,0.52,0.61,0.60,0.66,0.63,0.68])} />
+                          <polyline fill="none" stroke="hsl(145,55%,52%)" strokeWidth="2.2" points={poly([0.50,0.56,0.48,0.58,0.57,0.62,0.60,0.65])} />
+                        </svg>
+                      </div>
+                      <div className="mt-2 text-xs text-stone-400">用于观察“自我置信度”是否稳定对齐实际表现</div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      };
+
+v className="relative z-10">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <h3 className="font-medium text-stone-800">{selectedTeam.name} · 详细档案</h3>
+                      <span className="text-xs px-2 py-0.5 bg-stone-100 text-stone-500 rounded-full">{selectedTeam.league}</span>
+                    </div>
+                    <button onClick={() => setSelectedTeam(null)} className="text-stone-400 hover:text-stone-600">×</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="text-sm font-medium text-stone-600 mb-3">ROI 走势</h4>
+                      <div className="h-32 flex items-end gap-1">
+                        {[5, 8, 3, 12, 7, 15, 10, 18].map((h, i) => (
+                          <div key={i} className="flex-1 bg-gradient-to-t from-amber-400 to-orange-300 rounded-t-sm chart-bar" style={{ height: `${h * 5}%` }} />
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-stone-600 mb-3">(Act. - Exp.) Rating 走势</h4>
+                      <div className="h-32 flex items-center">
+                        <svg viewBox="0 0 100 50" className="w-full h-full">
+                          <line x1="0" y1="25" x2="100" y2="25" stroke="#e7e5e4" strokeWidth="0.5" strokeDasharray="2" />
+                          <polyline fill="none" stroke="url(#lg)" strokeWidth="2" points="5,30 20,22 35,28 50,18 65,24 80,15 95,20" />
+                          <defs><linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#fbbf24" /><stop offset="100%" stopColor="#f97316" /></linearGradient></defs>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      };
+
+      // Settle - Portfolio as minimum unit (v6.1 step2)
+      const SettlePage = () => {
+        const [openComboIds, setOpenComboIds] = useState([]); // default all collapsed
+        const [combos, setCombos] = useState([
+          {
+            id: 'p1',
+            type: '2 Matches Combo',
+            date: '02-02',
+            revenue: 0,
+            legs: [
+              { id: 'p1-1', match: '阿森纳 vs 切尔西', entry: '主胜', odds: 2.15, inputs: 180, conf: 0.65, preNote: '主场强势', results: '', hit: null, ajr: '', rep: '' , postNote: ''},
+              { id: 'p1-2', match: '巴塞罗那 vs 皇家马德里', entry: '大2.5', odds: 1.95, inputs: 150, conf: 0.58, preNote: '国家德比进球多', results: '', hit: null, ajr: '', rep: '' , postNote: ''},
+            ]
+          },
+          {
+            id: 'p2',
+            type: 'Single Match',
+            date: '02-02',
+            revenue: 0,
+            legs: [
+              { id: 'p2-1', match: '利物浦 vs 曼城', entry: '大2.5', odds: 1.85, inputs: 200, conf: 0.72, preNote: '火力对轰', results: '', hit: null, ajr: '', rep: '' , postNote: ''},
+            ]
+          },
+          {
+            id: 'p3',
+            type: '3 Matches Combo',
+            date: '02-01',
+            revenue: 0,
+            legs: [
+              { id: 'p3-1', match: '热刺 vs 曼联', entry: '平局', odds: 3.40, inputs: 80, conf: 0.42, preNote: '状态都一般', results: '', hit: null, ajr: '', rep: '' , postNote: ''},
+              { id: 'p3-2', match: '拜仁 vs 多特', entry: '主胜', odds: 1.62, inputs: 80, conf: 0.61, preNote: '强队主场', results: '', hit: null, ajr: '', rep: '' , postNote: ''},
+              { id: 'p3-3', match: '巴黎 vs 里昂', entry: '让胜', odds: 1.75, inputs: 80, conf: 0.55, preNote: '阵容完整', results: '', hit: null, ajr: '', rep: '' , postNote: ''},
+            ]
+          }
+        ]);
+
+        const toggleOpen = (id) => {
+          setOpenComboIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+        };
+
+        const updateCombo = (id, field, value) => {
+          setCombos(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
+        };
+
+        const updateLeg = (comboId, legId, field, value) => {
+          setCombos(prev => prev.map(c => {
+            if (c.id !== comboId) return c;
+            return {
+              ...c,
+              legs: c.legs.map(l => l.id === legId ? { ...l, [field]: value } : l)
+            };
+          }));
+        };
+
+        const totalCombos = combos.length;
+        const totalLegs = combos.reduce((s, c) => s + c.legs.length, 0);
+
+        const comboCombinedOdds = (legs) => {
+          const v = legs.reduce((acc, l) => acc * (Number(l.odds) || 1), 1);
+          return v.toFixed(2);
+        };
+
+        const comboTotalInputs = (legs) => legs.reduce((acc, l) => acc + (Number(l.inputs) || 0), 0);
+
+        const allocateRevenue = (combo) => {
+          const sumOdds = combo.legs.reduce((acc, l) => acc + (Number(l.odds) || 0), 0);
+          const rev = Number(combo.revenue) || 0;
+          if (!sumOdds || !rev) return combo.legs.map(() => 0);
+          return combo.legs.map(l => (rev * (Number(l.odds) || 0) / sumOdds));
+        };
+
+        return (
+          <div className="p-8">
+            <div className="mb-6">
+              <h2 className="text-2xl font-semibold text-stone-800 font-display">待结算</h2>
+              <p className="text-stone-400 text-sm mt-1">{totalCombos} 份投资待录入结果，共 {totalLegs} 场比赛</p>
+            </div>
+
+            <div className="space-y-4">
+              {combos.map((combo) => {
+                const isOpen = openComboIds.includes(combo.id);
+                const combinedOdds = comboCombinedOdds(combo.legs);
+                const totalInputs = comboTotalInputs(combo.legs);
+                const allocations = allocateRevenue(combo);
+
+                return (
+                  <div key={combo.id} className="glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden">
+                    <div className="relative z-10">
+                      {/* Header */}
+                      <button
+                        onClick={() => toggleOpen(combo.id)}
+                        className="w-full px-6 py-5 flex items-center justify-between text-left hover:bg-amber-50/30 transition-colors"
+                      >
+                        <div>
+                          <div className="flex items-center gap-3">
+                            <p className="font-semibold text-stone-800 text-lg">{combo.type}</p>
+                            <span className="text-xs text-stone-400">{combo.date}</span>
+                            <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">待结算</span>
+                          </div>
+                          <div className="mt-1 text-sm text-stone-500 flex items-center gap-2">
+                            <span>综合 Odds <span className="font-semibold text-stone-800">{combinedOdds}</span></span>
+                            <span className="text-stone-300">·</span>
+                            <span>投入 <span className="font-semibold text-stone-800">{totalInputs} rmb</span></span>
+                            <span className="text-stone-300">·</span>
+                            <span>{combo.legs.length} 场比赛</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="hidden md:block text-right">
+                            <div className="text-xs text-stone-400 mb-1">Revenue（组合收益）</div>
+                            <input
+                              type="number"
+                              value={combo.revenue}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => updateCombo(combo.id, 'revenue', e.target.value)}
+                              className="input-glow w-28 px-3 py-2 rounded-xl border border-stone-200 text-sm font-medium focus:outline-none focus:border-amber-400 text-right"
+                              placeholder="0"
+                            />
+                          </div>
+                          <span className={`text-stone-400 transition-transform ${isOpen ? 'rotate-90' : ''}`}>›</span>
+                        </div>
+                      </button>
+
+                      {/* Body */}
+                      {isOpen && (
+                        <div className="px-6 pb-6">
+                          <div className="mt-3 p-4 rounded-xl bg-stone-50 border border-stone-100">
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <div className="text-sm font-medium text-stone-700 mb-1">结算逻辑</div>
+                                <p className="text-sm text-stone-500 leading-relaxed">
+                                  本页最小作战单元为“每份组合投资”。当你为组合录入 Revenue（默认 0）时，系统将按每场比赛的 <span className="font-medium">赔率比例</span> 分摊收益到各场比赛，用于后续历史记录与统计。
+                                </p>
+                              </div>
+                              <div className="md:hidden">
+                                <div className="text-xs text-stone-400 mb-1 text-right">Revenue</div>
+                                <input
+                                  type="number"
+                                  value={combo.revenue}
+                                  onChange={(e) => updateCombo(combo.id, 'revenue', e.target.value)}
+                                  className="input-glow w-24 px-3 py-2 rounded-xl border border-stone-200 text-sm font-medium focus:outline-none focus:border-amber-400 text-right"
+                                  placeholder="0"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 space-y-3">
+                            {combo.legs.map((leg, i) => (
+                              <div key={leg.id} className="p-4 rounded-xl border border-stone-100 bg-white hover:bg-amber-50/20 transition-colors">
+                                <div className="flex items-start justify-between gap-4">
+                                  <div>
+                                    <p className="font-medium text-stone-800">{leg.match}</p>
+                                    <p className="text-xs text-stone-400 mt-1">
+                                      预测 <span className="text-stone-700 font-medium">{leg.entry}</span>
+                                      <span className="text-stone-300"> · </span>
+                                      Odds <span className="font-medium italic text-stone-700">{Number(leg.odds).toFixed(2)}</span>
+                                      <span className="text-stone-300"> · </span>
+                                      投入 <span className="font-semibold text-stone-800">{leg.inputs} rmb</span>
+                                      <span className="text-stone-300"> · </span>
+                                      Conf <span style={confStyle(leg.conf)} className="font-medium">{Number(leg.conf).toFixed(2)}</span>
+                                    </p>
+                                    {leg.preNote && (
+                                      <p className="text-xs text-stone-400 mt-1">赛前备注：{leg.preNote}</p>
+                                    )}
+                                  </div>
+
+                                  {(Number(combo.revenue) || 0) > 0 && (
+                                    <div className="text-right">
+                                      <div className="text-[11px] text-stone-400">分摊收益</div>
+                                      <div className="text-sm font-semibold text-amber-600">{allocations[i].toFixed(1)} rmb</div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="grid grid-cols-12 gap-3 mt-4">
+                                  <div className="col-span-4">
+                                    <label className="text-xs text-stone-400 mb-1.5 block">Results 实际结果</label>
+                                    <input
+                                      type="text"
+                                      value={leg.results}
+                                      onChange={(e) => updateLeg(combo.id, leg.id, 'results', e.target.value)}
+                                      placeholder="比分或结果..."
+                                      className="input-glow w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400"
+                                    />
+                                  </div>
+
+                                  <div className="col-span-3">
+                                    <label className="text-xs text-stone-400 mb-1.5 block">是否命中</label>
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => updateLeg(combo.id, leg.id, 'hit', true)}
+                                        className={`flex-1 py-2.5 rounded-lg text-xs font-medium border btn-hover ${leg.hit === true ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white text-stone-500 border-stone-200 hover:border-emerald-200 hover:bg-emerald-50'}`}
+                                      >✓ 中</button>
+                                      <button
+                                        onClick={() => updateLeg(combo.id, leg.id, 'hit', false)}
+                                        className={`flex-1 py-2.5 rounded-lg text-xs font-medium border btn-hover ${leg.hit === false ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-white text-stone-500 border-stone-200 hover:border-rose-200 hover:bg-rose-50'}`}
+                                      >✗ 未中</button>
+                                    </div>
+                                  </div>
+
+                                  <div className="col-span-2">
+                                    <label className="text-xs text-stone-400 mb-1.5 block">AJR</label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={leg.ajr}
+                                      onChange={(e) => updateLeg(combo.id, leg.id, 'ajr', e.target.value)}
+                                      placeholder="0~1"
+                                      className="input-glow w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400"
+                                    />
+                                  </div>
+
+                                  <div className="col-span-3">
+                                    <label className="text-xs text-stone-400 mb-1.5 block">REP 随机事件</label>
+                                    <input
+                                      type="number"
+                                      step="0.1"
+                                      value={leg.rep}
+                                      onChange={(e) => updateLeg(combo.id, leg.id, 'rep', e.target.value)}
+                                      placeholder="0~1.8"
+                                      className="input-glow w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="mt-3">
+                                  <label className="text-xs text-stone-400 mb-1.5 block">赛后备注（复盘心得）</label>
+                                  <input
+                                    type="text"
+                                    value={leg.postNote}
+                                    onChange={(e) => updateLeg(combo.id, leg.id, 'postNote', e.target.value)}
+                                    placeholder="选填..."
+                                    className="input-glow w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400"
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="flex items-center justify-end mt-4">
+                            <button className="px-6 py-2.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl text-sm font-medium shadow-lg shadow-orange-200/40 btn-hover">
+                              确认结算
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      };
+
+      // Combo - Refined visuals + explanation (v6.1 step2)
+      const ComboPage = () => {
+        const [selectedIdx, setSelectedIdx] = useState([0, 1]);
+        const [risk, setRisk] = useState(48);
+
+        const toggle = (i) => {
+          setSelectedIdx(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]);
+        };
+
+        const candidates = [
+          { match: '阿森纳 vs 切尔西', conf: 0.65, odds: 2.15, ev: 0.082 },
+          { match: '利物浦 vs 曼城', conf: 0.58, odds: 1.95, ev: 0.051 },
+          { match: '巴塞罗那 vs 皇马', conf: 0.45, odds: 2.80, ev: 0.036 },
+        ];
+
+        const recos = [
+          { tier: 'T1 主推', combo: '阿森纳主胜 × 利物浦大2.5', allocation: 280, ev: 0.124, winRate: 0.58, sharpe: 1.82 },
+          { tier: 'T2 次推', combo: '阿森纳主胜 · Solo Position', allocation: 180, ev: 0.082, winRate: 0.65, sharpe: 1.45 },
+          { tier: 'T3 博冷', combo: '3 Matches Combo', allocation: 60, ev: 0.187, winRate: 0.22, sharpe: 0.92 },
+        ];
+
+        const totalAlloc = recos.reduce((s, r) => s + r.allocation, 0);
+
+        return (
+          <div className="p-8">
+            <div className="mb-6">
+              <h2 className="text-2xl font-semibold text-stone-800 font-display">智能组合建议</h2>
+              <p className="text-stone-400 text-sm mt-1">基于 Portfolio Optimization 的最优下注方案</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-medium text-stone-700">今日备选比赛</h3>
+                    <button onClick={() => setActivePage('new')} className="text-xs text-amber-500 hover:text-amber-600">+ 添加比赛</button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {candidates.map((item, i) => {
+                      const selected = selectedIdx.includes(i);
+                      return (
+                        <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-stone-50 border border-stone-100 hover:border-amber-200 hover:bg-amber-50/40 transition-all cursor-pointer lift-card"
+                          onClick={() => toggle(i)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${selected ? 'border-amber-300 bg-amber-50' : 'border-stone-200 bg-white/70'}`}>
+                              {selected ? (
+                                <svg width="14" height="14" viewBox="0 0 20 20" className="text-amber-600">
+                                  <path d="M4 10.5l3.2 3.2L16 4.9" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              ) : (
+                                <span className="w-2 h-2 rounded-sm bg-stone-200/60" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-stone-700">{item.match}</p>
+                              <p className="text-xs text-stone-400">
+                                Conf <span style={confStyle(item.conf)} className="font-medium">{item.conf.toFixed(2)}</span>
+                                <span className="text-stone-300"> · </span>
+                                Odds <span className="font-medium italic text-stone-600">{item.odds.toFixed(2)}</span>
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+                            <div className="text-xs text-stone-500">预期收益</div>
+                            <div className="text-sm font-semibold text-stone-800">+{(item.ev * 100).toFixed(1)}%</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-6 pt-6 border-t border-stone-100">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-sm text-stone-600">Risk Preference</label>
+                      <span className="text-sm font-medium text-stone-700">{risk}</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-xs text-stone-400">保守</span>
+                      <input type="range" min="0" max="100" value={risk} onChange={(e) => setRisk(Number(e.target.value))} className="flex-1" />
+                      <span className="text-xs text-stone-400">激进</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <button className="flex-1 py-3 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl text-sm font-medium shadow-lg shadow-orange-200/40 btn-hover">
+                      生成最优组合
+                    </button>
+                    <button className="flex-1 py-3 border border-amber-300 text-amber-600 rounded-xl text-sm font-medium hover:bg-amber-50 btn-hover">
+                      确认投资已勾选
+                    </button>
+ 
+
+      // Params - Redesigned (v6.1 step3)
+      const ParamsPage = () => {
+        const [showKellyModal, setShowKellyModal] = useState(false);
+        const [selectedFactor, setSelectedFactor] = useState('Conf');
+
+        const factors = [
+          { key: 'Conf', label: 'Conf', value: 1.08, trend: '↑', desc: '主观置信度对“自我判断准确度”的校准权重' },
+          { key: 'Mode', label: 'Mode', value: 0.95, trend: '→', desc: '不同策略模式对预测稳定性的系统性偏差' },
+          { key: 'TYS', label: 'TYS', value: 1.02, trend: '↑', desc: '时间近因权重（recentness）对结果的影响系数' },
+          { key: 'FID', label: 'FID', value: 1.12, trend: '↑', desc: '信息深度（Information Depth）对准确度的边际贡献' },
+          { key: 'Odds', label: 'Odds', value: 0.98, trend: '↓', desc: '赔率区间在样本中的非线性偏差' },
+          { key: 'FSE', label: 'FSE', value: 1.05, trend: '→', desc: '意外事件过滤强度（过滤噪音）对拟合的修正' },
+        ];
+
+        const factorHistory = {
+          Conf: [
+            { w: 'W-11', v: 1.03, n: 210 }, { w: 'W-10', v: 1.04, n: 214 }, { w: 'W-9', v: 1.05, n: 218 }, { w: 'W-8', v: 1.06, n: 223 },
+            { w: 'W-7', v: 1.06, n: 229 }, { w: 'W-6', v: 1.07, n: 236 }, { w: 'W-5', v: 1.07, n: 240 }, { w: 'W-4', v: 1.08, n: 246 },
+            { w: 'W-3', v: 1.08, n: 252 }, { w: 'W-2', v: 1.09, n: 258 }, { w: 'W-1', v: 1.08, n: 262 }, { w: 'W0', v: 1.08, n: 268 },
+          ],
+          Mode: [
+            { w: 'W-11', v: 0.98, n: 210 }, { w: 'W-10', v: 0.97, n: 214 }, { w: 'W-9', v: 0.96, n: 218 }, { w: 'W-8', v: 0.95, n: 223 },
+            { w: 'W-7', v: 0.95, n: 229 }, { w: 'W-6', v: 0.94, n: 236 }, { w: 'W-5', v: 0.95, n: 240 }, { w: 'W-4', v: 0.95, n: 246 },
+            { w: 'W-3', v: 0.95, n: 252 }, { w: 'W-2', v: 0.96, n: 258 }, { w: 'W-1', v: 0.95, n: 262 }, { w: 'W0', v: 0.95, n: 268 },
+          ],
+          TYS: [
+            { w: 'W-11', v: 1.01, n: 210 }, { w: 'W-10', v: 1.01, n: 214 }, { w: 'W-9', v: 1.00, n: 218 }, { w: 'W-8', v: 1.01, n: 223 },
+            { w: 'W-7', v: 1.02, n: 229 }, { w: 'W-6', v: 1.02, n: 236 }, { w: 'W-5', v: 1.02, n: 240 }, { w: 'W-4', v: 1.03, n: 246 },
+            { w: 'W-3', v: 1.02, n: 252 }, { w: 'W-2', v: 1.02, n: 258 }, { w: 'W-1', v: 1.02, n: 262 }, { w: 'W0', v: 1.02, n: 268 },
+          ],
+          FID: [
+            { w: 'W-11', v: 1.06, n: 210 }, { w: 'W-10', v: 1.07, n: 214 }, { w: 'W-9', v: 1.08, n: 218 }, { w: 'W-8', v: 1.09, n: 223 },
+            { w: 'W-7', v: 1.10, n: 229 }, { w: 'W-6', v: 1.11, n: 236 }, { w: 'W-5', v: 1.11, n: 240 }, { w: 'W-4', v: 1.12, n: 246 },
+            { w: 'W-3', v: 1.12, n: 252 }, { w: 'W-2', v: 1.13, n: 258 }, { w: 'W-1', v: 1.12, n: 262 }, { w: 'W0', v: 1.12, n: 268 },
+          ],
+          Odds: [
+            { w: 'W-11', v: 1.02, n: 210 }, { w: 'W-10', v: 1.01, n: 214 }, { w: 'W-9', v: 1.00, n: 218 }, { w: 'W-8', v: 0.99, n: 223 },
+            { w: 'W-7', v: 0.99, n: 229 }, { w: 'W-6', v: 0.98, n: 236 }, { w: 'W-5', v: 0.98, n: 240 }, { w: 'W-4', v: 0.98, n: 246 },
+            { w: 'W-3', v: 0.97, n: 252 }, { w: 'W-2', v: 0.98, n: 258 }, { w: 'W-1', v: 0.98, n: 262 }, { w: 'W0', v: 0.98, n: 268 },
+          ],
+          FSE: [
+            { w: 'W-11', v: 1.04, n: 210 }, { w: 'W-10', v: 1.05, n: 214 }, { w: 'W-9', v: 1.04, n: 218 }, { w: 'W-8', v: 1.05, n: 223 },
+            { w: 'W-7', v: 1.05, n: 229 }, { w: 'W-6', v: 1.06, n: 236 }, { w: 'W-5', v: 1.05, n: 240 }, { w: 'W-4', v: 1.05, n: 246 },
+            { w: 'W-3', v: 1.05, n: 252 }, { w: 'W-2', v: 1.05, n: 258 }, { w: 'W-1', v: 1.06, n: 262 }, { w: 'W0', v: 1.05, n: 268 },
+          ],
+        };
+
+        const buildPoints = (arr) => {
+          const vals = arr.map(d => d.v);
+          const n = vals.length;
+          const min = Math.min(...vals);
+          const max = Math.max(...vals);
+          const pad = (max - min) * 0.2 + 1e-6;
+          const lo = min - pad;
+          const hi = max + pad;
+          return vals.map((v, i) => {
+            const x = 6 + (88 * (i / (n - 1)));
+            const y = 46 - (38 * ((v - lo) / (hi - lo)));
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+          }).join(' ');
+        };
+
+        const openExpectedActualDetail = () => {
+          const hist = [
+            { w: 'W-11', fit: 0.88 }, { w: 'W-10', fit: 0.89 }, { w: 'W-9', fit: 0.90 }, { w: 'W-8', fit: 0.90 },
+            { w: 'W-7', fit: 0.91 }, { w: 'W-6', fit: 0.91 }, { w: 'W-5', fit: 0.92 }, { w: 'W-4', fit: 0.92 },
+            { w: 'W-3', fit: 0.92 }, { w: 'W-2', fit: 0.93 }, { w: 'W-1', fit: 0.92 }, { w: 'W0', fit: 0.92 },
+          ];
+          const pts = buildPoints(hist.map(d => ({ v: d.fit })));
+          setModalData({
+            title: 'Expected vs Actual Judgmental Rating · 历史记录',
+            content: (
+              <div>
+                <p className="text-sm text-stone-500 mb-4">该指标用于衡量系统“预期值模型”本身的拟合度/准确度（与 Conf vs AJR 不同）。</p>
+                <div className="h-44 rounded-2xl bg-stone-50 border border-stone-100 p-4 mb-4">
+                  <svg viewBox="0 0 100 50" className="w-full h-full">
+                    <line x1="0" y1="45" x2="100" y2="45" stroke="#e7e5e4" strokeWidth="0.7" />
+                    <polyline fill="none" stroke="url(#fitGrad)" strokeWidth="2.6" points={pts} />
+                    <defs>
+                      <linearGradient id="fitGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#fbbf24" />
+                        <stop offset="100%" stopColor="#f97316" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                </div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-stone-200 text-left text-stone-500">
+                      <th className="py-2 font-medium">周</th>
+                      <th className="py-2 font-medium">Fit</th>
+                      <th className="py-2 font-medium">备注</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hist.slice().reverse().map((r, i) => (
+                      <tr key={i} className="border-b border-stone-100">
+                        <td className="py-2 text-stone-600">{r.w}</td>
+                        <td className="py-2 font-medium text-stone-800">{r.fit.toFixed(2)}</td>
+                        <td className="py-2 text-stone-400">—</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          });
+        };
+
+        const kellyModalContent = (
+          <div>
+            <p className="text-sm text-stone-500 mb-4">基于深度分析中各 Mode 的历史表现，动态计算建议 Kelly 分母</p>
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-stone-200 text-left text-stone-500">
+                <th className="py-2 font-medium">Mode</th><th className="py-2 font-medium">样本</th><th className="py-2 font-medium">ROI</th><th className="py-2 font-medium">建议 Kelly</th>
+              </tr></thead>
+              <tbody>
+                {[
+                  { mode: '常规', samples: 45, roi: '+12.4%', kelly: '4.0' },
+                  { mode: '常规-稳', samples: 18, roi: '+8.2%', kelly: '3.5' },
+                  { mode: '保险产品', samples: 15, roi: '+18.5%', kelly: '3.0' },
+                  { mode: '半彩票半保险', samples: 10, roi: '-5.2%', kelly: '5.0' },
+                  { mode: '赌一把', samples: 5, roi: '-32.0%', kelly: '6.0' },
+                ].map((r, i) => (
+                  <tr key={i} className="border-b border-stone-100">
+                    <td className="py-2 font-medium text-stone-700">{r.mode}</td>
+                    <td className="py-2 text-stone-500">{r.samples}</td>
+                    <td className={`py-2 ${r.roi.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}`}>{r.roi}</td>
+                    <td className="py-2 font-semibold text-amber-600">{r.kelly}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+
+        const sel = factors.find(f => f.key === selectedFactor);
+        const hist = factorHistory[selectedFactor] || [];
+        const pts = buildPoints(hist);
+
+        return (
+          <div className="p-8 max-w-5xl">
+            <div className="mb-6">
+              <h2 className="text-2xl font-semibold text-stone-800 font-display">参数后台</h2>
+              <p className="text-stone-400 text-sm mt-1">系统核心参数与校准系数配置</p>
+            </div>
+
+            {/* Core Indicator - Hero Card (clickable) */}
+            <div
+              onClick={openExpectedActualDetail}
+              className="glow-card bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 rounded-2xl p-6 border border-amber-200 mb-6 cursor-pointer"
+            >
+              <div className="relative z-10">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-amber-600 text-lg">❖</span>
+                      <span className="text-xs text-amber-600 font-medium uppercase tracking-wide">Core Metric</span>
+                    </div>
+                    <h3 className="text-xl font-semibold text-stone-800">Expected vs Actual Judgmental Rating</h3>
+                    <p className="text-sm text-stone-500 mt-1">衡量“预期值模型”的拟合程度（点击查看历史记录）</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-4xl font-bold text-amber-600">0.92</div>
+                    <p className="text-sm text-emerald-600 mt-1">↑ 校准良好 · 偏差 -8%</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Two Column Layout */}
+            <div className="grid grid-cols-2 gap-6 mb-6">
+              {/* Left - Capital & Risk */}
+              <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+                <div className="relative z-10">
+                  <h3 className="font-medium text-stone-700 mb-4 flex items-center gap-2">
+                    <span className="text-amber-500">◐</span> 资金与风控
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl">
+                      <div>
+                        <span className="text-sm text-stone-700">初始本金</span>
+                        <p className="text-xs text-stone-400">基准资金池</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-stone-400">¥</span>
+                        <input type="number" defaultValue="600" className="input-glow w-20 px-2 py-1.5 text-right text-sm font-medium rounded-lg border border-stone-200 focus:outline-none focus:border-amber-400" />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl">
+                      <div>
+                        <span className="text-sm text-stone-700">风控比例上限</span>
+                        <p className="text-xs text-stone-400">单笔最大投资占比</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <input type="number" defaultValue="12" className="input-glow w-16 px-2 py-1.5 text-right text-sm font-medium rounded-lg border border-stone-200 focus:outline-none focus:border-amber-400" />
+                        <span className="text-stone-400">%</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl">
+                      <div>
+                        <span className="text-sm text-stone-700">默认赔率</span>
+                        <p className="text-xs text-stone-400">未填写时的假设值</p>
+                      </div>
+                      <input type="number" step="0.1" defaultValue="2.5" className="input-glow w-20 px-2 py-1.5 text-right text-sm font-medium rounded-lg border border-stone-200 focus:outline-none focus:border-amber-400" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right - Kelly Settings */}
+              <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+                <div className="relative z-10">
+                  <h3 className="font-medium text-stone-700 mb-4 flex items-center gap-2">
+                    <span className="text-amber-500">◈</span> Kelly 参数
+                  </h3>
+                  <div onClick={() => setShowKellyModal(true)} className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200 cursor-pointer hover:shadow-md transition-all">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-stone-700">平均 Kelly 分母</span>
+                      <span className="text-2xl font-bold text-amber-600">3.8</span>
+                    </div>
+                    <p className="text-xs text-stone-500">基于各 Mode 历史表现加权计算</p>
+                    <p className="text-xs text-amber-600 mt-2">点击查看各 Mode 建议 →</p>
+                  </div>
+                  <div className="mt-4 p-3 bg-stone-50 rounded-xl">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-sm text-stone-700">手动覆盖</span>
+                        <p className="text-xs text-stone-400">强制使用固定分母</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input type="checkbox" className="accent-amber-500" />
+                        <input type="number" step="0.5" defaultValue="4" className="input-glow w-16 px-2 py-1.5 text-right text-sm rounded-lg border border-stone-200 focus:outline-none focus:border-amber-400" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Calibration Factors */}
+            <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium text-stone-700 flex items-center gap-2">
+                    <span className="text-amber-500">◇</span> 动态校准系数
+                  </h3>
+                  <span className="text-xs text-stone-400 px-2 py-1 bg-stone-100 rounded">回归分析自动更新 · 只读</span>
+                </div>
+
+                <div className="grid grid-cols-6 gap-3">
+                  {factors.map((item, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setSelectedFactor(item.key)}
+                      className={`p-3 rounded-xl text-center transition-colors border btn-hover ${
+                        selectedFactor === item.key ? 'bg-amber-50 border-amber-200' : 'bg-stone-50 border-stone-100 hover:bg-amber-50/60'
+                      }`}
+                      title="点击查看趋势"
+                    >
+                      <span className="text-xs text-stone-400 block">{item.label}</span>
+                      <span className="text-lg font-semibold text-stone-700">{item.value.toFixed(2)}</span>
+                      <span className={`text-xs block ${item.trend === '↑' ? 'text-emerald-500' : item.trend === '↓' ? 'text-rose-500' : 'text-stone-400'}`}>{item.trend}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Full-width detail panel */}
+                <div className="mt-5 rounded-2xl border border-stone-100 bg-stone-50 p-5">
+                  <div className="flex items-start justify-between gap-6 mb-4">
+                    <div>
+                      <div className="text-sm font-medium text-stone-800">{sel?.label} · 趋势与历史数据</div>
+                      <div className="text-xs text-stone-500 mt-1">{sel?.desc}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-stone-400">当前系数</div>
+                      <div className="text-2xl font-semibold text-stone-800">{sel?.value.toFixed(2)}</div>
+                    </div>
+                  </div>
+
+                  <div className="h-48 rounded-2xl bg-white border border-stone-100 p-4 mb-4">
+                    <svg viewBox="0 0 100 50" className="w-full h-full">
+                      <line x1="0" y1="45" x2="100" y2="45" stroke="#e7e5e4" strokeWidth="0.7" />
+                      <polyline fill="none" stroke="url(#coefGrad)" strokeWidth="2.6" points={pts} />
+                      <defs>
+                        <linearGradient id="coefGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="#fbbf24" />
+                          <stop offset="100%" stopColor="#f97316" />
+                        </linearGradient>
+                      </defs>
+                    </svg>
+                  </div>
+
+                  <div className="overflow-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-stone-200 text-left text-stone-500">
+                          <th className="py-2 font-medium">周</th>
+                          <th className="py-2 font-medium">系数</th>
+                          <th className="py-2 font-medium">样本量</th>
+                          <th className="py-2 font-medium">备注</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {hist.slice().reverse().map((r, i) => (
+                          <tr key={i} className="border-b border-stone-100">
+                            <td className="py-2 text-stone-600">{r.w}</td>
+                            <td className="py-2 font-medium text-stone-800">{Number(r.v).toFixed(2)}</td>
+                            <td className="py-2 text-stone-500">{r.n}</td>
+                            <td className="py-2 text-stone-400">—</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <p className="text-xs text-stone-400 mt-3">系数 &gt; 1 通常表示该因子对“拟合/准确度”具有正向贡献，但也需结合样本量与稳定性判断。</p>
+                </div>
+              </div>
+            </div>
+
+            {showKellyModal && <Modal data={{ title: 'Kelly 分母 · 各 Mode 建议', content: kellyModalContent }} onClose={() => setShowKellyModal(false)} />}
+          </div>
+        );
+      };
+
+ border border-stone-200 focus:outline-none focus:border-amber-400" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right - Kelly Settings */}
+              <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+                <div className="relative z-10">
+                  <h3 className="font-medium text-stone-700 mb-4 flex items-center gap-2">
+                    <span className="text-amber-500">◈</span> Kelly 参数
+                  </h3>
+                  <div onClick={() => setShowKellyModal(true)} className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200 cursor-pointer hover:shadow-md transition-all">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-stone-700">平均 Kelly 分母</span>
+                      <span className="text-2xl font-bold text-amber-600">3.8</span>
+                    </div>
+                    <p className="text-xs text-stone-500">基于各 Mode 历史表现加权计算</p>
+                    <p className="text-xs text-amber-600 mt-2">点击查看各 Mode 建议 →</p>
+                  </div>
+                  <div className="mt-4 p-3 bg-stone-50 rounded-xl">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-sm text-stone-700">手动覆盖</span>
+                        <p className="text-xs text-stone-400">强制使用固定分母</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input type="checkbox" className="accent-amber-500" />
+                        <input type="number" step="0.5" defaultValue="4" className="input-glow w-16 px-2 py-1.5 text-right text-sm rounded-lg border border-stone-200 focus:outline-none focus:border-amber-400" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Calibration Factors */}
+            <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium text-stone-700 flex items-center gap-2">
+                    <span className="text-amber-500">◇</span> 动态校准系数
+                  </h3>
+                  <span className="text-xs text-stone-400 px-2 py-1 bg-stone-100 rounded">回归分析自动更新 · 只读</span>
+                </div>
+                <div className="grid grid-cols-6 gap-3">
+                  {[
+                    { label: 'Conf', value: '1.08', trend: '↑' },
+                    { label: 'Mode', value: '0.95', trend: '→' },
+                    { label: 'TYS', value: '1.02', trend: '↑' },
+                    { label: 'FID', value: '1.12', trend: '↑' },
+                    { label: 'Odds', value: '0.98', trend: '↓' },
+                    { label: 'FSE', value: '1.05', trend: '→' },
+                  ].map((item, i) => (
+                    <div key={i} className="p-3 bg-stone-50 rounded-xl text-center hover:bg-amber-50 transition-colors">
+                      <span className="text-xs text-stone-400 block">{item.label}</span>
+                      <span className="text-lg font-semibold text-stone-700">{item.value}</span>
+                      <span className={`text-xs block ${item.trend === '↑' ? 'text-emerald-500' : item.trend === '↓' ? 'text-rose-500' : 'text-stone-400'}`}>{item.trend}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-stone-400 mt-4 text-center">系数基于历史数据每周自动回归更新，数值 &gt;1 表示该因子正向影响预测准确度</p>
+              </div>
+            </div>
+
+            {showKellyModal && <Modal data={{ title: 'Kelly 分母 · 各 Mode 建议', content: kellyModalContent }} onClose={() => setShowKellyModal(false)} />}
+          </div>
+        );
+      };
+
+      const renderPage = () => {
+        if (activeSubPage === 'analysis') return <AnalysisPage />;
+        if (activeSubPage === 'metrics') return <MetricsPage />;
+        if (activeSubPage === 'teams') return <TeamsPage />;
+        switch(activePage) {
+          case 'dashboard': return <DashboardPage />;
+          case 'new': return <NewInvestmentPage />;
+          case 'history': return <HistoryPage />;
+          case 'settle': return <SettlePage />;
+          case 'combo': return <ComboPage />;
+          case 'params': return <ParamsPage />;
+          default: return <NewInvestmentPage />;
+        }
+      };
+
+            return (
+        <div className="flex h-screen bg-stone-100/50">
+          <Sidebar />
+          <main className="flex-1 overflow-auto">{renderPage()}</main>
+
+          {/* Global Modals / Popovers */}
+          {modalData && <Modal data={modalData} onClose={() => setModalData(null)} />}
+          {notePopup && <NotePopup data={notePopup} onClose={() => setNotePopup(null)} />}
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<DugouDesign />);
+  </script>
+</body>
+</html>

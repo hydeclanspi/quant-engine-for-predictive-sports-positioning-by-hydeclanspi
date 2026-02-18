@@ -1,0 +1,1633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DUGOU Model Centre v5.8 - Complete UI Design</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'DM Sans', sans-serif; }
+    .font-display { font-family: 'Playfair Display', serif; }
+    .glow-card { position: relative; background: white; border-radius: 1rem; transition: all 0.3s ease; }
+    .glow-card:hover { box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.3), 0 8px 30px -12px rgba(251, 191, 36, 0.2); }
+    .glow-card::after { content: ''; position: absolute; inset: 0; border-radius: 1rem; opacity: 0; transition: opacity 0.3s ease; background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(251, 191, 36, 0.06), transparent 40%); pointer-events: none; }
+    .glow-card:hover::after { opacity: 1; }
+    .lift-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .lift-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px -12px rgba(0, 0, 0, 0.12); }
+    .btn-hover { transition: all 0.2s ease; }
+    .btn-hover:hover { transform: scale(1.02); }
+    .btn-hover:active { transform: scale(0.98); }
+    .sidebar-item { transition: all 0.2s ease; }
+    .sidebar-item:hover { transform: translateX(3px); }
+    .input-glow:focus { box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.15); }
+    input[type="range"] { -webkit-appearance: none; height: 6px; background: #e7e5e4; border-radius: 999px; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: linear-gradient(135deg, #fbbf24, #f97316); border-radius: 50%; cursor: pointer; box-shadow: 0 2px 8px rgba(251, 191, 36, 0.5); transition: transform 0.15s ease; }
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
+    .chart-bar { transition: all 0.2s ease; }
+    .chart-bar:hover { transform: scaleY(1.05); filter: brightness(1.1); }
+    .modal-overlay { animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .modal-content { animation: slideUp 0.3s ease; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .animate-pulse { animation: pulse 2s infinite; }
+    .stat-value { font-weight: 600; font-style: italic; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const DugouDesign = () => {
+      const [activePage, setActivePage] = useState('new');
+      const [activeSubPage, setActiveSubPage] = useState(null);
+      const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+      const [modalData, setModalData] = useState(null);
+      const [showDataMenu, setShowDataMenu] = useState(false);
+
+      useEffect(() => {
+        const handleMouseMove = (e) => {
+          const cards = document.querySelectorAll('.glow-card');
+          cards.forEach(card => {
+            const rect = card.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            card.style.setProperty('--mouse-x', `${x}%`);
+            card.style.setProperty('--mouse-y', `${y}%`);
+          });
+        };
+        window.addEventListener('mousemove', handleMouseMove);
+        return () => window.removeEventListener('mousemove', handleMouseMove);
+      }, []);
+
+      // Modal Component
+      const Modal = ({ data, onClose }) => (
+        <div className="modal-overlay fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
+          <div className="modal-content bg-white rounded-2xl p-6 max-w-3xl w-full mx-4 shadow-2xl max-h-[85vh] overflow-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-stone-800">{data.title}</h3>
+              <button onClick={onClose} className="text-stone-400 hover:text-stone-600 text-xl leading-none">×</button>
+            </div>
+            {data.content}
+          </div>
+        </div>
+      );
+
+      // Sidebar with nested items
+      const Sidebar = () => (
+        <div className={`h-screen bg-gradient-to-b from-stone-50 to-orange-50/30 border-r border-stone-200/60 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-56'}`}>
+          <div className="p-4 border-b border-stone-200/40">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-200/50 btn-hover cursor-pointer">
+                <span className="text-white font-bold text-sm">DG</span>
+              </div>
+              {!sidebarCollapsed && (
+                <div>
+                  <h1 className="font-semibold text-stone-800 text-sm tracking-tight">DUGOU</h1>
+                  <p className="text-[10px] text-stone-400">Model Centre v5.8</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <nav className="flex-1 p-3 space-y-1">
+            {[
+              { id: 'new', icon: '◈', label: '新建投资', badge: null },
+              { id: 'combo', icon: '❖', label: '智能组合', badge: null },
+              { id: 'settle', icon: '◉', label: '待结算', badge: '3', highlight: true },
+              { id: 'dashboard', icon: '◐', label: 'Dashboard', badge: null, children: [
+                { id: 'analysis', icon: '◇', label: '深度分析' }
+              ]},
+              { id: 'history', icon: '☰', label: '历史记录', badge: '93', children: [
+                { id: 'teams', icon: '⚑', label: '球队档案馆' }
+              ]},
+              { id: 'params', icon: '⚙', label: '参数后台', badge: null },
+            ].map(item => (
+              <div key={item.id}>
+                <button
+                  onClick={() => { setActivePage(item.id); setActiveSubPage(null); }}
+                  className={`sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 group
+                    ${activePage === item.id && !activeSubPage ? 'bg-white shadow-sm shadow-stone-200/50 text-stone-800' : 'text-stone-500 hover:bg-white/60 hover:text-stone-700'}`}
+                >
+                  <span className={`text-base transition-colors ${activePage === item.id && !activeSubPage ? 'text-amber-500' : 'text-stone-400 group-hover:text-stone-500'}`}>{item.icon}</span>
+                  {!sidebarCollapsed && (
+                    <>
+                      <span className="flex-1 text-left">{item.label}</span>
+                      {item.badge && <span className={`text-xs ${item.highlight ? 'px-2 py-0.5 rounded-full bg-amber-100 text-amber-600 font-medium' : 'text-stone-400'}`}>{item.badge}</span>}
+                    </>
+                  )}
+                </button>
+                {item.children && !sidebarCollapsed && (
+                  <div className="ml-6 mt-1 space-y-1">
+                    {item.children.map(child => (
+                      <button key={child.id} onClick={() => { setActivePage(item.id); setActiveSubPage(child.id); }}
+                        className={`sidebar-item w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all duration-200 ${activeSubPage === child.id ? 'bg-amber-50 text-amber-700' : 'text-stone-400 hover:bg-white/60 hover:text-stone-600'}`}>
+                        <span className="text-sm">{child.icon}</span>
+                        <span>{child.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </nav>
+
+          <div className="p-3 border-t border-stone-200/40 space-y-1">
+            {!sidebarCollapsed && (
+              <div className="relative">
+                <button onClick={() => setShowDataMenu(!showDataMenu)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-stone-500 hover:text-stone-700 hover:bg-white/60 transition-all text-sm">
+                  <span className="text-stone-400">⇄</span><span>数据管理</span><span className="ml-auto text-xs">{showDataMenu ? '▲' : '▼'}</span>
+                </button>
+                {showDataMenu && (
+                  <div className="mt-1 space-y-1">
+                    <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-stone-500 hover:text-amber-600 hover:bg-amber-50 transition-all text-xs"><span>↓</span> 导入 Excel</button>
+                    <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-stone-500 hover:text-amber-600 hover:bg-amber-50 transition-all text-xs"><span>↑</span> 导出备份</button>
+                  </div>
+                )}
+              </div>
+            )}
+            <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-white/60 transition-all text-xs">
+              {sidebarCollapsed ? '→' : '← 收起'}
+            </button>
+          </div>
+        </div>
+      );
+
+      // Dashboard with sub-tabs
+      const DashboardPage = () => {
+        const [chartType, setChartType] = useState('funds');
+        const [showChartMenu, setShowChartMenu] = useState(false);
+        const [timePeriod, setTimePeriod] = useState('2W');
+        const [showTimePicker, setShowTimePicker] = useState(false);
+        const chartLabels = { funds: '资金走势', conf: 'Conf 相关性', rating: 'Rating 准确度' };
+
+        const periodLabels = {
+          '2W': { label: '近两周', investments: 12 },
+          '1M': { label: '本月', investments: 23 },
+          '3M': { label: '近三月', investments: 68 },
+          '1Y': { label: '本年度', investments: 93 },
+        };
+
+        const openMetricDetail = (type) => {
+          const contents = {
+            balance: {
+              title: '蓄水池余额 · 历史明细',
+              content: (
+                <div>
+                  <table className="w-full text-sm mb-4">
+                    <thead><tr className="border-b border-stone-200 text-left text-stone-500">
+                      <th className="py-2 font-medium">日期</th><th className="py-2 font-medium">比赛</th><th className="py-2 font-medium">操作前</th><th className="py-2 font-medium">盈亏</th><th className="py-2 font-medium">操作后</th>
+                    </tr></thead>
+                    <tbody>
+                      {[
+                        { date: '02-02', match: '阿森纳 vs 切尔西', before: '¥2,667', change: '-', after: '¥2,667' },
+                        { date: '02-01', match: '利物浦 vs 曼城', before: '¥2,447', change: '+¥220', after: '¥2,667' },
+                        { date: '01-31', match: '热刺 vs 曼联', before: '¥2,597', change: '-¥150', after: '¥2,447' },
+                        { date: '01-30', match: '纽卡斯尔 vs 阿斯顿维拉', before: '¥2,357', change: '+¥240', after: '¥2,597' },
+                      ].map((r, i) => (
+                        <tr key={i} className="border-b border-stone-100">
+                          <td className="py-2 text-stone-600">{r.date}</td>
+                          <td className="py-2 text-stone-700">{r.match}</td>
+                          <td className="py-2 text-stone-600">{r.before}</td>
+                          <td className={`py-2 font-medium ${r.change.includes('+') ? 'text-emerald-600' : r.change === '-' ? 'text-stone-400' : 'text-rose-500'}`}>{r.change}</td>
+                          <td className="py-2 text-stone-800 font-medium">{r.after}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="flex justify-center gap-2">
+                    <button className="px-3 py-1 text-xs bg-amber-100 text-amber-700 rounded">1</button>
+                    <button className="px-3 py-1 text-xs text-stone-400 hover:bg-stone-100 rounded">2</button>
+                    <button className="px-3 py-1 text-xs text-stone-400 hover:bg-stone-100 rounded">3</button>
+                    <span className="px-2 text-stone-300">...</span>
+                    <button className="px-3 py-1 text-xs text-stone-400 hover:bg-stone-100 rounded">12</button>
+                  </div>
+                </div>
+              )
+            },
+            roi: {
+              title: '近两周 ROI · 详细分解',
+              content: (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="p-3 bg-stone-50 rounded-xl"><span className="text-xs text-stone-400 block">总投资</span><span className="text-lg font-semibold">¥1,850</span></div>
+                    <div className="p-3 bg-emerald-50 rounded-xl"><span className="text-xs text-stone-400 block">总收益</span><span className="text-lg font-semibold text-emerald-600">¥2,080</span></div>
+                    <div className="p-3 bg-amber-50 rounded-xl"><span className="text-xs text-stone-400 block">ROI</span><span className="text-lg font-semibold text-amber-600">+12.4%</span></div>
+                  </div>
+                  <div className="border-t border-stone-100 pt-4">
+                    <h4 className="text-sm font-medium text-stone-700 mb-3">近期投资明细</h4>
+                    <div className="space-y-2">
+                      {[
+                        { match: '利物浦 vs 曼城', entry: '大2.5', result: '✓', roi: '+85%' },
+                        { match: '热刺 vs 曼联', entry: '平局', result: '✗', roi: '-100%' },
+                        { match: '纽卡 vs 维拉', entry: '客胜', result: '✓', roi: '+160%' },
+                      ].map((r, i) => (
+                        <div key={i} className="flex items-center justify-between p-2 bg-stone-50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${r.result === '✓' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-500'}`}>{r.result}</span>
+                            <div><p className="text-sm text-stone-700">{r.match}</p><p className="text-xs text-stone-400">{r.entry}</p></div>
+                          </div>
+                          <span className={`text-sm font-medium ${r.roi.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}`}>{r.roi}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )
+            },
+            rating: {
+              title: 'Exp. vs Act. Judgmental Rating',
+              content: (
+                <table className="w-full text-sm">
+                  <thead><tr className="border-b border-stone-200 text-left text-stone-500">
+                    <th className="py-2 font-medium">日期</th><th className="py-2 font-medium">比赛</th><th className="py-2 font-medium">Exp.</th><th className="py-2 font-medium">Act.</th><th className="py-2 font-medium">偏差</th>
+                  </tr></thead>
+                  <tbody>
+                    {[
+                      { date: '02-01', match: '利物浦 vs 曼城', exp: '0.72', act: '0.75', diff: '+0.03' },
+                      { date: '01-31', match: '热刺 vs 曼联', exp: '0.42', act: '0.38', diff: '-0.04' },
+                      { date: '01-30', match: '纽卡 vs 维拉', exp: '0.55', act: '0.62', diff: '+0.07' },
+                    ].map((r, i) => (
+                      <tr key={i} className="border-b border-stone-100">
+                        <td className="py-2 text-stone-600">{r.date}</td>
+                        <td className="py-2 text-stone-700">{r.match}</td>
+                        <td className="py-2 text-stone-600">{r.exp}</td>
+                        <td className="py-2 text-stone-600">{r.act}</td>
+                        <td className={`py-2 font-medium ${r.diff.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}`}>{r.diff}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )
+            },
+            hitrate: {
+              title: '命中率 · 分维度统计',
+              content: (
+                <div className="space-y-3">
+                  {[
+                    { label: '总体', value: '67.3%', samples: 93 },
+                    { label: '单关', value: '71.2%', samples: 52 },
+                    { label: 'Conf ≥ 0.4', value: '72.8%', samples: 68 },
+                    { label: 'Conf ≥ 0.6', value: '78.4%', samples: 37 },
+                  ].map((r, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-stone-50 rounded-xl">
+                      <span className="text-stone-700">{r.label}</span>
+                      <div className="flex items-center gap-4">
+                        <span className="text-xs text-stone-400">{r.samples} samples</span>
+                        <span className="font-semibold text-stone-800">{r.value}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            },
+            noise: {
+              title: '噪音过滤 · 详细分析',
+              content: (
+                <div className="space-y-4">
+                  <p className="text-sm text-stone-500">通过 REP 方向性加权，过滤运气成分，还原真实判断能力</p>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="p-4 bg-stone-50 rounded-xl"><span className="text-xs text-stone-400 block">原始 ROI</span><span className="text-xl font-semibold text-stone-700">+12.4%</span></div>
+                    <div className="p-4 bg-emerald-50 rounded-xl"><span className="text-xs text-stone-400 block">过滤后 ROI</span><span className="text-xl font-semibold text-emerald-600">+15.8%</span></div>
+                    <div className="p-4 bg-rose-50 rounded-xl"><span className="text-xs text-stone-400 block">运气成分</span><span className="text-xl font-semibold text-rose-500">-3.4%</span></div>
+                  </div>
+                  <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
+                    <p className="text-sm text-amber-700">✓ 你的实际判断能力优于账面表现，近期运气略差但基本功扎实</p>
+                  </div>
+                  <div className="border-t border-stone-100 pt-4">
+                    <h4 className="text-sm font-medium text-stone-700 mb-3">运气成分拆解</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between"><span className="text-stone-500">正确预测但未中（REP高）</span><span className="text-rose-500">-5.2%</span></div>
+                      <div className="flex justify-between"><span className="text-stone-500">错误预测但命中（REP低）</span><span className="text-emerald-600">+1.8%</span></div>
+                    </div>
+                  </div>
+                </div>
+              )
+            },
+            conf: {
+              title: 'Conf 校准曲线 · 详细数据',
+              content: (
+                <div className="space-y-4">
+                  <p className="text-sm text-stone-500">主观置信度与实际命中率的吻合程度分析</p>
+                  <table className="w-full text-sm">
+                    <thead><tr className="border-b border-stone-200 text-left text-stone-500">
+                      <th className="py-2 font-medium">Conf 区间</th><th className="py-2 font-medium">预期</th><th className="py-2 font-medium">实际</th><th className="py-2 font-medium">偏差</th><th className="py-2 font-medium">样本</th>
+                    </tr></thead>
+                    <tbody>
+                      {[
+                        { conf: '0.8+', exp: '0.80', act: '0.76', diff: '-0.04', samples: 8 },
+                        { conf: '0.7~0.8', exp: '0.75', act: '0.72', diff: '-0.03', samples: 15 },
+                        { conf: '0.6~0.7', exp: '0.65', act: '0.67', diff: '+0.02', samples: 22 },
+                        { conf: '0.5~0.6', exp: '0.55', act: '0.52', diff: '-0.03', samples: 28 },
+                        { conf: '0.4~0.5', exp: '0.45', act: '0.48', diff: '+0.03', samples: 15 },
+                        { conf: '<0.4', exp: '0.30', act: '0.34', diff: '+0.04', samples: 5 },
+                      ].map((r, i) => (
+                        <tr key={i} className="border-b border-stone-100">
+                          <td className="py-2 font-medium text-stone-700">{r.conf}</td>
+                          <td className="py-2 text-stone-600">{r.exp}</td>
+                          <td className="py-2 text-stone-600">{r.act}</td>
+                          <td className={`py-2 font-medium ${r.diff.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}`}>{r.diff}</td>
+                          <td className="py-2 text-stone-400">{r.samples}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            },
+            advantage: {
+              title: '优势领域识别 · 历史表现',
+              content: (
+                <div className="space-y-4">
+                  {[
+                    { combo: 'Conf 0.6+ × 常规模式 × 英超', roi: '+23.4%', matches: [
+                      { match: '阿森纳 vs 切尔西', result: '✓', pnl: '+¥185' },
+                      { match: '利物浦 vs 曼城', result: '✓', pnl: '+¥220' },
+                    ]},
+                    { combo: 'TYS-M × FID 0.5+ × 单关', roi: '+18.7%', matches: [
+                      { match: '纽卡斯尔 vs 维拉', result: '✓', pnl: '+¥240' },
+                    ]},
+                  ].map((item, i) => (
+                    <div key={i} className="p-4 bg-stone-50 rounded-xl">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="font-medium text-stone-700">{item.combo}</span>
+                        <span className="text-emerald-600 font-semibold">{item.roi}</span>
+                      </div>
+                      <div className="space-y-1">
+                        {item.matches.map((m, j) => (
+                          <div key={j} className="flex items-center justify-between text-sm p-2 bg-white rounded">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs ${m.result === '✓' ? 'text-emerald-600' : 'text-rose-500'}`}>{m.result}</span>
+                              <span className="text-stone-600">{m.match}</span>
+                            </div>
+                            <span className={m.pnl.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}>{m.pnl}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            }
+          };
+          setModalData(contents[type]);
+        };
+
+        return (
+          <div className="p-8 space-y-5">
+            {/* Compact Smart Alert */}
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl px-4 py-2.5 border border-amber-200 flex items-center gap-3">
+              <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <span className="text-amber-600 text-sm">⚡</span>
+              </div>
+              <div className="flex-1 flex items-center gap-2">
+                <span className="text-xs font-medium text-stone-700">智能提醒</span>
+                <span className="px-1.5 py-0.5 bg-amber-200 text-amber-700 rounded text-[10px]">连续性识别</span>
+                <span className="text-xs text-stone-600">近5场<span className="text-emerald-600 font-medium">连续命中</span>，建议适度增加仓位</span>
+              </div>
+              <button className="text-[10px] text-stone-400 hover:text-stone-600">忽略</button>
+            </div>
+
+            {/* Header with Time Picker */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-semibold text-stone-800 font-display">Dashboard</h2>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="relative">
+                    <button onClick={() => setShowTimePicker(!showTimePicker)} className="text-stone-500 text-sm hover:text-amber-600 flex items-center gap-1">
+                      {periodLabels[timePeriod].label} <span className="text-xs">▼</span>
+                    </button>
+                    {showTimePicker && (
+                      <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-stone-200 py-1 z-10">
+                        {Object.entries(periodLabels).map(([key, val]) => (
+                          <button key={key} onClick={() => { setTimePeriod(key); setShowTimePicker(false); }}
+                            className={`block w-full px-4 py-1.5 text-left text-sm ${timePeriod === key ? 'bg-amber-50 text-amber-700' : 'text-stone-600 hover:bg-stone-50'}`}>
+                            {val.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-stone-400 text-sm">· 投资 {periodLabels[timePeriod].investments} 笔</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button className="px-4 py-2 text-sm text-stone-600 hover:text-stone-800 btn-hover">导出报告</button>
+                <button onClick={() => setActivePage('new')} className="px-5 py-2.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl text-sm font-medium shadow-lg shadow-orange-200/40 btn-hover">+ 新建投资</button>
+              </div>
+            </div>
+
+            {/* Metrics Row with Momentum */}
+            <div className="grid grid-cols-5 gap-4">
+              {/* Momentum */}
+              <div className="glow-card bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-4 border border-emerald-200 cursor-pointer">
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-emerald-600 text-xs font-medium">动量状态</span>
+                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                  </div>
+                  <div className="text-xl font-bold text-emerald-600">↑ 上升期</div>
+                  <p className="text-[10px] text-stone-500">近6场ROI +18%</p>
+                  <p className="text-[10px] text-emerald-600 mt-1">建议仓位 ×1.15</p>
+                </div>
+              </div>
+
+              {/* Balance */}
+              <div onClick={() => openMetricDetail('balance')} className="glow-card bg-white rounded-2xl p-4 border border-stone-100 cursor-pointer">
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-stone-400 text-xs">蓄水池余额</span>
+                    <span className="text-amber-400">◐</span>
+                  </div>
+                  <div className="text-xl font-semibold text-stone-800">¥2,847</div>
+                  <div className="text-xs text-emerald-500">+18.2%</div>
+                </div>
+              </div>
+
+              {/* ROI */}
+              <div onClick={() => openMetricDetail('roi')} className="glow-card bg-white rounded-2xl p-4 border border-stone-100 cursor-pointer">
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-stone-400 text-xs">{periodLabels[timePeriod].label} ROI</span>
+                    <span className="text-amber-400">◈</span>
+                  </div>
+                  <div className="text-xl font-semibold text-stone-800">+12.4%</div>
+                  <div className="text-xs text-emerald-500">↑ 3.1%</div>
+                </div>
+              </div>
+
+              {/* Exp vs Act Rating - moved here */}
+              <div onClick={() => openMetricDetail('rating')} className="glow-card bg-white rounded-2xl p-4 border border-stone-100 cursor-pointer">
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-stone-400 text-xs">Exp. vs Act. Rating</span>
+                    <span className="text-amber-400">❖</span>
+                  </div>
+                  <div className="text-xl font-semibold text-stone-800">0.92</div>
+                  <div className="text-xs text-emerald-500">校准良好</div>
+                </div>
+              </div>
+
+              {/* Hit Rate - moved here */}
+              <div onClick={() => openMetricDetail('hitrate')} className="glow-card bg-white rounded-2xl p-4 border border-stone-100 cursor-pointer">
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-stone-400 text-xs">命中率</span>
+                    <span className="text-amber-400">◉</span>
+                  </div>
+                  <div className="text-xl font-semibold text-stone-800">67.3%</div>
+                  <div className="text-xs text-stone-400">Conf≥0.4: <span className="text-emerald-500">52/68</span></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Middle Row */}
+            <div className="grid grid-cols-4 gap-4">
+              {/* Noise Filter */}
+              <div onClick={() => openMetricDetail('noise')} className="glow-card bg-white rounded-2xl p-4 border border-stone-100 cursor-pointer">
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-stone-700 font-medium text-sm">噪音过滤</span>
+                    <span className="text-[10px] text-amber-600 px-1.5 py-0.5 bg-amber-50 rounded">Beta</span>
+                  </div>
+                  <p className="text-[10px] text-stone-400 mb-2">REP方向性加权</p>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between"><span className="text-stone-500">原始</span><span className="text-stone-700">+12.4%</span></div>
+                    <div className="flex justify-between"><span className="text-stone-500">过滤后</span><span className="text-emerald-600 font-medium">+15.8%</span></div>
+                  </div>
+                  <p className="text-[10px] text-emerald-600 mt-2">✓ 判断力优于账面</p>
+                </div>
+              </div>
+
+              {/* Main Chart */}
+              <div className="col-span-2 glow-card bg-white rounded-2xl p-5 border border-stone-100">
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="relative">
+                      <button onClick={() => setShowChartMenu(!showChartMenu)} className="flex items-center gap-2 text-sm font-medium text-stone-700 hover:text-amber-600">
+                        {chartLabels[chartType]} <span className="text-xs text-stone-400">▼</span>
+                      </button>
+                      {showChartMenu && (
+                        <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-stone-200 py-1 z-10">
+                          {Object.entries(chartLabels).map(([key, label]) => (
+                            <button key={key} onClick={() => { setChartType(key); setShowChartMenu(false); }}
+                              className={`block w-full px-4 py-1.5 text-left text-sm ${chartType === key ? 'bg-amber-50 text-amber-700' : 'text-stone-600 hover:bg-stone-50'}`}>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-1">
+                      {['7D', '2W', '1M', 'ALL'].map(p => (
+                        <button key={p} className={`px-2.5 py-1 text-xs rounded-lg btn-hover ${p === '2W' ? 'bg-amber-100 text-amber-700' : 'text-stone-400 hover:bg-stone-50'}`}>{p}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="h-36 flex items-end gap-1 px-2">
+                    {[40, 45, 42, 55, 48, 62, 58, 70, 65, 75, 72, 85, 80, 88, 92].map((h, i) => (
+                      <div key={i} className="flex-1"><div className="chart-bar w-full rounded-t-sm bg-gradient-to-t from-amber-400 to-orange-300 opacity-80 hover:opacity-100 cursor-pointer origin-bottom" style={{ height: `${h}%` }} /></div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Conf Calibration */}
+              <div onClick={() => openMetricDetail('conf')} className="glow-card bg-white rounded-2xl p-4 border border-stone-100 cursor-pointer">
+                <div className="relative z-10">
+                  <h3 className="font-medium text-stone-700 text-sm mb-1">Conf 校准曲线</h3>
+                  <p className="text-[10px] text-stone-400 mb-2">主观置信度 vs 实际命中率</p>
+                  <div className="space-y-1.5">
+                    {[
+                      { conf: '0.8+', actual: '0.76' },
+                      { conf: '0.7~0.8', actual: '0.72' },
+                      { conf: '0.6~0.7', actual: '0.67' },
+                      { conf: '0.5~0.6', actual: '0.52' },
+                      { conf: '0.4~0.5', actual: '0.48' },
+                    ].map((r, i) => (
+                      <div key={i} className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-stone-500 w-12">{r.conf}</span>
+                        <div className="flex-1 h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-amber-300 to-orange-400 rounded-full" style={{ width: `${parseFloat(r.actual) * 100}%` }} />
+                        </div>
+                        <span className="text-[10px] text-stone-600 w-6">{r.actual}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Row */}
+            <div className="grid grid-cols-2 gap-4">
+              <div onClick={() => openMetricDetail('advantage')} className="glow-card bg-white rounded-2xl p-5 border border-stone-100 cursor-pointer">
+                <div className="relative z-10">
+                  <h3 className="font-medium text-stone-700 mb-1">优势领域识别</h3>
+                  <p className="text-[10px] text-stone-400 mb-3">多维度切片，发现正ROI组合</p>
+                  <div className="space-y-2">
+                    {[
+                      { combo: 'Conf 0.6+ × 常规模式 × 英超', roi: '+23.4%', samples: 18 },
+                      { combo: 'TYS-M × FID 0.5+ × 单关', roi: '+18.7%', samples: 24 },
+                    ].map((item, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-stone-50 hover:bg-amber-50 transition-all lift-card">
+                        <div><p className="text-sm text-stone-700">{item.combo}</p><p className="text-xs text-stone-400">{item.samples} samples</p></div>
+                        <span className="text-sm font-medium text-emerald-600">{item.roi}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="glow-card bg-white rounded-2xl p-5 border border-stone-100">
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-medium text-stone-700">近期投资</h3>
+                    <button onClick={() => setActivePage('history')} className="text-xs text-amber-500 hover:text-amber-600">查看全部 →</button>
+                  </div>
+                  <div className="space-y-2">
+                    {[
+                      { match: '阿森纳 vs 切尔西', entries: '主胜', status: 'pending', amount: '¥180' },
+                      { match: '利物浦 vs 曼城', entries: '大2.5', status: 'win', amount: '+¥220' },
+                      { match: '热刺 vs 曼联', entries: '平局', status: 'lose', amount: '-¥150' },
+                    ].map((item, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-xl hover:bg-stone-50 transition-all cursor-pointer lift-card">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-2 h-2 rounded-full ${item.status === 'pending' ? 'bg-amber-400' : item.status === 'win' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                          <div><p className="text-sm text-stone-700">{item.match}</p><p className="text-xs text-stone-400">{item.entries}</p></div>
+                        </div>
+                        <span className={`text-sm font-medium ${item.status === 'win' ? 'text-emerald-600' : item.status === 'lose' ? 'text-rose-500' : 'text-stone-600'}`}>{item.amount}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {modalData && <Modal data={modalData} onClose={() => setModalData(null)} />}
+          </div>
+        );
+      };
+
+      // Deep Analysis Page
+      const AnalysisPage = () => {
+        const [analysisTab, setAnalysisTab] = useState('parlay');
+        
+        return (
+          <div className="p-8">
+            <div className="mb-6">
+              <h2 className="text-2xl font-semibold text-stone-800 font-display">深度分析</h2>
+              <p className="text-stone-400 text-sm mt-1">多维度历史表现分析与策略优化</p>
+            </div>
+
+            <div className="flex gap-2 mb-6">
+              {[
+                { id: 'parlay', label: '串关组合分析' },
+                { id: 'league', label: '联赛分析' },
+                { id: 'mode', label: 'Mode 表现分析' },
+                { id: 'conf', label: 'Conf 区间分析' },
+                { id: 'time', label: '时间近因权重' },
+              ].map(tab => (
+                <button key={tab.id} onClick={() => setAnalysisTab(tab.id)}
+                  className={`px-4 py-2 rounded-xl text-sm transition-all btn-hover ${analysisTab === tab.id ? 'bg-amber-100 text-amber-700 font-medium' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {analysisTab === 'parlay' && (
+              <div className="grid grid-cols-2 gap-6">
+                <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+                  <div className="relative z-10">
+                    <h3 className="font-medium text-stone-700 mb-4">不同关数组合表现</h3>
+                    <div className="space-y-3">
+                      {[
+                        { parlay: '单关', samples: 52, roi: '+15.2%', hitrate: '71%', partial: null, best: true },
+                        { parlay: '2关组合', samples: 28, roi: '+8.4%', hitrate: '54%', partial: '2对1: 18/28', best: false },
+                        { parlay: '3关组合', samples: 10, roi: '-12.3%', hitrate: '30%', partial: '3对2: 6/10', best: false },
+                        { parlay: '4关组合', samples: 3, roi: '-45.0%', hitrate: '0%', partial: '4对3: 2/3', best: false },
+                      ].map((item, i) => (
+                        <div key={i} className={`p-4 rounded-xl border ${item.best ? 'border-emerald-200 bg-emerald-50/50' : 'border-stone-100 bg-stone-50'}`}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <span className="font-medium text-stone-700">{item.parlay}</span>
+                              {item.best && <span className="text-[10px] px-2 py-0.5 bg-emerald-200 text-emerald-700 rounded-full">最优</span>}
+                              {item.partial && <span className="text-[10px] text-stone-400 bg-stone-100 px-2 py-0.5 rounded">{item.partial}</span>}
+                            </div>
+                            <span className={`font-semibold ${item.roi.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}`}>{item.roi}</span>
+                          </div>
+                          <div className="flex gap-4 mt-2 text-xs text-stone-500">
+                            <span>{item.samples} 样本</span>
+                            <span>命中率 {item.hitrate}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+                  <div className="relative z-10">
+                    <h3 className="font-medium text-stone-700 mb-4">最优组合发现</h3>
+                    <div className="space-y-3">
+                      {[
+                        { combo: '单关 + 常规模式 + Conf 0.6+', roi: '+28.4%', samples: 24 },
+                        { combo: '单关 + 保险产品 + Conf 0.7+', roi: '+22.1%', samples: 12 },
+                        { combo: '2关组合 + 常规-稳 + Conf 0.5+', roi: '+12.8%', samples: 15 },
+                      ].map((item, i) => (
+                        <div key={i} className="p-4 rounded-xl bg-stone-50 hover:bg-amber-50 transition-all cursor-pointer lift-card">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium text-stone-700">{item.combo}</span>
+                            <span className="font-semibold text-emerald-600">{item.roi}</span>
+                          </div>
+                          <span className="text-xs text-stone-400">{item.samples} 样本</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {analysisTab === 'league' && (
+              <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+                <div className="relative z-10">
+                  <h3 className="font-medium text-stone-700 mb-4">联赛表现对比</h3>
+                  <div className="space-y-3">
+                    {[
+                      { league: '英超', samples: 58, roi: '+11.2%', hitRate: '68.9%', avgOdds: '2.12' },
+                      { league: '西甲', samples: 20, roi: '+8.5%', hitRate: '65.0%', avgOdds: '2.28' },
+                      { league: '德甲', samples: 15, roi: '+5.3%', hitRate: '60.0%', avgOdds: '2.35' },
+                    ].map((item, i) => (
+                      <div key={i} className="flex items-center justify-between p-4 bg-stone-50 rounded-xl hover:bg-amber-50 transition-all lift-card">
+                        <div className="flex items-center gap-4">
+                          <span className="font-medium text-stone-700 w-16">{item.league}</span>
+                          <span className="text-xs text-stone-400">{item.samples} 样本</span>
+                        </div>
+                        <div className="flex items-center gap-6">
+                          <span className={`font-semibold ${item.roi.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}`}>{item.roi}</span>
+                          <span className="text-sm text-stone-600">命中率 {item.hitRate}</span>
+                          <span className="text-sm text-stone-600">平均赔率 {item.avgOdds}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {analysisTab === 'mode' && (
+              <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+                <div className="relative z-10">
+                  <h3 className="font-medium text-stone-700 mb-4">各 Mode 历史表现</h3>
+                  <table className="w-full text-sm">
+                    <thead><tr className="border-b border-stone-200 text-left text-stone-500">
+                      <th className="py-2 font-medium">Mode</th>
+                      <th className="py-2 font-medium">样本数</th>
+                      <th className="py-2 font-medium">ROI</th>
+                      <th className="py-2 font-medium">命中率</th>
+                      <th className="py-2 font-medium">Avg (Act-Conf)</th>
+                      <th className="py-2 font-medium">平均 Odds</th>
+                      <th className="py-2 font-medium">建议 Kelly</th>
+                    </tr></thead>
+                    <tbody>
+                      {[
+                        { mode: '常规', samples: 45, roi: '+12.4%', hit: '68%', ratingDiff: '+0.03', odds: '2.1', kelly: '4.0' },
+                        { mode: '常规-稳', samples: 18, roi: '+8.2%', hit: '75%', ratingDiff: '+0.05', odds: '1.7', kelly: '3.5' },
+                        { mode: '保险产品', samples: 15, roi: '+18.5%', hit: '82%', ratingDiff: '+0.08', odds: '1.5', kelly: '3.0' },
+                        { mode: '半彩票半保险', samples: 10, roi: '-5.2%', hit: '45%', ratingDiff: '-0.12', odds: '2.8', kelly: '5.0' },
+                        { mode: '赌一把', samples: 5, roi: '-32.0%', hit: '20%', ratingDiff: '-0.25', odds: '4.2', kelly: '6.0' },
+                      ].map((r, i) => (
+                        <tr key={i} className="border-b border-stone-100">
+                          <td className="py-3 font-medium text-stone-700">{r.mode}</td>
+                          <td className="py-3 text-stone-600">{r.samples}</td>
+                          <td className={`py-3 font-medium ${r.roi.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}`}>{r.roi}</td>
+                          <td className="py-3 text-stone-600">{r.hit}</td>
+                          <td className={`py-3 font-medium ${r.ratingDiff.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}`}>{r.ratingDiff}</td>
+                          <td className="py-3 text-stone-600">{r.odds}</td>
+                          <td className="py-3 text-amber-600 font-medium">{r.kelly}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p className="text-xs text-stone-400 mt-4">💡 此表 Kelly 建议已同步至参数后台</p>
+                </div>
+              </div>
+            )}
+
+            {analysisTab === 'conf' && (
+              <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+                <div className="relative z-10">
+                  <h3 className="font-medium text-stone-700 mb-4">Conf 区间分析</h3>
+                  <div className="grid grid-cols-5 gap-4">
+                    {[
+                      { range: '0.8+', expected: '0.80', actual: '0.76', diff: '-0.04', samples: 8 },
+                      { range: '0.7~0.8', expected: '0.75', actual: '0.72', diff: '-0.03', samples: 15 },
+                      { range: '0.6~0.7', expected: '0.65', actual: '0.67', diff: '+0.02', samples: 22 },
+                      { range: '0.5~0.6', expected: '0.55', actual: '0.52', diff: '-0.03', samples: 28 },
+                      { range: '0.4~0.5', expected: '0.45', actual: '0.48', diff: '+0.03', samples: 15 },
+                    ].map((item, i) => (
+                      <div key={i} className="p-4 rounded-xl bg-stone-50 text-center">
+                        <span className="text-lg font-semibold text-stone-700">{item.range}</span>
+                        <div className="mt-3 space-y-1 text-sm">
+                          <div className="flex justify-between"><span className="text-stone-400">预期</span><span>{item.expected}</span></div>
+                          <div className="flex justify-between"><span className="text-stone-400">实际</span><span>{item.actual}</span></div>
+                          <div className="flex justify-between"><span className="text-stone-400">偏差</span><span className={item.diff.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}>{item.diff}</span></div>
+                        </div>
+                        <p className="text-xs text-stone-400 mt-2">{item.samples} 样本</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {analysisTab === 'time' && (
+              <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-4">
+                    <h3 className="font-medium text-stone-700">时间近因机制</h3>
+                    <span className="text-[10px] px-2 py-0.5 bg-stone-100 text-stone-500 rounded">S10</span>
+                  </div>
+                  <p className="text-sm text-stone-500 mb-6">Conf、FSE 等参数应用时间衰减权重，近期表现影响更大</p>
+                  <div className="grid grid-cols-3 gap-6">
+                    {[
+                      { period: '最近 6 场', weight: '1.4×', color: 'amber' },
+                      { period: '第 7~11 场', weight: '1.15×', color: 'stone' },
+                      { period: '第 12+ 场', weight: '1.0×', color: 'stone' },
+                    ].map((item, i) => (
+                      <div key={i} className={`p-6 rounded-xl text-center ${item.color === 'amber' ? 'bg-amber-50 border border-amber-200' : 'bg-stone-50'}`}>
+                        <span className={`text-3xl font-bold ${item.color === 'amber' ? 'text-amber-600' : 'text-stone-400'}`}>{item.weight}</span>
+                        <p className="text-sm text-stone-600 mt-2">{item.period}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      };
+
+      // New Investment - Updated with multi-entry support
+      const NewInvestmentPage = () => {
+        const [parlaySize, setParlaySize] = useState(1);
+        const [matches, setMatches] = useState([{
+          homeTeam: '', awayTeam: '',
+          entries: [{ name: '', odds: '' }],
+          conf: 65, mode: '常规',
+          tys_home: 'M', tys_away: 'L', fid: '0.5',
+          fse_home: 70, fse_away: 55,
+          note: ''
+        }]);
+
+        const handleParlayChange = (size) => {
+          setParlaySize(size);
+          const newMatches = [...matches];
+          while (newMatches.length < size) {
+            newMatches.push({
+              homeTeam: '', awayTeam: '',
+              entries: [{ name: '', odds: '' }],
+              conf: 50, mode: '常规',
+              tys_home: 'M', tys_away: 'M', fid: '0.5',
+              fse_home: 50, fse_away: 50,
+              note: ''
+            });
+          }
+          newMatches.splice(size);
+          setMatches(newMatches);
+        };
+
+        const updateMatch = (idx, field, value) => {
+          const newMatches = [...matches];
+          newMatches[idx][field] = value;
+          setMatches(newMatches);
+        };
+
+        const addEntry = (matchIdx) => {
+          const newMatches = [...matches];
+          newMatches[matchIdx].entries.push({ name: '', odds: '' });
+          setMatches(newMatches);
+        };
+
+        const updateEntry = (matchIdx, entryIdx, field, value) => {
+          const newMatches = [...matches];
+          newMatches[matchIdx].entries[entryIdx][field] = value;
+          setMatches(newMatches);
+        };
+
+        const removeEntry = (matchIdx, entryIdx) => {
+          const newMatches = [...matches];
+          if (newMatches[matchIdx].entries.length > 1) {
+            newMatches[matchIdx].entries.splice(entryIdx, 1);
+            setMatches(newMatches);
+          }
+        };
+
+        const calcHarmonicMean = (entries) => {
+          const validOdds = entries.filter(e => e.odds && parseFloat(e.odds) > 0).map(e => parseFloat(e.odds));
+          if (validOdds.length === 0) return null;
+          if (validOdds.length === 1) return validOdds[0].toFixed(2);
+          const sum = validOdds.reduce((acc, o) => acc + (1 / o), 0);
+          return (validOdds.length / sum).toFixed(2);
+        };
+
+        return (
+          <div className="p-8 max-w-5xl">
+            <div className="mb-6">
+              <h2 className="text-2xl font-semibold text-stone-800 font-display">新建投资</h2>
+              <p className="text-stone-400 text-sm mt-1">录入比赛信息与预测参数</p>
+            </div>
+
+            <div className="glow-card bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
+              <div className="relative z-10">
+                {/* Parlay Selector */}
+                <div className="px-6 py-4 border-b border-stone-100 bg-stone-50/50">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-stone-600">串关数</span>
+                    <div className="flex gap-2">
+                      {[1, 2, 3, 4, 5].map(n => (
+                        <button key={n} onClick={() => handleParlayChange(n)}
+                          className={`w-10 h-10 rounded-xl text-sm font-medium transition-all btn-hover ${n === parlaySize ? 'bg-gradient-to-br from-amber-400 to-orange-400 text-white shadow-lg shadow-orange-200/40' : 'bg-white border border-stone-200 text-stone-500 hover:border-amber-300'}`}>{n}</button>
+                      ))}
+                    </div>
+                    <span className="text-xs text-stone-400">（{parlaySize === 1 ? '单关' : `${parlaySize}关组合`}）</span>
+                  </div>
+                </div>
+
+                {/* Match Cards */}
+                <div className="p-6 space-y-6">
+                  {matches.map((match, idx) => (
+                    <div key={idx} className={`${idx > 0 ? 'pt-6 border-t border-stone-200' : ''}`}>
+                      {/* Match Header */}
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center">
+                          <span className="text-amber-600 text-xs font-bold">{idx + 1}</span>
+                        </div>
+                        <span className="text-sm font-medium text-stone-700">{parlaySize > 1 ? `第 ${idx + 1} 关` : '比赛信息'}</span>
+                      </div>
+
+                      {/* Teams */}
+                      <div className="grid grid-cols-11 gap-3 items-center mb-4">
+                        <div className="col-span-5">
+                          <label className="text-xs text-stone-400 mb-1.5 block">主队</label>
+                          <input type="text" placeholder="输入球队名或缩写..." value={match.homeTeam} onChange={(e) => updateMatch(idx, 'homeTeam', e.target.value)}
+                            className="input-glow w-full px-4 py-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                        </div>
+                        <div className="col-span-1 text-center text-stone-300 text-lg">vs</div>
+                        <div className="col-span-5">
+                          <label className="text-xs text-stone-400 mb-1.5 block">客队</label>
+                          <input type="text" placeholder="输入球队名或缩写..." value={match.awayTeam} onChange={(e) => updateMatch(idx, 'awayTeam', e.target.value)}
+                            className="input-glow w-full px-4 py-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                        </div>
+                      </div>
+
+                      {/* Entries - Multi support */}
+                      <div className="mb-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-xs text-stone-400">Entries 预测结果</label>
+                          <button onClick={() => addEntry(idx)} className="text-xs text-amber-500 hover:text-amber-600 flex items-center gap-1">+ 添加 Entry</button>
+                        </div>
+                        <div className="space-y-2">
+                          {match.entries.map((entry, eIdx) => (
+                            <div key={eIdx} className="flex items-center gap-3">
+                              <div className="flex-1">
+                                <input type="text" placeholder="主胜 / 平 / 大2.5..." value={entry.name} onChange={(e) => updateEntry(idx, eIdx, 'name', e.target.value)}
+                                  className="input-glow w-full px-4 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                              </div>
+                              <div className="w-24">
+                                <input type="number" step="0.01" placeholder="Odds" value={entry.odds} onChange={(e) => updateEntry(idx, eIdx, 'odds', e.target.value)}
+                                  className="input-glow w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                              </div>
+                              {match.entries.length > 1 && (
+                                <button onClick={() => removeEntry(idx, eIdx)} className="text-stone-400 hover:text-rose-500 text-sm">×</button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {match.entries.length > 1 && (
+                          <div className="mt-2 flex items-center gap-2 text-sm">
+                            <span className="text-stone-400">Overall Odds（调和平均）:</span>
+                            <span className="font-semibold text-amber-600">{calcHarmonicMean(match.entries) || '-'}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Conf + Mode Row */}
+                      <div className="grid grid-cols-3 gap-4 mb-4">
+                        <div>
+                          <label className="text-xs text-stone-400 mb-1.5 block">Mode 模式</label>
+                          <select value={match.mode} onChange={(e) => updateMatch(idx, 'mode', e.target.value)}
+                            className="input-glow w-full px-3 py-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400 bg-white cursor-pointer">
+                            <option>常规</option><option>常规-稳</option><option>常规-杠杆</option>
+                            <option>半彩票半保险</option><option>保险产品</option><option>赌一把</option>
+                          </select>
+                        </div>
+                        <div className="col-span-2">
+                          <label className="text-xs text-stone-400 mb-1.5 block">Conf 置信度</label>
+                          <div className="flex items-center gap-3">
+                            <input type="range" min="0" max="100" value={match.conf} onChange={(e) => updateMatch(idx, 'conf', e.target.value)} className="flex-1" />
+                            <span className="text-sm font-medium text-amber-600 w-10">{(match.conf / 100).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Calibration Params - Default Open */}
+                      <details className="group" open>
+                        <summary className="flex items-center gap-2 cursor-pointer text-sm text-stone-500 hover:text-stone-700 mb-3">
+                          <span className="text-xs group-open:rotate-90 transition-transform">▶</span>
+                          <span>校准参数（TYS / FID / FSE）</span>
+                        </summary>
+                        <div className="pl-4 border-l-2 border-amber-100">
+                          <div className="grid grid-cols-4 gap-4 mb-3">
+                            <div>
+                              <label className="text-xs text-stone-400 mb-1.5 block">TYS-base (主)</label>
+                              <div className="flex gap-1">
+                                {['S', 'M', 'L', 'H'].map(v => (
+                                  <button key={v} onClick={() => updateMatch(idx, 'tys_home', v)}
+                                    className={`flex-1 py-2 rounded-lg text-xs font-medium btn-hover ${v === match.tys_home ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-stone-50 text-stone-500 border border-stone-100'}`}>{v}</button>
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-xs text-stone-400 mb-1.5 block">TYS-base (客)</label>
+                              <div className="flex gap-1">
+                                {['S', 'M', 'L', 'H'].map(v => (
+                                  <button key={v} onClick={() => updateMatch(idx, 'tys_away', v)}
+                                    className={`flex-1 py-2 rounded-lg text-xs font-medium btn-hover ${v === match.tys_away ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-stone-50 text-stone-500 border border-stone-100'}`}>{v}</button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="col-span-2">
+                              <label className="text-xs text-stone-400 mb-1.5 block">FID 信息深度</label>
+                              <div className="flex gap-1">
+                                {['0', '0.25', '0.5', '0.75'].map(v => (
+                                  <button key={v} onClick={() => updateMatch(idx, 'fid', v)}
+                                    className={`flex-1 py-2 rounded-lg text-xs font-medium btn-hover ${v === match.fid ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-stone-50 text-stone-500 border border-stone-100'}`}>{v}</button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-xs text-stone-400 mb-1.5 block">FSE (主) Feature Sensor Beta</label>
+                              <div className="flex items-center gap-3">
+                                <input type="range" min="0" max="100" value={match.fse_home} onChange={(e) => updateMatch(idx, 'fse_home', e.target.value)} className="flex-1" />
+                                <span className="text-sm font-medium text-stone-600 w-10">{(match.fse_home / 100).toFixed(2)}</span>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-xs text-stone-400 mb-1.5 block">FSE (客) Feature Sensor Beta</label>
+                              <div className="flex items-center gap-3">
+                                <input type="range" min="0" max="100" value={match.fse_away} onChange={(e) => updateMatch(idx, 'fse_away', e.target.value)} className="flex-1" />
+                                <span className="text-sm font-medium text-stone-600 w-10">{(match.fse_away / 100).toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </details>
+
+                      {/* Pre-match Note */}
+                      <div className="mt-4">
+                        <label className="text-xs text-stone-400 mb-1.5 block">赛前备注</label>
+                        <input type="text" placeholder="选填，记录预判依据或关注点..." value={match.note} onChange={(e) => updateMatch(idx, 'note', e.target.value)}
+                          className="input-glow w-full px-4 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Result Panel */}
+                <div className="px-6 py-5 bg-gradient-to-r from-stone-50 to-orange-50/30 border-t border-stone-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-6">
+                      <div>
+                        <span className="text-xs text-stone-400 block">综合 Odds</span>
+                        <span className="text-xl font-semibold text-stone-800">{parlaySize > 1 ? '4.32' : '2.15'}</span>
+                      </div>
+                      <div className="w-px h-10 bg-stone-200" />
+                      <div>
+                        <span className="text-xs text-stone-400 block">Expected Rating</span>
+                        <span className="text-xl font-semibold text-stone-800">0.62</span>
+                      </div>
+                      <div className="w-px h-10 bg-stone-200" />
+                      <div>
+                        <span className="text-xs text-stone-400 block">Recom. Invest</span>
+                        <span className="text-xl font-semibold text-amber-600">¥ {parlaySize > 1 ? '85' : '185'}</span>
+                      </div>
+                      <div className="w-px h-10 bg-stone-200" />
+                      <div>
+                        <span className="text-xs text-stone-400 block">风控上限</span>
+                        <span className="text-sm text-stone-500">¥ 341 (12%)</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <label className="text-xs text-stone-400 mb-1 block">Inputs 实际投资</label>
+                        <input type="number" defaultValue={parlaySize > 1 ? 80 : 180}
+                          className="input-glow w-28 px-3 py-2 rounded-xl border border-stone-200 text-sm font-medium focus:outline-none focus:border-amber-400" />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <button className="px-5 py-2.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl text-sm font-medium shadow-lg shadow-orange-200/40 btn-hover">确认投资</button>
+                        <button onClick={() => setActivePage('combo')}
+                          className="px-5 py-2 border border-stone-300 text-stone-600 rounded-xl text-xs font-medium hover:bg-stone-50 hover:border-amber-300 hover:text-amber-600 transition-all btn-hover">+ 加入今日备选</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      // History with pre/post notes
+      const HistoryPage = () => (
+        <div className="p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-semibold text-stone-800 font-display">历史记录</h2>
+              <p className="text-stone-400 text-sm mt-1">共 93 条投资记录</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <input type="text" placeholder="搜索球队、日期..." className="input-glow px-4 py-2 rounded-xl border border-stone-200 text-sm w-64 focus:outline-none focus:border-amber-400" />
+              <button className="px-4 py-2 rounded-xl border border-stone-200 text-sm text-stone-600 hover:bg-stone-50 btn-hover">筛选</button>
+            </div>
+          </div>
+
+          <div className="flex gap-2 mb-4">
+            {['全部', '待结算', '已中', '未中', '单关', '串关'].map((tag, i) => (
+              <button key={tag} className={`px-4 py-1.5 rounded-full text-sm transition-all btn-hover ${i === 0 ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}>{tag}</button>
+            ))}
+          </div>
+
+          <div className="glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden">
+            <div className="relative z-10">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-stone-50 text-xs text-stone-500">
+                    <th className="px-4 py-3 text-left font-medium">日期</th>
+                    <th className="px-4 py-3 text-left font-medium">比赛</th>
+                    <th className="px-4 py-3 text-left font-medium">Entries</th>
+                    <th className="px-4 py-3 text-left font-medium">Odds</th>
+                    <th className="px-4 py-3 text-left font-medium">Conf</th>
+                    <th className="px-4 py-3 text-left font-medium">Inputs</th>
+                    <th className="px-4 py-3 text-left font-medium">状态</th>
+                    <th className="px-4 py-3 text-left font-medium">盈亏</th>
+                    <th className="px-4 py-3 text-left font-medium">备注</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { date: '02-02', match: '阿森纳 vs 切尔西', entries: '主胜', odds: 2.15, conf: 0.65, inputs: 180, status: 'pending', profit: '-', preNote: '主场强势', postNote: '-' },
+                    { date: '02-01', match: '利物浦 vs 曼城', entries: '大2.5', odds: 1.85, conf: 0.72, inputs: 200, status: 'win', profit: '+170', preNote: '双方进攻火力强', postNote: '预判准确' },
+                    { date: '01-31', match: '热刺 vs 曼联', entries: '平局', odds: 3.40, conf: 0.42, inputs: 120, status: 'lose', profit: '-120', preNote: '状态都一般', postNote: '热刺意外爆发' },
+                  ].map((row, i) => (
+                    <tr key={i} className="border-t border-stone-100 hover:bg-amber-50/30 cursor-pointer transition-colors">
+                      <td className="px-4 py-3 text-sm text-stone-500">{row.date}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-stone-700">{row.match}</td>
+                      <td className="px-4 py-3 text-sm text-stone-600">{row.entries}</td>
+                      <td className="px-4 py-3 text-sm text-stone-600">{row.odds}</td>
+                      <td className="px-4 py-3 text-sm text-stone-600">{row.conf}</td>
+                      <td className="px-4 py-3 text-sm text-stone-600">¥{row.inputs}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs ${row.status === 'pending' ? 'bg-amber-100 text-amber-700' : row.status === 'win' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                          {row.status === 'pending' ? '待结算' : row.status === 'win' ? '已中' : '未中'}
+                        </span>
+                      </td>
+                      <td className={`px-4 py-3 text-sm font-medium ${row.profit === '-' ? 'text-stone-400' : row.profit.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}`}>{row.profit}</td>
+                      <td className="px-4 py-3 text-xs text-stone-400 max-w-32 truncate" title={`赛前: ${row.preNote} | 赛后: ${row.postNote}`}>
+                        {row.preNote}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+
+      // Teams
+      const TeamsPage = () => {
+        const [selectedTeam, setSelectedTeam] = useState(null);
+        const [searchQuery, setSearchQuery] = useState('');
+        const [filterLeague, setFilterLeague] = useState('all');
+        
+        const teams = [
+          { name: '阿森纳', abbr: 'ARS', league: '英超', samples: 18, roi: '+12.4%', avgRep: 0.42, ratingDiff: '+0.03' },
+          { name: '切尔西', abbr: 'CHE', league: '英超', samples: 15, roi: '+8.2%', avgRep: 0.38, ratingDiff: '-0.02' },
+          { name: '利物浦', abbr: 'LIV', league: '英超', samples: 22, roi: '+18.7%', avgRep: 0.45, ratingDiff: '+0.05' },
+          { name: '曼城', abbr: 'MCI', league: '英超', samples: 20, roi: '-3.2%', avgRep: 0.52, ratingDiff: '-0.08' },
+          { name: '巴塞罗那', abbr: 'BAR', league: '西甲', samples: 8, roi: '+15.2%', avgRep: 0.35, ratingDiff: '+0.08' },
+          { name: '皇家马德里', abbr: 'RMA', league: '西甲', samples: 10, roi: '+6.8%', avgRep: 0.40, ratingDiff: '-0.03' },
+        ];
+
+        const filteredTeams = teams.filter(team => {
+          const matchSearch = team.name.toLowerCase().includes(searchQuery.toLowerCase()) || team.abbr.toLowerCase().includes(searchQuery.toLowerCase());
+          const matchLeague = filterLeague === 'all' || team.league === filterLeague;
+          return matchSearch && matchLeague;
+        });
+
+        return (
+          <div className="p-8">
+            <div className="mb-6">
+              <h2 className="text-2xl font-semibold text-stone-800 font-display">球队档案馆</h2>
+              <p className="text-stone-400 text-sm mt-1">每支球队的历史表现追踪与分析</p>
+            </div>
+
+            <div className="glow-card bg-white rounded-2xl p-4 border border-stone-100 mb-6">
+              <div className="relative z-10 flex items-center gap-4">
+                <div className="flex-1 relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400">🔍</span>
+                  <input type="text" placeholder="搜索球队名称或缩写..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                    className="input-glow w-full pl-10 pr-4 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-stone-500">联赛:</span>
+                  <div className="flex gap-1">
+                    {['all', '英超', '西甲', '德甲'].map(league => (
+                      <button key={league} onClick={() => setFilterLeague(league)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-hover ${filterLeague === league ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}>
+                        {league === 'all' ? '全部' : league}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="text-sm text-stone-400">共 {filteredTeams.length} 支球队</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              {filteredTeams.map((team, i) => (
+                <div key={i} onClick={() => setSelectedTeam(team)}
+                  className={`glow-card bg-white rounded-2xl p-5 border cursor-pointer transition-all ${selectedTeam?.name === team.name ? 'border-amber-300 bg-amber-50/30' : 'border-stone-100'}`}>
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <span className="font-medium text-stone-800">{team.name}</span>
+                        <span className="text-xs text-stone-400 ml-2">{team.abbr}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] px-2 py-0.5 bg-stone-100 text-stone-500 rounded-full">{team.league}</span>
+                        <span className="text-xs text-stone-400">{team.samples} 场</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div>
+                        <span className="text-xs text-stone-400 block">ROI</span>
+                        <span className={`text-sm font-medium ${team.roi.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}`}>{team.roi}</span>
+                      </div>
+                      <div>
+                        <span className="text-xs text-stone-400 block">Avg REP</span>
+                        <span className="text-sm font-medium text-stone-700">{team.avgRep}</span>
+                      </div>
+                      <div>
+                        <span className="text-xs text-stone-400 block">Rating Δ</span>
+                        <span className={`text-sm font-medium ${team.ratingDiff.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}`}>{team.ratingDiff}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {selectedTeam && (
+              <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <h3 className="font-medium text-stone-800">{selectedTeam.name} · 详细档案</h3>
+                      <span className="text-xs px-2 py-0.5 bg-stone-100 text-stone-500 rounded-full">{selectedTeam.league}</span>
+                    </div>
+                    <button onClick={() => setSelectedTeam(null)} className="text-stone-400 hover:text-stone-600">×</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="text-sm font-medium text-stone-600 mb-3">ROI 走势</h4>
+                      <div className="h-32 flex items-end gap-1">
+                        {[5, 8, 3, 12, 7, 15, 10, 18].map((h, i) => (
+                          <div key={i} className="flex-1 bg-gradient-to-t from-amber-400 to-orange-300 rounded-t-sm chart-bar" style={{ height: `${h * 5}%` }} />
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-stone-600 mb-3">(Act. - Exp.) Rating 走势</h4>
+                      <div className="h-32 flex items-center">
+                        <svg viewBox="0 0 100 50" className="w-full h-full">
+                          <line x1="0" y1="25" x2="100" y2="25" stroke="#e7e5e4" strokeWidth="0.5" strokeDasharray="2" />
+                          <polyline fill="none" stroke="url(#lg)" strokeWidth="2" points="5,30 20,22 35,28 50,18 65,24 80,15 95,20" />
+                          <defs><linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#fbbf24" /><stop offset="100%" stopColor="#f97316" /></linearGradient></defs>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      };
+
+      // Settle - Updated with separate Entry row
+      const SettlePage = () => (
+        <div className="p-8">
+          <div className="mb-6">
+            <h2 className="text-2xl font-semibold text-stone-800 font-display">待结算</h2>
+            <p className="text-stone-400 text-sm mt-1">3 场比赛待录入结果</p>
+          </div>
+
+          <div className="space-y-4">
+            {[
+              { match: '阿森纳 vs 切尔西', entry: '主胜', odds: 2.15, inputs: 180, date: '02-02', preNote: '主场强势' },
+              { match: '巴塞罗那 vs 皇家马德里', entry: '大2.5', odds: 1.95, inputs: 150, date: '02-02', preNote: '国家德比进球多' },
+            ].map((item, i) => (
+              <div key={i} className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+                <div className="relative z-10">
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="font-semibold text-stone-800 text-lg">{item.match}</p>
+                      <p className="text-sm text-stone-400">{item.date} · Odds {item.odds} · 投资 ¥{item.inputs}</p>
+                    </div>
+                    <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">待结算</span>
+                  </div>
+
+                  {/* My Entry - Separate Row */}
+                  <div className="mb-4 p-3 bg-amber-50 rounded-xl border border-amber-100">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-amber-600 font-medium">我的预测</span>
+                        <span className="text-sm font-semibold text-stone-800">{item.entry}</span>
+                      </div>
+                      {item.preNote && <span className="text-xs text-stone-400">赛前备注: {item.preNote}</span>}
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div>
+                      <label className="text-xs text-stone-400 mb-1.5 block">Results 实际结果</label>
+                      <input type="text" placeholder="比分或结果..." className="input-glow w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-stone-400 mb-1.5 block">是否命中</label>
+                      <div className="flex gap-2">
+                        <button className="flex-1 py-2.5 rounded-lg text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200 btn-hover">✓ 中</button>
+                        <button className="flex-1 py-2.5 rounded-lg text-xs font-medium bg-stone-50 text-stone-500 border border-stone-100 btn-hover">✗ 未中</button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-stone-400 mb-1.5 block">Actual Judgmental Rating</label>
+                      <input type="number" step="0.01" placeholder="0~1" className="input-glow w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-stone-400 mb-1.5 block">REP 随机事件</label>
+                      <input type="number" step="0.1" placeholder="0~1.8" className="input-glow w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 mr-4">
+                      <label className="text-xs text-stone-400 mb-1.5 block">赛后备注（复盘心得）</label>
+                      <input type="text" placeholder="选填..." className="input-glow w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                    </div>
+                    <button className="px-6 py-2.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl text-sm font-medium shadow-lg shadow-orange-200/40 btn-hover mt-5">确认结算</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
+      // Combo - Updated with Win Rate and styled numbers
+      const ComboPage = () => (
+        <div className="p-8">
+          <div className="mb-6">
+            <h2 className="text-2xl font-semibold text-stone-800 font-display">智能组合建议</h2>
+            <p className="text-stone-400 text-sm mt-1">基于 Portfolio Optimization 的最优下注方案</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium text-stone-700">今日备选比赛</h3>
+                  <button onClick={() => setActivePage('new')} className="text-xs text-amber-500 hover:text-amber-600">+ 添加比赛</button>
+                </div>
+                <div className="space-y-3">
+                  {[
+                    { match: '阿森纳 vs 切尔西', conf: 0.65, odds: 2.15, ev: '+8.2%' },
+                    { match: '利物浦 vs 曼城', conf: 0.58, odds: 1.95, ev: '+5.1%' },
+                    { match: '巴塞罗那 vs 皇马', conf: 0.45, odds: 2.80, ev: '+3.6%' },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-stone-50 border border-stone-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all cursor-pointer lift-card">
+                      <div className="flex items-center gap-3">
+                        <input type="checkbox" defaultChecked className="w-4 h-4 accent-amber-500 cursor-pointer" />
+                        <div>
+                          <p className="text-sm font-medium text-stone-700">{item.match}</p>
+                          <p className="text-xs text-stone-400">Conf {item.conf} · Odds {item.odds}</p>
+                        </div>
+                      </div>
+                      <span className="text-sm font-medium text-emerald-600">预期收益 {item.ev}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 pt-6 border-t border-stone-100">
+                  <label className="text-sm text-stone-600 mb-3 block">风险偏好</label>
+                  <div className="flex items-center gap-4">
+                    <span className="text-xs text-stone-400">保守</span>
+                    <input type="range" min="0" max="100" defaultValue="50" className="flex-1" />
+                    <span className="text-xs text-stone-400">激进</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button className="flex-1 py-3 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl text-sm font-medium shadow-lg shadow-orange-200/40 btn-hover">生成最优组合</button>
+                  <button className="flex-1 py-3 border border-amber-300 text-amber-600 rounded-xl text-sm font-medium hover:bg-amber-50 btn-hover">确认投资已勾选</button>
+                </div>
+              </div>
+            </div>
+
+            <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+              <div className="relative z-10">
+                <h3 className="font-medium text-stone-700 mb-4">推荐方案</h3>
+                <div className="space-y-3">
+                  {[
+                    { tier: 'T1 主推', combo: '阿森纳主胜 × 利物浦大2.5', allocation: '¥280', ev: '+12.4%', winRate: '58%', sharpe: '1.82' },
+                    { tier: 'T2 次推', combo: '阿森纳主胜 单关', allocation: '¥180', ev: '+8.2%', winRate: '65%', sharpe: '1.45' },
+                    { tier: 'T3 博冷', combo: '三关组合', allocation: '¥60', ev: '+18.7%', winRate: '22%', sharpe: '0.92' },
+                  ].map((item, i) => (
+                    <div key={i} className={`p-4 rounded-xl border transition-all cursor-pointer lift-card ${i === 0 ? 'border-amber-200 bg-amber-50/50' : 'border-stone-100 bg-stone-50'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`text-xs font-medium ${i === 0 ? 'text-amber-600' : 'text-stone-500'}`}>{item.tier}</span>
+                        <span className="text-sm font-semibold text-stone-800">{item.allocation}</span>
+                      </div>
+                      <p className="text-sm text-stone-700 mb-2">{item.combo}</p>
+                      <div className="flex gap-4 text-xs text-stone-500">
+                        <span>预期收益: <span className="text-emerald-600 font-medium">{item.ev}</span></span>
+                        <span>Win Rate: <span className="stat-value text-sky-600">{item.winRate}</span></span>
+                        <span>Sharpe: <span className="stat-value text-violet-600">{item.sharpe}</span></span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 p-4 rounded-xl bg-stone-50 border border-stone-100">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-stone-500">总投资</span>
+                    <span className="font-semibold text-stone-800">¥520</span>
+                  </div>
+                  <div className="flex justify-between text-sm mt-2">
+                    <span className="text-stone-500">组合预期收益</span>
+                    <span className="font-medium text-emerald-600">+11.2%</span>
+                  </div>
+                </div>
+
+                <button className="w-full mt-4 py-3 border border-amber-300 text-amber-600 rounded-xl text-sm font-medium hover:bg-amber-50 btn-hover">一键采纳方案</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+
+      // Params - Redesigned
+      const ParamsPage = () => {
+        const [showKellyModal, setShowKellyModal] = useState(false);
+        
+        const kellyModalContent = (
+          <div>
+            <p className="text-sm text-stone-500 mb-4">基于深度分析中各 Mode 的历史表现，动态计算建议 Kelly 分母</p>
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-stone-200 text-left text-stone-500">
+                <th className="py-2 font-medium">Mode</th><th className="py-2 font-medium">样本</th><th className="py-2 font-medium">ROI</th><th className="py-2 font-medium">建议 Kelly</th>
+              </tr></thead>
+              <tbody>
+                {[
+                  { mode: '常规', samples: 45, roi: '+12.4%', kelly: '4.0' },
+                  { mode: '常规-稳', samples: 18, roi: '+8.2%', kelly: '3.5' },
+                  { mode: '保险产品', samples: 15, roi: '+18.5%', kelly: '3.0' },
+                  { mode: '半彩票半保险', samples: 10, roi: '-5.2%', kelly: '5.0' },
+                  { mode: '赌一把', samples: 5, roi: '-32.0%', kelly: '6.0' },
+                ].map((r, i) => (
+                  <tr key={i} className="border-b border-stone-100">
+                    <td className="py-2 font-medium text-stone-700">{r.mode}</td>
+                    <td className="py-2 text-stone-500">{r.samples}</td>
+                    <td className={`py-2 ${r.roi.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'}`}>{r.roi}</td>
+                    <td className="py-2 font-semibold text-amber-600">{r.kelly}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+
+        return (
+          <div className="p-8 max-w-4xl">
+            <div className="mb-6">
+              <h2 className="text-2xl font-semibold text-stone-800 font-display">参数后台</h2>
+              <p className="text-stone-400 text-sm mt-1">系统核心参数与校准系数配置</p>
+            </div>
+
+            {/* Core Indicator - Hero Card */}
+            <div className="glow-card bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 rounded-2xl p-6 border border-amber-200 mb-6">
+              <div className="relative z-10">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-amber-600 text-lg">❖</span>
+                      <span className="text-xs text-amber-600 font-medium uppercase tracking-wide">Core Metric</span>
+                    </div>
+                    <h3 className="text-xl font-semibold text-stone-800">Expected vs Actual Judgmental Rating</h3>
+                    <p className="text-sm text-stone-500 mt-1">衡量预测置信度与实际结果的吻合程度</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-4xl font-bold text-amber-600">0.92</div>
+                    <p className="text-sm text-emerald-600 mt-1">↑ 校准良好 · 偏差 -8%</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Two Column Layout */}
+            <div className="grid grid-cols-2 gap-6 mb-6">
+              {/* Left - Capital & Risk */}
+              <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+                <div className="relative z-10">
+                  <h3 className="font-medium text-stone-700 mb-4 flex items-center gap-2">
+                    <span className="text-amber-500">◐</span> 资金与风控
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl">
+                      <div>
+                        <span className="text-sm text-stone-700">初始本金</span>
+                        <p className="text-xs text-stone-400">基准资金池</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-stone-400">¥</span>
+                        <input type="number" defaultValue="600" className="input-glow w-20 px-2 py-1.5 text-right text-sm font-medium rounded-lg border border-stone-200 focus:outline-none focus:border-amber-400" />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl">
+                      <div>
+                        <span className="text-sm text-stone-700">风控比例上限</span>
+                        <p className="text-xs text-stone-400">单笔最大投资占比</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <input type="number" defaultValue="12" className="input-glow w-16 px-2 py-1.5 text-right text-sm font-medium rounded-lg border border-stone-200 focus:outline-none focus:border-amber-400" />
+                        <span className="text-stone-400">%</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl">
+                      <div>
+                        <span className="text-sm text-stone-700">默认赔率</span>
+                        <p className="text-xs text-stone-400">未填写时的假设值</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <input type="number" step="0.1" defaultValue="2.5" className="input-glow w-16 px-2 py-1.5 text-right text-sm font-medium rounded-lg border border-stone-200 focus:outline-none focus:border-amber-400" />
+                        <span className="text-stone-400">x</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right - Kelly Settings */}
+              <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+                <div className="relative z-10">
+                  <h3 className="font-medium text-stone-700 mb-4 flex items-center gap-2">
+                    <span className="text-amber-500">◈</span> Kelly 参数
+                  </h3>
+                  <div onClick={() => setShowKellyModal(true)} className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200 cursor-pointer hover:shadow-md transition-all">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-stone-700">平均 Kelly 分母</span>
+                      <span className="text-2xl font-bold text-amber-600">3.8</span>
+                    </div>
+                    <p className="text-xs text-stone-500">基于各 Mode 历史表现加权计算</p>
+                    <p className="text-xs text-amber-600 mt-2">点击查看各 Mode 建议 →</p>
+                  </div>
+                  <div className="mt-4 p-3 bg-stone-50 rounded-xl">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-sm text-stone-700">手动覆盖</span>
+                        <p className="text-xs text-stone-400">强制使用固定分母</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input type="checkbox" className="accent-amber-500" />
+                        <input type="number" step="0.5" defaultValue="4" className="input-glow w-16 px-2 py-1.5 text-right text-sm rounded-lg border border-stone-200 focus:outline-none focus:border-amber-400" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Calibration Factors */}
+            <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium text-stone-700 flex items-center gap-2">
+                    <span className="text-amber-500">◇</span> 动态校准系数
+                  </h3>
+                  <span className="text-xs text-stone-400 px-2 py-1 bg-stone-100 rounded">回归分析自动更新 · 只读</span>
+                </div>
+                <div className="grid grid-cols-6 gap-3">
+                  {[
+                    { label: 'Conf', value: '1.08', trend: '↑' },
+                    { label: 'Mode', value: '0.95', trend: '→' },
+                    { label: 'TYS', value: '1.02', trend: '↑' },
+                    { label: 'FID', value: '1.12', trend: '↑' },
+                    { label: 'Odds', value: '0.98', trend: '↓' },
+                    { label: 'FSE', value: '1.05', trend: '→' },
+                  ].map((item, i) => (
+                    <div key={i} className="p-3 bg-stone-50 rounded-xl text-center hover:bg-amber-50 transition-colors">
+                      <span className="text-xs text-stone-400 block">{item.label}</span>
+                      <span className="text-lg font-semibold text-stone-700">{item.value}</span>
+                      <span className={`text-xs block ${item.trend === '↑' ? 'text-emerald-500' : item.trend === '↓' ? 'text-rose-500' : 'text-stone-400'}`}>{item.trend}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-stone-400 mt-4 text-center">系数基于历史数据每周自动回归更新，数值 &gt;1 表示该因子正向影响预测准确度</p>
+              </div>
+            </div>
+
+            {showKellyModal && <Modal data={{ title: 'Kelly 分母 · 各 Mode 建议', content: kellyModalContent }} onClose={() => setShowKellyModal(false)} />}
+          </div>
+        );
+      };
+
+      const renderPage = () => {
+        if (activeSubPage === 'analysis') return <AnalysisPage />;
+        if (activeSubPage === 'teams') return <TeamsPage />;
+        switch(activePage) {
+          case 'dashboard': return <DashboardPage />;
+          case 'new': return <NewInvestmentPage />;
+          case 'history': return <HistoryPage />;
+          case 'settle': return <SettlePage />;
+          case 'combo': return <ComboPage />;
+          case 'params': return <ParamsPage />;
+          default: return <NewInvestmentPage />;
+        }
+      };
+
+      return (
+        <div className="flex h-screen bg-stone-100/50">
+          <Sidebar />
+          <main className="flex-1 overflow-auto">{renderPage()}</main>
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<DugouDesign />);
+  </script>
+</body>
+</html>

@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C8 Wax Seal — Motion Design · 8 Variants</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Sora:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --w50: #fafaf9; --w100: #f5f5f4; --w200: #e7e5e4; --w300: #d6d3d1;
+    --w400: #a8a29e; --w500: #78716c; --w600: #57534e; --w700: #44403c; --w800: #292524; --w900: #1c1917;
+    --a200: #fde68a; --a300: #fcd34d; --a400: #fbbf24; --a500: #f59e0b;
+    --o400: #fb923c; --o500: #f97316;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #fcfbf9;
+    min-height: 100vh;
+    color: var(--w800);
+  }
+  .page { max-width: 1200px; margin: 0 auto; padding: 60px 40px 100px; }
+  .page-header { text-align: center; margin-bottom: 56px; }
+  .page-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px; font-weight: 600;
+    color: var(--w800); letter-spacing: -0.5px; margin-bottom: 8px;
+  }
+  .page-header p { color: var(--w400); font-size: 13px; letter-spacing: 2px; text-transform: uppercase; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    margin-bottom: 56px;
+  }
+  .card {
+    background: white;
+    border-radius: 20px;
+    border: 1px solid var(--w200);
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 60px -20px rgba(0,0,0,0.1), 0 0 0 1px rgba(251,191,36,0.15);
+  }
+  .stage {
+    height: 200px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+    background: linear-gradient(160deg, #faf8f5 0%, #f5f0e8 100%);
+  }
+  .info { padding: 16px 18px 20px; border-top: 1px solid var(--w100); }
+  .info-num { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--a500); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+  .info-name { font-family: 'Sora', sans-serif; font-weight: 600; font-size: 14px; color: var(--w800); margin-bottom: 4px; }
+  .info-desc { font-size: 11px; color: var(--w400); line-height: 1.6; }
+
+  /* ============================================================
+     BASE C8 SEAL
+     ============================================================ */
+  .seal {
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, var(--w800), #1a1714);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    position: relative;
+    box-shadow:
+      0 2px 0 rgba(255,255,255,0.05) inset,
+      0 -2px 8px rgba(0,0,0,0.2) inset,
+      0 8px 32px -8px rgba(0,0,0,0.35);
+  }
+  .seal-ring-outer {
+    position: absolute; inset: 4px; border-radius: 50%;
+    border: 1px solid rgba(251,191,36,0.25);
+    pointer-events: none;
+  }
+  .seal-ring-inner {
+    position: absolute; inset: 8px; border-radius: 50%;
+    border: 0.5px solid rgba(251,191,36,0.12);
+    pointer-events: none;
+  }
+  .seal-hd {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600; font-size: 22px; letter-spacing: 6px;
+    color: var(--w50); text-transform: uppercase;
+    padding-left: 6px; line-height: 1;
+    position: relative; z-index: 2;
+  }
+  .seal-divider {
+    width: 28px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--a400), transparent);
+    margin: 5px 0;
+    position: relative; z-index: 2;
+  }
+  .seal-cs {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600; font-size: 22px; letter-spacing: 6px;
+    color: var(--a400); text-transform: uppercase;
+    padding-left: 6px; line-height: 1;
+    position: relative; z-index: 2;
+  }
+
+  /* ============================================================
+     S1: SEAL STAMP — amplified 20%, ripple fix
+     ============================================================
+     Key fix: wrap seal + ripples in .s1-anchor so ripples
+     stay centered even as .seal translates during drop.
+     ============================================================ */
+  .s1-anchor {
+    position: relative;
+    width: 90px; height: 90px;
+  }
+  @keyframes sealStampLoop {
+    0%   { transform: scale(1.13) translateY(-20px); opacity: 0.35; }
+    12%  { transform: scale(0.96) translateY(2px); opacity: 1; }
+    17%  { transform: scale(1.025) translateY(-2px); }
+    23%  { transform: scale(1) translateY(0); }
+    100% { transform: scale(1) translateY(0); }
+  }
+  @keyframes stampRipple1 {
+    0%, 11% { transform: scale(0.55); opacity: 0; }
+    13% { opacity: 0.7; }
+    35% { transform: scale(2.4); opacity: 0; }
+    100% { transform: scale(2.4); opacity: 0; }
+  }
+  @keyframes stampRipple2 {
+    0%, 14% { transform: scale(0.55); opacity: 0; }
+    16% { opacity: 0.45; }
+    40% { transform: scale(2.8); opacity: 0; }
+    100% { transform: scale(2.8); opacity: 0; }
+  }
+  @keyframes stampImpactGlow {
+    0%, 10% { opacity: 0; transform: scale(0.7); }
+    13% { opacity: 0.55; transform: scale(1.15); }
+    25% { opacity: 0; transform: scale(1.4); }
+    100% { opacity: 0; }
+  }
+  @keyframes sealRingReveal {
+    0%, 16% { opacity: 0; transform: scale(0.94); }
+    28% { opacity: 1; transform: scale(1); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  .s1 .seal {
+    animation: sealStampLoop 5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  }
+  .s1 .seal-ring-outer {
+    animation: sealRingReveal 5s ease infinite;
+    transform-origin: center;
+  }
+  .s1 .seal-ring-inner {
+    animation: sealRingReveal 5s ease infinite 0.08s;
+    transform-origin: center;
+  }
+  /* Ripples are children of .s1-anchor, NOT .seal — they stay centered */
+  .s1-ripple {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: 50%;
+    border: 2px solid rgba(251,191,36,0.4);
+    pointer-events: none;
+    animation: stampRipple1 5s ease-out infinite;
+  }
+  .s1-ripple-2 {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: 50%;
+    border: 1px solid rgba(251,191,36,0.25);
+    pointer-events: none;
+    animation: stampRipple2 5s ease-out infinite;
+  }
+  .s1-impact {
+    position: absolute;
+    top: -8px; left: -8px; right: -8px; bottom: -8px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(251,191,36,0.18), transparent 65%);
+    pointer-events: none;
+    animation: stampImpactGlow 5s ease infinite;
+  }
+
+  /* ============================================================
+     S2 (NEW): DUAL ORBIT — two particles, opposite directions
+     ============================================================ */
+  @keyframes orbitCW {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+  @keyframes orbitCCW {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(-360deg); }
+  }
+  .s2-orbit-track-a, .s2-orbit-track-b {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .s2-orbit-track-a { animation: orbitCW 5s linear infinite; }
+  .s2-orbit-track-b { animation: orbitCCW 7s linear infinite; }
+  /* Particle A: sits at "12 o'clock" of the rotating track */
+  .s2-dot-a {
+    position: absolute;
+    top: -2px; left: 50%;
+    width: 4px; height: 4px;
+    margin-left: -2px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--a300), var(--a500));
+    box-shadow: 0 0 8px rgba(251,191,36,0.65), 0 0 18px rgba(251,191,36,0.25);
+  }
+  .s2-trail-a1 {
+    position: absolute;
+    top: 0px; left: 50%;
+    width: 2.5px; height: 2.5px;
+    margin-left: -1.25px; margin-top: 2px;
+    border-radius: 50%;
+    background: rgba(251,191,36,0.35);
+    box-shadow: 0 0 5px rgba(251,191,36,0.3);
+    transform: rotate(-8deg) translateY(-3px);
+    opacity: 0.55;
+  }
+  .s2-trail-a2 {
+    position: absolute;
+    top: 2px; left: 50%;
+    width: 1.5px; height: 1.5px;
+    margin-left: -0.75px; margin-top: 3px;
+    border-radius: 50%;
+    background: rgba(251,191,36,0.2);
+    transform: rotate(-16deg) translateY(-4px);
+    opacity: 0.35;
+  }
+  /* Particle B: smaller, sits at "12 o'clock" of CCW track */
+  .s2-dot-b {
+    position: absolute;
+    top: -1.5px; left: 50%;
+    width: 3px; height: 3px;
+    margin-left: -1.5px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--a200), var(--a500));
+    box-shadow: 0 0 6px rgba(251,191,36,0.5), 0 0 14px rgba(251,191,36,0.2);
+  }
+  .s2-trail-b1 {
+    position: absolute;
+    top: 1px; left: 50%;
+    width: 2px; height: 2px;
+    margin-left: -1px; margin-top: 2px;
+    border-radius: 50%;
+    background: rgba(251,191,36,0.25);
+    transform: rotate(10deg) translateY(-3px);
+    opacity: 0.4;
+  }
+
+  /* ============================================================
+     S3: EMBOSS GLOW — dramatically enhanced with visible sweep
+     ============================================================ */
+  @keyframes embossGlowV2 {
+    0% {
+      box-shadow:
+        -8px -6px 24px rgba(251,191,36,0.15),
+        6px 4px 16px rgba(0,0,0,0.45) inset,
+        0 2px 0 rgba(255,255,255,0.06) inset,
+        0 8px 32px -8px rgba(0,0,0,0.35);
+    }
+    33% {
+      box-shadow:
+        2px 8px 28px rgba(251,191,36,0.12),
+        -4px -6px 18px rgba(0,0,0,0.4) inset,
+        2px 0 0 rgba(255,255,255,0.04) inset,
+        0 8px 32px -8px rgba(0,0,0,0.35);
+    }
+    66% {
+      box-shadow:
+        8px -6px 24px rgba(251,191,36,0.15),
+        -6px 4px 16px rgba(0,0,0,0.45) inset,
+        0 -2px 0 rgba(255,255,255,0.06) inset,
+        0 8px 32px -8px rgba(0,0,0,0.35);
+    }
+    100% {
+      box-shadow:
+        -8px -6px 24px rgba(251,191,36,0.15),
+        6px 4px 16px rgba(0,0,0,0.45) inset,
+        0 2px 0 rgba(255,255,255,0.06) inset,
+        0 8px 32px -8px rgba(0,0,0,0.35);
+    }
+  }
+  @keyframes embossHighlightSweep {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  @keyframes textEmbossShift {
+    0%   { text-shadow: -2px -2px 5px rgba(251,191,36,0.25), 2px 2px 4px rgba(0,0,0,0.6); }
+    33%  { text-shadow: 0 3px 6px rgba(251,191,36,0.18), 0 -2px 3px rgba(0,0,0,0.5); }
+    66%  { text-shadow: 2px -2px 5px rgba(251,191,36,0.25), -2px 2px 4px rgba(0,0,0,0.6); }
+    100% { text-shadow: -2px -2px 5px rgba(251,191,36,0.25), 2px 2px 4px rgba(0,0,0,0.6); }
+  }
+  .s3 .seal {
+    animation: embossGlowV2 6s ease-in-out infinite;
+  }
+  /* Visible rotating highlight — a wedge of light sweeping over the surface */
+  .s3 .seal-highlight {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      transparent 140deg,
+      rgba(255,255,255,0.10) 160deg,
+      rgba(255,255,255,0.16) 180deg,
+      rgba(255,255,255,0.10) 200deg,
+      transparent 220deg,
+      transparent 360deg
+    );
+    animation: embossHighlightSweep 6s linear infinite;
+    z-index: 3;
+    pointer-events: none;
+  }
+  .s3 .seal-hd {
+    animation: textEmbossShift 6s ease-in-out infinite;
+  }
+  .s3 .seal-cs {
+    animation: textEmbossShift 6s ease-in-out infinite 0.5s;
+  }
+  .s3 .seal-ring-outer { z-index: 4; }
+  .s3 .seal-ring-inner { z-index: 4; }
+
+  /* ============================================================
+     S4: GOLD LINE IGNITE
+     ============================================================ */
+  @keyframes lineIgnite {
+    0%, 70% { transform: scaleX(0); opacity: 1; }
+    85% { transform: scaleX(1); opacity: 1; }
+    100% { transform: scaleX(1); opacity: 0.7; }
+  }
+  @keyframes textGlowHD {
+    0%, 72% {
+      color: var(--w50);
+      text-shadow: 0 0 0 rgba(251,191,36,0);
+      filter: brightness(1);
+      transform: translateY(0) scale(1);
+    }
+    82% {
+      color: #fff8dd;
+      text-shadow: 0 0 10px rgba(251,191,36,0.5), 0 0 20px rgba(251,191,36,0.25);
+      filter: brightness(1.12);
+      transform: translateY(-0.4px) scale(1.02);
+    }
+    90% {
+      color: #ffe9b0;
+      text-shadow: 0 0 14px rgba(251,191,36,0.65), 0 0 30px rgba(251,191,36,0.33);
+      filter: brightness(1.2);
+      transform: translateY(-0.6px) scale(1.035);
+    }
+    100% {
+      color: var(--w50);
+      text-shadow: 0 0 4px rgba(251,191,36,0.22);
+      filter: brightness(1.04);
+      transform: translateY(0) scale(1);
+    }
+  }
+  @keyframes textGlowCS {
+    0%, 74% {
+      color: var(--a400);
+      text-shadow: 0 0 0 rgba(251,191,36,0);
+      filter: brightness(1);
+      transform: translateY(0) scale(1);
+    }
+    84% {
+      color: #ffd86c;
+      text-shadow: 0 0 12px rgba(251,191,36,0.58), 0 0 24px rgba(251,191,36,0.3);
+      filter: brightness(1.14);
+      transform: translateY(-0.45px) scale(1.025);
+    }
+    92% {
+      color: #ffe79d;
+      text-shadow: 0 0 16px rgba(251,191,36,0.72), 0 0 34px rgba(251,191,36,0.36);
+      filter: brightness(1.24);
+      transform: translateY(-0.65px) scale(1.04);
+    }
+    100% {
+      color: var(--a400);
+      text-shadow: 0 0 5px rgba(251,191,36,0.24);
+      filter: brightness(1.05);
+      transform: translateY(0) scale(1);
+    }
+  }
+  .s4 .seal-divider {
+    background: none; overflow: visible;
+  }
+  .s4 .seal-divider::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(90deg, transparent, var(--a400), transparent);
+    transform-origin: center;
+    animation: lineIgnite 3.5s ease-in-out infinite;
+  }
+  .s4 .seal-hd,
+  .s4 .seal-cs {
+    display: inline-block;
+    will-change: transform, text-shadow, filter, color;
+  }
+  .s4 .seal-hd { animation: textGlowHD 3.5s ease-in-out infinite; }
+  .s4 .seal-cs { animation: textGlowCS 3.5s ease-in-out infinite 0.18s; }
+
+  /* ============================================================
+     S5: WAX SURFACE SHIMMER
+     ============================================================ */
+  @keyframes waxShimmer {
+    0%, 100% { background-position: -200% 0; }
+    50% { background-position: 200% 0; }
+  }
+  .s5 .seal-shimmer {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: linear-gradient(
+      115deg,
+      transparent 30%,
+      rgba(255,255,255,0.06) 40%,
+      rgba(255,255,255,0.1) 42%,
+      rgba(255,255,255,0.06) 44%,
+      transparent 55%
+    );
+    background-size: 200% 100%;
+    animation: waxShimmer 5s ease-in-out infinite;
+    z-index: 3; pointer-events: none;
+  }
+  .s5 .seal-ring-outer { z-index: 4; }
+  .s5 .seal-ring-inner { z-index: 4; }
+
+  /* ============================================================
+     S6 (NEW): SPARKLE RING — firefly particles along ring
+     ============================================================ */
+  .s6-sparkle-track {
+    position: absolute;
+    inset: 0; border-radius: 50%;
+    pointer-events: none; z-index: 5;
+  }
+  .s6-spark {
+    position: absolute;
+    width: 3.5px; height: 3.5px;
+    border-radius: 50%;
+    background: var(--a400);
+    box-shadow: 0 0 7px rgba(251,191,36,0.7), 0 0 16px rgba(251,191,36,0.3);
+  }
+  .s6-spark.sm {
+    width: 2.5px; height: 2.5px;
+    box-shadow: 0 0 5px rgba(251,191,36,0.55), 0 0 10px rgba(251,191,36,0.2);
+  }
+  /* Position sparks around the ring edge (inset 4px = radius 41px from center) */
+  /* top: 45px - 41px*sin(angle), left: 45px + 41px*cos(angle) minus half-size */
+  .s6-spark.p0 { top: 2.25px;  left: 43.25px; }  /* 0° top */
+  .s6-spark.p1 { top: 12px;    left: 73px; }      /* 50° */
+  .s6-spark.p2 { top: 55px;    left: 80px; }      /* 130° */
+  .s6-spark.p3 { top: 75px;    left: 35px; }      /* 220° */
+  .s6-spark.p4 { top: 22px;    left: 8px; }       /* 305° */
+
+  @keyframes sparkFade1 {
+    0%, 5%     { opacity: 0; transform: scale(0); }
+    12%, 28%   { opacity: 1; transform: scale(1); }
+    38%        { opacity: 0; transform: scale(0); }
+    100%       { opacity: 0; transform: scale(0); }
+  }
+  @keyframes sparkFade2 {
+    0%, 18%    { opacity: 0; transform: scale(0); }
+    25%, 45%   { opacity: 1; transform: scale(1); }
+    55%        { opacity: 0; transform: scale(0); }
+    100%       { opacity: 0; transform: scale(0); }
+  }
+  @keyframes sparkFade3 {
+    0%, 35%    { opacity: 0; transform: scale(0); }
+    42%, 62%   { opacity: 1; transform: scale(1); }
+    72%        { opacity: 0; transform: scale(0); }
+    100%       { opacity: 0; transform: scale(0); }
+  }
+  @keyframes sparkFade4 {
+    0%, 52%    { opacity: 0; transform: scale(0); }
+    59%, 78%   { opacity: 1; transform: scale(1); }
+    88%        { opacity: 0; transform: scale(0); }
+    100%       { opacity: 0; transform: scale(0); }
+  }
+  @keyframes sparkFade5 {
+    0%, 68%    { opacity: 0; transform: scale(0); }
+    75%, 90%   { opacity: 1; transform: scale(1); }
+    98%        { opacity: 0; transform: scale(0); }
+    100%       { opacity: 0; transform: scale(0); }
+  }
+  .s6-spark.p0 { animation: sparkFade1 4.5s ease-in-out infinite; }
+  .s6-spark.p1 { animation: sparkFade2 4.5s ease-in-out infinite; }
+  .s6-spark.p2 { animation: sparkFade3 4.5s ease-in-out infinite; }
+  .s6-spark.p3 { animation: sparkFade4 4.5s ease-in-out infinite; }
+  .s6-spark.p4 { animation: sparkFade5 4.5s ease-in-out infinite; }
+
+  /* ============================================================
+     S7: GOLD ORBIT — single continuous
+     ============================================================ */
+  @keyframes goldOrbit {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+  .s7-orbit-track {
+    position: absolute;
+    inset: 0; border-radius: 50%;
+    pointer-events: none; z-index: 5;
+    animation: goldOrbit 4s linear infinite;
+  }
+  .s7-dot {
+    position: absolute;
+    top: -2px; left: 50%;
+    width: 4px; height: 4px;
+    margin-left: -2px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--a400), var(--a500));
+    box-shadow: 0 0 8px rgba(251,191,36,0.6), 0 0 16px rgba(251,191,36,0.25);
+  }
+  .s7-trail1 {
+    position: absolute;
+    top: 0; left: 50%;
+    width: 2.5px; height: 2.5px;
+    margin-left: -1.25px; margin-top: 2px;
+    border-radius: 50%;
+    background: rgba(251,191,36,0.35);
+    box-shadow: 0 0 5px rgba(251,191,36,0.3);
+    transform: rotate(-9deg) translateY(-3px);
+    opacity: 0.55;
+  }
+  .s7-trail2 {
+    position: absolute;
+    top: 2px; left: 50%;
+    width: 1.5px; height: 1.5px;
+    margin-left: -0.75px; margin-top: 3px;
+    border-radius: 50%;
+    background: rgba(251,191,36,0.2);
+    transform: rotate(-18deg) translateY(-4px);
+    opacity: 0.3;
+  }
+
+  /* ============================================================
+     S8: HEARTBEAT
+     ============================================================ */
+  @keyframes sealHeartbeat {
+    0%, 100% { transform: scale(1); }
+    7%  { transform: scale(1.025); }
+    14% { transform: scale(1); }
+    21% { transform: scale(1.015); }
+    28% { transform: scale(1); }
+  }
+  @keyframes ringFlash {
+    0%, 100% { border-color: rgba(251,191,36,0.25); }
+    7%  { border-color: rgba(251,191,36,0.55); }
+    14% { border-color: rgba(251,191,36,0.25); }
+    21% { border-color: rgba(251,191,36,0.4); }
+    28% { border-color: rgba(251,191,36,0.25); }
+  }
+  @keyframes dividerBreathe {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+  .s8 .seal { animation: sealHeartbeat 3s ease-in-out infinite; }
+  .s8 .seal-ring-outer { animation: ringFlash 3s ease-in-out infinite; }
+  .s8 .seal-ring-inner { animation: ringFlash 3s ease-in-out infinite 0.07s; }
+  .s8 .seal-divider { animation: dividerBreathe 3s ease-in-out infinite; }
+
+  /* ============================================================
+     LEGEND & SCENE TABLE
+     ============================================================ */
+  .legend {
+    margin-top: 48px; padding: 28px 32px;
+    background: white; border-radius: 20px; border: 1px solid var(--w200);
+  }
+  .legend h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px; font-weight: 600; margin-bottom: 20px; text-align: center;
+  }
+  .legend-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+  }
+  .legend-item {
+    padding: 14px 16px; background: var(--w50);
+    border-radius: 12px; border: 1px solid var(--w100);
+  }
+  .legend-item.new { border-color: rgba(251,191,36,0.2); background: linear-gradient(135deg, var(--w50), #fefcf3); }
+  .legend-tag { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--a500); letter-spacing: 1.5px; margin-bottom: 5px; text-transform: uppercase; }
+  .legend-name { font-family: 'Sora', sans-serif; font-weight: 600; font-size: 12px; color: var(--w800); margin-bottom: 3px; }
+  .legend-desc { font-size: 10.5px; color: var(--w400); line-height: 1.5; }
+
+  .scene-section { margin-top: 48px; text-align: center; }
+  .scene-section h2 { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 600; margin-bottom: 6px; }
+  .scene-section > p { color: var(--w400); font-size: 12px; margin-bottom: 28px; }
+  .scene-table { margin: 0 auto; border-collapse: collapse; font-size: 12px; }
+  .scene-table th {
+    font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--w400);
+    padding: 8px 20px; border-bottom: 1px solid var(--w200); font-weight: 400;
+  }
+  .scene-table td { padding: 10px 20px; border-bottom: 1px solid var(--w100); color: var(--w600); }
+  .scene-table td:first-child { font-weight: 600; color: var(--w800); }
+  .scene-rec {
+    display: inline-block; padding: 2px 8px;
+    background: linear-gradient(135deg, #fef9e7, #fef3c7);
+    border-radius: 4px; font-family: 'Space Mono', monospace;
+    font-size: 9px; letter-spacing: 0.5px; color: var(--a500);
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="page-header">
+    <h1>C8 Wax Seal — Motion Design</h1>
+    <p>S1~S8 · Eight Animation Variants · Living Seal</p>
+  </div>
+
+  <div class="grid">
+
+    <!-- ======== S1: SEAL STAMP ======== -->
+    <div class="card">
+      <div class="stage s1">
+        <!-- Anchor wraps seal + ripples to keep ripples centered -->
+        <div class="s1-anchor">
+          <div class="seal">
+            <div class="seal-ring-outer"></div>
+            <div class="seal-ring-inner"></div>
+            <span class="seal-hd">HD</span>
+            <div class="seal-divider"></div>
+            <span class="seal-cs">CS</span>
+          </div>
+          <div class="s1-ripple"></div>
+          <div class="s1-ripple-2"></div>
+          <div class="s1-impact"></div>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">S1 · Seal Stamp</div>
+        <div class="info-name">印章落下</div>
+        <div class="info-desc">入场动画——印章从上方落下，落地瞬间双层ripple向外扩散 + 金色冲击光晕。双环线框延迟reveal。力度↑20%。</div>
+      </div>
+    </div>
+
+    <!-- ======== S2 (NEW): DUAL ORBIT ======== -->
+    <div class="card">
+      <div class="stage s2">
+        <div class="seal">
+          <div class="seal-ring-outer"></div>
+          <div class="seal-ring-inner"></div>
+          <span class="seal-hd">HD</span>
+          <div class="seal-divider"></div>
+          <span class="seal-cs">CS</span>
+          <!-- CW orbit track -->
+          <div class="s2-orbit-track-a">
+            <div class="s2-dot-a"></div>
+            <div class="s2-trail-a1"></div>
+            <div class="s2-trail-a2"></div>
+          </div>
+          <!-- CCW orbit track -->
+          <div class="s2-orbit-track-b">
+            <div class="s2-dot-b"></div>
+            <div class="s2-trail-b1"></div>
+          </div>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">S2 · Dual Orbit ✦ New</div>
+        <div class="info-name">双星巡环</div>
+        <div class="info-desc">两颗金色光粒子以不同速度相向运行——大粒子5s顺时针、小粒子7s逆时针，各带尾迹。双卫星精密仪器感。</div>
+      </div>
+    </div>
+
+    <!-- ======== S3: EMBOSS GLOW — enhanced ======== -->
+    <div class="card">
+      <div class="stage s3">
+        <div class="seal">
+          <div class="seal-ring-outer"></div>
+          <div class="seal-ring-inner"></div>
+          <div class="seal-highlight"></div>
+          <span class="seal-hd">HD</span>
+          <div class="seal-divider"></div>
+          <span class="seal-cs">CS</span>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">S3 · Emboss Glow</div>
+        <div class="info-name">浮雕光晕</div>
+        <div class="info-desc">增强版——侧光旋转带来的shadow角度偏移 + 蜡面光楔扫过 + 文字浮雕阴影跟随变化。暗色上的光影雕塑。6s周期。</div>
+      </div>
+    </div>
+
+    <!-- ======== S4: GOLD LINE IGNITE ======== -->
+    <div class="card">
+      <div class="stage s4">
+        <div class="seal">
+          <div class="seal-ring-outer"></div>
+          <div class="seal-ring-inner"></div>
+          <span class="seal-hd">HD</span>
+          <div class="seal-divider"></div>
+          <span class="seal-cs">CS</span>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">S4 · Gold Line Ignite</div>
+        <div class="info-name">金线点燃</div>
+        <div class="info-desc">金色分割线从中心向两端展开"点燃"，HD和CS随后出现golden text-shadow。火漆加热时金箔发光的瞬间。3.5s周期。</div>
+      </div>
+    </div>
+
+    <!-- ======== S5: WAX SHIMMER ======== -->
+    <div class="card">
+      <div class="stage s5">
+        <div class="seal">
+          <div class="seal-ring-outer"></div>
+          <div class="seal-ring-inner"></div>
+          <div class="seal-shimmer"></div>
+          <span class="seal-hd">HD</span>
+          <div class="seal-divider"></div>
+          <span class="seal-cs">CS</span>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">S5 · Wax Shimmer</div>
+        <div class="info-name">蜡面流光</div>
+        <div class="info-desc">一束极细的高光在印章深色蜡面上缓慢扫过——像黑曜石在光下微微转动时表面那道不经意的光泽。5s周期。最subtle。</div>
+      </div>
+    </div>
+
+    <!-- ======== S6 (NEW): SPARKLE RING ======== -->
+    <div class="card">
+      <div class="stage s6">
+        <div class="seal">
+          <div class="seal-ring-outer"></div>
+          <div class="seal-ring-inner"></div>
+          <span class="seal-hd">HD</span>
+          <div class="seal-divider"></div>
+          <span class="seal-cs">CS</span>
+          <!-- 5 sparkle particles at different ring positions -->
+          <div class="s6-sparkle-track">
+            <div class="s6-spark p0"></div>
+            <div class="s6-spark p1"></div>
+            <div class="s6-spark sm p2"></div>
+            <div class="s6-spark p3"></div>
+            <div class="s6-spark sm p4"></div>
+          </div>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">S6 · Sparkle Ring ✦ New</div>
+        <div class="info-name">萤火环光</div>
+        <div class="info-desc">五颗金色光点在外环不同位置依次浮现、停留、消隐——像萤火虫在印章周围此起彼伏地闪烁。4.5s周期。</div>
+      </div>
+    </div>
+
+    <!-- ======== S7: GOLD ORBIT ======== -->
+    <div class="card">
+      <div class="stage s7">
+        <div class="seal">
+          <div class="seal-ring-outer"></div>
+          <div class="seal-ring-inner"></div>
+          <span class="seal-hd">HD</span>
+          <div class="seal-divider"></div>
+          <span class="seal-cs">CS</span>
+          <div class="s7-orbit-track">
+            <div class="s7-dot"></div>
+            <div class="s7-trail1"></div>
+            <div class="s7-trail2"></div>
+          </div>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">S7 · Gold Orbit</div>
+        <div class="info-name">金点巡环</div>
+        <div class="info-desc">一颗金色光粒子沿外环持续运行，拖曳两颗渐隐尾迹。像精密钟表的秒针巡回，或卫星绕行轨道。4s一圈。</div>
+      </div>
+    </div>
+
+    <!-- ======== S8: HEARTBEAT ======== -->
+    <div class="card">
+      <div class="stage s8">
+        <div class="seal">
+          <div class="seal-ring-outer"></div>
+          <div class="seal-ring-inner"></div>
+          <span class="seal-hd">HD</span>
+          <div class="seal-divider"></div>
+          <span class="seal-cs">CS</span>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">S8 · Heartbeat</div>
+        <div class="info-name">心跳韵律</div>
+        <div class="info-desc">医学级心跳节奏——两次快速pump（大+小）然后长静止。双环金色同步闪亮。"活着的精密系统"。3s周期。</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <h2>Animation Library — S1~S8</h2>
+    <div class="legend-grid">
+      <div class="legend-item">
+        <div class="legend-tag">S1</div>
+        <div class="legend-name">Seal Stamp · 印章落下</div>
+        <div class="legend-desc">scale弹跳↑20% + 双层ripple + 冲击光晕 + 环线延迟reveal。5s循环演示。</div>
+      </div>
+      <div class="legend-item new">
+        <div class="legend-tag">S2 ✦</div>
+        <div class="legend-name">Dual Orbit · 双星巡环</div>
+        <div class="legend-desc">两颗光粒子相向运行（5s CW + 7s CCW），各带尾迹。双卫星精密感。</div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-tag">S3</div>
+        <div class="legend-name">Emboss Glow · 浮雕光晕</div>
+        <div class="legend-desc">增强：旋转光楔扫面 + shadow角度偏移 + 浮雕text-shadow。6s。</div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-tag">S4</div>
+        <div class="legend-name">Gold Line Ignite · 金线点燃</div>
+        <div class="legend-desc">分割线从0展开 + 文字golden glow。3.5s周期。Hero展示首选。</div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-tag">S5</div>
+        <div class="legend-name">Wax Shimmer · 蜡面流光</div>
+        <div class="legend-desc">深色蜡面上极细高光扫过。5s。最克制最subtle的选择。</div>
+      </div>
+      <div class="legend-item new">
+        <div class="legend-tag">S6 ✦</div>
+        <div class="legend-name">Sparkle Ring · 萤火环光</div>
+        <div class="legend-desc">五颗光点在外环依次浮现消隐。萤火虫此起彼伏。4.5s周期。</div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-tag">S7</div>
+        <div class="legend-name">Gold Orbit · 金点巡环</div>
+        <div class="legend-desc">单粒子持续绕行 + 双尾迹。4s一圈。精密钟表秒针感。</div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-tag">S8</div>
+        <div class="legend-name">Heartbeat · 心跳韵律</div>
+        <div class="legend-desc">双pump + 长静止。环线同步闪金。3s。有机生命力。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scene Matrix -->
+  <div class="scene-section">
+    <h2>Scene Recommendations</h2>
+    <p>不同使用场景下的推荐搭配</p>
+    <table class="scene-table">
+      <thead>
+        <tr><th>场景</th><th>首选</th><th>备选</th><th>气质</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Sidebar idle</td>
+          <td><span class="scene-rec">S5</span> Wax Shimmer</td>
+          <td><span class="scene-rec">S8</span> Heartbeat</td>
+          <td>沉稳 · 不打扰</td>
+        </tr>
+        <tr>
+          <td>Page loading</td>
+          <td><span class="scene-rec">S1</span> Seal Stamp</td>
+          <td><span class="scene-rec">S4</span> Gold Ignite</td>
+          <td>仪式感 · 入场</td>
+        </tr>
+        <tr>
+          <td>Hover 交互</td>
+          <td><span class="scene-rec">S3</span> Emboss Glow</td>
+          <td><span class="scene-rec">S6</span> Sparkle Ring</td>
+          <td>响应 · 质感</td>
+        </tr>
+        <tr>
+          <td>Hero 展示</td>
+          <td><span class="scene-rec">S4</span> Gold Ignite</td>
+          <td><span class="scene-rec">S2</span> Dual Orbit</td>
+          <td>张力 · 精密</td>
+        </tr>
+        <tr>
+          <td>Loading 状态</td>
+          <td><span class="scene-rec">S7</span> Gold Orbit</td>
+          <td><span class="scene-rec">S2</span> Dual Orbit</td>
+          <td>进行中 · 节奏</td>
+        </tr>
+        <tr>
+          <td>通知 / Alert</td>
+          <td><span class="scene-rec">S8</span> Heartbeat</td>
+          <td><span class="scene-rec">S1</span> Seal Stamp</td>
+          <td>注意力 · 脉冲</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+</body>
+</html>

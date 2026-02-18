@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Info, Plus, RefreshCw, SlidersHorizontal, Sparkles, XCircle } from 'lucide-react'
 import { bumpTeamSamples, getInvestments, getSystemConfig, saveInvestment } from '../lib/localData'
-import { getPredictionCalibrationContext } from '../lib/analytics'
+import { getPredictionCalibrationContext, buildComboRetrospective } from '../lib/analytics'
 import {
   buildAtomicMatchProfile,
   combineAtomicMatchProfiles,
@@ -1751,6 +1751,7 @@ const generateRecommendations = (
   comboStructure = null,
   rolePreference = null,
   teamBias = null, // Map<teamName, number> — positive = boost, negative = penalize
+  comboRetrospective = null, // FIX #9: Combo-level retrospective learning signals
 ) => {
   if (selectedMatches.length === 0) return null
   const recommendationCount = RECOMMENDATION_OUTPUT_COUNT
@@ -1780,6 +1781,13 @@ const generateRecommendations = (
   const dynParams = backtestDynamicParams(calibrationContext)
   // ── Comprehensive combo hyperparameter calibration ──
   const hp = calibrationContext?.comboHyperparams || null
+
+  // ── FIX #9: Apply combo-level retrospective learning signals ──
+  const retro = comboRetrospective?.ready ? comboRetrospective : null
+  if (retro) {
+    // Adjust tier anchor bonus based on historical anchor success rate
+    dynParams.tierAnchorBonus = clamp(dynParams.tierAnchorBonus + (retro.anchorBonusAdj || 0), 0.01, 0.25)
+  }
 
   // ── FIX #3: Apply walk-forward feedback adjustments to tier thresholds ──
   // FIX: key names must match classifyConfidenceTier expectations (tier1, tier2, tier3 — no underscores)
@@ -1926,7 +1934,8 @@ const generateRecommendations = (
     const avgSurplus = surplusValues.reduce((s, v) => s + v, 0) / Math.max(legs, 1)
     const maxSurplus = Math.max(...surplusValues)
     // Bonus scales with average surplus across legs, extra boost if any leg has strong edge
-    const sbScale = hp?.surplusBonusScale ?? 0.15
+    // FIX #9: Retrospective surplus adjustment — if high-surplus combos were missed and actually hit, boost scale
+    const sbScale = (hp?.surplusBonusScale ?? 0.15) + (retro?.surplusBonusAdj || 0)
     const sbMaxThreshold = hp?.surplusBonusMaxThreshold ?? 0.12
     const sbMaxBonus = hp?.surplusBonusMaxBonus ?? 0.03
     const confSurplusBonus = clamp(avgSurplus * sbScale, -0.08, 0.12) + (maxSurplus >= sbMaxThreshold ? sbMaxBonus : 0)
@@ -2005,7 +2014,17 @@ const generateRecommendations = (
   }
 
   // ── 思路3: Stratified selection by legs count ──
-  const stratifiedPool = stratifiedSelect(preparedRanked, stratifiedCap, minLegs, hp)
+  // FIX #9: Apply retrospective legs-distribution learning to stratified quotas
+  const effectiveHp = hp ? { ...hp } : null
+  if (effectiveHp && retro?.stratifiedQuotaAdj && Object.keys(retro.stratifiedQuotaAdj).length > 0) {
+    const base = effectiveHp.stratifiedQuotas || { 1: 0.0, 2: 0.2, 3: 0.35, 4: 0.3, 5: 0.15 }
+    const adjusted = { ...base }
+    for (const [legs, delta] of Object.entries(retro.stratifiedQuotaAdj)) {
+      adjusted[legs] = clamp((adjusted[legs] || 0.1) + delta, 0, 0.6)
+    }
+    effectiveHp.stratifiedQuotas = adjusted
+  }
+  const stratifiedPool = stratifiedSelect(preparedRanked, stratifiedCap, minLegs, effectiveHp)
 
   // ── MMR reranking for final diversity ──
   const mmrPool = mmrRerank(
@@ -2175,6 +2194,7 @@ const generateRecommendations = (
     legsDistribution,
     dynParams,
     ftTiers: ftTierCounts,
+    comboRetrospective: retro,
   }
 }
 
@@ -2225,6 +2245,7 @@ export default function ComboPage({ openModal }) {
 
   const [systemConfig] = useState(() => getSystemConfig())
   const calibrationContext = useMemo(() => getPredictionCalibrationContext(), [dataVersion])
+  const comboRetrospective = useMemo(() => buildComboRetrospective(planHistory), [dataVersion, planHistory])
 
   const riskCap = useMemo(
     () => Math.round(systemConfig.initialCapital * systemConfig.riskCapRatio),
@@ -2404,6 +2425,8 @@ export default function ComboPage({ openModal }) {
         comboStrategy,
         comboStructure,
         rolePreference,
+        null,
+        comboRetrospective,
       )
       if (!generated || generated.recommendations.length === 0) {
         return {
@@ -2550,6 +2573,13 @@ export default function ComboPage({ openModal }) {
       }
       return acc
     }, {})
+    // FIX #9: Snapshot candidate match keys + surplus for retrospective learning
+    const candidateMatchKeys = selectedRows.map((row) => ({
+      matchKey: `${(row.homeTeam || '-').trim()} vs ${(row.awayTeam || '-').trim()}`,
+      surplus: row.confSurplus?.surplus || 0,
+      conf: row.conf || 0,
+      odds: row.odds || 0,
+    }))
     const entry = {
       id: `plan_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       createdAt: new Date().toISOString(),
@@ -2563,6 +2593,7 @@ export default function ComboPage({ openModal }) {
       expectedReturnPercent: generated.expectedReturnPercent,
       recommendations: generated.recommendations,
       layerSummary: generated.layerSummary,
+      candidateMatchKeys,
       comboStrategy,
       comboStructure: sanitizeComboStructure(comboStructure),
       rolePreference: sanitizeRolePreference(rolePreference),
@@ -2696,6 +2727,8 @@ export default function ComboPage({ openModal }) {
       comboStrategy,
       comboStructure,
       rolePreference,
+      null,
+      comboRetrospective,
     )
     if (!generated) {
       window.alert(
@@ -2757,6 +2790,7 @@ export default function ComboPage({ openModal }) {
     const generated = generateRecommendations(
       selectedMatches, jRisk, riskCap, systemConfig, calibrationContext,
       qualityFilter, comboStrategy, jStructure, rolePreference, bias,
+      comboRetrospective,
     )
     if (!generated) return
     setRecommendations(generated.recommendations)
@@ -2968,7 +3002,17 @@ export default function ComboPage({ openModal }) {
           <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 自旋转覆盖率总览</p>
           <p><strong>39. 系统旋转度 ~92%</strong>：修复后，概率校准（13 级管线 + 保序回归 + Conf×Odds + 球队偏差 + 市场融合 + Walk-Forward 反馈）、Kelly 仓位（纯分数 + 动态除数）、组合生成（四级阈值 + 分层配额 + 边际 Sharpe 门控）、组合评分（surplus 阈值 + 角色系数 + MMR 惩罚 + 软惩罚 + 覆盖衰减 + 相关性公式）、组合包优化（五维权重 + 集中度上限）均由结算数据 Walk-Forward 自动校准。剩余 ~8% 为结构性常量（梯度下降学习率、收缩估计 K 值、迭代次数上限等），属于算法超结构参数，按设计应保持固定。</p>
 
-          <p className="text-[11px] text-stone-400 mt-3 pt-2 border-t border-stone-100">DuGou Portfolio Optimization Engine v4.9 · Composite Calibration + PAV Isotonic + Learned Context Factors + Walk-Forward Feedback + Entry Correlation + Conf-Surplus + Anchor Diversification + Portfolio Allocation Optimizer + Monte Carlo Simulation + Full-Spectrum Hyperparameter WF Calibration + Adaptive Weight Auto-Apply</p>
+          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 组合级事后回溯学习引擎</p>
+          <p><strong>40. Combo Retrospective Engine</strong>：新增 <code>buildComboRetrospective(planHistory)</code>，在比赛结算后回溯分析历史推荐快照 vs 实际结果。从 planHistory 中提取每期推荐组合的实际命中情况，按层级（core/satellite/covering/moonshot）统计命中率，追踪锚定场成败率、各腿数段 combo 命中率分布。输出结构性学习信号反馈到下一次组合生成。</p>
+          <p><strong>41. 反共识遗漏检测 (Surplus Miss Detection)</strong>：对比"备选池中高 surplus（≥+8pp）但未进入推荐"的比赛，在结算后检测其实际命中率。若高 surplus 被遗漏的场次命中率 {'>'} 40%，自动上调 <code>surplusBonusScale</code>，鼓励模型更积极地推荐反共识洞察组合。</p>
+          <p><strong>42. 锚定场成败自适应</strong>：统计被选为锚定场（combo 内最高 conf 场次）的历史命中率。若锚定场命中率低于 65% 基准，下调 <code>tierAnchorBonus</code>；高于 65% 则上调。以可靠度加权（需 ≥3 场锚定数据）。</p>
+          <p><strong>43. 腿数分布回溯微调</strong>：比较历史各腿数段（2/3/4/5 关）combo 的实际命中率与全局平均，对高于平均的腿数段上调 <code>stratifiedQuotas</code>。调整幅度以可靠度衰减（≤9 期数据线性递增）。</p>
+
+          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 死代码激活与诊断接入</p>
+          <p><strong>44. autoApplyAdaptiveWeights 激活</strong>：原先该函数实现完整但从未被调用（死代码）。现在每次结算（SettlePage <code>confirmSettlement</code>）完成后自动触发，实现权重在每次新数据进入时自动微调。内建安全约束不变：单权重 ±0.02，总量 ≤0.08。</p>
+          <p><strong>45. EJR 诊断接入校准上下文</strong>：<code>getPerMatchEjrSnapshot()</code> 原先从未被调用。现已接入 <code>getPredictionCalibrationContext</code> 返回值（<code>ejrDiagnostics</code> 字段），显式暴露 per-mode EJR bias 数据供下游消费和 UI 展示。</p>
+
+          <p className="text-[11px] text-stone-400 mt-3 pt-2 border-t border-stone-100">DuGou Portfolio Optimization Engine v4.9 · Composite Calibration + PAV Isotonic + Learned Context Factors + Walk-Forward Feedback + Entry Correlation + Conf-Surplus + Anchor Diversification + Portfolio Allocation Optimizer + Monte Carlo Simulation + Full-Spectrum Hyperparameter WF Calibration + Adaptive Weight Auto-Apply + Combo Retrospective Learning</p>
         </div>
       ),
     })
@@ -4137,7 +4181,7 @@ export default function ComboPage({ openModal }) {
           基于 Markowitz 均值-方差框架，融合复合概率校准管线（线性回归 + PAV 保序回归自适应混合）、自学习情境因子（Shrinkage K=12）、Walk-Forward 反馈回路（自动调参 Kelly/Odds权重/阈值），构建多资产联合分布并以纯分数 Kelly 准则优化仓位。v4.0 容错引擎实现四级置信度梯度 + C(N,N-1) 容错覆盖 + 边际 Sharpe 门控 + 分层对冲架构。v4.3 引入 Entry 相关性矩阵（Phi 系数修正联合概率）与 Per-Match EJR 追踪。v4.4 新增 Conf-Surplus 反共识信号 + 锚定分散化惩罚 + Portfolio Allocation 优化器 + 50k Monte Carlo。v4.9 全参数自旋转引擎：修复 Kelly 经验因子残留与 Walk-Forward 旁路，新增 backtestComboHyperparams 引擎从结算数据自动校准 20+ 组合生成/评分参数族群（vig、surplus 阈值、分层配额、MMR 惩罚、角色系数、组合优化器、时序权重、软惩罚、覆盖衰减、相关性公式等），可靠度加权混合确保小样本稳健。系统旋转覆盖率从 ~55% 提升至 ~92%。
         </p>
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {['复合校准','保序回归','自学习因子','Walk-Forward','原子建模','Kelly准则','容错覆盖','Sharpe门控','Conf-Surplus','锚定分散化','Entry相关性','Monte Carlo','Portfolio优化','超参WF校准','自适应权重','全参数自旋转'].map(tag => (
+          {['复合校准','保序回归','自学习因子','Walk-Forward','原子建模','Kelly准则','容错覆盖','Sharpe门控','Conf-Surplus','锚定分散化','Entry相关性','Monte Carlo','Portfolio优化','超参WF校准','自适应权重','全参数自旋转','组合回溯学习','遗漏检测'].map(tag => (
             <span key={tag} className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-indigo-50 text-indigo-500 border border-indigo-100/60">{tag}</span>
           ))}
         </div>

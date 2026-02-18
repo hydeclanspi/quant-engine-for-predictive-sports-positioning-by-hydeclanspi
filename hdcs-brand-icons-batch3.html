@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HydeCaside Brand Identity System</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* 核心色彩系统 - 深海金融蓝 × 电光青 */
+    --deep-space: #0B0F19;
+    --midnight: #151B2B;
+    --ocean-deep: #1E293B;
+    --electric-cyan: #06B6D4;
+    --cyan-glow: #22D3EE;
+    --warm-amber: #F59E0B;
+    --soft-gold: #FCD34D;
+    --pure-white: #FAFAFA;
+    --mist-gray: #94A3B8;
+
+    /* 玻璃拟态变量 */
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-highlight: rgba(255, 255, 255, 0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--deep-space);
+    color: var(--pure-white);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* 动态背景网格 */
+  .bg-grid {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: 
+      linear-gradient(rgba(6, 182, 212, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(6, 182, 212, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page-wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 60px 40px;
+  }
+
+  /* 头部区域 */
+  .header {
+    text-align: center;
+    margin-bottom: 80px;
+    position: relative;
+  }
+
+  .brand-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--electric-cyan);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    opacity: 0.8;
+  }
+
+  .main-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 48px;
+    font-weight: 700;
+    letter-spacing: -2px;
+    background: linear-gradient(135deg, var(--pure-white) 0%, var(--cyan-glow) 50%, var(--warm-amber) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    color: var(--mist-gray);
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* 概念网格布局 */
+  .concepts-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+    margin-bottom: 100px;
+  }
+
+  .concept-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    backdrop-filter: blur(20px);
+  }
+
+  .concept-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(circle at 50% 0%, rgba(6, 182, 212, 0.15), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.4s;
+    pointer-events: none;
+  }
+
+  .concept-card:hover {
+    transform: translateY(-8px);
+    border-color: rgba(6, 182, 212, 0.3);
+    box-shadow: 0 20px 60px -20px rgba(6, 182, 212, 0.2);
+  }
+
+  .concept-card:hover::before {
+    opacity: 1;
+  }
+
+  .icon-stage {
+    height: 280px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(6, 182, 212, 0.05) 0%, transparent 100%);
+  }
+
+  .concept-info {
+    padding: 28px;
+    border-top: 1px solid var(--glass-border);
+  }
+
+  .concept-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--electric-cyan);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .concept-tag::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: var(--electric-cyan);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--electric-cyan);
+  }
+
+  .concept-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--pure-white);
+  }
+
+  .concept-desc {
+    font-size: 13px;
+    color: var(--mist-gray);
+    line-height: 1.7;
+  }
+
+  /* ===== CONCEPT 1: 液态金属流体 ===== */
+  .c1-stage {
+    background: linear-gradient(135deg, rgba(11, 15, 25, 0.8) 0%, rgba(21, 27, 43, 0.9) 100%);
+  }
+
+  .liquid-metal {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .liquid-row {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 32px;
+    letter-spacing: 8px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .liquid-top {
+    background: linear-gradient(135deg, #fff 0%, #e2e8f0 50%, #cbd5e1 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  }
+
+  .liquid-bot {
+    background: linear-gradient(135deg, var(--cyan-glow) 0%, var(--electric-cyan) 50%, #0891b2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 20px rgba(6, 182, 212, 0.5));
+  }
+
+  .liquid-glow {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    background: radial-gradient(circle, rgba(6, 182, 212, 0.4) 0%, transparent 70%);
+    filter: blur(20px);
+    animation: liquidPulse 4s ease-in-out infinite;
+  }
+
+  @keyframes liquidPulse {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.2); opacity: 0.8; }
+  }
+
+  /* ===== CONCEPT 2: 量子纠缠叠加 ===== */
+  .c2-stage {
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+  }
+
+  .quantum-lockup {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .quantum-pair {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 300;
+    font-size: 36px;
+    letter-spacing: 4px;
+    position: relative;
+  }
+
+  .q-left {
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+  }
+
+  .q-right {
+    color: var(--cyan-glow);
+    text-shadow: 0 0 30px rgba(34, 211, 238, 0.4);
+  }
+
+  .quantum-core {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #fff, var(--cyan-glow), var(--electric-cyan));
+    box-shadow: 
+      0 0 30px rgba(6, 182, 212, 0.8),
+      0 0 60px rgba(6, 182, 212, 0.4),
+      inset 0 -2px 4px rgba(0,0,0,0.2);
+    position: relative;
+    animation: quantumFloat 3s ease-in-out infinite;
+  }
+
+  .quantum-core::after {
+    content: '';
+    position: absolute;
+    top: -8px; left: -8px; right: -8px; bottom: -8px;
+    border: 1px solid rgba(6, 182, 212, 0.3);
+    border-radius: 50%;
+    animation: quantumRipple 3s ease-out infinite;
+  }
+
+  @keyframes quantumFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+
+  @keyframes quantumRipple {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.5); opacity: 0; }
+  }
+
+  /* ===== CONCEPT 3: 分形海岸线 ===== */
+  .c3-stage {
+    background: linear-gradient(135deg, #020617 0%, #0f172a 100%);
+  }
+
+  .fractal-container {
+    width: 120px;
+    height: 120px;
+    position: relative;
+    border-radius: 24px;
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(245, 158, 11, 0.05));
+    border: 1px solid rgba(6, 182, 212, 0.2);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .fractal-pattern {
+    position: absolute;
+    inset: 0;
+    opacity: 0.3;
+    background-image: 
+      repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(6, 182, 212, 0.1) 10px, rgba(6, 182, 212, 0.1) 11px),
+      repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(245, 158, 11, 0.05) 10px, rgba(245, 158, 11, 0.05) 11px);
+  }
+
+  .fractal-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--pure-white);
+    z-index: 2;
+    position: relative;
+  }
+
+  .fractal-text span {
+    color: var(--cyan-glow);
+  }
+
+  /* ===== CONCEPT 4: 引力透镜 ===== */
+  .c4-stage {
+    background: radial-gradient(circle at center, #1e1b4b 0%, #020617 100%);
+  }
+
+  .gravity-well {
+    width: 140px;
+    height: 140px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .lens-ring {
+    position: absolute;
+    border: 1px solid rgba(6, 182, 212, 0.2);
+    border-radius: 50%;
+    animation: lensExpand 4s ease-out infinite;
+  }
+
+  .lens-ring:nth-child(1) { width: 40px; height: 40px; animation-delay: 0s; }
+  .lens-ring:nth-child(2) { width: 70px; height: 70px; animation-delay: 0.5s; }
+  .lens-ring:nth-child(3) { width: 100px; height: 100px; animation-delay: 1s; }
+  .lens-ring:nth-child(4) { width: 130px; height: 130px; animation-delay: 1.5s; }
+
+  @keyframes lensExpand {
+    0% { transform: scale(0.8); opacity: 0.8; }
+    100% { transform: scale(1.2); opacity: 0; }
+  }
+
+  .singularity {
+    width: 20px;
+    height: 20px;
+    background: radial-gradient(circle at 30% 30%, #fff, #000);
+    border-radius: 50%;
+    box-shadow: 0 0 40px rgba(6, 182, 212, 0.8);
+    position: relative;
+    z-index: 10;
+  }
+
+  .singularity::after {
+    content: 'hd·cs';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 6px;
+    color: var(--cyan-glow);
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+
+  /* ===== CONCEPT 5: 生物芯片 ===== */
+  .c5-stage {
+    background: linear-gradient(135deg, #064e3b 0%, #0f172a 100%);
+  }
+
+  .bio-chip {
+    width: 120px;
+    height: 120px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(52, 211, 153, 0.05));
+    border: 1px solid rgba(52, 211, 153, 0.3);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .circuit-lines {
+    position: absolute;
+    inset: 0;
+    background-image: 
+      linear-gradient(90deg, transparent 48%, rgba(52, 211, 153, 0.2) 49%, rgba(52, 211, 153, 0.2) 51%, transparent 52%),
+      linear-gradient(0deg, transparent 48%, rgba(52, 211, 153, 0.2) 49%, rgba(52, 211, 153, 0.2) 51%, transparent 52%);
+    background-size: 20px 20px;
+    opacity: 0.5;
+  }
+
+  .bio-text {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--pure-white);
+    letter-spacing: 2px;
+    z-index: 2;
+  }
+
+  .bio-text span {
+    color: #34d399;
+  }
+
+  /* ===== CONCEPT 6: 时间切片 ===== */
+  .c6-stage {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  }
+
+  .time-slice {
+    position: relative;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: transparent;
+    -webkit-text-stroke: 1px rgba(255, 255, 255, 0.3);
+    position: relative;
+  }
+
+  .time-slice::before {
+    content: 'hd·cs';
+    position: absolute;
+    top: -4px;
+    left: 4px;
+    color: var(--cyan-glow);
+    -webkit-text-stroke: 0;
+    opacity: 0.8;
+    filter: blur(1px);
+  }
+
+  .time-slice::after {
+    content: 'hd·cs';
+    position: absolute;
+    top: 4px;
+    left: -4px;
+    color: var(--warm-amber);
+    -webkit-text-stroke: 0;
+    opacity: 0.6;
+    filter: blur(2px);
+  }
+
+  /* 应用场景展示区 */
+  .applications-section {
+    margin-top: 100px;
+  }
+
+  .section-header {
+    text-align: center;
+    margin-bottom: 60px;
+  }
+
+  .section-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 32px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+
+  .section-subtitle {
+    color: var(--mist-gray);
+    font-size: 14px;
+  }
+
+  .app-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+  }
+
+  .app-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 24px;
+    text-align: center;
+    transition: all 0.3s;
+  }
+
+  .app-card:hover {
+    border-color: rgba(6, 182, 212, 0.3);
+    transform: translateY(-4px);
+  }
+
+  .app-icon-placeholder {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 16px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--electric-cyan), var(--warm-amber));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--deep-space);
+  }
+
+  .app-label {
+    font-size: 12px;
+    color: var(--mist-gray);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 1px;
+  }
+
+  /* 色彩系统展示 */
+  .color-system {
+    margin-top: 100px;
+    padding: 40px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+  }
+
+  .color-grid {
+    display: flex;
+    gap: 20px;
+    margin-top: 30px;
+    justify-content: center;
+  }
+
+  .color-swatch {
+    text-align: center;
+  }
+
+  .color-block {
+    width: 80px;
+    height: 80px;
+    border-radius: 16px;
+    margin-bottom: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .color-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--mist-gray);
+    letter-spacing: 1px;
+  }
+
+  /* 响应式 */
+  @media (max-width: 1024px) {
+    .concepts-container { grid-template-columns: repeat(2, 1fr); }
+    .app-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 640px) {
+    .concepts-container { grid-template-columns: 1fr; }
+    .app-grid { grid-template-columns: 1fr; }
+    .main-title { font-size: 32px; }
+    .page-wrapper { padding: 40px 20px; }
+  }
+
+  /* 微交互 */
+  .glow-line {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--electric-cyan), transparent);
+    opacity: 0.5;
+  }
+</style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+
+  <div class="page-wrapper">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand-meta">Brand Identity System / 2025</div>
+      <h1 class="main-title">HydeCaside</h1>
+      <p class="subtitle">
+        年轻化金融科技品牌标识系统 · 融合流动性质感与精密结构<br>
+        <span style="font-family: 'JetBrains Mono', monospace; color: var(--electric-cyan);">hd·cs</span> — 量子纠缠 · 液态边界 · 精密核心
+      </p>
+    </header>
+
+    <!-- Concepts Grid -->
+    <div class="concepts-container">
+    
+      <!-- Concept 1: 液态金属 -->
+      <div class="concept-card">
+        <div class="icon-stage c1-stage">
+          <div class="liquid-metal">
+            <div class="liquid-glow"></div>
+            <span class="liquid-row liquid-top">HD</span>
+            <span class="liquid-row liquid-bot">CS</span>
+          </div>
+        </div>
+        <div class="concept-info">
+          <div class="concept-tag">Concept 01</div>
+          <h3 class="concept-name">Liquid Metal</h3>
+          <p class="concept-desc">
+            液态金属质感，上下分层结构。HD 采用冷银白，CS 采用电光青渐变，中间隐含流动光效。象征金融的流动性与科技的精确性融合。
+          </p>
+        </div>
+        <div class="glow-line"></div>
+      </div>
+    
+      <!-- Concept 2: 量子纠缠 -->
+      <div class="concept-card">
+        <div class="icon-stage c2-stage">
+          <div class="quantum-lockup">
+            <span class="quantum-pair q-left">hd</span>
+            <div class="quantum-core"></div>
+            <span class="quantum-pair q-right">cs</span>
+          </div>
+        </div>
+        <div class="concept-info">
+          <div class="concept-tag">Concept 02</div>
+          <h3 class="concept-name">Quantum Entanglement</h3>
+          <p class="concept-desc">
+            中点化为发光核心，hd 与 cs 分列两侧，如同量子纠缠态。核心呼吸动画暗示品牌的动态生命力，适合深色模式下的数字产品。
+          </p>
+        </div>
+        <div class="glow-line"></div>
+      </div>
+    
+      <!-- Concept 3: 分形海岸线 -->
+      <div class="concept-card">
+        <div class="icon-stage c3-stage">
+          <div class="fractal-container">
+            <div class="fractal-pattern"></div>
+            <div class="fractal-text">h<span>d</span>·c<span>s</span></div>
+          </div>
+        </div>
+        <div class="concept-info">
+          <div class="concept-tag">Concept 03</div>
+          <h3 class="concept-name">Fractal Coastline</h3>
+          <p class="concept-desc">
+            从品牌名"Caside"提取海滨意象，用分形几何重构。微观上是由 hd/cs 组成的复杂纹理，宏观上呈现简洁边界，体现精密与自然的统一。
+          </p>
+        </div>
+        <div class="glow-line"></div>
+      </div>
+    
+      <!-- Concept 4: 引力透镜 -->
+      <div class="concept-card">
+        <div class="icon-stage c4-stage">
+          <div class="gravity-well">
+            <div class="lens-ring"></div>
+            <div class="lens-ring"></div>
+            <div class="lens-ring"></div>
+            <div class="lens-ring"></div>
+            <div class="singularity"></div>
+          </div>
+        </div>
+        <div class="concept-info">
+          <div class="concept-tag">Concept 04</div>
+          <h3 class="concept-name">Gravity Lens</h3>
+          <p class="concept-desc">
+            引力透镜效应视觉化，中心奇点代表品牌的核心吸引力。波纹扩散动画隐喻影响力的传播，极简抽象，极具科技哲学意味。
+          </p>
+        </div>
+        <div class="glow-line"></div>
+      </div>
+    
+      <!-- Concept 5: 生物芯片 -->
+      <div class="concept-card">
+        <div class="icon-stage c5-stage">
+          <div class="bio-chip">
+            <div class="circuit-lines"></div>
+            <div class="bio-text">h<span>d</span>·<span>cs</span></div>
+          </div>
+        </div>
+        <div class="concept-info">
+          <div class="concept-tag">Concept 05</div>
+          <h3 class="concept-name">Bio-Chip</h3>
+          <p class="concept-desc">
+            有机科技美学，电路板纹理与生物绿色调结合。打破金融科技的传统冰冷感，强调"科技的生命化"与可持续金融理念。
+          </p>
+        </div>
+        <div class="glow-line"></div>
+      </div>
+    
+      <!-- Concept 6: 时间切片 -->
+      <div class="concept-card">
+        <div class="icon-stage c6-stage">
+          <div class="time-slice">hd·cs</div>
+        </div>
+        <div class="concept-info">
+          <div class="concept-tag">Concept 06</div>
+          <h3 class="concept-name">Time Slice</h3>
+          <p class="concept-desc">
+            运动模糊与多重曝光效果，捕捉时间维度上的品牌存在。青色与琥珀色的错位叠加，象征从混沌到秩序的动态过程。
+          </p>
+        </div>
+        <div class="glow-line"></div>
+      </div>
+    
+    </div>
+    
+    <!-- Applications -->
+    <section class="applications-section">
+      <div class="section-header">
+        <h2 class="section-title">Application Scenarios</h2>
+        <p class="section-subtitle">多场景应用适配方案</p>
+      </div>
+    
+      <div class="app-grid">
+        <div class="app-card">
+          <div class="app-icon-placeholder">Hd</div>
+          <div class="app-label">APP ICON</div>
+        </div>
+        <div class="app-card">
+          <div class="app-icon-placeholder">·</div>
+          <div class="app-label">FAVICON</div>
+        </div>
+        <div class="app-card">
+          <div class="app-icon-placeholder">H</div>
+          <div class="app-label">SOCIAL</div>
+        </div>
+        <div class="app-card">
+          <div class="app-icon-placeholder">cs</div>
+          <div class="app-label">LOADING</div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Color System -->
+    <section class="color-system">
+      <div class="section-header">
+        <h2 class="section-title">Color System</h2>
+        <p class="section-subtitle">深海金融蓝 × 电光青 × 琥珀金</p>
+      </div>
+    
+      <div class="color-grid">
+        <div class="color-swatch">
+          <div class="color-block" style="background: #0B0F19;"></div>
+          <div class="color-name">DEEP SPACE</div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-block" style="background: #06B6D4;"></div>
+          <div class="color-name">ELECTRIC</div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-block" style="background: #22D3EE;"></div>
+          <div class="color-name">CYAN GLOW</div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-block" style="background: #F59E0B;"></div>
+          <div class="color-name">AMBER</div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-block" style="background: #FCD34D;"></div>
+          <div class="color-name">SOFT GOLD</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    // 鼠标跟随微光效果
+    document.addEventListener('mousemove', (e) => {
+      const cards = document.querySelectorAll('.concept-card');
+      cards.forEach(card => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
+          card.style.setProperty('--mouse-x', `${x}px`);
+          card.style.setProperty('--mouse-y', `${y}px`);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

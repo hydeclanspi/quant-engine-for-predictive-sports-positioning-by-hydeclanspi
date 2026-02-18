@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>hd·cs Brand Icon Concepts</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&family=Space+Mono:wght@400;700&family=Sora:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --warm-50: #fafaf9;
+    --warm-100: #f5f5f4;
+    --warm-200: #e7e5e4;
+    --warm-300: #d6d3d1;
+    --warm-400: #a8a29e;
+    --warm-500: #78716c;
+    --warm-600: #57534e;
+    --warm-700: #44403c;
+    --warm-800: #292524;
+    --warm-900: #1c1917;
+    --amber-400: #fbbf24;
+    --amber-500: #f59e0b;
+    --orange-400: #fb923c;
+    --orange-500: #f97316;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: linear-gradient(160deg, #fafaf9 0%, #fef7ed 40%, #fafaf9 100%);
+    min-height: 100vh;
+    color: var(--warm-800);
+  }
+
+  .page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 60px 40px 80px;
+  }
+
+  .page-header {
+    text-align: center;
+    margin-bottom: 64px;
+  }
+
+  .page-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--warm-800);
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+
+  .page-header p {
+    color: var(--warm-400);
+    font-size: 14px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .concepts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+    margin-bottom: 64px;
+  }
+
+  .concept-card {
+    background: white;
+    border-radius: 20px;
+    border: 1px solid var(--warm-200);
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+  }
+
+  .concept-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 60px -20px rgba(0,0,0,0.12), 0 0 0 1px rgba(251,191,36,0.2);
+  }
+
+  .icon-stage {
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .concept-info {
+    padding: 20px 24px 24px;
+    border-top: 1px solid var(--warm-100);
+  }
+
+  .concept-number {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--amber-500);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .concept-name {
+    font-family: 'Sora', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--warm-800);
+    margin-bottom: 6px;
+  }
+
+  .concept-desc {
+    font-size: 12px;
+    color: var(--warm-400);
+    line-height: 1.6;
+  }
+
+  /* ===== CONCEPT 1: Stacked Duo ===== */
+  .c1-stage {
+    background: linear-gradient(135deg, #fafaf9 0%, #f5f0eb 100%);
+  }
+  .c1-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 18px;
+    background: linear-gradient(145deg, var(--warm-800) 0%, var(--warm-900) 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    box-shadow: 0 8px 32px -8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08);
+    position: relative;
+  }
+  .c1-icon::after {
+    content: '';
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    top: 50%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(251,191,36,0.5), transparent);
+  }
+  .c1-row {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 500;
+    font-size: 20px;
+    letter-spacing: 8px;
+    text-transform: uppercase;
+    padding-left: 8px;
+  }
+  .c1-top { color: #fafaf9; }
+  .c1-bot { color: var(--amber-400); }
+
+  /* ===== CONCEPT 2: Ligature Connect ===== */
+  .c2-stage {
+    background: linear-gradient(135deg, #fffbf0 0%, #fef7ed 100%);
+  }
+  .c2-icon {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    position: relative;
+  }
+  .c2-pair {
+    font-family: 'Sora', sans-serif;
+    font-weight: 700;
+    font-size: 36px;
+    letter-spacing: -2px;
+    color: var(--warm-800);
+    transition: all 0.3s;
+  }
+  .c2-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--amber-400), var(--orange-500));
+    margin: 0 10px;
+    box-shadow: 0 0 12px rgba(251,191,36,0.5);
+    position: relative;
+    top: 1px;
+  }
+  .c2-underline {
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--warm-800), var(--amber-400), var(--orange-500), var(--warm-800));
+    border-radius: 1px;
+  }
+
+  /* ===== CONCEPT 3: Breathing Corners ===== */
+  .c3-stage {
+    background: #fafaf9;
+  }
+  .c3-icon {
+    width: 88px;
+    height: 88px;
+    border-radius: 20px;
+    border: 1.5px solid var(--warm-200);
+    position: relative;
+    background: white;
+    box-shadow: 0 4px 24px -8px rgba(0,0,0,0.06);
+  }
+  .c3-letter {
+    position: absolute;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 400;
+    font-size: 13px;
+    color: var(--warm-600);
+    letter-spacing: 1px;
+    text-transform: lowercase;
+  }
+  .c3-h { top: 14px; left: 16px; }
+  .c3-d { top: 14px; right: 16px; color: var(--amber-500); }
+  .c3-c { bottom: 14px; left: 16px; }
+  .c3-s { bottom: 14px; right: 16px; color: var(--amber-500); }
+  .c3-center-dot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--amber-400);
+    box-shadow: 0 0 8px rgba(251,191,36,0.4);
+  }
+  .c3-line-h {
+    position: absolute;
+    top: 50%;
+    left: 20px;
+    right: 20px;
+    height: 0.5px;
+    background: var(--warm-200);
+  }
+  .c3-line-v {
+    position: absolute;
+    left: 50%;
+    top: 20px;
+    bottom: 20px;
+    width: 0.5px;
+    background: var(--warm-200);
+  }
+
+  /* ===== CONCEPT 4: Diagonal Slice ===== */
+  .c4-stage {
+    background: linear-gradient(135deg, #1c1917 0%, #292524 100%);
+  }
+  .c4-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 18px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 32px -8px rgba(0,0,0,0.5);
+  }
+  .c4-top-half {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, #fafaf9, #f5f0eb);
+    clip-path: polygon(0 0, 100% 0, 0 100%);
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 16px 0 0 14px;
+  }
+  .c4-bot-half {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, var(--amber-400), var(--orange-500));
+    clip-path: polygon(100% 0, 100% 100%, 0 100%);
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    padding: 0 14px 14px 0;
+  }
+  .c4-text-dark {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 3px;
+    color: var(--warm-800);
+  }
+  .c4-text-light {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 3px;
+    color: white;
+  }
+
+  /* ===== CONCEPT 5: Mono H Signature ===== */
+  .c5-stage {
+    background: linear-gradient(160deg, #fefdfb 0%, #faf5ee 100%);
+  }
+  .c5-icon {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+  }
+  .c5-big-h {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 72px;
+    line-height: 0.8;
+    color: var(--warm-800);
+    position: relative;
+  }
+  .c5-big-h::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--amber-400), var(--orange-500));
+    border-radius: 2px;
+  }
+  .c5-rest {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-bottom: 8px;
+  }
+  .c5-dcs {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--warm-400);
+    text-transform: lowercase;
+  }
+  .c5-dot-accent {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--amber-400);
+    align-self: flex-start;
+  }
+
+  /* ===== CONCEPT 6: Dot as Core ===== */
+  .c6-stage {
+    background: linear-gradient(160deg, #1c1917, #292524);
+  }
+  .c6-icon {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    position: relative;
+  }
+  .c6-left, .c6-right {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 300;
+    font-size: 28px;
+    letter-spacing: 4px;
+    text-transform: lowercase;
+  }
+  .c6-left { color: rgba(250,250,249,0.85); padding-right: 14px; }
+  .c6-right { color: rgba(251,191,36,0.9); padding-left: 14px; }
+  .c6-core {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #fde68a, var(--amber-400), var(--orange-500));
+    box-shadow:
+      0 0 20px rgba(251,191,36,0.6),
+      0 0 40px rgba(251,191,36,0.2),
+      inset 0 -2px 4px rgba(0,0,0,0.1);
+    position: relative;
+    animation: corePulse 3s ease-in-out infinite;
+  }
+  .c6-core::after {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    bottom: -8px;
+    border-radius: 50%;
+    border: 1px solid rgba(251,191,36,0.15);
+  }
+  @keyframes corePulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(251,191,36,0.6), 0 0 40px rgba(251,191,36,0.2); }
+    50% { box-shadow: 0 0 28px rgba(251,191,36,0.8), 0 0 56px rgba(251,191,36,0.3); }
+  }
+
+  /* ===== Sidebar Preview Section ===== */
+  .preview-section {
+    margin-top: 64px;
+    text-align: center;
+  }
+
+  .preview-section h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .preview-section > p {
+    color: var(--warm-400);
+    font-size: 13px;
+    margin-bottom: 40px;
+  }
+
+  .sidebar-previews {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .sidebar-mock {
+    width: 220px;
+    background: linear-gradient(180deg, #fafaf9, #fef7ed08);
+    border: 1px solid var(--warm-200);
+    border-radius: 16px;
+    padding: 16px;
+    text-align: left;
+  }
+
+  .sidebar-mock-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(231,229,228,0.5);
+    margin-bottom: 12px;
+  }
+
+  .sidebar-mock-text h3 {
+    font-family: 'Sora', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--warm-800);
+  }
+
+  .sidebar-mock-text p {
+    font-size: 9px;
+    color: var(--warm-400);
+    letter-spacing: 0.5px;
+  }
+
+  .sidebar-mock-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .sidebar-mock-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--warm-500);
+  }
+
+  .sidebar-mock-nav-item.active {
+    background: white;
+    color: var(--warm-800);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+
+  .sidebar-mock-nav-item .nav-icon {
+    font-size: 10px;
+    width: 16px;
+    text-align: center;
+  }
+
+  .active .nav-icon { color: var(--amber-500); }
+
+  /* Mini icon recreations for sidebar */
+  .mini-c1 {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(145deg, var(--warm-800), var(--warm-900));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0px;
+    position: relative;
+    box-shadow: 0 4px 12px -4px rgba(0,0,0,0.25);
+    flex-shrink: 0;
+  }
+  .mini-c1::after {
+    content: '';
+    position: absolute;
+    left: 7px; right: 7px;
+    top: 50%;
+    height: 0.5px;
+    background: linear-gradient(90deg, transparent, rgba(251,191,36,0.5), transparent);
+  }
+  .mini-c1 span {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 500;
+    font-size: 9px;
+    letter-spacing: 3px;
+    padding-left: 3px;
+    text-transform: uppercase;
+  }
+  .mini-c1 .m-top { color: #fafaf9; }
+  .mini-c1 .m-bot { color: var(--amber-400); }
+
+  .mini-c3 {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    border: 1.2px solid var(--warm-200);
+    position: relative;
+    background: white;
+    box-shadow: 0 2px 8px -2px rgba(0,0,0,0.06);
+    flex-shrink: 0;
+  }
+  .mini-c3 span {
+    position: absolute;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 400;
+    font-size: 7.5px;
+    color: var(--warm-500);
+    letter-spacing: 0.5px;
+    text-transform: lowercase;
+  }
+  .mini-c3 .mh { top: 6px; left: 7px; }
+  .mini-c3 .md { top: 6px; right: 7px; color: var(--amber-500); }
+  .mini-c3 .mc { bottom: 6px; left: 7px; }
+  .mini-c3 .ms { bottom: 6px; right: 7px; color: var(--amber-500); }
+  .mini-c3-dot {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 2.5px; height: 2.5px;
+    border-radius: 50%;
+    background: var(--amber-400);
+  }
+
+  .mini-c4 {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 12px -4px rgba(0,0,0,0.2);
+    flex-shrink: 0;
+  }
+  .mini-c4-top {
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, #fafaf9, #f0ece6);
+    clip-path: polygon(0 0, 100% 0, 0 100%);
+    display: flex;
+    padding: 7px 0 0 6px;
+  }
+  .mini-c4-bot {
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, var(--amber-400), var(--orange-500));
+    clip-path: polygon(100% 0, 100% 100%, 0 100%);
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    padding: 0 6px 6px 0;
+  }
+  .mini-c4 span {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+  }
+  .mini-c4-top span { color: var(--warm-800); }
+  .mini-c4-bot span { color: white; }
+
+  .mini-c6 {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(145deg, #1c1917, #292524);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    box-shadow: 0 4px 12px -4px rgba(0,0,0,0.3);
+    flex-shrink: 0;
+  }
+  .mini-c6 .m6-l {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 300;
+    font-size: 9px;
+    color: rgba(250,250,249,0.8);
+    letter-spacing: 1px;
+  }
+  .mini-c6 .m6-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #fde68a, var(--amber-400));
+    box-shadow: 0 0 8px rgba(251,191,36,0.5);
+  }
+  .mini-c6 .m6-r {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 300;
+    font-size: 9px;
+    color: rgba(251,191,36,0.85);
+    letter-spacing: 1px;
+  }
+
+  /* Responsive */
+  @media (max-width: 800px) {
+    .concepts-grid { grid-template-columns: 1fr; max-width: 400px; margin: 0 auto 64px; }
+    .sidebar-previews { flex-direction: column; align-items: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="page-header">
+    <h1>hd·cs Icon Concepts</h1>
+    <p>Brand identity exploration for hydecaside</p>
+  </div>
+
+  <div class="concepts-grid">
+    <!-- Concept 1: Stacked Duo -->
+    <div class="concept-card">
+      <div class="icon-stage c1-stage">
+        <div class="c1-icon">
+          <span class="c1-row c1-top">HD</span>
+          <span class="c1-row c1-bot">CS</span>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 01</div>
+        <div class="concept-name">Stacked Duo</div>
+        <div class="concept-desc">上下分层，金线分割。HD 冷白，CS 暖金。金融机构的沉稳 × 现代无衬线的年轻。</div>
+      </div>
+    </div>
+
+    <!-- Concept 2: Ligature Connect -->
+    <div class="concept-card">
+      <div class="icon-stage c2-stage">
+        <div class="c2-icon">
+          <span class="c2-pair">hd</span>
+          <div class="c2-dot"></div>
+          <span class="c2-pair">cs</span>
+          <div class="c2-underline"></div>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 02</div>
+        <div class="concept-name">Ligature Connect</div>
+        <div class="concept-desc">连字体排印，中点发光。底部渐变线连接两组。更适合横向展开的品牌标识而非方形icon。</div>
+      </div>
+    </div>
+
+    <!-- Concept 3: Breathing Corners -->
+    <div class="concept-card">
+      <div class="icon-stage c3-stage">
+        <div class="c3-icon">
+          <span class="c3-letter c3-h">h</span>
+          <span class="c3-letter c3-d">d</span>
+          <span class="c3-letter c3-c">c</span>
+          <span class="c3-letter c3-s">s</span>
+          <div class="c3-line-h"></div>
+          <div class="c3-line-v"></div>
+          <div class="c3-center-dot"></div>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 03</div>
+        <div class="concept-name">Breathing Corners</div>
+        <div class="concept-desc">四角散落，中心留白。十字线交汇于一个校准原点。极简、通透、呼吸感拉满。</div>
+      </div>
+    </div>
+
+    <!-- Concept 4: Diagonal Slice -->
+    <div class="concept-card">
+      <div class="icon-stage c4-stage">
+        <div class="c4-icon">
+          <div class="c4-top-half">
+            <span class="c4-text-dark">HD</span>
+          </div>
+          <div class="c4-bot-half">
+            <span class="c4-text-light">CS</span>
+          </div>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 04</div>
+        <div class="concept-name">Diagonal Slice</div>
+        <div class="concept-desc">对角斜切，一冷一暖。左上素白承载HD，右下琥珀渐变承载CS。动态张力，视觉记忆点强。</div>
+      </div>
+    </div>
+
+    <!-- Concept 5: Mono H Signature -->
+    <div class="concept-card">
+      <div class="icon-stage c5-stage">
+        <div class="c5-icon">
+          <span class="c5-big-h">h</span>
+          <div class="c5-rest">
+            <div class="c5-dot-accent"></div>
+            <span class="c5-dcs">d·cs</span>
+          </div>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 05</div>
+        <div class="concept-name">Mono H Signature</div>
+        <div class="concept-desc">衬线大写 h 为主角，d·cs 作为签名式附属。适合个人品牌感，但方形icon里需要简化。</div>
+      </div>
+    </div>
+
+    <!-- Concept 6: Dot as Core -->
+    <div class="concept-card">
+      <div class="icon-stage c6-stage">
+        <div class="c6-icon">
+          <span class="c6-left">hd</span>
+          <div class="c6-core"></div>
+          <span class="c6-right">cs</span>
+        </div>
+      </div>
+      <div class="concept-info">
+        <div class="concept-number">Concept 06</div>
+        <div class="concept-name">Dot as Core</div>
+        <div class="concept-desc">中点化为发光核心，暗喻校准原点。hd 冷白在左，cs 暖金在右。暗底上辉光呼吸，科技感最强。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar Preview -->
+  <div class="preview-section">
+    <h2>Sidebar Context Preview</h2>
+    <p>以下模拟各方案在 DUGOU 侧边栏中的实际观感</p>
+
+    <div class="sidebar-previews">
+      <!-- C1 Preview -->
+      <div class="sidebar-mock">
+        <div class="sidebar-mock-header">
+          <div class="mini-c1">
+            <span class="m-top">HD</span>
+            <span class="m-bot">CS</span>
+          </div>
+          <div class="sidebar-mock-text">
+            <h3>hydecaside</h3>
+            <p>QCTE · v7.0</p>
+          </div>
+        </div>
+        <div class="sidebar-mock-nav">
+          <div class="sidebar-mock-nav-item active"><span class="nav-icon">◈</span> 新建投资</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◆</span> 智能组合</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◉</span> 待结算</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◐</span> Dashboard</div>
+        </div>
+        <div style="padding-top:10px; text-align:center;">
+          <span style="font-size:9px; color:var(--warm-400); font-family:'Space Mono',monospace; letter-spacing:1px;">STACKED DUO</span>
+        </div>
+      </div>
+
+      <!-- C3 Preview -->
+      <div class="sidebar-mock">
+        <div class="sidebar-mock-header">
+          <div class="mini-c3">
+            <span class="mh">h</span>
+            <span class="md">d</span>
+            <span class="mc">c</span>
+            <span class="ms">s</span>
+            <div class="mini-c3-dot"></div>
+          </div>
+          <div class="sidebar-mock-text">
+            <h3>hydecaside</h3>
+            <p>QCTE · v7.0</p>
+          </div>
+        </div>
+        <div class="sidebar-mock-nav">
+          <div class="sidebar-mock-nav-item active"><span class="nav-icon">◈</span> 新建投资</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◆</span> 智能组合</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◉</span> 待结算</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◐</span> Dashboard</div>
+        </div>
+        <div style="padding-top:10px; text-align:center;">
+          <span style="font-size:9px; color:var(--warm-400); font-family:'Space Mono',monospace; letter-spacing:1px;">BREATHING CORNERS</span>
+        </div>
+      </div>
+
+      <!-- C4 Preview -->
+      <div class="sidebar-mock">
+        <div class="sidebar-mock-header">
+          <div class="mini-c4">
+            <div class="mini-c4-top"><span>HD</span></div>
+            <div class="mini-c4-bot"><span>CS</span></div>
+          </div>
+          <div class="sidebar-mock-text">
+            <h3>hydecaside</h3>
+            <p>QCTE · v7.0</p>
+          </div>
+        </div>
+        <div class="sidebar-mock-nav">
+          <div class="sidebar-mock-nav-item active"><span class="nav-icon">◈</span> 新建投资</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◆</span> 智能组合</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◉</span> 待结算</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◐</span> Dashboard</div>
+        </div>
+        <div style="padding-top:10px; text-align:center;">
+          <span style="font-size:9px; color:var(--warm-400); font-family:'Space Mono',monospace; letter-spacing:1px;">DIAGONAL SLICE</span>
+        </div>
+      </div>
+
+      <!-- C6 Preview -->
+      <div class="sidebar-mock">
+        <div class="sidebar-mock-header">
+          <div class="mini-c6">
+            <span class="m6-l">hd</span>
+            <div class="m6-dot"></div>
+            <span class="m6-r">cs</span>
+          </div>
+          <div class="sidebar-mock-text">
+            <h3>hydecaside</h3>
+            <p>QCTE · v7.0</p>
+          </div>
+        </div>
+        <div class="sidebar-mock-nav">
+          <div class="sidebar-mock-nav-item active"><span class="nav-icon">◈</span> 新建投资</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◆</span> 智能组合</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◉</span> 待结算</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◐</span> Dashboard</div>
+        </div>
+        <div style="padding-top:10px; text-align:center;">
+          <span style="font-size:9px; color:var(--warm-400); font-family:'Space Mono',monospace; letter-spacing:1px;">DOT AS CORE</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

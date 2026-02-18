@@ -1,0 +1,43 @@
+DuGou Model Centre 应用摘要（1页）
+
+[它是什么]
+DuGou Model Centre 是一个面向体育预测下注流程的前端工作台，用于录入、结算、分析和参数校准。
+应用以本地数据为主，支持可选 Supabase 云端快照同步。
+
+[面向谁]
+主要用户（基于界面与功能推断）：需要持续记录投资决策、复盘命中率与 ROI 的个人操盘者或小团队。
+明确 persona 文档：Not found in repo.
+
+[它做什么]
+- 新建投资：录入比赛、Entry、Conf/Mode/TYS/FID/FSE、Odds，并给出 Kelly 建议金额与风险上限。
+- 智能组合：按组合策略生成候选方案，提供分层建议（主推/次推/博冷）并可一键写入待结算。
+- 待结算：支持逐条或批量结算，记录命中、赛后评分、REP 与备注。
+- Dashboard：展示资金曲线、ROI、命中率、Conf 校准等时间窗口指标。
+- 深度分析与指标总览：提供联赛/Mode/Conf 等切片分析与参数矩阵。
+- 历史与球队档案：支持筛选、归档、删除，按球队查看样本、ROI 与走势。
+- 数据进出：JSON/Excel 导入导出，支持云端同步（合并/覆盖拉取）。
+
+[如何工作（仅基于仓库证据）]
+组件与服务
+- UI：React + React Router（New/Combo/Settle/Dashboard/Analysis/Metrics/History/Params）。
+- 本地数据层：src/lib/localData.js 读写 localStorage，统一触发 dugou:data-changed 事件。
+- 分析层：src/lib/analytics.js 计算 dashboard/analysis/metrics 快照。
+- 云同步层（可选）：src/lib/cloudSync.js 使用 Supabase upsert/select dugou_sync_snapshots。
+- 数据交换层：src/lib/excel.js 与页面逻辑支持 JSON/Excel 导入导出。
+
+数据流
+- 录入/结算/组合操作 -> localData 持久化 -> analytics 计算快照 -> Dashboard/Analysis/Metrics 展示。
+- 参数页可触发本地快照同步到 Supabase，或从云端合并/覆盖拉取。
+
+缺失项
+- 用户登录与权限模型：Not found in repo.
+- 后端 API（除 Supabase 快照）与数据库迁移脚本：Not found in repo.
+- README 或官方运行说明：Not found in repo.
+
+[如何运行（最小步骤）]
+1. 进入目录：cd dugou-model-centre
+2. 安装依赖：npm install
+3. 启动开发环境：npm run dev（Vite 默认端口 3000）
+4. 打开：http://localhost:3000
+5. 可选云同步：在 .env 配置 VITE_SUPABASE_URL、VITE_SUPABASE_ANON_KEY
+   Supabase 表结构定义：Not found in repo.

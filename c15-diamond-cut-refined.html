@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C15 Diamond Cut — Refined Explorations</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Outfit:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&family=JetBrains+Mono:wght@300;400;500;600&family=Noto+Serif+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --w50: #fafaf9; --w100: #f5f5f4; --w200: #e7e5e4; --w300: #d6d3d1;
+    --w400: #a8a29e; --w500: #78716c; --w600: #57534e; --w700: #44403c; --w800: #292524; --w900: #1c1917;
+    --a200: #fde68a; --a300: #fcd34d; --a400: #fbbf24; --a500: #f59e0b;
+    --o400: #fb923c; --o500: #f97316;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #fcfbf9;
+    min-height: 100vh;
+    color: var(--w800);
+  }
+  .page { max-width: 1200px; margin: 0 auto; padding: 60px 40px 100px; }
+  .page-header { text-align: center; margin-bottom: 56px; }
+  .page-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px; font-weight: 600;
+    color: var(--w800); letter-spacing: -0.5px; margin-bottom: 8px;
+  }
+  .page-header p { color: var(--w400); font-size: 13px; letter-spacing: 2px; text-transform: uppercase; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-bottom: 56px; }
+
+  .card {
+    background: white;
+    border-radius: 20px;
+    border: 1px solid var(--w200);
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 60px -20px rgba(0,0,0,0.1), 0 0 0 1px rgba(251,191,36,0.15);
+  }
+  .stage {
+    height: 240px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  .info { padding: 18px 22px 22px; border-top: 1px solid var(--w100); }
+  .info-num { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--a500); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 5px; }
+  .info-name { font-family: 'Sora', sans-serif; font-weight: 600; font-size: 15px; color: var(--w800); margin-bottom: 5px; }
+  .info-desc { font-size: 11.5px; color: var(--w400); line-height: 1.65; }
+
+  /* ============================================================
+     V1: FACETED IVORY — warm ivory facets, serif letters, 
+     gold edge catch-light, subtle inner glow
+     ============================================================ */
+  .v1-stage {
+    background: linear-gradient(160deg, #fdfcfa 0%, #f8f5f0 50%, #fdfcfa 100%);
+  }
+  .v1-icon {
+    width: 82px; height: 82px; position: relative;
+    transform: rotate(45deg);
+    border-radius: 5px;
+    /* Layered shadow: structural + warm ambient */
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.8) inset,
+      0 12px 40px -12px rgba(120,113,108,0.2),
+      0 2px 8px -2px rgba(120,113,108,0.1);
+  }
+  .v1-facet {
+    position: absolute; width: 50%; height: 50%;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.3s;
+  }
+  .v1-tl {
+    top: 0; left: 0;
+    background: linear-gradient(135deg, #f7f4ef, #eeead4);
+    border-right: 0.5px solid rgba(212,175,55,0.2);
+    border-bottom: 0.5px solid rgba(212,175,55,0.2);
+  }
+  .v1-tr {
+    top: 0; right: 0;
+    background: linear-gradient(135deg, #f3efe8, #ebe6da);
+    border-bottom: 0.5px solid rgba(212,175,55,0.2);
+  }
+  .v1-bl {
+    bottom: 0; left: 0;
+    background: linear-gradient(135deg, #ece8e0, #e5e0d5);
+    border-right: 0.5px solid rgba(212,175,55,0.2);
+  }
+  .v1-br {
+    bottom: 0; right: 0;
+    background: linear-gradient(135deg, #e8e3d9, #e0dace);
+  }
+  /* Letters: Cormorant serif for elegance */
+  .v1-facet span {
+    transform: rotate(-45deg);
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600; font-size: 18px;
+    text-transform: uppercase;
+  }
+  .v1-tl span { color: var(--w700); }
+  .v1-tr span { color: #b8860b; } /* deep gold */
+  .v1-bl span { color: var(--w400); font-weight: 500; }
+  .v1-br span { color: #c9a227; }
+  /* Center gem */
+  .v1-gem {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%) rotate(-45deg);
+    width: 9px; height: 9px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #fef9e7, var(--a400), #d4a017);
+    box-shadow: 0 0 12px rgba(251,191,36,0.5), 0 0 28px rgba(251,191,36,0.2);
+    z-index: 3;
+  }
+  /* Edge catch-light: thin gold line on top-left edges */
+  .v1-icon::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 50%; bottom: 50%;
+    border-top: 1px solid rgba(212,175,55,0.35);
+    border-left: 1px solid rgba(212,175,55,0.35);
+    border-radius: 5px 0 0 0;
+    z-index: 2;
+  }
+  /* Bottom-right subtle darker edge */
+  .v1-icon::after {
+    content: '';
+    position: absolute; bottom: 0; right: 0;
+    width: 50%; height: 50%;
+    border-bottom: 1px solid rgba(120,113,108,0.12);
+    border-right: 1px solid rgba(120,113,108,0.12);
+    border-radius: 0 0 5px 0;
+    z-index: 2;
+  }
+
+  /* ============================================================
+     V2: BRILLIANT EDGE — clean facets, no light-beam effects
+     ============================================================ */
+  .v2-stage { background: #faf9f7; }
+  .v2-icon {
+    width: 80px; height: 80px; position: relative;
+    transform: rotate(45deg);
+    border-radius: 4px;
+    background: linear-gradient(145deg, #f5f2ec, #e8e3d8);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.9) inset,
+      0 14px 44px -14px rgba(100,95,88,0.22),
+      0 2px 6px rgba(100,95,88,0.08);
+    overflow: hidden;
+  }
+  /* Outer fine gold border */
+  .v2-icon::after {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 4px;
+    border: 1px solid rgba(212,175,55,0.22);
+    z-index: 3;
+    pointer-events: none;
+  }
+  .v2-facet {
+    position: absolute; width: 50%; height: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .v2-tl { top: 0; left: 0; background: linear-gradient(135deg, #f2efe8, #ece7dd); }
+  .v2-tr { top: 0; right: 0; background: linear-gradient(135deg, #ede9e0, #e6e1d5); }
+  .v2-bl { bottom: 0; left: 0; background: linear-gradient(135deg, #e9e4d9, #e2ddd0); }
+  .v2-br { bottom: 0; right: 0; background: linear-gradient(135deg, #e5e0d4, #ddd7c9); }
+  /* Cross lines - thin gold */
+  .v2-cross-h, .v2-cross-v {
+    position: absolute; z-index: 2;
+  }
+  .v2-cross-h {
+    top: 50%; left: 8px; right: 8px; height: 0.5px;
+    background: linear-gradient(90deg, transparent, rgba(212,175,55,0.3), rgba(212,175,55,0.4), rgba(212,175,55,0.3), transparent);
+  }
+  .v2-cross-v {
+    left: 50%; top: 8px; bottom: 8px; width: 0.5px;
+    background: linear-gradient(180deg, transparent, rgba(212,175,55,0.3), rgba(212,175,55,0.4), rgba(212,175,55,0.3), transparent);
+  }
+  /* Letters: mixed treatment */
+  .v2-facet span {
+    transform: rotate(-45deg);
+    text-transform: uppercase;
+    z-index: 1;
+  }
+  .v2-tl span {
+    font-family: 'Noto Serif Display', serif;
+    font-weight: 600; font-size: 17px;
+    color: var(--w700);
+  }
+  .v2-tr span {
+    font-family: 'Noto Serif Display', serif;
+    font-weight: 600; font-size: 17px; font-style: italic;
+    color: #b8860b;
+    /* Italic D adds dynamism / 灵气 */
+  }
+  .v2-bl span {
+    font-family: 'Noto Serif Display', serif;
+    font-weight: 500; font-size: 15px;
+    color: var(--w400);
+    letter-spacing: 1px;
+  }
+  .v2-br span {
+    font-family: 'Noto Serif Display', serif;
+    font-weight: 500; font-size: 15px; font-style: italic;
+    color: #c9a227;
+    letter-spacing: 1px;
+  }
+  /* Center gem */
+  .v2-gem {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%) rotate(-45deg);
+    z-index: 4;
+  }
+  .v2-gem::before {
+    content: '';
+    display: block;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #fef9e7, var(--a400), #c9920a);
+    box-shadow: 0 0 10px rgba(251,191,36,0.6), 0 0 24px rgba(251,191,36,0.25);
+  }
+
+  /* ============================================================
+     V3: NOBLE PRISM — premium frame, unified letter styling
+     ============================================================ */
+  .v3-stage {
+    background: linear-gradient(170deg, #fdfcfa, #f6f3ed);
+  }
+  .v3-icon {
+    width: 84px; height: 84px; position: relative;
+    transform: rotate(45deg);
+    border-radius: 5px;
+    background: linear-gradient(155deg, #f6f3ec, #e8e3d6);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.85) inset,
+      0 -1px 0 rgba(0,0,0,0.03) inset,
+      0 14px 48px -14px rgba(100,95,88,0.2),
+      0 4px 12px -4px rgba(100,95,88,0.08);
+    overflow: hidden;
+  }
+  /* Subtle facet boundary */
+  .v3-icon::before {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 5px;
+    border: 1px solid rgba(212,175,55,0.18);
+    z-index: 5;
+  }
+  /* Inner frame line */
+  .v3-inner-frame {
+    position: absolute;
+    inset: 6px;
+    border: 0.5px solid rgba(212,175,55,0.15);
+    border-radius: 2px;
+    z-index: 4;
+  }
+  .v3-facet {
+    position: absolute; width: 50%; height: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .v3-tl { top: 0; left: 0; background: linear-gradient(135deg, #f4f1ea, #ede9df); }
+  .v3-tr { top: 0; right: 0; background: linear-gradient(135deg, #f0ece4, #e8e3d8); }
+  .v3-bl { bottom: 0; left: 0; background: linear-gradient(135deg, #ebe6dc, #e3ded2); }
+  .v3-br { bottom: 0; right: 0; background: linear-gradient(135deg, #e6e1d6, #ddd8cb); }
+  /* Cross dividers */
+  .v3-div-h {
+    position: absolute; top: 50%; left: 10px; right: 10px; height: 0.5px;
+    background: linear-gradient(90deg, transparent, rgba(212,175,55,0.25), transparent);
+    z-index: 3;
+  }
+  .v3-div-v {
+    position: absolute; left: 50%; top: 10px; bottom: 10px; width: 0.5px;
+    background: linear-gradient(180deg, transparent, rgba(212,175,55,0.25), transparent);
+    z-index: 3;
+  }
+  .v3-facet span {
+    transform: rotate(-45deg);
+    text-transform: uppercase;
+    font-family: 'Noto Serif Display', serif;
+    font-weight: 600; font-size: 18px;
+    letter-spacing: 0.45px;
+    color: #4a4033;
+    text-shadow:
+      0 0.7px 0 rgba(255,255,255,0.62),
+      0 0 0.7px rgba(184,146,52,0.2);
+  }
+  /* Center gem — faceted look */
+  .v3-gem {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%) rotate(-45deg);
+    z-index: 6;
+  }
+  .v3-gem-core {
+    width: 10px; height: 10px;
+    transform: rotate(45deg);
+    background: linear-gradient(135deg, #fef3c7, var(--a400), #d4a017);
+    box-shadow: 0 0 14px rgba(251,191,36,0.55), 0 0 32px rgba(251,191,36,0.2);
+    /* Diamond shape gem instead of circle */
+    border-radius: 1px;
+  }
+
+  /* ============================================================
+     V4: LUMINOUS CUT — translucent layers, unified typography
+     ============================================================ */
+  .v4-stage {
+    background: #faf9f7;
+  }
+  .v4-icon {
+    width: 82px; height: 82px; position: relative;
+    transform: rotate(45deg);
+    border-radius: 5px;
+    background: linear-gradient(155deg,
+      rgba(255,255,255,0.95),
+      rgba(248,244,236,0.9) 30%,
+      rgba(240,236,226,0.85) 70%,
+      rgba(232,228,218,0.9)
+    );
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.95) inset,
+      0 16px 52px -16px rgba(100,95,88,0.18),
+      0 4px 16px -4px rgba(100,95,88,0.06);
+    overflow: hidden;
+    /* Outer gold rim */
+    border: 1px solid rgba(212,175,55,0.2);
+  }
+  .v4-facet {
+    position: absolute; width: 50%; height: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .v4-tl {
+    top: 0; left: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.5), rgba(248,244,236,0.3));
+    border-right: 0.5px solid rgba(212,175,55,0.12);
+    border-bottom: 0.5px solid rgba(212,175,55,0.12);
+  }
+  .v4-tr {
+    top: 0; right: 0;
+    background: linear-gradient(135deg, rgba(248,244,236,0.3), rgba(240,236,226,0.3));
+    border-bottom: 0.5px solid rgba(212,175,55,0.12);
+  }
+  .v4-bl {
+    bottom: 0; left: 0;
+    background: linear-gradient(135deg, rgba(240,236,226,0.3), rgba(232,228,218,0.4));
+    border-right: 0.5px solid rgba(212,175,55,0.12);
+  }
+  .v4-br {
+    bottom: 0; right: 0;
+    background: linear-gradient(135deg, rgba(235,232,224,0.3), rgba(228,224,215,0.4));
+  }
+  .v4-facet span {
+    transform: rotate(-45deg);
+    text-transform: uppercase;
+    font-family: 'Playfair Display', serif;
+    font-weight: 700; font-size: 17px;
+    font-style: italic;
+    letter-spacing: 0.35px;
+    color: #55493b;
+    text-shadow:
+      0 1px 2px rgba(255,255,255,0.72),
+      0 0 1px rgba(184,146,52,0.18);
+  }
+  /* Center: diamond-shaped gem */
+  .v4-gem-wrap {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    z-index: 5;
+  }
+  .v4-gem {
+    width: 9px; height: 9px;
+    transform: rotate(45deg);
+    border-radius: 1.5px;
+    background: linear-gradient(135deg, #fef9e7, var(--a400), #c9920a);
+    box-shadow:
+      0 0 10px rgba(251,191,36,0.55),
+      0 0 24px rgba(251,191,36,0.2),
+      0 0 4px rgba(251,191,36,0.7);
+  }
+  /* ============================================================
+     V5: SHARP YOUTH — clean modern geometry, balanced lettering
+     ============================================================ */
+  .v5-stage {
+    background: linear-gradient(165deg, #fdfcfa, #f7f4ee);
+  }
+  .v5-icon {
+    width: 80px; height: 80px; position: relative;
+    transform: rotate(45deg);
+    border-radius: 4px;
+    background: white;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.9) inset,
+      0 14px 44px -14px rgba(80,76,70,0.2),
+      0 3px 10px -3px rgba(80,76,70,0.08);
+    overflow: hidden;
+    border: 1px solid rgba(212,175,55,0.15);
+  }
+  .v5-facet {
+    position: absolute; width: 50%; height: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .v5-tl { top: 0; left: 0; background: white; }
+  .v5-tr { top: 0; right: 0; background: white; }
+  .v5-bl { bottom: 0; left: 0; background: white; }
+  .v5-br { bottom: 0; right: 0; background: white; }
+  /* Bold cross dividers */
+  .v5-icon .cross-h {
+    position: absolute; top: 50%; left: 6px; right: 6px; height: 1px;
+    background: linear-gradient(90deg, var(--w200), rgba(212,175,55,0.4), var(--w200));
+    z-index: 2;
+  }
+  .v5-icon .cross-v {
+    position: absolute; left: 50%; top: 6px; bottom: 6px; width: 1px;
+    background: linear-gradient(180deg, var(--w200), rgba(212,175,55,0.4), var(--w200));
+    z-index: 2;
+  }
+  .v5-facet span {
+    transform: rotate(-45deg);
+    text-transform: uppercase;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700; font-size: 15px;
+    letter-spacing: 0.5px;
+    color: #5c4a2f;
+    background: linear-gradient(160deg, #4f4437 16%, #9f7a2e 88%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  /* Center: sharp diamond gem */
+  .v5-gem {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    z-index: 4;
+  }
+  .v5-gem-inner {
+    width: 7px; height: 7px;
+    transform: rotate(45deg);
+    background: linear-gradient(135deg, var(--a300), var(--a500));
+    border-radius: 1px;
+    box-shadow:
+      0 0 8px rgba(251,191,36,0.6),
+      0 0 20px rgba(251,191,36,0.2);
+  }
+
+  /* ============================================================
+     V6: CELESTIAL FACET — layered premium frame, unified letters
+     ============================================================ */
+  .v6-stage {
+    background: linear-gradient(160deg, #fcfbf8, #f5f1ea 50%, #fcfbf8);
+  }
+  .v6-icon {
+    width: 84px; height: 84px; position: relative;
+    transform: rotate(45deg);
+    border-radius: 5px;
+    background: linear-gradient(155deg,
+      #f8f6f0 0%,
+      #f2efe6 20%,
+      #ece8dc 60%,
+      #e6e1d4 100%
+    );
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.9) inset,
+      0 -1px 3px rgba(0,0,0,0.02) inset,
+      0 18px 56px -18px rgba(100,95,88,0.2),
+      0 4px 12px -4px rgba(100,95,88,0.06);
+    overflow: hidden;
+  }
+  /* Outer gold border */
+  .v6-icon::before {
+    content: '';
+    position: absolute; inset: 0;
+    border: 1.5px solid rgba(212,175,55,0.22);
+    border-radius: 5px;
+    z-index: 5;
+  }
+  /* Inner recessed frame */
+  .v6-inner {
+    position: absolute; inset: 8px;
+    border: 0.5px solid rgba(212,175,55,0.15);
+    border-radius: 2px;
+    z-index: 4;
+  }
+  .v6-facet {
+    position: absolute; width: 50%; height: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .v6-tl { top: 0; left: 0; }
+  .v6-tr { top: 0; right: 0; }
+  .v6-bl { bottom: 0; left: 0; }
+  .v6-br { bottom: 0; right: 0; }
+  /* Subtle facet shading */
+  .v6-tl { background: linear-gradient(135deg, rgba(255,255,255,0.3), transparent); }
+  .v6-br { background: linear-gradient(135deg, transparent, rgba(0,0,0,0.02)); }
+  /* Cross dividers */
+  .v6-cross-h {
+    position: absolute; top: 50%; left: 12px; right: 12px; height: 0.5px;
+    background: linear-gradient(90deg, transparent, rgba(212,175,55,0.22), transparent);
+    z-index: 4;
+  }
+  .v6-cross-v {
+    position: absolute; left: 50%; top: 12px; bottom: 12px; width: 0.5px;
+    background: linear-gradient(180deg, transparent, rgba(212,175,55,0.22), transparent);
+    z-index: 4;
+  }
+  .v6-facet span {
+    transform: rotate(-45deg);
+    text-transform: uppercase;
+    font-family: 'Noto Serif Display', serif;
+    font-weight: 600; font-size: 18px;
+    letter-spacing: 0.35px;
+    color: #473c30;
+    -webkit-text-stroke: 0.35px rgba(189,151,58,0.34);
+    text-shadow: 0 0.7px 0 rgba(255,255,255,0.58);
+  }
+  /* Center gem — multi-layer */
+  .v6-gem-wrap {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%) rotate(-45deg);
+    z-index: 6;
+  }
+  .v6-gem-outer {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 0.5px solid rgba(212,175,55,0.25);
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.3);
+  }
+  .v6-gem-core {
+    width: 8px; height: 8px;
+    transform: rotate(45deg);
+    border-radius: 1px;
+    background: linear-gradient(135deg, #fef9e7, var(--a400), #c9920a);
+    box-shadow:
+      0 0 10px rgba(251,191,36,0.55),
+      0 0 28px rgba(251,191,36,0.18),
+      0 0 3px rgba(251,191,36,0.8);
+  }
+
+  /* ============================================================
+     COMPARISON SECTION — original vs refined at multiple sizes
+     ============================================================ */
+  .compare-section {
+    margin-top: 56px;
+    text-align: center;
+  }
+  .compare-section h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px; font-weight: 600; margin-bottom: 6px;
+  }
+  .compare-section > p {
+    color: var(--w400); font-size: 12px; margin-bottom: 36px;
+  }
+  .size-row {
+    display: flex; align-items: center; justify-content: center;
+    gap: 48px;
+    margin-bottom: 40px;
+  }
+  .size-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px; color: var(--w400);
+    letter-spacing: 1px; margin-top: 10px;
+    text-align: center;
+  }
+  .size-group { text-align: center; }
+
+  /* ===== Mini versions for 36px sidebar test ===== */
+  .mini-v3 {
+    width: 36px; height: 36px; position: relative;
+    transform: rotate(45deg);
+    border-radius: 3px;
+    background: linear-gradient(155deg, #f6f3ec, #e8e3d6);
+    box-shadow: 0 2px 8px -2px rgba(100,95,88,0.15), 0 1px 0 rgba(255,255,255,0.8) inset;
+    overflow: hidden;
+    border: 0.5px solid rgba(212,175,55,0.18);
+    display: inline-block;
+  }
+  .mini-v3 .mf { position: absolute; width: 50%; height: 50%; display: flex; align-items: center; justify-content: center; }
+  .mini-v3 .mf span { transform: rotate(-45deg); text-transform: uppercase; }
+  .mini-v3 .mf-tl { top: 0; left: 0; }
+  .mini-v3 .mf-tr { top: 0; right: 0; }
+  .mini-v3 .mf-bl { bottom: 0; left: 0; }
+  .mini-v3 .mf-br { bottom: 0; right: 0; }
+  .mini-v3 .mf span { font-family: 'Noto Serif Display', serif; font-weight: 600; font-size: 8px; color: #4f4335; letter-spacing: 0.35px; }
+  .mini-v3 .mg {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 4px; height: 4px; transform: translate(-50%,-50%) rotate(0deg);
+    background: linear-gradient(135deg, #fef3c7, var(--a400));
+    border-radius: 0.5px;
+    box-shadow: 0 0 5px rgba(251,191,36,0.5);
+    z-index: 5;
+  }
+
+  .mini-v5 {
+    width: 36px; height: 36px; position: relative;
+    transform: rotate(45deg);
+    border-radius: 3px;
+    background: white;
+    box-shadow: 0 2px 8px -2px rgba(80,76,70,0.15), 0 1px 0 rgba(255,255,255,0.9) inset;
+    overflow: hidden;
+    border: 0.5px solid rgba(212,175,55,0.15);
+    display: inline-block;
+  }
+  .mini-v5 .mf { position: absolute; width: 50%; height: 50%; display: flex; align-items: center; justify-content: center; }
+  .mini-v5 .mf span { transform: rotate(-45deg); text-transform: uppercase; }
+  .mini-v5 .mf-tl { top: 0; left: 0; }
+  .mini-v5 .mf-tr { top: 0; right: 0; }
+  .mini-v5 .mf-bl { bottom: 0; left: 0; }
+  .mini-v5 .mf-br { bottom: 0; right: 0; }
+  .mini-v5 .mf span { font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 7px; color: #5a472d; letter-spacing: 0.35px; }
+  .mini-v5 .mg {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 3px; height: 3px;
+    background: var(--a400);
+    border-radius: 0.5px;
+    box-shadow: 0 0 4px rgba(251,191,36,0.5);
+    z-index: 5;
+  }
+
+  .mini-v6 {
+    width: 36px; height: 36px; position: relative;
+    transform: rotate(45deg);
+    border-radius: 3px;
+    background: linear-gradient(155deg, #f8f6f0, #e8e3d6);
+    box-shadow: 0 2px 8px -2px rgba(100,95,88,0.15), 0 1px 0 rgba(255,255,255,0.85) inset;
+    overflow: hidden;
+    border: 1px solid rgba(212,175,55,0.18);
+    display: inline-block;
+  }
+  .mini-v6 .mi { position: absolute; inset: 3px; border: 0.5px solid rgba(212,175,55,0.12); border-radius: 1px; z-index: 3; }
+  .mini-v6 .mf { position: absolute; width: 50%; height: 50%; display: flex; align-items: center; justify-content: center; }
+  .mini-v6 .mf span { transform: rotate(-45deg); text-transform: uppercase; }
+  .mini-v6 .mf-tl { top: 0; left: 0; }
+  .mini-v6 .mf-tr { top: 0; right: 0; }
+  .mini-v6 .mf-bl { bottom: 0; left: 0; }
+  .mini-v6 .mf-br { bottom: 0; right: 0; }
+  .mini-v6 .mf span { font-family: 'Noto Serif Display', serif; font-weight: 600; font-size: 8px; color: #473c30; letter-spacing: 0.35px; -webkit-text-stroke: 0.2px rgba(189,151,58,0.28); }
+  .mini-v6 .mg-wrap {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    z-index: 5;
+  }
+  .mini-v6 .mg-ring {
+    width: 8px; height: 8px; border-radius: 50%;
+    border: 0.5px solid rgba(212,175,55,0.2);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mini-v6 .mg-core {
+    width: 4px; height: 4px; transform: rotate(45deg);
+    background: linear-gradient(135deg, #fef3c7, var(--a400));
+    border-radius: 0.5px;
+    box-shadow: 0 0 5px rgba(251,191,36,0.5);
+  }
+
+  /* Sidebar mock */
+  .sidebar-mock {
+    width: 220px; background: linear-gradient(180deg, #fafaf9, #fef7ed08);
+    border: 1px solid var(--w200); border-radius: 16px; padding: 16px; text-align: left;
+    display: inline-block; vertical-align: top; margin: 0 12px;
+  }
+  .sidebar-mock-header { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid rgba(231,229,228,0.5); margin-bottom: 12px; }
+  .sidebar-mock-text h3 { font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 600; color: var(--w800); }
+  .sidebar-mock-text p { font-size: 9px; color: var(--w400); letter-spacing: 0.5px; }
+  .sidebar-mock-nav { display: flex; flex-direction: column; gap: 4px; }
+  .sidebar-mock-nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; font-size: 12px; color: var(--w500); }
+  .sidebar-mock-nav-item.active { background: white; color: var(--w800); box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .active .nav-icon { color: var(--a500); }
+  .sidebar-mock-label { padding-top: 10px; text-align: center; font-size: 9px; color: var(--w400); font-family: 'Space Mono', monospace; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="page-header">
+    <h1>C15 Diamond Cut — Refined Explorations</h1>
+    <p>Six variations · Premium direction · White canvas</p>
+  </div>
+
+  <div class="grid">
+
+    <!-- V1: Faceted Ivory -->
+    <div class="card">
+      <div class="stage v1-stage">
+        <div class="v1-icon">
+          <div class="v1-facet v1-tl"><span>H</span></div>
+          <div class="v1-facet v1-tr"><span>D</span></div>
+          <div class="v1-facet v1-bl"><span>C</span></div>
+          <div class="v1-facet v1-br"><span>S</span></div>
+          <div class="v1-gem"></div>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">V1 · Faceted Ivory</div>
+        <div class="info-name">温润象牙</div>
+        <div class="info-desc">衬线体字母 + 象牙色渐变切面。金色仅在catch-light边缘和中心宝石出现。像握在手心的温润玉石，高贵而内敛。最接近原版的克制升级。</div>
+      </div>
+    </div>
+
+    <!-- V2: Brilliant Edge -->
+    <div class="card">
+      <div class="stage v2-stage">
+        <div class="v2-icon">
+          <div class="v2-facet v2-tl"><span>H</span></div>
+          <div class="v2-facet v2-tr"><span>D</span></div>
+          <div class="v2-facet v2-bl"><span>C</span></div>
+          <div class="v2-facet v2-br"><span>S</span></div>
+          <div class="v2-cross-h"></div>
+          <div class="v2-cross-v"></div>
+          <div class="v2-gem">
+          </div>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">V2 · Brilliant Edge</div>
+        <div class="info-name">棱光锋芒</div>
+        <div class="info-desc">去掉光带与辐射后，保留切面结构与十字金线骨架。整体更克制，便于在下一步再单独叠加动态光效。</div>
+      </div>
+    </div>
+
+    <!-- V3: Noble Prism -->
+    <div class="card">
+      <div class="stage v3-stage">
+        <div class="v3-icon">
+          <div class="v3-inner-frame"></div>
+          <div class="v3-facet v3-tl"><span>H</span></div>
+          <div class="v3-facet v3-tr"><span>D</span></div>
+          <div class="v3-facet v3-bl"><span>C</span></div>
+          <div class="v3-facet v3-br"><span>S</span></div>
+          <div class="v3-div-h"></div>
+          <div class="v3-div-v"></div>
+          <div class="v3-gem">
+            <div class="v3-gem-core"></div>
+          </div>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">V3 · Noble Prism</div>
+        <div class="info-name">贵族棱镜</div>
+        <div class="info-desc">保留双层边框与菱形宝石，四个字母统一为同一套衬线字形，不再做主从和个性化区分，观感更整齐、更适合品牌底稿阶段。</div>
+      </div>
+    </div>
+
+    <!-- V4: Luminous Cut -->
+    <div class="card">
+      <div class="stage v4-stage">
+        <div class="v4-icon">
+          <div class="v4-facet v4-tl"><span>H</span></div>
+          <div class="v4-facet v4-tr"><span>D</span></div>
+          <div class="v4-facet v4-bl"><span>C</span></div>
+          <div class="v4-facet v4-br"><span>S</span></div>
+          <div class="v4-gem-wrap">
+            <div class="v4-gem"></div>
+          </div>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">V4 · Luminous Cut</div>
+        <div class="info-name">通透光琢</div>
+        <div class="info-desc">保留通透切面和中心宝石，但移除光线型特效；四字母统一字形后，画面重心更稳定，适合作为静态基础版。</div>
+      </div>
+    </div>
+
+    <!-- V5: Sharp Youth -->
+    <div class="card">
+      <div class="stage v5-stage">
+        <div class="v5-icon">
+          <div class="v5-facet v5-tl"><span>H</span></div>
+          <div class="v5-facet v5-tr"><span>D</span></div>
+          <div class="v5-facet v5-bl"><span>C</span></div>
+          <div class="v5-facet v5-br"><span>S</span></div>
+          <div class="cross-h"></div>
+          <div class="cross-v"></div>
+          <div class="v5-gem">
+            <div class="v5-gem-inner"></div>
+          </div>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">V5 · Sharp Youth</div>
+        <div class="info-name">少年锋芒</div>
+        <div class="info-desc">保留几何无衬线与利落结构，同时去掉斜向光效；D不再做突兀的hero处理，四字母统一后更干净耐看。</div>
+      </div>
+    </div>
+
+    <!-- V6: Celestial Facet -->
+    <div class="card">
+      <div class="stage v6-stage">
+        <div class="v6-icon">
+          <div class="v6-inner"></div>
+          <div class="v6-facet v6-tl"><span>H</span></div>
+          <div class="v6-facet v6-tr"><span>D</span></div>
+          <div class="v6-facet v6-bl"><span>C</span></div>
+          <div class="v6-facet v6-br"><span>S</span></div>
+          <div class="v6-cross-h"></div>
+          <div class="v6-cross-v"></div>
+          <div class="v6-gem-wrap">
+            <div class="v6-gem-outer">
+              <div class="v6-gem-core"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="info">
+        <div class="info-num">V6 · Celestial Facet</div>
+        <div class="info-name">星辰切面</div>
+        <div class="info-desc">保留双层边框和中心双层宝石结构，移除扫光并统一四字母样式。整体高级感仍在，但更克制，更适合先确定品牌主视觉底版。</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Sidebar Context Preview -->
+  <div class="compare-section">
+    <h2>Sidebar Context · 36px Scale</h2>
+    <p>实际侧边栏中的观感对比</p>
+
+    <div style="display: flex; gap: 24px; justify-content: center; flex-wrap: wrap;">
+
+      <!-- V3 sidebar -->
+      <div class="sidebar-mock">
+        <div class="sidebar-mock-header">
+          <div class="mini-v3">
+            <div class="mf mf-tl"><span>H</span></div>
+            <div class="mf mf-tr"><span>D</span></div>
+            <div class="mf mf-bl"><span>C</span></div>
+            <div class="mf mf-br"><span>S</span></div>
+            <div class="mg"></div>
+          </div>
+          <div class="sidebar-mock-text"><h3>hydecaside</h3><p>QCTE · v7.0</p></div>
+        </div>
+        <div class="sidebar-mock-nav">
+          <div class="sidebar-mock-nav-item active"><span class="nav-icon">◈</span> 新建投资</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◆</span> 智能组合</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◉</span> 待结算</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◍</span> Dashboard</div>
+        </div>
+        <div class="sidebar-mock-label">V3 NOBLE PRISM</div>
+      </div>
+
+      <!-- V5 sidebar -->
+      <div class="sidebar-mock">
+        <div class="sidebar-mock-header">
+          <div class="mini-v5">
+            <div class="mf mf-tl"><span>H</span></div>
+            <div class="mf mf-tr"><span>D</span></div>
+            <div class="mf mf-bl"><span>C</span></div>
+            <div class="mf mf-br"><span>S</span></div>
+            <div class="mg"></div>
+          </div>
+          <div class="sidebar-mock-text"><h3>hydecaside</h3><p>QCTE · v7.0</p></div>
+        </div>
+        <div class="sidebar-mock-nav">
+          <div class="sidebar-mock-nav-item active"><span class="nav-icon">◈</span> 新建投资</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◆</span> 智能组合</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◉</span> 待结算</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◍</span> Dashboard</div>
+        </div>
+        <div class="sidebar-mock-label">V5 SHARP YOUTH</div>
+      </div>
+
+      <!-- V6 sidebar -->
+      <div class="sidebar-mock">
+        <div class="sidebar-mock-header">
+          <div class="mini-v6">
+            <div class="mi"></div>
+            <div class="mf mf-tl"><span>H</span></div>
+            <div class="mf mf-tr"><span>D</span></div>
+            <div class="mf mf-bl"><span>C</span></div>
+            <div class="mf mf-br"><span>S</span></div>
+            <div class="mg-wrap"><div class="mg-ring"><div class="mg-core"></div></div></div>
+          </div>
+          <div class="sidebar-mock-text"><h3>hydecaside</h3><p>QCTE · v7.0</p></div>
+        </div>
+        <div class="sidebar-mock-nav">
+          <div class="sidebar-mock-nav-item active"><span class="nav-icon">◈</span> 新建投资</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◆</span> 智能组合</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◉</span> 待结算</div>
+          <div class="sidebar-mock-nav-item"><span class="nav-icon">◍</span> Dashboard</div>
+        </div>
+        <div class="sidebar-mock-label">V6 CELESTIAL FACET</div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
