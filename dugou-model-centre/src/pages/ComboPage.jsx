@@ -1787,6 +1787,12 @@ const generateRecommendations = (
   if (retro) {
     // Adjust tier anchor bonus based on historical anchor success rate
     dynParams.tierAnchorBonus = clamp(dynParams.tierAnchorBonus + (retro.anchorBonusAdj || 0), 0.01, 0.25)
+    // Adjust covering bonus based on covering layer hit rate vs global average
+    const coverHitRate = retro.layerHitRates?.covering
+    if (coverHitRate != null && retro.globalComboHitRate > 0) {
+      const coverLift = clamp(coverHitRate - retro.globalComboHitRate, -0.15, 0.15)
+      dynParams.coveringBonus = clamp(dynParams.coveringBonus + coverLift * retro.reliability * 0.08, 0.0, 0.2)
+    }
   }
 
   // ── FIX #3: Apply walk-forward feedback adjustments to tier thresholds ──
@@ -3556,7 +3562,7 @@ export default function ComboPage({ openModal }) {
               <button
                 onClick={handleDeepRefreshCommit}
                 disabled={lessTeams.size === 0 && moreTeams.size === 0}
-                className="w-full mt-3 py-2 rounded-xl text-xs font-medium text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                className="w-full mt-3 py-2 rounded-xl text-xs font-medium text-white bg-[linear-gradient(90deg,#10b981,#14b8a6)] hover:bg-[linear-gradient(90deg,#059669,#0f766e)] transition-all disabled:cursor-not-allowed disabled:bg-emerald-100 disabled:text-emerald-400 disabled:border disabled:border-emerald-200/70 shadow-sm"
               >
                 应用偏好并重新生成
               </button>
