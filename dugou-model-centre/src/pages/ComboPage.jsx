@@ -1145,6 +1145,73 @@ const collectHistoryMatchKeys = (historyRow, candidateRows = []) => {
   return keys
 }
 
+const collectHistoryCandidates = (historyRow) => {
+  const map = new Map()
+  if (!historyRow || typeof historyRow !== 'object') return []
+
+  const pushCandidate = (rawMatch, fallbackSeed = 'history', fallbackIndex = 0) => {
+    if (!rawMatch || typeof rawMatch !== 'object') return
+    const investmentIdRaw = rawMatch.investmentId ?? rawMatch.investment_id ?? fallbackSeed
+    const investmentId = String(investmentIdRaw || fallbackSeed || 'history').trim() || 'history'
+    const parsedIndex = Number.parseInt(rawMatch.matchIndex ?? rawMatch.match_index ?? fallbackIndex, 10)
+    const matchIndex = Number.isFinite(parsedIndex) ? parsedIndex : fallbackIndex
+    const directKey = String(rawMatch.key || '').trim()
+    const key = directKey || `${investmentId}-${matchIndex}`
+    if (!key || map.has(key)) return
+
+    const homeTeam = String(rawMatch.homeTeam || rawMatch.home_team || '-').trim() || '-'
+    const awayTeam = String(rawMatch.awayTeam || rawMatch.away_team || '-').trim() || '-'
+    const odds = Math.max(1.01, Number(rawMatch.odds ?? rawMatch.effectiveOdds ?? 2.5) || 2.5)
+    const conf = clamp(Number(rawMatch.conf ?? rawMatch.expectedRating ?? 0.5) || 0.5, 0.05, 0.95)
+    const entries = Array.isArray(rawMatch.entries)
+      ? rawMatch.entries.map((entry) => ({ ...entry }))
+      : []
+    const fallbackEntry = entries
+      .map((entry) => String(entry?.name || '').trim())
+      .filter(Boolean)
+      .join(', ')
+
+    map.set(key, {
+      key,
+      investmentId,
+      matchIndex,
+      match: `${homeTeam} vs ${awayTeam}`,
+      homeTeam,
+      awayTeam,
+      entry: String(rawMatch.entry || rawMatch.entry_text || fallbackEntry || '-').trim() || '-',
+      entries,
+      entryMarketType: rawMatch.entryMarketType || rawMatch.entry_market_type || 'other',
+      odds: Number(odds.toFixed(2)),
+      conf: Number(conf.toFixed(2)),
+      roughEvPercent: (conf * odds - 1) * 100,
+      mode: rawMatch.mode || '常规',
+      tysHome: rawMatch.tysHome || rawMatch.tys_home || 'M',
+      tysAway: rawMatch.tysAway || rawMatch.tys_away || 'M',
+      fid: Number(rawMatch.fid ?? 0.5),
+      fseHome: Number(rawMatch.fseHome ?? rawMatch.fse_home ?? 0.5),
+      fseAway: Number(rawMatch.fseAway ?? rawMatch.fse_away ?? 0.5),
+      note: String(rawMatch.note || '').trim(),
+    })
+  }
+
+  if (Array.isArray(historyRow.selectedMatchesSnapshot)) {
+    historyRow.selectedMatchesSnapshot.forEach((match, idx) => {
+      pushCandidate(match, `history-${historyRow.id || 'snapshot'}`, idx)
+    })
+  }
+
+  if (Array.isArray(historyRow.recommendations)) {
+    historyRow.recommendations.forEach((recommendation, recIdx) => {
+      const subset = Array.isArray(recommendation?.subset) ? recommendation.subset : []
+      subset.forEach((match, idx) => {
+        pushCandidate(match, `history-${historyRow.id || recIdx}`, idx)
+      })
+    })
+  }
+
+  return [...map.values()]
+}
+
 const getLayerByRank = (rank) => {
   if (rank === 1) return '主推'
   if (rank <= 3) return '次推'
@@ -1298,7 +1365,7 @@ const countCandidateCombos = (matchCount, maxSubsetSize = 5, minSubsetSize = 1, 
   return total
 }
 
-const allocateAmountsWithinRiskCap = (weights, riskCap, unit = 10) => {
+const allocateAmountsWithinRiskCap = (weights, riskCap, unit = 10, minActive = 0) => {
   if (!Array.isArray(weights) || weights.length === 0) return []
   const step = Math.max(1, Math.round(Number(unit) || 10))
   const cap = Math.max(0, Math.floor((Number(riskCap) || 0) / step) * step)
@@ -1313,9 +1380,30 @@ const allocateAmountsWithinRiskCap = (weights, riskCap, unit = 10) => {
   }
 
   const capUnits = Math.floor(cap / step)
-  const rawUnits = safeWeights.map((value) => (value / weightSum) * capUnits)
-  const units = rawUnits.map((value) => Math.floor(value))
-  let remainUnits = capUnits - units.reduce((sum, value) => sum + value, 0)
+  const rankedByWeight = safeWeights
+    .map((value, index) => ({ index, value }))
+    .sort((a, b) => b.value - a.value || a.index - b.index)
+  const maxActivatable = Math.min(weights.length, capUnits)
+  const targetActive = Math.min(
+    maxActivatable,
+    Math.max(0, Number.parseInt(minActive, 10) || 0),
+  )
+
+  const units = Array(weights.length).fill(0)
+  let remainUnits = capUnits
+  for (let i = 0; i < targetActive; i += 1) {
+    const target = rankedByWeight[i]
+    if (!target) break
+    units[target.index] += 1
+    remainUnits -= 1
+  }
+
+  const rawUnits = safeWeights.map((value) => (value / weightSum) * Math.max(0, remainUnits))
+  const baseUnits = rawUnits.map((value) => Math.floor(value))
+  baseUnits.forEach((value, index) => {
+    units[index] += value
+  })
+  remainUnits -= baseUnits.reduce((sum, value) => sum + value, 0)
 
   const order = rawUnits
     .map((value, index) => ({
@@ -2154,7 +2242,17 @@ const generateRecommendations = (
   })
   const weightSum = allocationSeed.reduce((sum, value) => sum + value, 0)
   const normalizedWeights = allocationSeed.map((value) => (weightSum > 0 ? value / weightSum : 1 / allocationSeed.length))
-  const allocatedAmounts = allocateAmountsWithinRiskCap(normalizedWeights, riskCap, recommendationCount)
+  const minActiveCombos = Math.min(
+    fallbackRanked.length,
+    Math.max(1, Math.floor(Math.max(0, Number(riskCap) || 0) / 10)),
+    Math.max(3, Math.min(6, recommendationCount)),
+  )
+  const allocatedAmounts = allocateAmountsWithinRiskCap(
+    normalizedWeights,
+    riskCap,
+    10,
+    minActiveCombos,
+  )
   const rankedWithAmounts = fallbackRanked.map((item, idx) => ({
     ...item,
     allocatedAmount: allocatedAmounts[idx] || 0,
@@ -2686,6 +2784,7 @@ export default function ComboPage({ openModal }) {
       coverageInjectedCombos: generated.coverageInjectedCombos,
       uncoveredMatches: generated.uncoveredMatches,
       legsDistribution: generated.legsDistribution || {},
+      selectedMatchesSnapshot: selectedRows.map((row) => ({ ...row })),
       portfolioAllocations:
         Array.isArray(snapshot?.portfolioAllocations) ? snapshot.portfolioAllocations : [],
       mcSimResult:
@@ -2704,8 +2803,21 @@ export default function ComboPage({ openModal }) {
     setAnalysisFilter(null)
 
     const latestTodayMatches = getTodayMatches()
-    const historyMatchKeys = collectHistoryMatchKeys(historyRow, latestTodayMatches)
-    setTodayMatches(latestTodayMatches)
+    const historyCandidates = collectHistoryCandidates(historyRow)
+    const mergedMap = new Map()
+    historyCandidates.forEach((row) => {
+      const key = String(row?.key || '').trim()
+      if (!key) return
+      mergedMap.set(key, row)
+    })
+    latestTodayMatches.forEach((row) => {
+      const key = String(row?.key || '').trim()
+      if (!key || mergedMap.has(key)) return
+      mergedMap.set(key, row)
+    })
+    const mergedCandidates = [...mergedMap.values()]
+    const historyMatchKeys = collectHistoryMatchKeys(historyRow, mergedCandidates)
+    setTodayMatches(mergedCandidates)
     if (historyMatchKeys.size > 0) {
       const dismissed = readDismissedCandidateKeys()
       let changed = false
@@ -2717,6 +2829,10 @@ export default function ComboPage({ openModal }) {
         setDismissedCount(dismissed.size)
       }
       restoreCheckedKeysRef.current = [...historyMatchKeys]
+    } else if (historyCandidates.length > 0) {
+      restoreCheckedKeysRef.current = historyCandidates
+        .map((row) => String(row?.key || '').trim())
+        .filter(Boolean)
     }
 
     setRiskPref(Number(historyRow.riskPref || 50))
