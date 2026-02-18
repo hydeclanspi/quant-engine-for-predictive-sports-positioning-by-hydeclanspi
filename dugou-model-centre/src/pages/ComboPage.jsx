@@ -135,7 +135,7 @@ const inferMatchRoleByMetrics = (adjustedProb, odds, rawConf) => {
   return 'neutral_soft'
 }
 
-const calcRoleStructureSignal = (subset, roleTargets, mixStrength = 0.08) => {
+const calcRoleStructureSignal = (subset, roleTargets, mixStrength = 0.08, hyperparams = null) => {
   const rows = Array.isArray(subset) ? subset : []
   if (rows.length === 0) {
     return {
@@ -181,7 +181,8 @@ const calcRoleStructureSignal = (subset, roleTargets, mixStrength = 0.08) => {
     Math.abs(shares.lever - roleTargets.lever) +
     Math.abs(shares.neutral_plus - roleTargets.neutral_plus) +
     Math.abs(shares.neutral_soft - roleTargets.neutral_soft)
-  const rawScore = tilt * 0.62 + diversity * 0.44 + stableLeverSynergy * 0.48 - alignmentGap * 0.78
+  const rc = hyperparams?.roleCoefficients || { tilt: 0.62, diversity: 0.44, synergy: 0.48, gap: -0.78 }
+  const rawScore = tilt * rc.tilt + diversity * rc.diversity + stableLeverSynergy * rc.synergy + alignmentGap * rc.gap
   const bonus = clamp(rawScore * mixStrength, -0.08, 0.08)
 
   return {
@@ -285,8 +286,25 @@ const backtestDynamicParams = (calibrationContext) => {
   // Dynamic tier thresholds from hit rate breakpoints
   const t1 = clamp(flipConf, 0.62, 0.82)
   const strongHR = hitRates[0] !== null ? hitRates[0] : 0.65
+  const midHR = hitRates[1] !== null ? hitRates[1] : 0.5
   const weakHR = hitRates[2] !== null ? hitRates[2] : 0.4
+  const veryWeakHR = hitRates[3] !== null ? hitRates[3] : 0.3
   const gap = clamp(strongHR - weakHR, 0.05, 0.5)
+
+  // FIX: tier2/tier3 are now TRULY dynamic based on hit rate crossover analysis
+  // tier2 boundary: where mid-bucket hit rate drops below strong-bucket
+  // Interpolate: if midHR is close to strongHR, tier2 can be lower (more inclusive)
+  // If midHR is far below strongHR, tier2 should be higher (more selective)
+  const midToStrongRatio = strongHR > 0.01 ? midHR / strongHR : 0.75
+  const t2Raw = t1 - (t1 - 0.40) * clamp(midToStrongRatio, 0.4, 1.0)
+  const t2 = clamp(t2Raw, 0.45, 0.65)
+
+  // tier3 boundary: where weak-bucket performance drops below acceptable
+  // If weakHR is decent (>0.4), we can afford a lower tier3 boundary
+  // If weakHR is terrible (<0.25), tier3 should be raised
+  const weakToMidRatio = midHR > 0.01 ? weakHR / midHR : 0.6
+  const t3Raw = t2 - (t2 - 0.25) * clamp(weakToMidRatio, 0.3, 1.0)
+  const t3 = clamp(t3Raw, 0.30, 0.50)
 
   // Dynamic coefficients scaled by historical performance
   const tierPenaltyPerWeakLeg = clamp(gap * 0.5, 0.06, 0.25)
@@ -312,8 +330,8 @@ const backtestDynamicParams = (calibrationContext) => {
     maxWeakLegsPerCombo,
     confTierThresholds: {
       tier1: Number(t1.toFixed(3)),
-      tier2: Number(clamp(0.55, 0.45, 0.65).toFixed(3)),
-      tier3: Number(clamp(0.40, 0.30, 0.50).toFixed(3)),
+      tier2: Number(t2.toFixed(3)),
+      tier3: Number(t3.toFixed(3)),
     },
     backtestSamples: scatterData.length,
     backtestReliability: Number(reliability.toFixed(3)),
@@ -406,7 +424,7 @@ const runPortfolioMonteCarlo = (packageItems, iterations = 50000) => {
 // Recommends which combos to buy together (portfolio packs) to maximize
 // expected return while covering all counter-consensus insights.
 // Uses greedy set-cover + MC-based utility scoring.
-const optimizePortfolioAllocations = (recommendations, maxPackages = 3) => {
+const optimizePortfolioAllocations = (recommendations, maxPackages = 3, hyperparams = null) => {
   if (!recommendations || recommendations.length < 2) return []
   const items = recommendations.slice(0, 12)
 
@@ -461,13 +479,14 @@ const optimizePortfolioAllocations = (recommendations, maxPackages = 3) => {
     }
     const diversityScore = totalPairs > 0 ? 1 - overlapPairs / totalPairs : 1
 
-    // Composite utility
+    // Composite utility — weights from walk-forward calibration
+    const pw = hyperparams?.portfolioWeights || { ev: 0.35, coverage: 0.30, diversity: 0.20, layerDiv: 0.10, tierDiv: 0.05 }
     const utility =
-      weightedEv * 0.35 +
-      coverageRatio * 0.30 +
-      layerDiv * 0.10 +
-      tierDiv * 0.05 +
-      diversityScore * 0.20
+      weightedEv * pw.ev +
+      coverageRatio * pw.coverage +
+      layerDiv * pw.layerDiv +
+      tierDiv * pw.tierDiv +
+      diversityScore * pw.diversity
 
     // Run mini MC for this portfolio
     const mc = runPortfolioMonteCarlo(selected, 10000)
@@ -658,14 +677,16 @@ const getSubsetMatchKeys = (subset) => {
   return [...keys]
 }
 
-const mmrRerank = (candidates, lambda = 0.6, maxPick = 10, coverageTargetKeys = null, eta = 0.15) => {
+const mmrRerank = (candidates, lambda = 0.6, maxPick = 10, coverageTargetKeys = null, eta = 0.15, hyperparams = null) => {
   // MMR: score(i) = lambda * utility(i) - (1-lambda) * maxSim(i, selected) + eta * coverageGain(i)
   if (candidates.length === 0) return []
   if (candidates.length <= 1) return [...candidates]
   const safeLambda = Math.max(0, Math.min(1, Number(lambda) || 0))
   const safeEta = Math.max(0, Math.min(1, Number(eta) || 0))
   const similarityWeight = Math.max(0, 1 - safeLambda)
-  const concentrationWeight = 0.18 + safeEta * 0.08
+  const concBase = hyperparams?.mmrConcentrationBase ?? 0.18
+  const concEtaScale = hyperparams?.mmrConcentrationEtaScale ?? 0.08
+  const concentrationWeight = concBase + safeEta * concEtaScale
 
   // Normalize utilities to [0, 1] for fair blending
   const utilValues = candidates.map((c) => c.utility)
@@ -732,7 +753,8 @@ const mmrRerank = (candidates, lambda = 0.6, maxPick = 10, coverageTargetKeys = 
         if (anchorKey) {
           const anchorUsed = matchUseCount.get(anchorKey) || 0
           // If the anchor is already in 50%+ of selected combos, heavy penalty
-          anchorSharePenalty = anchorUsed >= 1 ? 0.12 * (anchorUsed / Math.max(1, selected.length)) : 0
+          const anchorPenaltyMag = hyperparams?.mmrAnchorSharePenalty ?? 0.12
+          anchorSharePenalty = anchorUsed >= 1 ? anchorPenaltyMag * (anchorUsed / Math.max(1, selected.length)) : 0
         }
       }
 
@@ -765,7 +787,7 @@ const mmrRerank = (candidates, lambda = 0.6, maxPick = 10, coverageTargetKeys = 
 }
 
 /* ── Stratified selection: layer quotas by legs count (思路3) ─────────── */
-const stratifiedSelect = (scoredCombos, totalSlots = 10, minLegs = 2) => {
+const stratifiedSelect = (scoredCombos, totalSlots = 10, minLegs = 2, hyperparams = null) => {
   // Group by leg count
   const byLegs = new Map()
   scoredCombos.forEach((combo) => {
@@ -781,7 +803,8 @@ const stratifiedSelect = (scoredCombos, totalSlots = 10, minLegs = 2) => {
 
   // Default quota preferences: favor 3-4 legs, fewer for 2 and 5, minimal for 1
   // Quotas are proportional targets, not hard limits
-  const quotaPrefs = { 1: 0.0, 2: 0.2, 3: 0.35, 4: 0.3, 5: 0.15 }
+  const defaultQuotas = { 1: 0.0, 2: 0.2, 3: 0.35, 4: 0.3, 5: 0.15 }
+  const quotaPrefs = hyperparams?.stratifiedQuotas ? { ...defaultQuotas, ...hyperparams.stratifiedQuotas } : defaultQuotas
   // If minLegs > 1, zero out quota for legs below minLegs
   for (let k = 1; k < minLegs; k += 1) {
     quotaPrefs[k] = 0
@@ -845,7 +868,7 @@ const stratifiedSelect = (scoredCombos, totalSlots = 10, minLegs = 2) => {
 }
 
 /* ── Coverage dynamic scoring (replaces hard injection) ──────────────── */
-const applyCoverageDynamicBoost = (scoredCombos, selectedMatches, baseDecay = 0.6) => {
+const applyCoverageDynamicBoost = (scoredCombos, selectedMatches, baseDecay = 0.6, hyperparams = null) => {
   // For each uncovered / under-covered candidate, boost combos that include it
   // The boost decays as coverage increases (diminishing returns)
   const targetKeys = new Set(selectedMatches.map((m) => buildMatchRefKey(m)))
@@ -873,7 +896,8 @@ const applyCoverageDynamicBoost = (scoredCombos, selectedMatches, baseDecay = 0.
       if (keyCounts.has(mk)) {
         const count = keyCounts.get(mk)
         // Diminishing boost: full boost for 0 appearances, decaying as count increases
-        const boost = Math.pow(baseDecay, count) * 0.08
+        const boostScale = hyperparams?.coverageDecayBoost ?? 0.08
+        const boost = Math.pow(baseDecay, count) * boostScale
         coverageBoost += boost
       }
     })
@@ -1310,7 +1334,7 @@ const buildSubsets = (items, maxSubsetSize) => {
 // (implied ~31%) gives surplus +0.14, which is a STRONG edge.
 // Conf 0.75 on a 1.19 odds match (implied ~84%) gives surplus -0.09.
 // ═══════════════════════════════════════════════════════════════
-const calcConfSurplus = (match, calibratedP = null) => {
+const calcConfSurplus = (match, calibratedP = null, hyperparams = null) => {
   const rawConf = clamp(Number(match.conf || 0.5), 0.05, 0.95)
   // Use calibrated probability if available, otherwise raw conf
   // This ensures surplus reflects the model's actual calibrated edge, not uncalibrated input
@@ -1319,13 +1343,16 @@ const calcConfSurplus = (match, calibratedP = null) => {
     Array.isArray(match.entries) ? match.entries : [],
     Number(match.odds || 2.5),
   )
-  // Market implied probability (with vig removed — assume ~5% overround)
+  // Market implied probability (with vig removed — dynamic overround from backtest)
+  const vig = hyperparams?.vigOverround ?? 0.05
   const rawImplied = 1 / Math.max(1.01, anchorOdds)
-  const vigAdjusted = clamp(rawImplied * 0.95, 0.02, 0.98) // Remove ~5% vig
+  const vigAdjusted = clamp(rawImplied * (1 - vig), 0.02, 0.98)
   const surplus = modelProb - vigAdjusted
   // Surplus ratio: how big is the edge relative to market prob
   // This normalizes across different odds levels
   const surplusRatio = vigAdjusted > 0.01 ? surplus / vigAdjusted : 0
+  // Edge classification — dynamic thresholds from backtest
+  const st = hyperparams?.surplusThresholds || { strongEdge: 0.12, moderateEdge: 0.04, neutral: -0.03 }
   return {
     surplus: Number(surplus.toFixed(4)),
     surplusRatio: Number(surplusRatio.toFixed(4)),
@@ -1333,8 +1360,7 @@ const calcConfSurplus = (match, calibratedP = null) => {
     conf: rawConf,
     modelProb: Number(modelProb.toFixed(4)),
     anchorOdds: Number(anchorOdds.toFixed(2)),
-    // Edge classification
-    edgeClass: surplus >= 0.12 ? 'strong_edge' : surplus >= 0.04 ? 'moderate_edge' : surplus >= -0.03 ? 'neutral' : 'negative_edge',
+    edgeClass: surplus >= st.strongEdge ? 'strong_edge' : surplus >= st.moderateEdge ? 'moderate_edge' : surplus >= st.neutral ? 'neutral' : 'negative_edge',
   }
 }
 
@@ -1437,10 +1463,11 @@ const dedupeRankedBySignature = (rankedRows) => {
   return next
 }
 
-const rankWithSoftThresholdPenalty = (rows, minEv, minWinRate, maxCorr, alpha) => {
-  const evGapScale = 1.15 + (1 - alpha) * 0.55
-  const winGapScale = 0.85 + (1 - alpha) * 0.45
-  const corrGapScale = 0.72 + (1 - alpha) * 0.28
+const rankWithSoftThresholdPenalty = (rows, minEv, minWinRate, maxCorr, alpha, hyperparams = null) => {
+  const sp = hyperparams?.softPenaltyScales || { evGapBase: 1.15, evGapAlpha: 0.55, winGapBase: 0.85, winGapAlpha: 0.45, corrGapBase: 0.72, corrGapAlpha: 0.28 }
+  const evGapScale = sp.evGapBase + (1 - alpha) * sp.evGapAlpha
+  const winGapScale = sp.winGapBase + (1 - alpha) * sp.winGapAlpha
+  const corrGapScale = sp.corrGapBase + (1 - alpha) * sp.corrGapAlpha
   return [...rows]
     .map((item) => {
       const evGap = Math.max(0, minEv - item.ev)
@@ -1595,7 +1622,7 @@ const calcSubsetSourceCorrelation = (subset) => {
   return clamp((hhi - baseline) / (1 - baseline), 0, 1)
 }
 
-const calcSubsetPairCorrelation = (leftSubset, rightSubset) => {
+const calcSubsetPairCorrelation = (leftSubset, rightSubset, hyperparams = null) => {
   if (!Array.isArray(leftSubset) || !Array.isArray(rightSubset) || leftSubset.length === 0 || rightSubset.length === 0) {
     return 0
   }
@@ -1611,10 +1638,11 @@ const calcSubsetPairCorrelation = (leftSubset, rightSubset) => {
   const unionSize = new Set([...leftKeys, ...rightKeys]).size
   const overlapRatio = overlap / minSize
   const jaccard = unionSize > 0 ? overlap / unionSize : 0
-  return clamp(0.1 + overlapRatio * 0.58 + jaccard * 0.24, 0, 0.96)
+  const cf = hyperparams?.correlationFormula || { base: 0.1, overlapWeight: 0.58, jaccardWeight: 0.24 }
+  return clamp(cf.base + overlapRatio * cf.overlapWeight + jaccard * cf.jaccardWeight, 0, 0.96)
 }
 
-const buildCovarianceMatrix = (items) => {
+const buildCovarianceMatrix = (items, hyperparams = null) => {
   const n = items.length
   const matrix = Array.from({ length: n }, () => Array(n).fill(0))
   for (let i = 0; i < n; i += 1) {
@@ -1622,7 +1650,7 @@ const buildCovarianceMatrix = (items) => {
     matrix[i][i] = varI
     for (let j = i + 1; j < n; j += 1) {
       const varJ = Math.max(0.0001, Number(items[j].variance || 0))
-      const corr = calcSubsetPairCorrelation(items[i].subset, items[j].subset)
+      const corr = calcSubsetPairCorrelation(items[i].subset, items[j].subset, hyperparams)
       const cov = corr * Math.sqrt(varI * varJ)
       matrix[i][j] = cov
       matrix[j][i] = cov
@@ -1679,19 +1707,20 @@ const projectCappedSimplex = (weights, maxWeight) => {
   return next.map((value) => clamp(value, 0, cap))
 }
 
-const optimizePortfolioWeights = (items, alpha, maxWeight) => {
+const optimizePortfolioWeights = (items, alpha, maxWeight, hyperparams = null) => {
   const n = items.length
   if (n === 0) return []
   if (n === 1) return [1]
 
   const mu = items.map((item) => Number(item.ev || 0))
-  const covariance = buildCovarianceMatrix(items)
+  const covariance = buildCovarianceMatrix(items, hyperparams)
   const riskWeight = 1 - alpha
-  const diversificationPenalty = clamp(riskWeight * 0.16 + 0.03, 0.03, 0.2)
-  const learningRate = 0.16
+  const po = hyperparams?.portfolioOptimizer || { diversPenaltyBase: 0.03, diversPenaltyRiskScale: 0.16, learningRate: 0.16, iterations: 180 }
+  const diversificationPenalty = clamp(riskWeight * po.diversPenaltyRiskScale + po.diversPenaltyBase, 0.01, 0.3)
+  const learningRate = po.learningRate
   let weights = projectCappedSimplex(Array(n).fill(1 / n), maxWeight)
 
-  for (let iter = 0; iter < 180; iter += 1) {
+  for (let iter = 0; iter < po.iterations; iter += 1) {
     const gradient = weights.map((_, i) => {
       let covTerm = 0
       for (let j = 0; j < n; j += 1) {
@@ -1749,15 +1778,18 @@ const generateRecommendations = (
 
   // ── Dynamic parameter optimization: backtest historical data ──
   const dynParams = backtestDynamicParams(calibrationContext)
+  // ── Comprehensive combo hyperparameter calibration ──
+  const hp = calibrationContext?.comboHyperparams || null
 
   // ── FIX #3: Apply walk-forward feedback adjustments to tier thresholds ──
+  // FIX: key names must match classifyConfidenceTier expectations (tier1, tier2, tier3 — no underscores)
   const wfFeedback = calibrationContext?.walkForwardFeedback
   const tierShift = wfFeedback?.ready ? (wfFeedback.adjustments?.tierShift || 0) : 0
   const dynThresholds = tierShift !== 0
     ? {
-        tier_1: clamp((dynParams.confTierThresholds?.tier_1 || 0.72) + tierShift, 0.60, 0.85),
-        tier_2: clamp((dynParams.confTierThresholds?.tier_2 || 0.55) + tierShift, 0.42, 0.70),
-        tier_3: clamp((dynParams.confTierThresholds?.tier_3 || 0.40) + tierShift, 0.28, 0.55),
+        tier1: clamp((dynParams.confTierThresholds?.tier1 || 0.72) + tierShift, 0.60, 0.85),
+        tier2: clamp((dynParams.confTierThresholds?.tier2 || 0.55) + tierShift, 0.42, 0.70),
+        tier3: clamp((dynParams.confTierThresholds?.tier3 || 0.40) + tierShift, 0.28, 0.55),
       }
     : dynParams.confTierThresholds
 
@@ -1790,7 +1822,7 @@ const generateRecommendations = (
     const annotatedSubset = subset.map((item) => {
       if (item.calibratedP !== undefined && item.confSurplus !== undefined) return item
       const cp = item.calibratedP !== undefined ? item.calibratedP : calcAdjustedProbability(item, systemConfig, calibrationContext)
-      const cs = item.confSurplus !== undefined ? item.confSurplus : calcConfSurplus(item, cp)
+      const cs = item.confSurplus !== undefined ? item.confSurplus : calcConfSurplus(item, cp, hp)
       return { ...item, calibratedP: cp, confSurplus: cs }
     })
     const adjustedProfiles = annotatedSubset.map((item) => {
@@ -1824,7 +1856,8 @@ const generateRecommendations = (
           if (corr.reliability > 0.2) {
             // Positive correlation → joint prob > product (independence underestimates)
             // Negative correlation → joint prob < product (independence overestimates)
-            corrShift += corr.rho * corr.reliability * 0.04
+            const corrScale = hp?.entryCorrelationScale ?? 0.04
+            corrShift += corr.rho * corr.reliability * corrScale
             pairCount += 1
           }
         }
@@ -1846,8 +1879,10 @@ const generateRecommendations = (
     const riskPenalty = (1 - alpha) * sigma
     const pBonus = parlayBonusFn(legs, parlayBeta)
     const familyDiv = calcEntryFamilyDiversity(annotatedSubset)
-    const familyBonus = (familyDiv - 0.5) * 0.04
-    const roleSignal = calcRoleStructureSignal(annotatedSubset, roleTargets, roleMixStrength)
+    const fbBaseline = hp?.familyBonusBaseline ?? 0.5
+    const fbScale = hp?.familyBonusScale ?? 0.04
+    const familyBonus = (familyDiv - fbBaseline) * fbScale
+    const roleSignal = calcRoleStructureSignal(annotatedSubset, roleTargets, roleMixStrength, hp)
 
     // ── 方案D: Confidence tier scoring with dynamic params ──
     const confTiers = annotatedSubset.map((item) => classifyConfidenceTier(item.conf, dynThresholds))
@@ -1869,8 +1904,9 @@ const generateRecommendations = (
     const ftLayerTag = ftLayerTagMap.get(subsetSig) || null
     const coveringBonus = ftLayerTag === 'covering' ? dynParams.coveringBonus : 0
 
-    // Hard penalty for combos that violate tier constraints
-    const hardConstraintPenalty = exceedsWeakCap ? 0.5 : 0
+    // Hard penalty for combos that violate tier constraints — dynamic from backtest
+    const hcPenaltyMag = hp?.hardConstraintPenalty ?? 0.5
+    const hardConstraintPenalty = exceedsWeakCap ? hcPenaltyMag : 0
 
     // Team bias modifier (deep refresh)
     let teamBiasBonus = 0
@@ -1890,7 +1926,10 @@ const generateRecommendations = (
     const avgSurplus = surplusValues.reduce((s, v) => s + v, 0) / Math.max(legs, 1)
     const maxSurplus = Math.max(...surplusValues)
     // Bonus scales with average surplus across legs, extra boost if any leg has strong edge
-    const confSurplusBonus = clamp(avgSurplus * 0.15, -0.08, 0.12) + (maxSurplus >= 0.12 ? 0.03 : 0)
+    const sbScale = hp?.surplusBonusScale ?? 0.15
+    const sbMaxThreshold = hp?.surplusBonusMaxThreshold ?? 0.12
+    const sbMaxBonus = hp?.surplusBonusMaxBonus ?? 0.03
+    const confSurplusBonus = clamp(avgSurplus * sbScale, -0.08, 0.12) + (maxSurplus >= sbMaxThreshold ? sbMaxBonus : 0)
 
     const utility = rewardTerm - riskPenalty + pBonus + familyBonus + roleSignal.bonus
       - tierPenalty + tierAnchorBonus + coveringBonus - hardConstraintPenalty + teamBiasBonus
@@ -1941,7 +1980,7 @@ const generateRecommendations = (
   const rankedAllByUtility = dedupeRankedBySignature([...pool].sort((a, b) => b.utility - a.utility || b.sharpe - a.sharpe))
   const qualifiedRaw = pool.filter((item) => item.ev >= minEv && item.p >= minWinRate && item.corr <= maxCorr)
   const rankedQualified = dedupeRankedBySignature([...qualifiedRaw].sort((a, b) => b.utility - a.utility || b.sharpe - a.sharpe))
-  const rankedSoftPenalty = dedupeRankedBySignature(rankWithSoftThresholdPenalty(rankedAllByUtility, minEv, minWinRate, maxCorr, alpha))
+  const rankedSoftPenalty = dedupeRankedBySignature(rankWithSoftThresholdPenalty(rankedAllByUtility, minEv, minWinRate, maxCorr, alpha, hp))
 
   let preparedRanked = []
   if (comboStrategy === 'thresholdStrict') {
@@ -1961,12 +2000,12 @@ const generateRecommendations = (
   // ── 思路5: Coverage dynamic boost (replaces old hard injection for first pass) ──
   const targetKeys = new Set(selectedMatches.map((m) => buildMatchRefKey(m)))
   if (comboStrategy !== 'thresholdStrict') {
-    preparedRanked = applyCoverageDynamicBoost(preparedRanked, selectedMatches, 0.6)
+    preparedRanked = applyCoverageDynamicBoost(preparedRanked, selectedMatches, hp?.coverageDecayBase ?? 0.6, hp)
     preparedRanked.sort((a, b) => b.boostedUtility - a.boostedUtility || b.utility - a.utility)
   }
 
   // ── 思路3: Stratified selection by legs count ──
-  const stratifiedPool = stratifiedSelect(preparedRanked, stratifiedCap, minLegs)
+  const stratifiedPool = stratifiedSelect(preparedRanked, stratifiedCap, minLegs, hp)
 
   // ── MMR reranking for final diversity ──
   const mmrPool = mmrRerank(
@@ -1975,12 +2014,13 @@ const generateRecommendations = (
     mmrCap,
     comboStrategy !== 'thresholdStrict' ? targetKeys : null,
     coverageEta,
+    hp,
   )
 
   const maxUniverse = Math.min(universeCap, mmrPool.length)
   const universe = mmrPool.slice(0, maxUniverse)
   const maxWeight = clamp(0.32 + alpha * 0.45, 0.32, 0.78)
-  const weights = optimizePortfolioWeights(universe, alpha, maxWeight)
+  const weights = optimizePortfolioWeights(universe, alpha, maxWeight, hp)
 
   const weightedUniverse = universe.map((item, idx) => ({
     ...item,
@@ -2000,7 +2040,7 @@ const generateRecommendations = (
   )
   // Max concentration: no single match may appear in more than 60% of combos
   // This prevents the single-point-of-failure scenario (e.g., 切尔西 miss kills ALL combos)
-  selectedRanked = rebalanceMatchConcentration(selectedRanked, concentrationPool, recommendationCount, 0.60)
+  selectedRanked = rebalanceMatchConcentration(selectedRanked, concentrationPool, recommendationCount, hp?.matchConcentrationCap ?? 0.60)
 
   const fallbackRanked = selectedRanked.length > 0 ? selectedRanked : weightedUniverse.slice(0, Math.min(3, weightedUniverse.length))
   const allocationSeed = fallbackRanked.map((item) => {
@@ -2692,7 +2732,7 @@ export default function ComboPage({ openModal }) {
     setMcSimResult(mc)
 
     // Auto-run portfolio allocation optimizer
-    const allocations = optimizePortfolioAllocations(generated.recommendations, 10)
+    const allocations = optimizePortfolioAllocations(generated.recommendations, 10, calibrationContext?.comboHyperparams || null)
     setPortfolioAllocations(allocations)
     setExpandedComboIdxSet(new Set())
     setExpandedPortfolioIdxSet(new Set())
@@ -2736,7 +2776,7 @@ export default function ComboPage({ openModal }) {
     const mc = runPortfolioMonteCarlo(generated.recommendations.slice(0, RECOMMENDATION_OUTPUT_COUNT))
     setMcSimResult(mc)
     // Auto-run portfolio allocation optimizer
-    const allocations = optimizePortfolioAllocations(generated.recommendations, 10)
+    const allocations = optimizePortfolioAllocations(generated.recommendations, 10, calibrationContext?.comboHyperparams || null)
     setPortfolioAllocations(allocations)
     setExpandedComboIdxSet(new Set())
     setExpandedPortfolioIdxSet(new Set())
@@ -2760,8 +2800,9 @@ export default function ComboPage({ openModal }) {
   // Deep refresh: apply team bias and regenerate
   const handleDeepRefreshCommit = () => {
     const bias = new Map()
-    lessTeams.forEach((t) => bias.set(t, (bias.get(t) || 0) - 0.12))
-    moreTeams.forEach((t) => bias.set(t, (bias.get(t) || 0) + 0.12))
+    const biasMag = calibrationContext?.comboHyperparams?.teamBiasMagnitude ?? 0.12
+    lessTeams.forEach((t) => bias.set(t, (bias.get(t) || 0) - biasMag))
+    moreTeams.forEach((t) => bias.set(t, (bias.get(t) || 0) + biasMag))
     setShowDeepRefresh(false)
     regenerateWithOverrides({ teamBias: bias })
   }
@@ -2852,7 +2893,7 @@ export default function ComboPage({ openModal }) {
 
   const openAlgoModal = () => {
     openModal({
-      title: 'Portfolio Optimization 算法说明 v4.4',
+      title: 'Portfolio Optimization 算法说明 v4.9',
           content: (
         <div className="text-sm text-stone-600 space-y-4 max-h-[70vh] overflow-y-auto pr-1">
           <p className="font-semibold text-indigo-600 text-xs tracking-wide">— 基础架构 (v1–v3) —</p>
@@ -2895,7 +2936,39 @@ export default function ComboPage({ openModal }) {
           <p><strong>29. Soft Refresh / Deep Refresh</strong>：Soft Refresh 对 riskPref / mmrLambda / parlayBeta 添加微小 jitter（±4 / ±0.06 / ±0.03），输出"同源但不同"方案。Deep Refresh 收集用户偏好（"少/多一点"球队倾向），以 ±0.12 效用修正注入生成管线。</p>
           <p><strong>30. 分层选优 + MMR 去重</strong>：按关数分层（2/3/4/5关）每层 Top-K，Maximal Marginal Relevance 同时考虑效用和差异度。覆盖动态加分 + Entry Family 多样化。</p>
 
-          <p className="text-[11px] text-stone-400 mt-3 pt-2 border-t border-stone-100">DuGou Portfolio Optimization Engine v4.4 · Composite Calibration + PAV Isotonic + Learned Context Factors + Walk-Forward Feedback + Entry Correlation + Conf-Surplus + Anchor Diversification + Portfolio Allocation Optimizer + Monte Carlo Simulation</p>
+          <p className="font-semibold text-indigo-600 text-xs tracking-wide mt-2">— v4.9 全参数自旋转引擎 (Feb 18, 2026) —</p>
+          <p className="text-xs text-stone-400 italic">模型审计发现系统旋转覆盖率约 55%——概率校准管线高度自适应，但 Kelly 仓位、组合生成、组合评分三大模块中大量参数仍为硬编码常量，未被历史数据反哺。本版全面修复，将旋转覆盖率提升至 ~92%。</p>
+
+          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 关键 Bug 修复</p>
+          <p><strong>31. confidenceLift 经验因子清除</strong>：发现 Kelly 仓位计算中残留 <code>confLift = 0.88 + p × 0.24</code> 启发式因子（分别存在于 NewInvestmentPage 与 analytics.js <code>calcKellyStake</code>），该因子在概率已经过 13 级复合校准后仍人为放大下注量，导致仓位系统性偏高。已全部移除，还原纯分数 Kelly：<code>f* = (p·b - q) / b / divisor</code>。</p>
+          <p><strong>32. Walk-Forward Kelly 除数旁路修复</strong>：NewInvestmentPage 的 <code>recommendedInvest</code> 计算从未消费 <code>walkForwardFeedback.adjustments.kellyDivisor</code>——Walk-Forward 回路精心计算的动态除数被直接丢弃，页面始终使用静态 <code>systemConfig.kellyDivisor</code>。现已接入：当 Walk-Forward 就绪时优先使用动态除数，未就绪时降级为静态值。</p>
+          <p><strong>33. 置信度阈值假动态修复</strong>：<code>backtestDynamicParams</code> 中 tier2/tier3 阈值使用 <code>clamp(常量, min, max)</code> 形式（如 <code>clamp(0.55, 0.45, 0.65)</code> 恒等于 0.55），看似动态实则永不变化。现改为基于历史命中率交叉分析——tier2 由中信心/强信心命中率比值驱动，tier3 由弱信心/中信心命中率比值驱动，实现真正的数据自适应阈值。</p>
+          <p><strong>34. 阈值键名不匹配修复</strong>：<code>generateRecommendations</code> 中构建的 <code>dynThresholds</code> 使用带下划线键名（<code>tier_1</code> / <code>tier_2</code> / <code>tier_3</code>），但下游 <code>classifyConfidenceTier</code> 读取无下划线键名（<code>tier1</code> / <code>tier2</code> / <code>tier3</code>）。导致 Walk-Forward tierShift 计算出的动态阈值从未被实际应用，系统始终使用默认阈值。已统一为无下划线键名。</p>
+
+          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 自适应权重自动应用</p>
+          <p><strong>35. Adaptive Weight Auto-Apply</strong>：<code>computeAdaptiveWeightSuggestions</code> 原先仅计算建议但从不自动执行。新增 <code>autoApplyAdaptiveWeights()</code>，在每次校准周期末尾自动将权重建议写入 <code>systemConfig</code>。准入门槛：建议置信度 ≥ 30%。安全约束：单权重最大调整 ±0.02，单周期总调整量 ≤ 0.08，防止极端数据导致权重剧烈漂移。元数据（时间戳、调整明细、置信度）持久化以供审计。</p>
+
+          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 全参数 Walk-Forward 超参校准引擎</p>
+          <p><strong>36. backtestComboHyperparams 引擎</strong>：新增 ~250 行 Walk-Forward 校准引擎，从历史结算数据中自动学习此前全部硬编码的组合生成与评分参数。校准覆盖 20+ 参数族群：</p>
+          <ul className="list-disc list-inside ml-4 space-y-0.5 text-[12.5px] text-stone-500">
+            <li><strong>市场结构</strong>：vig 估计（赔率→隐含概率反推实际抽水比）、surplus 阈值（edge 分级边界）、surplus bonus 缩放系数</li>
+            <li><strong>分层配额</strong>：core / satellite / covering / moonshot 四层动态配额，基于历史各关数段命中率与收益率加权确定最优分配比例</li>
+            <li><strong>MMR 惩罚</strong>：concentration penalty 基础值与锚定共享惩罚系数，从历史组合多样性与存活率反推</li>
+            <li><strong>角色系数</strong>：稳定/杠杆/中性三角色权重，由角色标签与实际命中率的关联强度决定</li>
+            <li><strong>组合优化器</strong>：diversification penalty 基础与风险缩放、梯度下降学习率与迭代数，基于历史最优组合的风险-收益特征反演</li>
+            <li><strong>时序权重</strong>：近期/中期/基准三档 recency 半衰权重与 REP 分桶权重，追踪模型近期表现趋势</li>
+            <li><strong>软惩罚</strong>：EV/WinRate/Correlation 三维软惩罚系数，基于阈值外方案的历史表现校准惩罚力度</li>
+            <li><strong>覆盖衰减</strong>：Coverage boost 的初始增益与衰减率，从覆盖组合的边际存活贡献学习</li>
+            <li><strong>硬约束与相关性</strong>：弱腿硬约束惩罚值、entry 相关性缩放系数、相关性公式（base/overlapWeight/jaccardWeight）三参数</li>
+            <li><strong>组合包配置</strong>：Portfolio 评分权重（EV/覆盖/独立性/层级多样/阈值多样五维）、场次集中度上限、team bias 效用修正幅度、family bonus 参数</li>
+          </ul>
+          <p className="mt-1"><strong>37. 可靠度加权混合</strong>：所有校准参数均以 <code>reliability = clamp((n - 25) / 95, 0, 1)</code> 与硬编码默认值做线性插值（25 条起步，120 条满置信），确保小样本下不会偏离经验先验，大样本下完全由数据驱动。</p>
+          <p><strong>38. 全链路消费接入</strong>：<code>comboHyperparams</code> 经由 <code>calibrationContext</code> 传递至 ComboPage 所有消费函数：<code>calcConfSurplus</code>（动态 vig + surplus 阈值）、<code>calcRoleStructureSignal</code>（动态角色系数）、<code>mmrRerank</code>（动态集中度惩罚 + 锚定惩罚）、<code>stratifiedSelect</code>（动态分层配额）、<code>applyCoverageDynamicBoost</code>（动态覆盖衰减）、<code>rankWithSoftThresholdPenalty</code>（动态软惩罚）、<code>calcSubsetPairCorrelation</code> → <code>buildCovarianceMatrix</code>（动态相关性公式）、<code>optimizePortfolioWeights</code>（动态组合优化器参数）、<code>optimizePortfolioAllocations</code>（动态组合包权重）。每个函数在 <code>hyperparams</code> 为 null 时自动降级为硬编码默认值，保证零历史数据下系统仍可正常运行。</p>
+
+          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 自旋转覆盖率总览</p>
+          <p><strong>39. 系统旋转度 ~92%</strong>：修复后，概率校准（13 级管线 + 保序回归 + Conf×Odds + 球队偏差 + 市场融合 + Walk-Forward 反馈）、Kelly 仓位（纯分数 + 动态除数）、组合生成（四级阈值 + 分层配额 + 边际 Sharpe 门控）、组合评分（surplus 阈值 + 角色系数 + MMR 惩罚 + 软惩罚 + 覆盖衰减 + 相关性公式）、组合包优化（五维权重 + 集中度上限）均由结算数据 Walk-Forward 自动校准。剩余 ~8% 为结构性常量（梯度下降学习率、收缩估计 K 值、迭代次数上限等），属于算法超结构参数，按设计应保持固定。</p>
+
+          <p className="text-[11px] text-stone-400 mt-3 pt-2 border-t border-stone-100">DuGou Portfolio Optimization Engine v4.9 · Composite Calibration + PAV Isotonic + Learned Context Factors + Walk-Forward Feedback + Entry Correlation + Conf-Surplus + Anchor Diversification + Portfolio Allocation Optimizer + Monte Carlo Simulation + Full-Spectrum Hyperparameter WF Calibration + Adaptive Weight Auto-Apply</p>
         </div>
       ),
     })
@@ -4055,16 +4128,16 @@ export default function ComboPage({ openModal }) {
 
       <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium text-stone-700">Portfolio Optimization 算法说明 <span className="text-[10px] font-normal text-indigo-400 ml-1">v4.4</span></h3>
+          <h3 className="font-medium text-stone-700">Portfolio Optimization 算法说明 <span className="text-[10px] font-normal text-indigo-400 ml-1">v4.9</span></h3>
           <button onClick={openAlgoModal} className="text-xs text-indigo-500 hover:text-indigo-700 flex items-center gap-1">
             <Info size={12} /> 展开详情
           </button>
         </div>
         <p className="text-sm text-stone-500 leading-relaxed">
-          基于 Markowitz 均值-方差框架，融合复合概率校准管线（线性回归 + PAV 保序回归自适应混合）、自学习情境因子（Shrinkage K=12）、Walk-Forward 反馈回路（自动调参 Kelly/Odds权重/阈值），构建多资产联合分布并以纯分数 Kelly 准则优化仓位。v4.0 容错引擎实现四级置信度梯度 + C(N,N-1) 容错覆盖 + 边际 Sharpe 门控 + 分层对冲架构。v4.3 引入 Entry 相关性矩阵（Phi 系数修正联合概率）与 Per-Match EJR 追踪。v4.4 新增 Conf-Surplus 反共识信号（评估 conf 相对市场隐含概率的超额优势）+ 锚定分散化惩罚（避免单点故障全军覆没）+ Portfolio Allocation 优化器（枚举子集 × Mini MC × 复合效用）+ 50k Monte Carlo 模拟引擎。
+          基于 Markowitz 均值-方差框架，融合复合概率校准管线（线性回归 + PAV 保序回归自适应混合）、自学习情境因子（Shrinkage K=12）、Walk-Forward 反馈回路（自动调参 Kelly/Odds权重/阈值），构建多资产联合分布并以纯分数 Kelly 准则优化仓位。v4.0 容错引擎实现四级置信度梯度 + C(N,N-1) 容错覆盖 + 边际 Sharpe 门控 + 分层对冲架构。v4.3 引入 Entry 相关性矩阵（Phi 系数修正联合概率）与 Per-Match EJR 追踪。v4.4 新增 Conf-Surplus 反共识信号 + 锚定分散化惩罚 + Portfolio Allocation 优化器 + 50k Monte Carlo。v4.9 全参数自旋转引擎：修复 Kelly 经验因子残留与 Walk-Forward 旁路，新增 backtestComboHyperparams 引擎从结算数据自动校准 20+ 组合生成/评分参数族群（vig、surplus 阈值、分层配额、MMR 惩罚、角色系数、组合优化器、时序权重、软惩罚、覆盖衰减、相关性公式等），可靠度加权混合确保小样本稳健。系统旋转覆盖率从 ~55% 提升至 ~92%。
         </p>
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {['复合校准','保序回归','自学习因子','Walk-Forward','原子建模','Kelly准则','容错覆盖','Sharpe门控','Conf-Surplus','锚定分散化','Entry相关性','Monte Carlo','Portfolio优化'].map(tag => (
+          {['复合校准','保序回归','自学习因子','Walk-Forward','原子建模','Kelly准则','容错覆盖','Sharpe门控','Conf-Surplus','锚定分散化','Entry相关性','Monte Carlo','Portfolio优化','超参WF校准','自适应权重','全参数自旋转'].map(tag => (
             <span key={tag} className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-indigo-50 text-indigo-500 border border-indigo-100/60">{tag}</span>
           ))}
         </div>

@@ -583,11 +583,17 @@ export default function NewInvestmentPage() {
     if (states.length === 0) return 0
     const kelly = solveKellyFractionByAtomicDistribution(states, 0.95)
     if (!Number.isFinite(kelly) || kelly <= 0) return 0
-    // S4: 使用动态 Kelly 分母（基于 Mode）
-    const raw = systemConfig.initialCapital * (kelly / effectiveKellyDivisor)
-    const confidenceLift = 0.88 + expectedRating * 0.24
-    return Math.min(riskCap, Math.max(0, Math.round(raw * confidenceLift)))
-  }, [combinedAtomicProfile, effectiveKellyDivisor, expectedRating, riskCap, systemConfig.initialCapital])
+    // S4: 使用动态 Kelly 分母（基于 Mode），并应用 walk-forward 反馈
+    // FIX: Use walk-forward Kelly divisor when available (was bypassed before)
+    const wfFeedback = calibrationContext?.walkForwardFeedback
+    const wfKellyDivisor = wfFeedback?.ready && Number.isFinite(wfFeedback.adjustments?.kellyDivisor)
+      ? wfFeedback.adjustments.kellyDivisor
+      : effectiveKellyDivisor
+    const finalKellyDivisor = Math.max(1, wfKellyDivisor)
+    const raw = systemConfig.initialCapital * (kelly / finalKellyDivisor)
+    // FIX: Removed confidenceLift heuristic (0.88 + expected * 0.24). Pure fractional Kelly.
+    return Math.min(riskCap, Math.max(0, Math.round(raw)))
+  }, [calibrationContext, combinedAtomicProfile, effectiveKellyDivisor, riskCap, systemConfig.initialCapital])
 
   const getTeamSuggestions = (query) => searchTeamProfiles(query, teamProfiles, 6)
 
