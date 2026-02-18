@@ -1049,9 +1049,16 @@ const writeComboPlanHistory = (history) => {
   window.localStorage.setItem(COMBO_PLAN_HISTORY_KEY, JSON.stringify(history))
 }
 
-const collectHistoryMatchKeys = (historyRow) => {
+const normalizeMatchLabelKey = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+
+const collectHistoryMatchKeys = (historyRow, candidateRows = []) => {
   const keys = new Set()
   if (!historyRow || typeof historyRow !== 'object') return keys
+  const labelKeys = new Set()
 
   if (historyRow.selectedRoleMap && typeof historyRow.selectedRoleMap === 'object') {
     Object.keys(historyRow.selectedRoleMap).forEach((key) => {
@@ -1064,9 +1071,41 @@ const collectHistoryMatchKeys = (historyRow) => {
     historyRow.recommendations.forEach((recommendation) => {
       const subset = Array.isArray(recommendation?.subset) ? recommendation.subset : []
       subset.forEach((match) => {
-        if (!match || match.investmentId == null || match.matchIndex == null) return
-        keys.add(`${match.investmentId}-${match.matchIndex}`)
+        if (!match) return
+        const directKey = String(match.key || '').trim()
+        if (directKey) keys.add(directKey)
+        if (match.investmentId != null && match.matchIndex != null) {
+          keys.add(`${match.investmentId}-${match.matchIndex}`)
+        }
+        const home = String(match.homeTeam || match.home_team || '').trim()
+        const away = String(match.awayTeam || match.away_team || '').trim()
+        if (home || away) {
+          labelKeys.add(normalizeMatchLabelKey(`${home || '-'} vs ${away || '-'}`))
+        } else if (match.match) {
+          labelKeys.add(normalizeMatchLabelKey(match.match))
+        }
       })
+    })
+  }
+
+  if (Array.isArray(historyRow.candidateMatchKeys)) {
+    historyRow.candidateMatchKeys.forEach((item) => {
+      const keyText = normalizeMatchLabelKey(item?.matchKey)
+      if (keyText) labelKeys.add(keyText)
+    })
+  }
+
+  if (Array.isArray(candidateRows) && candidateRows.length > 0 && labelKeys.size > 0) {
+    const rowLabelMap = new Map()
+    candidateRows.forEach((row) => {
+      const key = String(row?.key || '').trim()
+      if (!key) return
+      rowLabelMap.set(normalizeMatchLabelKey(row.match), key)
+      rowLabelMap.set(normalizeMatchLabelKey(`${row.homeTeam || '-'} vs ${row.awayTeam || '-'}`), key)
+    })
+    labelKeys.forEach((labelKey) => {
+      const matched = rowLabelMap.get(labelKey)
+      if (matched) keys.add(matched)
     })
   }
 
@@ -1856,8 +1895,10 @@ const generateRecommendations = (
     let profitWinProbability = clamp(Number(adjustedCombo.profitWinProbability || 0), 0, 1)
     const rawP = clamp(Number(rawCombo.hitProbability || 0), 0, 1)
 
-    // ── FIX #4: Entry correlation adjustment ──
-    // Correct the independence assumption using pairwise correlation data
+    // ── FIX #4: Entry correlation adjustment (multiplicative, not additive) ──
+    // Correct the independence assumption using pairwise correlation data.
+    // Use multiplicative correction: p *= (1 + avgCorr) so same phi coefficient
+    // produces proportional impact regardless of base probability level.
     const corrMatrix = calibrationContext?.entryCorrelation
     if (corrMatrix?.ready && legs >= 2) {
       let corrShift = 0
@@ -1878,8 +1919,10 @@ const generateRecommendations = (
       }
       if (pairCount > 0) {
         const avgCorrAdj = corrShift / pairCount
-        p = clamp(p + avgCorrAdj, 0.02, 0.98)
-        profitWinProbability = clamp(profitWinProbability + avgCorrAdj, 0.02, 0.98)
+        // Multiplicative correction: proportional impact at all probability levels
+        const multiplier = 1 + clamp(avgCorrAdj / Math.max(p, 0.01), -0.25, 0.25)
+        p = clamp(p * multiplier, 0.02, 0.98)
+        profitWinProbability = clamp(profitWinProbability * multiplier, 0.02, 0.98)
       }
     }
 
@@ -2571,7 +2614,7 @@ export default function ComboPage({ openModal }) {
     setShowAllQuickRecommendations(false)
   }
 
-  const pushPlanHistory = (generated, selectedRows, pref) => {
+  const pushPlanHistory = (generated, selectedRows, pref, snapshot = null) => {
     const selectedLabel = selectedRows.slice(0, 2).map((row) => row.match).join(' + ')
     const roleMap = selectedRows.reduce((acc, row) => {
       if (row?.key) {
@@ -2607,6 +2650,10 @@ export default function ComboPage({ openModal }) {
       coverageInjectedCombos: generated.coverageInjectedCombos,
       uncoveredMatches: generated.uncoveredMatches,
       legsDistribution: generated.legsDistribution || {},
+      portfolioAllocations:
+        Array.isArray(snapshot?.portfolioAllocations) ? snapshot.portfolioAllocations : [],
+      mcSimResult:
+        snapshot?.mcSimResult && typeof snapshot.mcSimResult === 'object' ? snapshot.mcSimResult : null,
     }
     setPlanHistory((prev) => {
       const next = [entry, ...prev].slice(0, 12)
@@ -2620,7 +2667,9 @@ export default function ComboPage({ openModal }) {
     clearAnalysisFilter()
     setAnalysisFilter(null)
 
-    const historyMatchKeys = collectHistoryMatchKeys(historyRow)
+    const latestTodayMatches = getTodayMatches()
+    const historyMatchKeys = collectHistoryMatchKeys(historyRow, latestTodayMatches)
+    setTodayMatches(latestTodayMatches)
     if (historyMatchKeys.size > 0) {
       const dismissed = readDismissedCandidateKeys()
       let changed = false
@@ -2632,7 +2681,6 @@ export default function ComboPage({ openModal }) {
         setDismissedCount(dismissed.size)
       }
       restoreCheckedKeysRef.current = [...historyMatchKeys]
-      setTodayMatches(getTodayMatches())
     }
 
     setRiskPref(Number(historyRow.riskPref || 50))
@@ -2673,6 +2721,23 @@ export default function ComboPage({ openModal }) {
     })
     setShowAllRecommendations(false)
     setShowAllQuickRecommendations(false)
+    const restoredAllocations =
+      Array.isArray(historyRow.portfolioAllocations) && historyRow.portfolioAllocations.length > 0
+        ? historyRow.portfolioAllocations
+        : optimizePortfolioAllocations(
+          safeRecommendations,
+          10,
+          calibrationContext?.comboHyperparams || null,
+        )
+    setPortfolioAllocations(restoredAllocations)
+    const restoredMc =
+      historyRow.mcSimResult && typeof historyRow.mcSimResult === 'object'
+        ? historyRow.mcSimResult
+        : runPortfolioMonteCarlo(safeRecommendations.slice(0, RECOMMENDATION_OUTPUT_COUNT))
+    setMcSimResult(restoredMc)
+    setExpandedComboIdxSet(new Set())
+    setExpandedPortfolioIdxSet(new Set())
+    setShowAllPortfolios(false)
 
     setSelectedRecommendationIds({})
   }
@@ -2762,9 +2827,6 @@ export default function ComboPage({ openModal }) {
     })
     setShowAllRecommendations(false)
     setShowAllQuickRecommendations(false)
-    pushPlanHistory(generated, selectedMatches, riskPref)
-
-    setSelectedRecommendationIds({})
 
     // Auto-run Monte Carlo simulation on the generated package
     const mc = runPortfolioMonteCarlo(generated.recommendations.slice(0, RECOMMENDATION_OUTPUT_COUNT))
@@ -2773,6 +2835,12 @@ export default function ComboPage({ openModal }) {
     // Auto-run portfolio allocation optimizer
     const allocations = optimizePortfolioAllocations(generated.recommendations, 10, calibrationContext?.comboHyperparams || null)
     setPortfolioAllocations(allocations)
+    pushPlanHistory(generated, selectedMatches, riskPref, {
+      portfolioAllocations: allocations,
+      mcSimResult: mc,
+    })
+
+    setSelectedRecommendationIds({})
     setExpandedComboIdxSet(new Set())
     setExpandedPortfolioIdxSet(new Set())
     setShowAllPortfolios(false)
