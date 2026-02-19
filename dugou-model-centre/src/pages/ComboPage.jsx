@@ -1030,11 +1030,25 @@ const DEFAULT_COMBO_STRUCTURE = {
   coverageEta: 0.15,
 }
 
+const DEFAULT_QUALITY_FILTER = {
+  minEvPercent: 0,
+  minWinRate: 5,
+  maxCorr: 0.85,
+  minCoveragePercent: 90,
+}
+
 const sanitizeComboStructure = (value) => ({
   minLegs: clamp(Number(value?.minLegs ?? DEFAULT_COMBO_STRUCTURE.minLegs), 1, 5),
   parlayBeta: clamp(Number(value?.parlayBeta ?? DEFAULT_COMBO_STRUCTURE.parlayBeta), 0, 0.5),
   mmrLambda: clamp(Number(value?.mmrLambda ?? DEFAULT_COMBO_STRUCTURE.mmrLambda), 0.2, 0.9),
   coverageEta: clamp(Number(value?.coverageEta ?? DEFAULT_COMBO_STRUCTURE.coverageEta), 0, 0.4),
+})
+
+const sanitizeQualityFilter = (value) => ({
+  minEvPercent: Number.parseFloat(value?.minEvPercent) || DEFAULT_QUALITY_FILTER.minEvPercent,
+  minWinRate: clamp(Number.parseInt(value?.minWinRate ?? DEFAULT_QUALITY_FILTER.minWinRate, 10), 0, 100),
+  maxCorr: clamp(Number.parseFloat(value?.maxCorr ?? DEFAULT_QUALITY_FILTER.maxCorr), 0, 1),
+  minCoveragePercent: clamp(Number.parseFloat(value?.minCoveragePercent ?? DEFAULT_QUALITY_FILTER.minCoveragePercent), 0, 100),
 })
 
 const getFactorWeight = (value, fallback) => {
@@ -1613,12 +1627,25 @@ const buildAtomicLegProfile = (match, unionProbability, fallbackOdds = 2.5) =>
     fallbackOdds,
   })
 
+const translateEntry = (entry) => {
+  if (!entry) return ''
+  const e = entry.trim().toLowerCase()
+  const map = { win: '胜', lose: '不敌', draw: '战平', 'draw/lose': '战平/不敌', 'win/draw': '胜/战平' }
+  if (map[e]) return map[e]
+  // Handle comma-separated like "draw, lose" → "战平/不敌"
+  if (e.includes(',')) {
+    return e.split(',').map(p => map[p.trim()] || p.trim()).join('/')
+  }
+  // Score entries like "1-1" or "2-0" stay as-is
+  return entry.trim()
+}
+
 const buildComboTitle = (subset) =>
   subset
     .map((item) => {
-      const shortEntry = (item.entry || '').split(',')[0].trim()
-      if (!shortEntry) return item.homeTeam
-      return `${item.homeTeam}${shortEntry}`
+      const fullEntry = (item.entry || '').trim()
+      if (!fullEntry) return item.homeTeam
+      return `${item.homeTeam}${translateEntry(fullEntry)}`
     })
     .join(' × ')
 
@@ -1642,17 +1669,23 @@ const dedupeRankedBySignature = (rankedRows) => {
   return next
 }
 
-const rankWithSoftThresholdPenalty = (rows, minEv, minWinRate, maxCorr, alpha, hyperparams = null) => {
-  const sp = hyperparams?.softPenaltyScales || { evGapBase: 1.15, evGapAlpha: 0.55, winGapBase: 0.85, winGapAlpha: 0.45, corrGapBase: 0.72, corrGapAlpha: 0.28 }
+const rankWithSoftThresholdPenalty = (rows, minEv, minWinRate, maxCorr, minCoverage, alpha, hyperparams = null) => {
+  const sp = hyperparams?.softPenaltyScales || { evGapBase: 1.15, evGapAlpha: 0.55, winGapBase: 0.85, winGapAlpha: 0.45, corrGapBase: 0.72, corrGapAlpha: 0.28, coverageGapBase: 0.9, coverageGapAlpha: 0.35 }
   const evGapScale = sp.evGapBase + (1 - alpha) * sp.evGapAlpha
   const winGapScale = sp.winGapBase + (1 - alpha) * sp.winGapAlpha
   const corrGapScale = sp.corrGapBase + (1 - alpha) * sp.corrGapAlpha
+  const coverageGapScale = sp.coverageGapBase + (1 - alpha) * sp.coverageGapAlpha
   return [...rows]
     .map((item) => {
       const evGap = Math.max(0, minEv - item.ev)
       const winGap = Math.max(0, minWinRate - item.p)
       const corrGap = Math.max(0, item.corr - maxCorr)
-      const thresholdPenalty = evGap * evGapScale + winGap * winGapScale + corrGap * corrGapScale
+      const coverageGap = Math.max(0, minCoverage - (item.coverageRate || 0))
+      const thresholdPenalty =
+        evGap * evGapScale +
+        winGap * winGapScale +
+        corrGap * corrGapScale +
+        coverageGap * coverageGapScale
       return {
         ...item,
         thresholdPenalty,
@@ -1946,6 +1979,8 @@ const generateRecommendations = (
   const minEv = Number(qualityFilter?.minEvPercent || 0) / 100
   const minWinRate = clamp(Number(qualityFilter?.minWinRate || 0) / 100, 0, 1)
   const maxCorr = clamp(Number(qualityFilter?.maxCorr ?? 1), 0, 1)
+  const minCoverage = clamp(Number(qualityFilter?.minCoveragePercent ?? DEFAULT_QUALITY_FILTER.minCoveragePercent) / 100, 0, 1)
+  const selectedMatchKeyCount = Math.max(1, new Set(selectedMatches.map((match) => buildMatchRefKey(match))).size)
 
   const normalizedComboStructure = sanitizeComboStructure(comboStructure)
   const normalizedAllocationMode = normalizeAllocationMode(allocationMode)
@@ -2140,6 +2175,8 @@ const generateRecommendations = (
       + confSurplusBonus
     const corr = calcSubsetSourceCorrelation(annotatedSubset)
     const confAvg = annotatedSubset.reduce((sum, item) => sum + clamp(item.conf, 0.05, 0.95), 0) / Math.max(legs, 1)
+    const subsetMatchKeyCount = new Set(annotatedSubset.map((match) => buildMatchRefKey(match))).size
+    const coverageRate = clamp(subsetMatchKeyCount / selectedMatchKeyCount, 0, 1)
     return {
       subset: annotatedSubset,
       legs,
@@ -2163,6 +2200,7 @@ const generateRecommendations = (
       roleDiversity: roleSignal.diversity,
       corr,
       confAvg,
+      coverageRate,
       // New fields for tier and fault-tolerance
       confTiers,
       tier3Count,
@@ -2182,9 +2220,17 @@ const generateRecommendations = (
   const pool = legsFiltered.length > 0 ? legsFiltered : scoredAll // graceful fallback
 
   const rankedAllByUtility = dedupeRankedBySignature([...pool].sort((a, b) => b.utility - a.utility || b.sharpe - a.sharpe))
-  const qualifiedRaw = pool.filter((item) => item.ev >= minEv && item.p >= minWinRate && item.corr <= maxCorr)
+  const qualifiedRaw = pool.filter(
+    (item) =>
+      item.ev >= minEv &&
+      item.p >= minWinRate &&
+      item.corr <= maxCorr &&
+      (item.coverageRate || 0) >= minCoverage,
+  )
   const rankedQualified = dedupeRankedBySignature([...qualifiedRaw].sort((a, b) => b.utility - a.utility || b.sharpe - a.sharpe))
-  const rankedSoftPenalty = dedupeRankedBySignature(rankWithSoftThresholdPenalty(rankedAllByUtility, minEv, minWinRate, maxCorr, alpha, hp))
+  const rankedSoftPenalty = dedupeRankedBySignature(
+    rankWithSoftThresholdPenalty(rankedAllByUtility, minEv, minWinRate, maxCorr, minCoverage, alpha, hp),
+  )
 
   let preparedRanked = []
   if (comboStrategy === 'thresholdStrict') {
@@ -2334,7 +2380,11 @@ const generateRecommendations = (
         familyDiversity: Number((item.familyDiversity || 1).toFixed(2)),
         roleMixBonus: Number((item.roleMixBonus || 0).toFixed(3)),
         roleSignature: item.roleSignature || '--',
-        thresholdPass: item.ev >= minEv && item.p >= minWinRate && item.corr <= maxCorr,
+        thresholdPass:
+          item.ev >= minEv &&
+          item.p >= minWinRate &&
+          item.corr <= maxCorr &&
+          (item.coverageRate || 0) >= minCoverage,
         ftLayerTag: item.ftLayerTag || null,
         confTierSummary: item.confTiers ? item.confTiers.join('/') : '--',
         tierPenalty: Number((item.tierPenalty || 0).toFixed(3)),
@@ -2418,11 +2468,7 @@ export default function ComboPage({ openModal }) {
   const [recommendations, setRecommendations] = useState([])
   const [rankingRows, setRankingRows] = useState([])
   const [layerSummary, setLayerSummary] = useState([])
-  const [qualityFilter, setQualityFilter] = useState({
-    minEvPercent: 0,
-    minWinRate: 5,
-    maxCorr: 0.85,
-  })
+  const [qualityFilter, setQualityFilter] = useState(() => sanitizeQualityFilter(DEFAULT_QUALITY_FILTER))
   const [comboStrategy, setComboStrategy] = useState(DEFAULT_COMBO_STRATEGY)
   const [allocationMode, setAllocationMode] = useState(DEFAULT_ALLOCATION_MODE)
   const [comboStructure, setComboStructure] = useState(() => sanitizeComboStructure(DEFAULT_COMBO_STRUCTURE))
@@ -3014,7 +3060,7 @@ export default function ComboPage({ openModal }) {
     if (!generated) {
       window.alert(
         comboStrategy === 'thresholdStrict'
-          ? '当前阈值下没有可用方案，请降低最小 EV / 最小胜率，或放宽最大相关性。'
+          ? '当前阈值下没有可用方案，请降低最小 EV / 最小胜率 / 最小覆盖率，或放宽最大相关性。'
           : '当前参数下没有可用方案，请调整风险偏好或降低过滤强度后重试。',
       )
       return
@@ -3630,24 +3676,21 @@ export default function ComboPage({ openModal }) {
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() =>
-                    setQualityFilter({
-                      minEvPercent: 2,
-                      minWinRate: 45,
-                      maxCorr: 0.65,
-                    })
+                    setQualityFilter(
+                      sanitizeQualityFilter({
+                        minEvPercent: 2,
+                        minWinRate: 45,
+                        maxCorr: 0.65,
+                        minCoveragePercent: 90,
+                      }),
+                    )
                   }
                   className="px-2.5 py-1 rounded-md text-[11px] border border-indigo-300/80 bg-gradient-to-r from-indigo-100 to-violet-100 text-indigo-700 hover:from-indigo-200 hover:to-violet-200 transition-colors"
                 >
                   一键强化过滤
                 </button>
                 <button
-                  onClick={() =>
-                    setQualityFilter({
-                      minEvPercent: 0,
-                      minWinRate: 5,
-                      maxCorr: 0.85,
-                    })
-                  }
+                  onClick={() => setQualityFilter(sanitizeQualityFilter(DEFAULT_QUALITY_FILTER))}
                   className="px-2.5 py-1 rounded-md text-[11px] border border-stone-200 bg-white/85 text-stone-600 hover:border-indigo-200 hover:text-indigo-700 transition-colors"
                 >
                   重置
@@ -3708,7 +3751,7 @@ export default function ComboPage({ openModal }) {
             </div>
             <div className="mt-3.5 pt-3 border-t border-indigo-200/70">
               <p className="text-[11px] text-indigo-700/85 mb-1.5 font-medium">阈值参数</p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 <label className="text-[11px] text-stone-500 rounded-xl border border-indigo-100/80 bg-white/78 px-2.5 py-2 backdrop-blur-[2px]">
                   最小 EV %
                   <input
@@ -3758,9 +3801,26 @@ export default function ComboPage({ openModal }) {
                     className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-indigo-100 text-xs text-right bg-white/90"
                   />
                 </label>
+                <label className="text-[11px] text-stone-500 rounded-xl border border-indigo-100/80 bg-white/78 px-2.5 py-2 backdrop-blur-[2px]">
+                  最小覆盖率 %
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    max="100"
+                    value={qualityFilter.minCoveragePercent}
+                    onChange={(event) =>
+                      setQualityFilter((prev) => ({
+                        ...prev,
+                        minCoveragePercent: clamp(Number.parseInt(event.target.value || '0', 10), 0, 100),
+                      }))
+                    }
+                    className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-indigo-100 text-xs text-right bg-white/90"
+                  />
+                </label>
               </div>
               <p className="text-[11px] text-indigo-700/65 mt-2">
-                相关性基于“同源注单集中度”（HHI）估计；值越大，组合越可能同涨同跌。
+                覆盖率按“组合覆盖的候选比赛占比”估计；相关性基于“同源注单集中度”（HHI）估计，值越大越可能同涨同跌。
               </p>
             </div>
           </div>
@@ -4027,7 +4087,7 @@ export default function ComboPage({ openModal }) {
                                   {(combo.subset || []).map((leg, li) => (
                                     <div key={li} className="combo-team-pill px-3 py-2 flex items-center gap-1.5">
                                       <span className="text-[13px] font-semibold text-stone-800">{leg.homeTeam}</span>
-                                      <span className="text-[10px] text-stone-300 font-medium">vs</span>
+                                      <span className="text-[11px] text-indigo-400/70 font-medium">{translateEntry(leg.entry) || 'vs'}</span>
                                       <span className="text-[13px] font-semibold text-stone-800">{leg.awayTeam}</span>
                                     </div>
                                   ))}
@@ -4036,6 +4096,77 @@ export default function ComboPage({ openModal }) {
                             )
                           })}
                         </div>
+
+                        {/* ─── Fault Tolerance Matrix ─── */}
+                        {(() => {
+                          // Gather all unique matches and their presence per combo within this portfolio
+                          const ftMatches = []
+                          const ftMatchSet = new Set()
+                          alloc.combos.forEach((combo) => {
+                            ;(combo.subset || []).forEach((leg) => {
+                              const mk = leg.key || `${leg.homeTeam}-${leg.awayTeam}`
+                              if (!ftMatchSet.has(mk)) {
+                                ftMatchSet.add(mk)
+                                ftMatches.push({ key: mk, label: `${leg.homeTeam || '?'} vs ${leg.awayTeam || '?'}`, shortLabel: leg.homeTeam || mk.split('-')[0] })
+                              }
+                            })
+                          })
+                          if (ftMatches.length < 2) return null
+                          // For each combo, build the set of match keys it contains
+                          const comboMatchSets = alloc.combos.map((combo) => {
+                            const s = new Set()
+                            ;(combo.subset || []).forEach((leg) => s.add(leg.key || `${leg.homeTeam}-${leg.awayTeam}`))
+                            return s
+                          })
+                          // Matrix: row = "when this match fails", col = "does this match survive?"
+                          // Cell(r,c): green if col-match is in at least one combo that does NOT include row-match
+                          //            red if col-match is ONLY in combos that also include row-match (all wasted)
+                          //            self = gray diagonal
+                          return (
+                            <div className="px-4 pb-2">
+                              <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-[0.1em] mb-2">容错依赖矩阵</p>
+                              <div className="overflow-x-auto rounded-xl" style={{ background: 'rgba(255,255,255,0.5)' }}>
+                                <table className="w-full text-[11px] border-collapse">
+                                  <thead>
+                                    <tr>
+                                      <th className="text-left py-1.5 px-2 text-[10px] text-stone-400 font-medium sticky left-0 bg-white/90 z-10 min-w-[100px]">当…翻车时</th>
+                                      {ftMatches.map((m) => (
+                                        <th key={m.key} className="py-1.5 px-1.5 text-[10px] text-stone-500 font-medium text-center whitespace-nowrap">{m.shortLabel}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {ftMatches.map((rowMatch, ri) => (
+                                      <tr key={rowMatch.key} className="border-t border-stone-100/60">
+                                        <td className="py-1.5 px-2 text-stone-600 font-medium sticky left-0 bg-white/90 z-10 whitespace-nowrap">{rowMatch.shortLabel}</td>
+                                        {ftMatches.map((colMatch, ci) => {
+                                          if (ri === ci) {
+                                            return <td key={colMatch.key} className="py-1.5 px-1.5 text-center"><span className="inline-block w-5 h-5 rounded-md bg-stone-100 text-stone-300 text-[10px] leading-5">—</span></td>
+                                          }
+                                          // Check if colMatch survives when rowMatch fails
+                                          const survives = comboMatchSets.some((cs) => cs.has(colMatch.key) && !cs.has(rowMatch.key))
+                                          return (
+                                            <td key={colMatch.key} className="py-1.5 px-1.5 text-center">
+                                              {survives ? (
+                                                <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-emerald-50 text-emerald-500" title={`${colMatch.shortLabel} 在 ${rowMatch.shortLabel} 翻车时仍有存活组合`}>
+                                                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 6l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                                </span>
+                                              ) : (
+                                                <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-rose-50 text-rose-400" title={`${colMatch.shortLabel} 的所有组合都含 ${rowMatch.shortLabel}，全军覆没`}>
+                                                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                                                </span>
+                                              )}
+                                            </td>
+                                          )
+                                        })}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )
+                        })()}
 
                         {/* ─── Stats ribbon (compact, below combos) ─── */}
                         <div className="px-4 pb-4 space-y-2">
@@ -4177,57 +4308,57 @@ export default function ComboPage({ openModal }) {
                     </div>
                     {/* Expandable Detail Panel */}
                     {expanded && (
-                      <div className="ml-6 mt-1 p-2.5 rounded-lg bg-stone-50/80 border border-stone-100 animate-fade-in">
-                        <div className="grid grid-cols-4 gap-1.5 text-[10px] mb-2">
-                          <div className="text-center">
-                            <p className="text-stone-400">命中率</p>
-                            <p className="font-semibold text-sky-600">{item.winRate}</p>
+                      <div className="ml-4 mt-1.5 p-3.5 rounded-xl border border-stone-100/80 animate-fade-in" style={{ background: 'linear-gradient(135deg, rgba(249,250,255,0.92) 0%, rgba(255,255,255,0.88) 100%)' }}>
+                        <div className="grid grid-cols-4 gap-2 mb-3">
+                          <div className="text-center py-1.5 rounded-lg bg-sky-50/60">
+                            <p className="text-[10px] text-stone-400 mb-0.5">命中率</p>
+                            <p className="font-bold text-sky-600 text-[14px]">{item.winRate}</p>
                           </div>
-                          <div className="text-center">
-                            <p className="text-stone-400">盈利率</p>
-                            <p className="font-semibold text-indigo-600">{item.profitWinRate}</p>
+                          <div className="text-center py-1.5 rounded-lg bg-indigo-50/60">
+                            <p className="text-[10px] text-stone-400 mb-0.5">盈利率</p>
+                            <p className="font-bold text-indigo-600 text-[14px]">{item.profitWinRate}</p>
                           </div>
-                          <div className="text-center">
-                            <p className="text-stone-400">Sharpe</p>
-                            <p className="font-semibold text-violet-600">{item.sharpe}</p>
+                          <div className="text-center py-1.5 rounded-lg bg-violet-50/50">
+                            <p className="text-[10px] text-stone-400 mb-0.5">Sharpe</p>
+                            <p className="font-bold text-violet-600 text-[14px]">{item.sharpe}</p>
                           </div>
-                          <div className="text-center">
-                            <p className="text-stone-400">校准增益</p>
-                            <p className={`font-semibold ${item.explain.calibGainPp >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                          <div className="text-center py-1.5 rounded-lg bg-stone-50/80">
+                            <p className="text-[10px] text-stone-400 mb-0.5">校准增益</p>
+                            <p className={`font-bold text-[14px] ${item.explain.calibGainPp >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                               {item.explain.calibGainPp >= 0 ? '+' : ''}{item.explain.calibGainPp.toFixed(1)}pp
                             </p>
                           </div>
                         </div>
-                        <div className="space-y-1 text-[10px]">
+                        <div className="space-y-1.5">
                           {(item.subset || []).map((leg, li) => {
                             const cs = leg.confSurplus
                             const surplusVal = cs?.surplus || 0
                             return (
-                              <div key={li} className="flex items-center gap-1.5 text-stone-600">
-                                <span className="text-stone-400 w-3 shrink-0">{li + 1}</span>
-                                <span className="flex-1 truncate">{leg.homeTeam} vs {leg.awayTeam}</span>
-                                <span className="text-stone-500 shrink-0">{leg.entry || '-'}</span>
-                                <span className="font-mono text-stone-500 shrink-0">@{Number(leg.odds || 0).toFixed(2)}</span>
-                                <span className={`font-mono shrink-0 ${(leg.calibratedP || leg.conf) >= 0.55 ? 'text-emerald-600' : 'text-amber-500'}`}>
+                              <div key={li} className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg bg-white/60 text-[13px]">
+                                <span className="text-stone-400 text-xs w-4 shrink-0 font-mono">{li + 1}</span>
+                                <span className="font-medium text-stone-800 flex-1 truncate">{leg.homeTeam} vs {leg.awayTeam}</span>
+                                <span className="text-indigo-600 font-semibold shrink-0 px-1.5 py-0.5 rounded bg-indigo-50 text-[12px]">{translateEntry(leg.entry) || leg.entry || '-'}</span>
+                                <span className="font-mono text-stone-600 font-semibold shrink-0 text-[13px]">@{Number(leg.odds || 0).toFixed(2)}</span>
+                                <span className={`font-mono font-semibold shrink-0 text-[12px] ${(leg.calibratedP || leg.conf) >= 0.55 ? 'text-emerald-600' : 'text-amber-500'}`}>
                                   P:{((leg.calibratedP || leg.conf) * 100).toFixed(0)}%
                                 </span>
-                                <span className={`font-mono shrink-0 text-[9px] ${surplusVal >= 0.04 ? 'text-emerald-600' : surplusVal >= -0.03 ? 'text-stone-400' : 'text-rose-400'}`}>
+                                <span className={`font-mono shrink-0 text-[11px] ${surplusVal >= 0.04 ? 'text-emerald-600' : surplusVal >= -0.03 ? 'text-stone-400' : 'text-rose-400'}`}>
                                   {surplusVal >= 0 ? '+' : ''}{(surplusVal * 100).toFixed(0)}pp
                                 </span>
                               </div>
                             )
                           })}
                         </div>
-                        <div className="mt-1.5 flex flex-wrap gap-1 text-[9px]">
-                          <span className="px-1 py-px rounded bg-stone-200/70 text-stone-500">相关 {item.explain.corr.toFixed(2)}</span>
-                          <span className="px-1 py-px rounded bg-stone-200/70 text-stone-500">Conf均 {item.explain.confAvg.toFixed(2)}</span>
+                        <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]">
+                          <span className="px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-500">相关 {item.explain.corr.toFixed(2)}</span>
+                          <span className="px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-500">Conf均 {item.explain.confAvg.toFixed(2)}</span>
                           {item.explain.avgSurplus != null && (
-                            <span className={`px-1 py-px rounded ${item.explain.avgSurplus >= 0.04 ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-200/70 text-stone-500'}`}>
+                            <span className={`px-1.5 py-0.5 rounded-md ${item.explain.avgSurplus >= 0.04 ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500'}`}>
                               边际 {item.explain.avgSurplus >= 0 ? '+' : ''}{(item.explain.avgSurplus * 100).toFixed(1)}pp
                             </span>
                           )}
-                          {item.explain.roleMixBonus > 0 && <span className="px-1 py-px rounded bg-sky-100 text-sky-600">角色+{item.explain.roleMixBonus.toFixed(2)}</span>}
-                          {item.explain.familyDiversity > 0.6 && <span className="px-1 py-px rounded bg-violet-100 text-violet-600">多样{(item.explain.familyDiversity * 100).toFixed(0)}%</span>}
+                          {item.explain.roleMixBonus > 0 && <span className="px-1.5 py-0.5 rounded-md bg-sky-100 text-sky-600">角色+{item.explain.roleMixBonus.toFixed(2)}</span>}
+                          {item.explain.familyDiversity > 0.6 && <span className="px-1.5 py-0.5 rounded-md bg-violet-100 text-violet-600">多样{(item.explain.familyDiversity * 100).toFixed(0)}%</span>}
                         </div>
                       </div>
                     )}
