@@ -2261,7 +2261,7 @@ export default function ParamsPage({ openModal }) {
             (calibration and tracking) quant engine for predictive sports positioning
           </span>
         </div>
-        <div className="mt-0.5 flex flex-wrap items-end gap-x-3 gap-y-1">
+        <div className="mt-0.5 ml-[3px] flex flex-wrap items-end gap-x-3 gap-y-1">
           <h2 className="text-2xl font-semibold text-stone-800 font-display">参数后台</h2>
           <p className="text-[11px] font-semibold text-stone-400/95 tracking-[0.01em] sm:mb-0.5">
             系统参数、动态校准系数与 Kelly 分母历史校准
