@@ -210,6 +210,7 @@
   /* Reverse timing when expanding back */
   .combo-main-grid:not(.combo-left-collapsed) .combo-left-panel-detail {
     transition: opacity 200ms ease 200ms, max-height 300ms ease 150ms;
+    overflow: visible;
   }
   .combo-main-grid:not(.combo-left-collapsed) .combo-left-panel-summary {
     transition: opacity 120ms ease, max-height 120ms ease;

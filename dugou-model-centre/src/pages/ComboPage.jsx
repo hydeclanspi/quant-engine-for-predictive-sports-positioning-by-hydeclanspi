@@ -2537,6 +2537,32 @@ export default function ComboPage({ openModal }) {
     [recommendations, showAllQuickRecommendations],
   )
 
+  // Match coverage matrix: which matches appear in which combos
+  const coverageMatrix = useMemo(() => {
+    if (recommendations.length === 0) return null
+    const allMatchKeys = []
+    const matchKeySet = new Set()
+    const matchLabels = {}
+    recommendations.forEach((item) => {
+      ;(item.subset || []).forEach((leg) => {
+        const key = leg.key || `${leg.homeTeam}-${leg.awayTeam}`
+        if (!matchKeySet.has(key)) {
+          matchKeySet.add(key)
+          allMatchKeys.push(key)
+          matchLabels[key] = leg.homeTeam || key.split('-')[0]
+        }
+      })
+    })
+    const comboPresence = quickPreviewRecommendations.map((item) => {
+      const keys = new Set()
+      ;(item.subset || []).forEach((leg) => {
+        keys.add(leg.key || `${leg.homeTeam}-${leg.awayTeam}`)
+      })
+      return keys
+    })
+    return { allMatchKeys, matchLabels, comboPresence }
+  }, [recommendations, quickPreviewRecommendations])
+
   const toggleQuickComboExpand = (idx) => {
     setExpandedComboIdxSet((prev) => {
       const next = new Set(prev)
@@ -3363,17 +3389,19 @@ export default function ComboPage({ openModal }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium text-stone-700 truncate">{item.match}</p>
-                      <span className={`combo-left-panel-detail px-1.5 py-[1px] rounded border text-[9px] font-medium flex-shrink-0 ${activeRoleMeta?.tone || 'bg-stone-100 text-stone-500 border-stone-200'}`}>
-                        {MATCH_ROLE_COMPACT_LABEL[effectiveRole] || '自动'}
-                      </span>
-                      {(() => {
-                        const tier = classifyConfidenceTier(item.conf)
-                        return (
-                          <span className={`combo-left-panel-detail px-1.5 py-[1px] rounded text-[9px] font-medium flex-shrink-0 ${CONF_TIER_TONES[tier] || 'bg-stone-100 text-stone-500'}`}>
-                            {CONF_TIER_LABELS[tier] || '未知'}
-                          </span>
-                        )
-                      })()}
+                      <div className="combo-left-panel-detail flex items-center gap-1 shrink-0">
+                        <span className={`px-1.5 py-[1px] rounded border text-[9px] font-medium flex-shrink-0 ${activeRoleMeta?.tone || 'bg-stone-100 text-stone-500 border-stone-200'}`}>
+                          {MATCH_ROLE_COMPACT_LABEL[effectiveRole] || '自动'}
+                        </span>
+                        {(() => {
+                          const tier = classifyConfidenceTier(item.conf)
+                          return (
+                            <span className={`px-1.5 py-[1px] rounded text-[9px] font-medium flex-shrink-0 ${CONF_TIER_TONES[tier] || 'bg-stone-100 text-stone-500'}`}>
+                              {CONF_TIER_LABELS[tier] || '未知'}
+                            </span>
+                          )
+                        })()}
+                      </div>
                     </div>
                     <div className="combo-left-panel-detail flex items-center gap-3 mt-0.5 text-xs text-stone-400">
                       <span>Conf <span className="font-medium text-stone-500">{item.conf.toFixed(2)}</span></span>
@@ -3437,7 +3465,7 @@ export default function ComboPage({ openModal }) {
             )}
           </div>
 
-          <div className="mt-6 pt-6 border-t border-stone-100">
+          <div className="combo-left-panel-detail mt-6 pt-6 border-t border-stone-100">
             <div className="flex items-center justify-between mb-3">
               <label className="text-sm text-stone-600">Risk Preference</label>
               <span className="text-sm font-medium text-amber-600">{riskPref}%</span>
@@ -3462,7 +3490,7 @@ export default function ComboPage({ openModal }) {
             </p>
           </div>
 
-          <div className="flex gap-3 mt-4">
+          <div className="combo-left-panel-detail flex gap-3 mt-4">
             <button onClick={handleGenerate} className="flex-1 btn-primary btn-hover">
               生成最优组合
             </button>
@@ -3471,7 +3499,7 @@ export default function ComboPage({ openModal }) {
             </button>
           </div>
 
-          <div className="mt-4 p-4 rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/60 shadow-[0_14px_34px_rgba(16,185,129,0.10)] backdrop-blur-sm">
+          <div className="combo-left-panel-detail mt-4 p-4 rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/60 shadow-[0_14px_34px_rgba(16,185,129,0.10)] backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-emerald-600 font-semibold tracking-[0.02em]">串关结构偏好</span>
               <div className="flex items-center gap-1.5">
@@ -3584,7 +3612,7 @@ export default function ComboPage({ openModal }) {
             )}
           </div>
 
-          <div className="mt-4 p-4 rounded-2xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50/78 via-white to-violet-50/62 shadow-[0_14px_34px_rgba(99,102,241,0.10)] backdrop-blur-sm">
+          <div className="combo-left-panel-detail mt-4 p-4 rounded-2xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50/78 via-white to-violet-50/62 shadow-[0_14px_34px_rgba(99,102,241,0.10)] backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-indigo-700 font-semibold tracking-[0.02em]">质量阈值过滤（生成前）</span>
               <div className="flex items-center gap-1.5">
@@ -3725,7 +3753,7 @@ export default function ComboPage({ openModal }) {
             </div>
           </div>
 
-          <div className="mt-4 p-4 rounded-2xl border border-sky-200/75 bg-gradient-to-br from-sky-50/82 via-white to-cyan-50/62 shadow-[0_14px_34px_rgba(14,165,233,0.10)] backdrop-blur-sm">
+          <div className="combo-left-panel-detail mt-4 p-4 rounded-2xl border border-sky-200/75 bg-gradient-to-br from-sky-50/82 via-white to-cyan-50/62 shadow-[0_14px_34px_rgba(14,165,233,0.10)] backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-sky-700 font-semibold tracking-[0.02em]">角色结构引导（软约束）</span>
               <div className="flex items-center gap-1.5">
@@ -3783,7 +3811,46 @@ export default function ComboPage({ openModal }) {
             <div className="mt-2.5 rounded-xl border border-sky-200/70 bg-gradient-to-br from-white/92 to-sky-50/60 px-2.5 py-2 text-[10px] text-stone-500 space-y-1">
               <p>操作解释：先选预设（平衡/稳健底盘/杠杆推进）定义你的大方向。</p>
               <p>γ（结构引导强度）：0 附近几乎不干预，越高越偏向你设定的角色结构。</p>
-              <p>逐场角色按钮用于“点杀”某场风格；没把握就用“自动”。</p>
+              <p>逐场角色按钮用于"点杀"某场风格；没把握就用"自动"。</p>
+            </div>
+          </div>
+
+          {/* ═══ Collapsed Summary Zone (visible only when left panel collapsed) ═══ */}
+          <div className="combo-left-panel-summary">
+            <div className="mt-3 pt-3 border-t border-stone-100 space-y-1.5 text-[11px] text-stone-500">
+              <div className="flex items-center justify-between">
+                <span>Risk</span>
+                <span className="font-medium text-amber-600">{riskPref}%</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>策略</span>
+                <span className="font-medium text-stone-600">{activeStrategyMeta.label}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>最小关数</span>
+                <span className="font-medium text-stone-600">{comboStructure.minLegs}关</span>
+              </div>
+              <div className="flex items-center gap-2 text-[10px] text-stone-400">
+                <span>β:{comboStructure.parlayBeta.toFixed(2)}</span>
+                <span>λ:{comboStructure.mmrLambda.toFixed(2)}</span>
+                <span>η:{comboStructure.coverageEta.toFixed(2)}</span>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={handleGenerate}
+                className="w-9 h-9 flex items-center justify-center rounded-xl btn-primary btn-hover"
+                title="生成最优组合"
+              >
+                <Sparkles size={16} />
+              </button>
+              <button
+                onClick={handleConfirmChecked}
+                className="w-9 h-9 flex items-center justify-center rounded-xl btn-secondary btn-hover"
+                title="确认投资已勾选"
+              >
+                <Check size={16} />
+              </button>
             </div>
           </div>
         </div>
@@ -3949,8 +4016,38 @@ export default function ComboPage({ openModal }) {
                             </div>
                           </div>
                         )}
-                        <div className="text-[10px] text-stone-400 pt-1">
-                          包含: {alloc.combos.map((c) => c.combo).join(' · ')}
+                        <div className="space-y-1.5 pt-1.5 border-t border-indigo-50">
+                          {alloc.combos.map((combo, cIdx) => {
+                            const cLayerTag = combo.explain?.ftLayerTag
+                            return (
+                              <div key={cIdx} className="flex items-start gap-2 text-[10px]">
+                                <span className="text-stone-400 font-mono w-4 shrink-0 pt-px">{cIdx + 1}.</span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    {(combo.subset || []).map((leg, li) => (
+                                      <span key={li} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-600 text-[10px]">
+                                        {leg.homeTeam}<span className="text-stone-300 mx-0.5">v</span>{leg.awayTeam}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-0.5 text-stone-400">
+                                    <span>@{Number(combo.combinedOdds || combo.odds || 0).toFixed(1)}</span>
+                                    <span>{combo.allocation}</span>
+                                    {cLayerTag && (
+                                      <span className={`px-1 py-px rounded text-[9px] font-medium ${
+                                        cLayerTag === 'core' ? 'bg-emerald-100 text-emerald-600'
+                                        : cLayerTag === 'covering' ? 'bg-teal-100 text-teal-600'
+                                        : cLayerTag === 'satellite' ? 'bg-sky-100 text-sky-600'
+                                        : 'bg-violet-100 text-violet-600'
+                                      }`}>
+                                        {cLayerTag === 'core' ? '锚定' : cLayerTag === 'covering' ? '容错' : cLayerTag === 'satellite' ? '扩展' : '博冷'}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
                         </div>
                       </div>
                     )}
@@ -4119,6 +4216,43 @@ export default function ComboPage({ openModal }) {
                     : `一键展开全部 ${recommendations.length} 场 ▼`}
                 </button>
               )}
+            </div>
+          )}
+
+          {/* Match Coverage Matrix */}
+          {coverageMatrix && coverageMatrix.allMatchKeys.length > 0 && (
+            <div className="mt-4 p-3 rounded-xl bg-gradient-to-br from-stone-50 to-indigo-50/20 border border-stone-100 overflow-x-auto">
+              <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">场次覆盖矩阵</p>
+              <table className="w-full text-[10px]">
+                <thead>
+                  <tr>
+                    <th className="text-left py-1 pr-2 text-stone-400 font-medium border-b-2 border-stone-200 sticky left-0 bg-gradient-to-br from-stone-50 to-indigo-50/20">方案</th>
+                    {coverageMatrix.allMatchKeys.map((mk) => (
+                      <th key={mk} className="px-1 py-1 text-stone-400 font-medium border-b-2 border-stone-200 whitespace-nowrap">
+                        <span className="inline-block max-w-[52px] truncate" title={mk}>
+                          {coverageMatrix.matchLabels[mk]}
+                        </span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {coverageMatrix.comboPresence.map((presenceSet, idx) => (
+                    <tr key={idx} className="hover:bg-indigo-50/40 transition-colors">
+                      <td className="py-1 pr-2 text-stone-500 font-mono sticky left-0 bg-gradient-to-br from-stone-50 to-indigo-50/20">{idx + 1}</td>
+                      {coverageMatrix.allMatchKeys.map((mk) => (
+                        <td key={mk} className="text-center py-1 px-1">
+                          {presenceSet.has(mk) ? (
+                            <span className="inline-block w-2.5 h-2.5 rounded-full bg-indigo-400" />
+                          ) : (
+                            <span className="inline-block w-2.5 h-2.5 rounded-full bg-stone-100" />
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
