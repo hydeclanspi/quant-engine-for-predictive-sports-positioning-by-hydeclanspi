@@ -3320,34 +3320,36 @@ export default function ComboPage({ openModal }) {
       </div>
 
       <div className={`combo-main-grid mb-6${leftPanelCollapsed ? ' combo-left-collapsed' : ''}`}>
-        <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 p-6">
+        <div className={`motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 ${leftPanelCollapsed ? 'px-4 py-4' : 'p-6'} transition-[padding] duration-300`}>
           {/* Collapse/Expand toggle button */}
           <button
             onClick={() => setLeftPanelCollapsed((p) => !p)}
-            className="absolute top-3 right-3 z-10 p-1.5 rounded-lg text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+            className={`absolute ${leftPanelCollapsed ? 'top-2.5 right-2.5' : 'top-3 right-3'} z-10 p-1.5 rounded-lg text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors`}
             title={leftPanelCollapsed ? '展开面板' : '收起面板'}
           >
             {leftPanelCollapsed ? <ChevronsRight size={14} /> : <ChevronsLeft size={14} />}
           </button>
 
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium text-stone-700">今日备选比赛</h3>
-            <div className="flex items-center gap-2 combo-left-panel-detail">
-              <button
-                onClick={clearTodayCandidates}
-                disabled={candidateRows.length === 0}
-                className="px-2.5 py-1.5 rounded-lg border border-stone-200 text-stone-400 hover:text-rose-500 hover:bg-rose-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                title="清空今日备选"
-              >
-                <XCircle size={13} />
-              </button>
-              <button onClick={() => navigate('/new')} className="text-xs text-amber-500 hover:text-amber-600 flex items-center gap-1">
-                <Plus size={12} /> 添加比赛
-              </button>
-            </div>
+          <div className={`flex items-center justify-between ${leftPanelCollapsed ? 'mb-2' : 'mb-4'}`}>
+            <h3 className={`font-medium text-stone-700 ${leftPanelCollapsed ? 'text-[13px]' : ''}`}>今日备选比赛</h3>
+            {!leftPanelCollapsed && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={clearTodayCandidates}
+                  disabled={candidateRows.length === 0}
+                  className="px-2.5 py-1.5 rounded-lg border border-stone-200 text-stone-400 hover:text-rose-500 hover:bg-rose-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="清空今日备选"
+                >
+                  <XCircle size={13} />
+                </button>
+                <button onClick={() => navigate('/new')} className="text-xs text-amber-500 hover:text-amber-600 flex items-center gap-1">
+                  <Plus size={12} /> 添加比赛
+                </button>
+              </div>
+            )}
           </div>
 
-          {analysisFilter && (
+          {!leftPanelCollapsed && analysisFilter && (
             <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs">
               <span className="text-stone-600">
                 分析联动过滤：{analysisFilter.mode} · Conf {analysisFilter.confBucket} · Odds {analysisFilter.oddsBucket}
@@ -3364,23 +3366,30 @@ export default function ComboPage({ openModal }) {
             </div>
           )}
 
-          <div className="flex items-center justify-between text-xs text-stone-500 mb-3">
+          <div className="flex items-center justify-between text-xs text-stone-500 mb-2">
             <span>已勾选 {selectedMatches.length}/{displayedCandidates.length}</span>
-            <div className="combo-left-panel-detail">
-              {displayedCandidates.length > 0 && (
-                <button onClick={toggleCheckAll} className="motion-v2-ghost-btn text-amber-600 hover:text-amber-700">
-                  {allChecked ? '取消全选' : '全选'}
-                </button>
-              )}
-            </div>
+            {!leftPanelCollapsed && displayedCandidates.length > 0 && (
+              <button onClick={toggleCheckAll} className="motion-v2-ghost-btn text-amber-600 hover:text-amber-700">
+                {allChecked ? '取消全选' : '全选'}
+              </button>
+            )}
           </div>
 
-          <div className="space-y-2">
+          <div className={leftPanelCollapsed ? 'space-y-1' : 'space-y-2'}>
             {displayedCandidates.map((item, i) => {
               const effectiveRole = normalizeRoleTag(matchRoleOverrides[item.key] || item.autoRole)
               const activeRoleMeta = MATCH_ROLE_OPTIONS.find((r) => r.value === effectiveRole)
 
-              return (
+              return leftPanelCollapsed ? (
+                <div
+                  key={item.key}
+                  onClick={() => toggleCheck(i)}
+                  className="flex items-center gap-2.5 py-1.5 px-2 rounded-lg border border-stone-100 hover:border-indigo-200 bg-white hover:bg-indigo-50/20 transition-all cursor-pointer"
+                >
+                  <div className={`custom-checkbox flex-shrink-0 ${checkedMatches[i] ? 'checked' : ''}`} />
+                  <p className="text-[12px] font-medium text-stone-700 truncate flex-1">{item.match}</p>
+                </div>
+              ) : (
                 <div
                   key={item.key}
                   className="motion-v2-row motion-v2-selectable group flex items-center gap-3 p-3 rounded-xl border border-stone-100 hover:border-indigo-200 bg-white hover:bg-indigo-50/20 transition-all cursor-pointer"
@@ -3389,21 +3398,19 @@ export default function ComboPage({ openModal }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium text-stone-700 truncate">{item.match}</p>
-                      <div className="combo-left-panel-detail flex items-center gap-1 shrink-0">
-                        <span className={`px-1.5 py-[1px] rounded border text-[9px] font-medium flex-shrink-0 ${activeRoleMeta?.tone || 'bg-stone-100 text-stone-500 border-stone-200'}`}>
-                          {MATCH_ROLE_COMPACT_LABEL[effectiveRole] || '自动'}
-                        </span>
-                        {(() => {
-                          const tier = classifyConfidenceTier(item.conf)
-                          return (
-                            <span className={`px-1.5 py-[1px] rounded text-[9px] font-medium flex-shrink-0 ${CONF_TIER_TONES[tier] || 'bg-stone-100 text-stone-500'}`}>
-                              {CONF_TIER_LABELS[tier] || '未知'}
-                            </span>
-                          )
-                        })()}
-                      </div>
+                      <span className={`px-1.5 py-[1px] rounded border text-[9px] font-medium flex-shrink-0 ${activeRoleMeta?.tone || 'bg-stone-100 text-stone-500 border-stone-200'}`}>
+                        {MATCH_ROLE_COMPACT_LABEL[effectiveRole] || '自动'}
+                      </span>
+                      {(() => {
+                        const tier = classifyConfidenceTier(item.conf)
+                        return (
+                          <span className={`px-1.5 py-[1px] rounded text-[9px] font-medium flex-shrink-0 ${CONF_TIER_TONES[tier] || 'bg-stone-100 text-stone-500'}`}>
+                            {CONF_TIER_LABELS[tier] || '未知'}
+                          </span>
+                        )
+                      })()}
                     </div>
-                    <div className="combo-left-panel-detail flex items-center gap-3 mt-0.5 text-xs text-stone-400">
+                    <div className="flex items-center gap-3 mt-0.5 text-xs text-stone-400">
                       <span>Conf <span className="font-medium text-stone-500">{item.conf.toFixed(2)}</span></span>
                       <span>Odds <span className="font-medium italic text-stone-500">{item.odds.toFixed(2)}</span></span>
                       <span className={`font-medium ${item.adjustedEvPercent >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
@@ -3411,7 +3418,7 @@ export default function ComboPage({ openModal }) {
                       </span>
                     </div>
                   </div>
-                  <div className="flex-shrink-0 combo-left-panel-detail">
+                  <div className="flex-shrink-0">
                     <select
                       value={effectiveRole}
                       onClick={(event) => event.stopPropagation()}
@@ -3441,7 +3448,7 @@ export default function ComboPage({ openModal }) {
                       ))}
                     </select>
                   </div>
-                  <div className="text-right flex-shrink-0 min-w-[102px] combo-left-panel-detail">
+                  <div className="text-right flex-shrink-0 min-w-[102px]">
                     <span className="block text-sm font-bold tabular-nums text-stone-700">
                       {item.suggestedAmount > 0 ? `${item.suggestedAmount} rmb` : '-- rmb'}
                     </span>
@@ -3977,78 +3984,85 @@ export default function ComboPage({ openModal }) {
                       </svg>
                     </div>
                     {expandedPortfolioIdxSet.has(aIdx) && (
-                      <div className="mt-1.5 ml-2 p-2.5 rounded-lg bg-white/50 border border-indigo-50 space-y-2 animate-fade-in">
-                        <div className="grid grid-cols-4 gap-1.5 text-[10px]">
-                          <div className="text-center">
-                            <p className="text-stone-400">覆盖率</p>
-                            <p className="font-semibold text-indigo-600">{(alloc.coverageRatio * 100).toFixed(0)}%</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-stone-400">层多样</p>
-                            <p className="font-semibold text-violet-600">{(alloc.layerDiv * 100).toFixed(0)}%</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-stone-400">独立性</p>
-                            <p className="font-semibold text-sky-600">{(alloc.diversityScore * 100).toFixed(0)}%</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-stone-400">综合效用</p>
-                            <p className="font-semibold text-stone-700">{alloc.utility.toFixed(3)}</p>
-                          </div>
-                        </div>
-                        {alloc.mc && (
-                          <div className="grid grid-cols-3 gap-1.5 text-[10px] pt-1 border-t border-indigo-50">
-                            <div className="flex justify-between">
-                              <span className="text-stone-400">盈利概率</span>
-                              <span className={`font-semibold ${alloc.mc.profitProb >= 0.5 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                                {(alloc.mc.profitProb * 100).toFixed(1)}%
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-stone-400">中位收益</span>
-                              <span className={`font-mono text-[10px] ${alloc.mc.median >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                                {alloc.mc.median >= 0 ? '+' : ''}{alloc.mc.median}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-stone-400">95%VaR</span>
-                              <span className="text-rose-500 font-mono text-[10px]">{alloc.mc.var95}</span>
-                            </div>
-                          </div>
-                        )}
-                        <div className="space-y-1.5 pt-1.5 border-t border-indigo-50">
+                      <div className="mt-2 p-4 rounded-xl bg-white/60 border border-indigo-100/80 space-y-3 animate-fade-in">
+                        {/* ─── Combo team breakdown (primary, large) ─── */}
+                        <div className="space-y-3">
                           {alloc.combos.map((combo, cIdx) => {
                             const cLayerTag = combo.explain?.ftLayerTag
                             return (
-                              <div key={cIdx} className="flex items-start gap-2 text-[10px]">
-                                <span className="text-stone-400 font-mono w-4 shrink-0 pt-px">{cIdx + 1}.</span>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1 flex-wrap">
-                                    {(combo.subset || []).map((leg, li) => (
-                                      <span key={li} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-600 text-[10px]">
-                                        {leg.homeTeam}<span className="text-stone-300 mx-0.5">v</span>{leg.awayTeam}
-                                      </span>
-                                    ))}
-                                  </div>
-                                  <div className="flex items-center gap-2 mt-0.5 text-stone-400">
-                                    <span>@{Number(combo.combinedOdds || combo.odds || 0).toFixed(1)}</span>
-                                    <span>{combo.allocation}</span>
+                              <div key={cIdx} className="p-3 rounded-lg bg-gradient-to-br from-stone-50/80 to-indigo-50/30 border border-stone-100">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-md">方案 {cIdx + 1}</span>
                                     {cLayerTag && (
-                                      <span className={`px-1 py-px rounded text-[9px] font-medium ${
-                                        cLayerTag === 'core' ? 'bg-emerald-100 text-emerald-600'
-                                        : cLayerTag === 'covering' ? 'bg-teal-100 text-teal-600'
-                                        : cLayerTag === 'satellite' ? 'bg-sky-100 text-sky-600'
-                                        : 'bg-violet-100 text-violet-600'
+                                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                                        cLayerTag === 'core' ? 'bg-emerald-100 text-emerald-700'
+                                        : cLayerTag === 'covering' ? 'bg-teal-100 text-teal-700'
+                                        : cLayerTag === 'satellite' ? 'bg-sky-100 text-sky-700'
+                                        : 'bg-violet-100 text-violet-700'
                                       }`}>
-                                        {cLayerTag === 'core' ? '锚定' : cLayerTag === 'covering' ? '容错' : cLayerTag === 'satellite' ? '扩展' : '博冷'}
+                                        {cLayerTag === 'core' ? '锚定层' : cLayerTag === 'covering' ? '容错覆盖' : cLayerTag === 'satellite' ? '扩展层' : '博冷层'}
                                       </span>
                                     )}
                                   </div>
+                                  <div className="flex items-center gap-2 text-xs text-stone-500">
+                                    <span className="font-mono font-medium">@{Number(combo.combinedOdds || combo.odds || 0).toFixed(1)}</span>
+                                    <span className="font-semibold text-stone-700">{combo.allocation}</span>
+                                  </div>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {(combo.subset || []).map((leg, li) => (
+                                    <span key={li} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-stone-200 text-[12px] font-medium text-stone-700 shadow-sm">
+                                      {leg.homeTeam}
+                                      <span className="text-stone-300 text-[10px]">vs</span>
+                                      {leg.awayTeam}
+                                    </span>
+                                  ))}
                                 </div>
                               </div>
                             )
                           })}
                         </div>
+
+                        {/* ─── Stats grid (secondary, below combos) ─── */}
+                        <div className="grid grid-cols-4 gap-2 text-[11px] pt-2 border-t border-indigo-100/60">
+                          <div className="text-center p-2 rounded-lg bg-indigo-50/50">
+                            <p className="text-stone-400 text-[10px]">覆盖率</p>
+                            <p className="font-bold text-indigo-600 text-sm">{(alloc.coverageRatio * 100).toFixed(0)}%</p>
+                          </div>
+                          <div className="text-center p-2 rounded-lg bg-violet-50/50">
+                            <p className="text-stone-400 text-[10px]">层多样</p>
+                            <p className="font-bold text-violet-600 text-sm">{(alloc.layerDiv * 100).toFixed(0)}%</p>
+                          </div>
+                          <div className="text-center p-2 rounded-lg bg-sky-50/50">
+                            <p className="text-stone-400 text-[10px]">独立性</p>
+                            <p className="font-bold text-sky-600 text-sm">{(alloc.diversityScore * 100).toFixed(0)}%</p>
+                          </div>
+                          <div className="text-center p-2 rounded-lg bg-stone-50">
+                            <p className="text-stone-400 text-[10px]">综合效用</p>
+                            <p className="font-bold text-stone-700 text-sm">{alloc.utility.toFixed(3)}</p>
+                          </div>
+                        </div>
+                        {alloc.mc && (
+                          <div className="grid grid-cols-3 gap-2 text-xs">
+                            <div className="flex justify-between items-center px-2 py-1.5 rounded-lg bg-stone-50/60">
+                              <span className="text-stone-400">盈利概率</span>
+                              <span className={`font-bold ${alloc.mc.profitProb >= 0.5 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                {(alloc.mc.profitProb * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center px-2 py-1.5 rounded-lg bg-stone-50/60">
+                              <span className="text-stone-400">中位收益</span>
+                              <span className={`font-mono font-bold ${alloc.mc.median >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                {alloc.mc.median >= 0 ? '+' : ''}{alloc.mc.median}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center px-2 py-1.5 rounded-lg bg-stone-50/60">
+                              <span className="text-stone-400">95%VaR</span>
+                              <span className="text-rose-500 font-mono font-bold">{alloc.mc.var95}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
