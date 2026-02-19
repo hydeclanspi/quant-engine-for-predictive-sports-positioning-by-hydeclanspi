@@ -1034,7 +1034,7 @@ const DEFAULT_QUALITY_FILTER = {
   minEvPercent: 0,
   minWinRate: 5,
   maxCorr: 0.85,
-  minCoveragePercent: 90,
+  minCoveragePercent: 60,
   minCoverageEnabled: true,
 }
 
@@ -2496,6 +2496,8 @@ export default function ComboPage({ openModal }) {
   const [expandedPortfolioIdxSet, setExpandedPortfolioIdxSet] = useState(() => new Set())
   const [showAllPortfolios, setShowAllPortfolios] = useState(false)
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false)
+  const [ftCellOverrides, setFtCellOverrides] = useState({}) // { portfolioIdx: { "rowKey|colKey": true/false } }
+  const [ftDirtyPortfolios, setFtDirtyPortfolios] = useState(() => new Set())
   const [generationSummary, setGenerationSummary] = useState({
     totalInvest: 0,
     expectedReturnPercent: 0,
@@ -3111,6 +3113,8 @@ export default function ComboPage({ openModal }) {
     setExpandedPortfolioIdxSet(new Set())
     setShowAllPortfolios(false)
     setLeftPanelCollapsed(true)
+    setFtCellOverrides({})
+    setFtDirtyPortfolios(new Set())
   }
 
   const handleConfirmChecked = () => {
@@ -3158,6 +3162,8 @@ export default function ComboPage({ openModal }) {
     setExpandedComboIdxSet(new Set())
     setExpandedPortfolioIdxSet(new Set())
     setShowAllPortfolios(false)
+    setFtCellOverrides({})
+    setFtDirtyPortfolios(new Set())
   }
 
   // Soft refresh: jitter coefficients for a different but still sound output
@@ -3181,6 +3187,76 @@ export default function ComboPage({ openModal }) {
     lessTeams.forEach((t) => bias.set(t, (bias.get(t) || 0) - biasMag))
     moreTeams.forEach((t) => bias.set(t, (bias.get(t) || 0) + biasMag))
     setShowDeepRefresh(false)
+    regenerateWithOverrides({ teamBias: bias })
+  }
+
+  // Fault tolerance matrix: toggle a cell override
+  const handleFtCellToggle = (aIdx, rowKey, colKey) => {
+    setFtCellOverrides((prev) => {
+      const patchKey = `${rowKey}|${colKey}`
+      const existing = prev[aIdx] || {}
+      const next = { ...existing }
+      if (patchKey in next) {
+        delete next[patchKey]
+      } else {
+        next[patchKey] = true
+      }
+      return { ...prev, [aIdx]: next }
+    })
+    setFtDirtyPortfolios((prev) => new Set([...prev, aIdx]))
+  }
+
+  // Fault tolerance matrix: row-level "reduce dependency" — marks ALL red cells in this row as desired-green
+  const handleFtRowReduce = (aIdx, rowKey, ftMatches, comboMatchSets) => {
+    setFtCellOverrides((prev) => {
+      const existing = prev[aIdx] || {}
+      const next = { ...existing }
+      ftMatches.forEach((colMatch) => {
+        if (colMatch.key === rowKey) return
+        const survives = comboMatchSets.some((cs) => cs.has(colMatch.key) && !cs.has(rowKey))
+        if (!survives) {
+          const patchKey = `${rowKey}|${colMatch.key}`
+          next[patchKey] = true // Flip red → desired-green
+        }
+      })
+      return { ...prev, [aIdx]: next }
+    })
+    setFtDirtyPortfolios((prev) => new Set([...prev, aIdx]))
+  }
+
+  // Fault tolerance matrix: confirm and regenerate with bias
+  const handleFtConfirmRegenerate = (aIdx) => {
+    const overrides = ftCellOverrides[aIdx] || {}
+    if (Object.keys(overrides).length === 0) return
+    // Count how many times each match's row was flipped (desiring it to NOT be in all combos)
+    // This means we want to reduce that match's concentration → apply negative team bias
+    const matchPenalties = new Map()
+    Object.keys(overrides).forEach((k) => {
+      const [rowKey] = k.split('|')
+      matchPenalties.set(rowKey, (matchPenalties.get(rowKey) || 0) + 1)
+    })
+    // Map match keys back to team names and create bias
+    const bias = new Map()
+    const biasMag = calibrationContext?.comboHyperparams?.teamBiasMagnitude ?? 0.12
+    selectedMatches.forEach((m) => {
+      const mk = m.key
+      if (matchPenalties.has(mk)) {
+        const penaltyCount = matchPenalties.get(mk)
+        const magnitude = Math.min(biasMag * penaltyCount, biasMag * 3)
+        if (m.homeTeam) bias.set(m.homeTeam, (bias.get(m.homeTeam) || 0) - magnitude)
+      }
+    })
+    // Clear overrides for this portfolio
+    setFtCellOverrides((prev) => {
+      const next = { ...prev }
+      delete next[aIdx]
+      return next
+    })
+    setFtDirtyPortfolios((prev) => {
+      const next = new Set(prev)
+      next.delete(aIdx)
+      return next
+    })
     regenerateWithOverrides({ teamBias: bias })
   }
 
@@ -4094,6 +4170,48 @@ export default function ComboPage({ openModal }) {
                     </div>
                     {expandedPortfolioIdxSet.has(aIdx) && (
                       <div className="mt-2 rounded-2xl overflow-hidden animate-fade-in" style={{ background: 'linear-gradient(135deg, rgba(249,250,255,0.95) 0%, rgba(255,255,255,0.92) 50%, rgba(245,248,255,0.95) 100%)', backdropFilter: 'blur(16px) saturate(120%)', border: '1px solid rgba(99,102,241,0.08)', boxShadow: '0 4px 20px -4px rgba(99,102,241,0.10), inset 0 1px 0 rgba(255,255,255,0.8)' }}>
+                        {/* ─── Coverage info bar ─── */}
+                        {(() => {
+                          const coveredKeys = new Set()
+                          alloc.combos.forEach((combo) => {
+                            ;(combo.subset || []).forEach((leg) => coveredKeys.add(leg.key || `${leg.homeTeam}-${leg.awayTeam}`))
+                          })
+                          const entryAbbr = (e) => {
+                            if (!e) return ''
+                            const el = e.trim().toLowerCase()
+                            if (el === 'win') return 'w'
+                            if (el === 'lose') return 'l'
+                            if (el === 'draw') return 'd'
+                            if (el === 'draw/lose' || el === 'draw, lose') return 'd/l'
+                            if (el === 'win/draw' || el === 'win, draw') return 'w/d'
+                            if (/^\d+-\d+$/.test(el)) return el
+                            return el.charAt(0)
+                          }
+                          return (
+                            <div className="px-4 pt-3 pb-1">
+                              <div className="flex flex-wrap gap-1.5">
+                                {selectedMatches.map((m) => {
+                                  const mk = m.key
+                                  const isCovered = coveredKeys.has(mk)
+                                  const h = (m.homeTeam || '?').charAt(0)
+                                  const a = (m.awayTeam || '?').charAt(0)
+                                  const ea = entryAbbr(m.entry)
+                                  const tag = ea ? `${h}${ea}${a}` : `${h}v${a}`
+                                  return (
+                                    <span key={mk} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium transition-all ${
+                                      isCovered
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                                        : 'bg-stone-50 text-stone-300 border border-stone-100/60'
+                                    }`}>
+                                      {tag}
+                                    </span>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        })()}
+
                         {/* ─── Combo team breakdown (primary, large) ─── */}
                         <div className="p-4 space-y-2.5">
                           {alloc.combos.map((combo, cIdx) => {
@@ -4134,9 +4252,8 @@ export default function ComboPage({ openModal }) {
                           })}
                         </div>
 
-                        {/* ─── Fault Tolerance Matrix ─── */}
+                        {/* ─── Fault Tolerance Matrix (Interactive) ─── */}
                         {(() => {
-                          // Gather all unique matches and their presence per combo within this portfolio
                           const ftMatches = []
                           const ftMatchSet = new Set()
                           alloc.combos.forEach((combo) => {
@@ -4149,16 +4266,13 @@ export default function ComboPage({ openModal }) {
                             })
                           })
                           if (ftMatches.length < 2) return null
-                          // For each combo, build the set of match keys it contains
                           const comboMatchSets = alloc.combos.map((combo) => {
                             const s = new Set()
                             ;(combo.subset || []).forEach((leg) => s.add(leg.key || `${leg.homeTeam}-${leg.awayTeam}`))
                             return s
                           })
-                          // Matrix: row = "when this match fails", col = "does this match survive?"
-                          // Cell(r,c): green if col-match is in at least one combo that does NOT include row-match
-                          //            red if col-match is ONLY in combos that also include row-match (all wasted)
-                          //            self = gray diagonal
+                          const overridesForThis = ftCellOverrides[aIdx] || {}
+                          const isDirty = ftDirtyPortfolios.has(aIdx) && Object.keys(overridesForThis).length > 0
                           return (
                             <div className="px-4 pb-2">
                               <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-[0.1em] mb-2">容错依赖矩阵</p>
@@ -4170,37 +4284,75 @@ export default function ComboPage({ openModal }) {
                                       {ftMatches.map((m) => (
                                         <th key={m.key} className="py-1.5 px-1.5 text-[10px] text-stone-500 font-medium text-center whitespace-nowrap">{m.shortLabel}</th>
                                       ))}
+                                      <th className="w-7" />
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {ftMatches.map((rowMatch, ri) => (
+                                    {ftMatches.map((rowMatch, ri) => {
+                                      // Count reds in this row
+                                      const redCount = ftMatches.filter((cm, ci) => {
+                                        if (ri === ci) return false
+                                        return !comboMatchSets.some((cs) => cs.has(cm.key) && !cs.has(rowMatch.key))
+                                      }).length
+                                      return (
                                       <tr key={rowMatch.key} className="border-t border-stone-100/60">
                                         <td className="py-1.5 px-2 text-stone-600 font-medium sticky left-0 bg-white/90 z-10 whitespace-nowrap">{rowMatch.shortLabel}</td>
                                         {ftMatches.map((colMatch, ci) => {
                                           if (ri === ci) {
                                             return <td key={colMatch.key} className="py-1.5 px-1.5 text-center"><span className="inline-block w-5 h-5 rounded-md bg-stone-100 text-stone-300 text-[10px] leading-5">—</span></td>
                                           }
-                                          // Check if colMatch survives when rowMatch fails
                                           const survives = comboMatchSets.some((cs) => cs.has(colMatch.key) && !cs.has(rowMatch.key))
+                                          const patchKey = `${rowMatch.key}|${colMatch.key}`
+                                          const isFlipped = patchKey in overridesForThis
+                                          const displayGreen = isFlipped ? !survives : survives
                                           return (
                                             <td key={colMatch.key} className="py-1.5 px-1.5 text-center">
-                                              {survives ? (
-                                                <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-emerald-50 text-emerald-500" title={`${colMatch.shortLabel} 在 ${rowMatch.shortLabel} 翻车时仍有存活组合`}>
-                                                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 6l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                </span>
-                                              ) : (
-                                                <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-rose-50 text-rose-400" title={`${colMatch.shortLabel} 的所有组合都含 ${rowMatch.shortLabel}，全军覆没`}>
-                                                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                                                </span>
-                                              )}
+                                              <button
+                                                onClick={() => handleFtCellToggle(aIdx, rowMatch.key, colMatch.key)}
+                                                className="ft-cell-btn inline-flex items-center justify-center w-5 h-5 rounded-md cursor-pointer transition-all duration-200 ease-out hover:scale-110 active:scale-95"
+                                                style={{ background: displayGreen ? 'rgba(236,253,245,1)' : isFlipped ? 'rgba(236,253,245,0.7)' : 'rgba(255,241,242,1)', border: isFlipped ? '1.5px solid rgba(99,102,241,0.35)' : '1px solid transparent' }}
+                                                title={displayGreen ? `${colMatch.shortLabel} 存活` : `${colMatch.shortLabel} 全军覆没 — 点击以要求容错`}
+                                              >
+                                                {displayGreen ? (
+                                                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-emerald-500"><path d="M3 6l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                                ) : (
+                                                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-rose-400"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                                                )}
+                                              </button>
                                             </td>
                                           )
                                         })}
+                                        <td className="py-1.5 pl-1 pr-0.5">
+                                          {redCount > 0 && (
+                                            <button
+                                              onClick={() => handleFtRowReduce(aIdx, rowMatch.key, ftMatches, comboMatchSets)}
+                                              className="inline-flex items-center justify-center w-5 h-5 rounded-md transition-all duration-150 hover:scale-105 active:scale-95"
+                                              style={{ background: 'rgba(241,245,249,0.8)', border: '1px solid rgba(148,163,184,0.25)' }}
+                                              title={`降低 ${rowMatch.shortLabel} 的依赖性`}
+                                            >
+                                              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" className="text-stone-400"><path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                                            </button>
+                                          )}
+                                        </td>
                                       </tr>
-                                    ))}
+                                      )
+                                    })}
                                   </tbody>
                                 </table>
                               </div>
+                              {isDirty && (
+                                <button
+                                  onClick={() => handleFtConfirmRegenerate(aIdx)}
+                                  className="w-full mt-2 py-1.5 rounded-xl text-[11px] font-medium transition-all duration-200"
+                                  style={{
+                                    background: 'linear-gradient(90deg, rgba(16,185,129,0.08) 0%, rgba(20,184,166,0.08) 100%)',
+                                    border: '1px solid rgba(16,185,129,0.2)',
+                                    color: '#059669',
+                                  }}
+                                >
+                                  基于容错偏好重新计算 ({Object.keys(overridesForThis).length} 项调整)
+                                </button>
+                              )}
                             </div>
                           )
                         })()}
@@ -4374,7 +4526,7 @@ export default function ComboPage({ openModal }) {
                               <div key={li} className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg bg-white/60 text-[13px]">
                                 <span className="text-stone-400 text-xs w-4 shrink-0 font-mono">{li + 1}</span>
                                 <span className="font-medium text-stone-800 flex-1 truncate">{leg.homeTeam} vs {leg.awayTeam}</span>
-                                <span className="text-indigo-600 font-semibold shrink-0 px-1.5 py-0.5 rounded bg-indigo-50 text-[12px]">{translateEntry(leg.entry) || leg.entry || '-'}</span>
+                                <span className="text-indigo-600 font-semibold shrink-0 px-1.5 py-0.5 rounded bg-indigo-50 text-[12px]">{leg.entry || '-'}</span>
                                 <span className="font-mono text-stone-600 font-semibold shrink-0 text-[13px]">@{Number(leg.odds || 0).toFixed(2)}</span>
                                 <span className={`font-mono font-semibold shrink-0 text-[12px] ${(leg.calibratedP || leg.conf) >= 0.55 ? 'text-emerald-600' : 'text-amber-500'}`}>
                                   P:{((leg.calibratedP || leg.conf) * 100).toFixed(0)}%
