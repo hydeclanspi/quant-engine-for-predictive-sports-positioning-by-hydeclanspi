@@ -221,6 +221,62 @@
     padding: 0;
     min-width: auto;
   }
+  /* Collapsed summary icon button SVG fix */
+  .combo-left-panel-summary .btn-primary svg,
+  .combo-left-panel-summary .btn-secondary svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+    color: currentColor;
+  }
+  /* Premium glassmorphism for portfolio combo cards */
+  .combo-portfolio-card {
+    background: linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(249,250,255,0.88) 100%);
+    backdrop-filter: blur(12px) saturate(110%);
+    -webkit-backdrop-filter: blur(12px) saturate(110%);
+    border: 1px solid rgba(99,102,241,0.12);
+    border-radius: 16px;
+    box-shadow:
+      0 2px 8px rgba(99,102,241,0.06),
+      0 8px 24px -8px rgba(99,102,241,0.10),
+      inset 0 1px 0 rgba(255,255,255,0.8);
+    transition: transform 220ms cubic-bezier(0.22,1,0.36,1), box-shadow 220ms ease;
+  }
+  .combo-portfolio-card:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 4px 12px rgba(99,102,241,0.10),
+      0 12px 32px -8px rgba(99,102,241,0.16),
+      inset 0 1px 0 rgba(255,255,255,0.8);
+  }
+  /* Team pill premium style */
+  .combo-team-pill {
+    background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(226,232,240,0.8);
+    border-radius: 10px;
+    box-shadow:
+      0 1px 3px rgba(0,0,0,0.04),
+      inset 0 1px 0 rgba(255,255,255,0.9);
+    transition: all 180ms ease;
+  }
+  .combo-team-pill:hover {
+    border-color: rgba(99,102,241,0.3);
+    box-shadow:
+      0 2px 6px rgba(99,102,241,0.08),
+      inset 0 1px 0 rgba(255,255,255,0.9);
+  }
+  /* Coverage heatmap cell */
+  .coverage-cell-active {
+    background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
+    border-radius: 4px;
+    box-shadow: 0 1px 4px rgba(99,102,241,0.3);
+  }
+  .coverage-cell-inactive {
+    background: rgba(241,245,249,0.6);
+    border-radius: 4px;
+  }
 
   @media (max-width: 1024px) {
     .page-content-fluid,
