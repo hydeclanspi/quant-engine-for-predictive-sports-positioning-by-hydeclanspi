@@ -457,16 +457,40 @@ const runPortfolioMonteCarlo = (packageItems, iterations = 50000) => {
 // Recommends which combos to buy together (portfolio packs) to maximize
 // expected return while covering all counter-consensus insights.
 // Uses greedy set-cover + MC-based utility scoring.
-const optimizePortfolioAllocations = (recommendations, maxPackages = 3, hyperparams = null) => {
+const getPortfolioCoverageKey = (item) => {
+  const direct = String(item?.key || '').trim()
+  if (direct) return direct
+  const home = String(item?.homeTeam || '').trim()
+  const away = String(item?.awayTeam || '').trim()
+  if (!home && !away) return ''
+  return `${home}-${away}`
+}
+
+const optimizePortfolioAllocations = (
+  recommendations,
+  maxPackages = 3,
+  hyperparams = null,
+  coverageTargetKeysInput = null,
+) => {
   if (!recommendations || recommendations.length < 2) return []
   const items = recommendations.slice(0, 12)
 
-  // Extract unique match keys across all combos
-  const allMatchKeys = new Set()
-  items.forEach((item) => {
-    const subset = item.subset || []
-    subset.forEach((m) => allMatchKeys.add(m.key))
-  })
+  // Extract coverage target keys.
+  // Prefer selected-match keys from caller so coverage displays true x / selectedCount.
+  const allMatchKeys = new Set(
+    Array.from(coverageTargetKeysInput || [])
+      .map((k) => String(k || '').trim())
+      .filter(Boolean),
+  )
+  if (allMatchKeys.size === 0) {
+    items.forEach((item) => {
+      const subset = item.subset || []
+      subset.forEach((m) => {
+        const mk = getPortfolioCoverageKey(m)
+        if (mk) allMatchKeys.add(mk)
+      })
+    })
+  }
 
   // Generate candidate portfolios (subsets of 2-5 combos)
   const portfolios = []
@@ -487,7 +511,12 @@ const optimizePortfolioAllocations = (recommendations, maxPackages = 3, hyperpar
     const totalStake = selected.reduce((s, item) => s + (Number(item.amount) || 10), 0)
     // Coverage: how many unique matches are covered
     const covered = new Set()
-    selected.forEach((item) => (item.subset || []).forEach((m) => covered.add(m.key)))
+    selected.forEach((item) => {
+      ;(item.subset || []).forEach((m) => {
+        const mk = getPortfolioCoverageKey(m)
+        if (mk) covered.add(mk)
+      })
+    })
     const coverageRatio = allMatchKeys.size > 0 ? covered.size / allMatchKeys.size : 0
     // Expected value (weighted avg)
     const weightedEv = selected.reduce((s, item) => s + (item.expectedReturn || 0) * (Number(item.amount) || 10), 0) / Math.max(totalStake, 1)
@@ -2977,6 +3006,10 @@ export default function ComboPage({ openModal }) {
     })
     setShowAllRecommendations(false)
     setShowAllQuickRecommendations(false)
+    const restoreCoverageTargetKeys =
+      historyMatchKeys.size > 0
+        ? Array.from(historyMatchKeys)
+        : selectedMatches.map((m) => getPortfolioCoverageKey(m))
     const restoredAllocations =
       Array.isArray(historyRow.portfolioAllocations) && historyRow.portfolioAllocations.length > 0
         ? historyRow.portfolioAllocations
@@ -2984,6 +3017,7 @@ export default function ComboPage({ openModal }) {
           safeRecommendations,
           10,
           calibrationContext?.comboHyperparams || null,
+          restoreCoverageTargetKeys,
         )
     setPortfolioAllocations(restoredAllocations)
     const restoredMc =
@@ -3090,7 +3124,12 @@ export default function ComboPage({ openModal }) {
     setMcSimResult(mc)
 
     // Auto-run portfolio allocation optimizer
-    const allocations = optimizePortfolioAllocations(generated.recommendations, 10, calibrationContext?.comboHyperparams || null)
+    const allocations = optimizePortfolioAllocations(
+      generated.recommendations,
+      10,
+      calibrationContext?.comboHyperparams || null,
+      selectedMatches.map((m) => getPortfolioCoverageKey(m)),
+    )
     setPortfolioAllocations(allocations)
     pushPlanHistory(generated, selectedMatches, riskPref, {
       portfolioAllocations: allocations,
@@ -3146,7 +3185,12 @@ export default function ComboPage({ openModal }) {
     const mc = runPortfolioMonteCarlo(generated.recommendations.slice(0, RECOMMENDATION_OUTPUT_COUNT))
     setMcSimResult(mc)
     // Auto-run portfolio allocation optimizer
-    const allocations = optimizePortfolioAllocations(generated.recommendations, 10, calibrationContext?.comboHyperparams || null)
+    const allocations = optimizePortfolioAllocations(
+      generated.recommendations,
+      10,
+      calibrationContext?.comboHyperparams || null,
+      selectedMatches.map((m) => getPortfolioCoverageKey(m)),
+    )
     setPortfolioAllocations(allocations)
     setExpandedComboIdxSet(new Set())
     setExpandedPortfolioIdxSet(new Set())
@@ -4136,7 +4180,30 @@ export default function ComboPage({ openModal }) {
                 </button>
               </div>
               <div className="space-y-1.5">
-                {(showAllPortfolios ? portfolioAllocations : portfolioAllocations.slice(0, 6)).map((alloc, aIdx) => (
+                {(showAllPortfolios ? portfolioAllocations : portfolioAllocations.slice(0, 6)).map((alloc, aIdx) => {
+                  const selectedCoverageTargetKeys = new Set(
+                    selectedMatches
+                      .map((m) => getPortfolioCoverageKey(m))
+                      .filter(Boolean),
+                  )
+                  const coveredKeysForHeader = new Set()
+                  alloc.combos.forEach((combo) => {
+                    ;(combo.subset || []).forEach((leg) => {
+                      const mk = getPortfolioCoverageKey(leg)
+                      if (mk) coveredKeysForHeader.add(mk)
+                    })
+                  })
+                  const coverageTotal =
+                    selectedCoverageTargetKeys.size > 0
+                      ? selectedCoverageTargetKeys.size
+                      : Math.max(0, Number(alloc.totalMatches) || 0)
+                  const coverageCovered =
+                    selectedCoverageTargetKeys.size > 0
+                      ? [...selectedCoverageTargetKeys].filter((key) => coveredKeysForHeader.has(key)).length
+                      : Math.max(0, Number(alloc.covered) || 0)
+                  const coverageRatioDisplay = coverageTotal > 0 ? coverageCovered / coverageTotal : 0
+
+                  return (
                   <div key={aIdx}>
                     <div
                       onClick={() => togglePortfolioExpand(aIdx)}
@@ -4149,7 +4216,7 @@ export default function ComboPage({ openModal }) {
                         组合 {alloc.label}
                       </span>
                       <div className="flex items-center gap-2 text-[10px] text-stone-500">
-                        <span>覆盖{alloc.covered}/{alloc.totalMatches}场</span>
+                        <span>覆盖{coverageCovered}/{coverageTotal}场</span>
                         <span className="text-emerald-600 font-medium">EV {alloc.weightedEv}%</span>
                         <span>{alloc.totalStake} rmb</span>
                       </div>
@@ -4163,23 +4230,26 @@ export default function ComboPage({ openModal }) {
                         {(() => {
                           const coveredKeys = new Set()
                           alloc.combos.forEach((combo) => {
-                            ;(combo.subset || []).forEach((leg) => coveredKeys.add(leg.key || `${leg.homeTeam}-${leg.awayTeam}`))
+                            ;(combo.subset || []).forEach((leg) => {
+                              const mk = getPortfolioCoverageKey(leg)
+                              if (mk) coveredKeys.add(mk)
+                            })
                           })
                           const entryLabel = (e) => {
                             if (!e) return 'vs'
                             return e.trim()
                           }
-                          const isFullCoverage = selectedMatches.every((m) => coveredKeys.has(m.key))
+                          const isFullCoverage = coverageTotal > 0 && coverageCovered >= coverageTotal
                           return (
                             <div className="px-4 pt-3 pb-1">
                               <div className={`inline-flex flex-wrap gap-1.5 ${isFullCoverage ? 'px-2.5 py-1.5 rounded-xl' : ''}`}
                                 style={isFullCoverage ? { background: 'linear-gradient(135deg, rgba(16,185,129,0.05) 0%, rgba(52,211,153,0.07) 100%)' } : undefined}
                               >
-                                {selectedMatches.map((m) => {
-                                  const mk = m.key
+                                {selectedMatches.map((m, mIdx) => {
+                                  const mk = getPortfolioCoverageKey(m)
                                   const isCovered = coveredKeys.has(mk)
                                   return (
-                                    <span key={mk} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium transition-all ${
+                                    <span key={mk || `coverage-${aIdx}-${mIdx}`} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium transition-all ${
                                       isFullCoverage
                                         ? 'text-stone-300 border border-stone-100/50'
                                         : isCovered
@@ -4347,7 +4417,7 @@ export default function ComboPage({ openModal }) {
                           <div className="grid grid-cols-4 gap-1.5">
                             <div className="text-center py-2 px-1 rounded-xl bg-indigo-50/60">
                               <p className="text-[9px] text-stone-400 uppercase tracking-wider">覆盖率</p>
-                              <p className="font-bold text-indigo-600 text-[15px] mt-0.5">{(alloc.coverageRatio * 100).toFixed(0)}%</p>
+                              <p className="font-bold text-indigo-600 text-[15px] mt-0.5">{(coverageRatioDisplay * 100).toFixed(0)}%</p>
                             </div>
                             <div className="text-center py-2 px-1 rounded-xl bg-violet-50/50">
                               <p className="text-[9px] text-stone-400 uppercase tracking-wider">层多样</p>
@@ -4388,7 +4458,8 @@ export default function ComboPage({ openModal }) {
                       </div>
                     )}
                   </div>
-                ))}
+                  )
+                })}
                 {portfolioAllocations.length > 6 && (
                   <button
                     onClick={() => setShowAllPortfolios(v => !v)}
