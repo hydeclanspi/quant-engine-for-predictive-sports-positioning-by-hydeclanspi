@@ -3848,10 +3848,11 @@ export default function ComboPage({ openModal }) {
             <div className="flex gap-2 mt-2.5">
               <button
                 onClick={handleGenerate}
-                className="w-9 h-9 flex items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-[0_2px_8px_rgba(99,102,241,0.35)] hover:shadow-[0_4px_14px_rgba(99,102,241,0.45)] hover:scale-105 active:scale-95 transition-all"
+                className="h-9 px-3.5 inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-[12px] font-medium whitespace-nowrap shadow-[0_2px_8px_rgba(99,102,241,0.35)] hover:shadow-[0_4px_14px_rgba(99,102,241,0.45)] hover:scale-[1.02] active:scale-95 transition-all"
                 title="生成最优组合"
               >
                 <Sparkles size={15} strokeWidth={2} />
+                <span>生成最优组合</span>
               </button>
               <button
                 onClick={handleConfirmChecked}
