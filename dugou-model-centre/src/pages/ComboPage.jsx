@@ -3824,39 +3824,41 @@ export default function ComboPage({ openModal }) {
 
           {/* ═══ Collapsed Summary Zone (visible only when left panel collapsed) ═══ */}
           <div className="combo-left-panel-summary">
-            <div className="mt-3 pt-3 border-t border-stone-100 space-y-1.5 text-[11px] text-stone-500">
+            <div className="mt-2 pt-2 border-t border-stone-100/60 space-y-1 text-[11px] text-stone-500">
               <div className="flex items-center justify-between">
-                <span>Risk</span>
-                <span className="font-medium text-amber-600">{riskPref}%</span>
+                <span className="text-stone-400">Risk</span>
+                <span className="font-semibold text-amber-600">{riskPref}%</span>
               </div>
               <div className="flex items-center justify-between">
-                <span>策略</span>
+                <span className="text-stone-400">策略</span>
                 <span className="font-medium text-stone-600">{activeStrategyMeta.label}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span>最小关数</span>
-                <span className="font-medium text-stone-600">{comboStructure.minLegs}关</span>
+                <span className="text-stone-400">关数</span>
+                <span className="font-medium text-stone-600">≥{comboStructure.minLegs}</span>
               </div>
-              <div className="flex items-center gap-2 text-[10px] text-stone-400">
-                <span>β:{comboStructure.parlayBeta.toFixed(2)}</span>
-                <span>λ:{comboStructure.mmrLambda.toFixed(2)}</span>
-                <span>η:{comboStructure.coverageEta.toFixed(2)}</span>
+              <div className="flex items-center gap-1.5 text-[9px] text-stone-400 font-mono pt-0.5">
+                <span>β {comboStructure.parlayBeta.toFixed(2)}</span>
+                <span className="text-stone-200">·</span>
+                <span>λ {comboStructure.mmrLambda.toFixed(2)}</span>
+                <span className="text-stone-200">·</span>
+                <span>η {comboStructure.coverageEta.toFixed(2)}</span>
               </div>
             </div>
-            <div className="flex gap-2 mt-3">
+            <div className="flex gap-2 mt-2.5">
               <button
                 onClick={handleGenerate}
-                className="w-9 h-9 flex items-center justify-center rounded-xl btn-primary btn-hover"
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-[0_2px_8px_rgba(99,102,241,0.35)] hover:shadow-[0_4px_14px_rgba(99,102,241,0.45)] hover:scale-105 active:scale-95 transition-all"
                 title="生成最优组合"
               >
-                <Sparkles size={16} />
+                <Sparkles size={15} strokeWidth={2} />
               </button>
               <button
                 onClick={handleConfirmChecked}
-                className="w-9 h-9 flex items-center justify-center rounded-xl btn-secondary btn-hover"
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-stone-200 text-stone-600 shadow-sm hover:border-indigo-300 hover:text-indigo-600 hover:shadow-[0_2px_8px_rgba(99,102,241,0.12)] hover:scale-105 active:scale-95 transition-all"
                 title="确认投资已勾选"
               >
-                <Check size={16} />
+                <Check size={15} strokeWidth={2.5} />
               </button>
             </div>
           </div>
@@ -3984,39 +3986,40 @@ export default function ComboPage({ openModal }) {
                       </svg>
                     </div>
                     {expandedPortfolioIdxSet.has(aIdx) && (
-                      <div className="mt-2 p-4 rounded-xl bg-white/60 border border-indigo-100/80 space-y-3 animate-fade-in">
+                      <div className="mt-2 rounded-2xl overflow-hidden animate-fade-in" style={{ background: 'linear-gradient(135deg, rgba(249,250,255,0.95) 0%, rgba(255,255,255,0.92) 50%, rgba(245,248,255,0.95) 100%)', backdropFilter: 'blur(16px) saturate(120%)', border: '1px solid rgba(99,102,241,0.08)', boxShadow: '0 4px 20px -4px rgba(99,102,241,0.10), inset 0 1px 0 rgba(255,255,255,0.8)' }}>
                         {/* ─── Combo team breakdown (primary, large) ─── */}
-                        <div className="space-y-3">
+                        <div className="p-4 space-y-2.5">
                           {alloc.combos.map((combo, cIdx) => {
                             const cLayerTag = combo.explain?.ftLayerTag
+                            const comboOrigIdx = alloc.indices?.[cIdx]
                             return (
-                              <div key={cIdx} className="p-3 rounded-lg bg-gradient-to-br from-stone-50/80 to-indigo-50/30 border border-stone-100">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-md">方案 {cIdx + 1}</span>
+                              <div key={cIdx} className="combo-portfolio-card p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center gap-2.5">
+                                    <span className="text-[13px] font-bold text-indigo-600">组合 {comboOrigIdx != null ? comboOrigIdx + 1 : cIdx + 1}</span>
                                     {cLayerTag && (
-                                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                                        cLayerTag === 'core' ? 'bg-emerald-100 text-emerald-700'
-                                        : cLayerTag === 'covering' ? 'bg-teal-100 text-teal-700'
-                                        : cLayerTag === 'satellite' ? 'bg-sky-100 text-sky-700'
-                                        : 'bg-violet-100 text-violet-700'
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide ${
+                                        cLayerTag === 'core' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/60'
+                                        : cLayerTag === 'covering' ? 'bg-teal-50 text-teal-600 border border-teal-200/60'
+                                        : cLayerTag === 'satellite' ? 'bg-sky-50 text-sky-600 border border-sky-200/60'
+                                        : 'bg-violet-50 text-violet-600 border border-violet-200/60'
                                       }`}>
-                                        {cLayerTag === 'core' ? '锚定层' : cLayerTag === 'covering' ? '容错覆盖' : cLayerTag === 'satellite' ? '扩展层' : '博冷层'}
+                                        {cLayerTag === 'core' ? '锚定' : cLayerTag === 'covering' ? '容错' : cLayerTag === 'satellite' ? '扩展' : '博冷'}
                                       </span>
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-2 text-xs text-stone-500">
-                                    <span className="font-mono font-medium">@{Number(combo.combinedOdds || combo.odds || 0).toFixed(1)}</span>
-                                    <span className="font-semibold text-stone-700">{combo.allocation}</span>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-[13px] font-mono font-semibold text-stone-500">×{Number(combo.combinedOdds || combo.odds || 0).toFixed(1)}</span>
+                                    <span className="text-[13px] font-bold text-stone-800">{combo.allocation}</span>
                                   </div>
                                 </div>
-                                <div className="flex flex-wrap gap-1.5">
+                                <div className="flex flex-wrap gap-2">
                                   {(combo.subset || []).map((leg, li) => (
-                                    <span key={li} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-stone-200 text-[12px] font-medium text-stone-700 shadow-sm">
-                                      {leg.homeTeam}
-                                      <span className="text-stone-300 text-[10px]">vs</span>
-                                      {leg.awayTeam}
-                                    </span>
+                                    <div key={li} className="combo-team-pill px-3 py-2 flex items-center gap-1.5">
+                                      <span className="text-[13px] font-semibold text-stone-800">{leg.homeTeam}</span>
+                                      <span className="text-[10px] text-stone-300 font-medium">vs</span>
+                                      <span className="text-[13px] font-semibold text-stone-800">{leg.awayTeam}</span>
+                                    </div>
                                   ))}
                                 </div>
                               </div>
@@ -4024,45 +4027,49 @@ export default function ComboPage({ openModal }) {
                           })}
                         </div>
 
-                        {/* ─── Stats grid (secondary, below combos) ─── */}
-                        <div className="grid grid-cols-4 gap-2 text-[11px] pt-2 border-t border-indigo-100/60">
-                          <div className="text-center p-2 rounded-lg bg-indigo-50/50">
-                            <p className="text-stone-400 text-[10px]">覆盖率</p>
-                            <p className="font-bold text-indigo-600 text-sm">{(alloc.coverageRatio * 100).toFixed(0)}%</p>
+                        {/* ─── Stats ribbon (compact, below combos) ─── */}
+                        <div className="px-4 pb-4 space-y-2">
+                          <div className="grid grid-cols-4 gap-1.5">
+                            <div className="text-center py-2 px-1 rounded-xl bg-indigo-50/60">
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wider">覆盖率</p>
+                              <p className="font-bold text-indigo-600 text-[15px] mt-0.5">{(alloc.coverageRatio * 100).toFixed(0)}%</p>
+                            </div>
+                            <div className="text-center py-2 px-1 rounded-xl bg-violet-50/50">
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wider">层多样</p>
+                              <p className="font-bold text-violet-600 text-[15px] mt-0.5">{(alloc.layerDiv * 100).toFixed(0)}%</p>
+                            </div>
+                            <div className="text-center py-2 px-1 rounded-xl bg-sky-50/50">
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wider">独立性</p>
+                              <p className="font-bold text-sky-600 text-[15px] mt-0.5">{(alloc.diversityScore * 100).toFixed(0)}%</p>
+                            </div>
+                            <div className="text-center py-2 px-1 rounded-xl bg-stone-50/80">
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wider">效用</p>
+                              <p className="font-bold text-stone-700 text-[15px] mt-0.5">{alloc.utility.toFixed(3)}</p>
+                            </div>
                           </div>
-                          <div className="text-center p-2 rounded-lg bg-violet-50/50">
-                            <p className="text-stone-400 text-[10px]">层多样</p>
-                            <p className="font-bold text-violet-600 text-sm">{(alloc.layerDiv * 100).toFixed(0)}%</p>
-                          </div>
-                          <div className="text-center p-2 rounded-lg bg-sky-50/50">
-                            <p className="text-stone-400 text-[10px]">独立性</p>
-                            <p className="font-bold text-sky-600 text-sm">{(alloc.diversityScore * 100).toFixed(0)}%</p>
-                          </div>
-                          <div className="text-center p-2 rounded-lg bg-stone-50">
-                            <p className="text-stone-400 text-[10px]">综合效用</p>
-                            <p className="font-bold text-stone-700 text-sm">{alloc.utility.toFixed(3)}</p>
-                          </div>
+                          {alloc.mc && (
+                            <div className="flex items-center gap-3 text-xs px-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-stone-400">盈利</span>
+                                <span className={`font-bold ${alloc.mc.profitProb >= 0.5 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                  {(alloc.mc.profitProb * 100).toFixed(1)}%
+                                </span>
+                              </div>
+                              <span className="text-stone-200">·</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-stone-400">中位</span>
+                                <span className={`font-mono font-bold ${alloc.mc.median >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                  {alloc.mc.median >= 0 ? '+' : ''}{alloc.mc.median}
+                                </span>
+                              </div>
+                              <span className="text-stone-200">·</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-stone-400">VaR</span>
+                                <span className="text-rose-500 font-mono font-bold">{alloc.mc.var95}</span>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        {alloc.mc && (
-                          <div className="grid grid-cols-3 gap-2 text-xs">
-                            <div className="flex justify-between items-center px-2 py-1.5 rounded-lg bg-stone-50/60">
-                              <span className="text-stone-400">盈利概率</span>
-                              <span className={`font-bold ${alloc.mc.profitProb >= 0.5 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                                {(alloc.mc.profitProb * 100).toFixed(1)}%
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center px-2 py-1.5 rounded-lg bg-stone-50/60">
-                              <span className="text-stone-400">中位收益</span>
-                              <span className={`font-mono font-bold ${alloc.mc.median >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                                {alloc.mc.median >= 0 ? '+' : ''}{alloc.mc.median}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center px-2 py-1.5 rounded-lg bg-stone-50/60">
-                              <span className="text-stone-400">95%VaR</span>
-                              <span className="text-rose-500 font-mono font-bold">{alloc.mc.var95}</span>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
@@ -4233,40 +4240,30 @@ export default function ComboPage({ openModal }) {
             </div>
           )}
 
-          {/* Match Coverage Matrix */}
+          {/* Match Coverage Matrix — Premium Tag Grid */}
           {coverageMatrix && coverageMatrix.allMatchKeys.length > 0 && (
-            <div className="mt-4 p-3 rounded-xl bg-gradient-to-br from-stone-50 to-indigo-50/20 border border-stone-100 overflow-x-auto">
-              <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">场次覆盖矩阵</p>
-              <table className="w-full text-[10px]">
-                <thead>
-                  <tr>
-                    <th className="text-left py-1 pr-2 text-stone-400 font-medium border-b-2 border-stone-200 sticky left-0 bg-gradient-to-br from-stone-50 to-indigo-50/20">方案</th>
-                    {coverageMatrix.allMatchKeys.map((mk) => (
-                      <th key={mk} className="px-1 py-1 text-stone-400 font-medium border-b-2 border-stone-200 whitespace-nowrap">
-                        <span className="inline-block max-w-[52px] truncate" title={mk}>
-                          {coverageMatrix.matchLabels[mk]}
-                        </span>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {coverageMatrix.comboPresence.map((presenceSet, idx) => (
-                    <tr key={idx} className="hover:bg-indigo-50/40 transition-colors">
-                      <td className="py-1 pr-2 text-stone-500 font-mono sticky left-0 bg-gradient-to-br from-stone-50 to-indigo-50/20">{idx + 1}</td>
+            <div className="mt-4 p-4 rounded-2xl border border-stone-100/80 overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(249,250,255,0.92) 0%, rgba(255,255,255,0.88) 100%)', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7)' }}>
+              <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-3">场次覆盖</p>
+              <div className="space-y-2">
+                {coverageMatrix.comboPresence.map((presenceSet, idx) => (
+                  <div key={idx} className="flex items-center gap-2.5">
+                    <span className="text-[11px] font-mono font-semibold text-stone-400 w-5 shrink-0 text-right">{idx + 1}</span>
+                    <div className="flex-1 flex flex-wrap gap-1">
                       {coverageMatrix.allMatchKeys.map((mk) => (
-                        <td key={mk} className="text-center py-1 px-1">
-                          {presenceSet.has(mk) ? (
-                            <span className="inline-block w-2.5 h-2.5 rounded-full bg-indigo-400" />
-                          ) : (
-                            <span className="inline-block w-2.5 h-2.5 rounded-full bg-stone-100" />
-                          )}
-                        </td>
+                        presenceSet.has(mk) ? (
+                          <span key={mk} className="coverage-cell-active px-2 py-0.5 text-[10px] font-medium text-white">
+                            {coverageMatrix.matchLabels[mk]}
+                          </span>
+                        ) : (
+                          <span key={mk} className="coverage-cell-inactive px-2 py-0.5 text-[10px] text-stone-300">
+                            {coverageMatrix.matchLabels[mk]}
+                          </span>
+                        )
                       ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
