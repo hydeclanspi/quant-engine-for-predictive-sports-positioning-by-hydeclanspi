@@ -952,14 +952,14 @@ const COMBO_STRATEGY_OPTIONS = [
     desc: '优先保障每个已勾选比赛都进入推荐池，必要时自动补位。',
   },
   {
-    value: 'thresholdStrict',
-    label: '阈值优先',
-    desc: '只保留满足 EV/胜率/相关性阈值的组合。',
-  },
-  {
     value: 'softPenalty',
     label: '软惩罚',
     desc: '不过度一刀切，对不达标项做分数惩罚后继续参与排序。',
+  },
+  {
+    value: 'thresholdStrict',
+    label: '阈值优先',
+    desc: '只保留满足 EV/胜率/相关性阈值的组合。',
   },
 ]
 const DEFAULT_COMBO_STRATEGY = 'softPenalty'
