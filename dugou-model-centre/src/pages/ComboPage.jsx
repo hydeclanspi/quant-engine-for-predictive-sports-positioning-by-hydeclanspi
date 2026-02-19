@@ -1034,7 +1034,7 @@ const DEFAULT_QUALITY_FILTER = {
   minEvPercent: 0,
   minWinRate: 5,
   maxCorr: 0.85,
-  minCoveragePercent: 60,
+  minCoveragePercent: 55,
   minCoverageEnabled: true,
 }
 
@@ -1647,7 +1647,7 @@ const buildComboTitle = (subset) =>
     .map((item) => {
       const fullEntry = (item.entry || '').trim()
       if (!fullEntry) return item.homeTeam
-      return `${item.homeTeam}${translateEntry(fullEntry)}`
+      return `${item.homeTeam}${fullEntry}`
     })
     .join(' × ')
 
@@ -4176,16 +4176,9 @@ export default function ComboPage({ openModal }) {
                           alloc.combos.forEach((combo) => {
                             ;(combo.subset || []).forEach((leg) => coveredKeys.add(leg.key || `${leg.homeTeam}-${leg.awayTeam}`))
                           })
-                          const entryAbbr = (e) => {
-                            if (!e) return ''
-                            const el = e.trim().toLowerCase()
-                            if (el === 'win') return 'w'
-                            if (el === 'lose') return 'l'
-                            if (el === 'draw') return 'd'
-                            if (el === 'draw/lose' || el === 'draw, lose') return 'd/l'
-                            if (el === 'win/draw' || el === 'win, draw') return 'w/d'
-                            if (/^\d+-\d+$/.test(el)) return el
-                            return el.charAt(0)
+                          const entryLabel = (e) => {
+                            if (!e) return 'vs'
+                            return e.trim()
                           }
                           return (
                             <div className="px-4 pt-3 pb-1">
@@ -4193,17 +4186,15 @@ export default function ComboPage({ openModal }) {
                                 {selectedMatches.map((m) => {
                                   const mk = m.key
                                   const isCovered = coveredKeys.has(mk)
-                                  const h = (m.homeTeam || '?').charAt(0)
-                                  const a = (m.awayTeam || '?').charAt(0)
-                                  const ea = entryAbbr(m.entry)
-                                  const tag = ea ? `${h}${ea}${a}` : `${h}v${a}`
                                   return (
-                                    <span key={mk} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium transition-all ${
+                                    <span key={mk} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium transition-all ${
                                       isCovered
                                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
-                                        : 'bg-stone-50 text-stone-300 border border-stone-100/60'
+                                        : 'bg-stone-100/60 text-stone-400 border border-stone-200/50'
                                     }`}>
-                                      {tag}
+                                      <span className="font-semibold">{m.homeTeam || '?'}</span>
+                                      <span className={isCovered ? 'text-emerald-500/70' : 'text-stone-300'}>{entryLabel(m.entry)}</span>
+                                      <span className="font-semibold">{m.awayTeam || '?'}</span>
                                     </span>
                                   )
                                 })}
@@ -4326,11 +4317,11 @@ export default function ComboPage({ openModal }) {
                                           {redCount > 0 && (
                                             <button
                                               onClick={() => handleFtRowReduce(aIdx, rowMatch.key, ftMatches, comboMatchSets)}
-                                              className="inline-flex items-center justify-center w-5 h-5 rounded-md transition-all duration-150 hover:scale-105 active:scale-95"
-                                              style={{ background: 'rgba(241,245,249,0.8)', border: '1px solid rgba(148,163,184,0.25)' }}
+                                              className="inline-flex items-center justify-center w-5 h-5 rounded-md transition-all duration-150 hover:scale-110 active:scale-95"
+                                              style={{ background: 'rgba(236,253,245,0.6)', border: '1px solid rgba(16,185,129,0.2)' }}
                                               title={`降低 ${rowMatch.shortLabel} 的依赖性`}
                                             >
-                                              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" className="text-stone-400"><path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                                              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" className="text-emerald-400"><path d="M8 1.5L3 3.5v4c0 3.5 2.5 5.5 5 6.5 2.5-1 5-3 5-6.5v-4L8 1.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill="rgba(16,185,129,0.08)"/><path d="M6 8l1.5 1.5L10.5 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                                             </button>
                                           )}
                                         </td>
@@ -4523,15 +4514,15 @@ export default function ComboPage({ openModal }) {
                             const cs = leg.confSurplus
                             const surplusVal = cs?.surplus || 0
                             return (
-                              <div key={li} className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg bg-white/60 text-[13px]">
-                                <span className="text-stone-400 text-xs w-4 shrink-0 font-mono">{li + 1}</span>
+                              <div key={li} className="flex items-center gap-2.5 py-1.5 px-2.5 rounded-lg bg-white/60 text-[13px]">
+                                <span className="text-stone-300 text-[11px] w-4 shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>{li + 1}</span>
                                 <span className="font-medium text-stone-800 flex-1 truncate">{leg.homeTeam} vs {leg.awayTeam}</span>
                                 <span className="text-indigo-600 font-semibold shrink-0 px-1.5 py-0.5 rounded bg-indigo-50 text-[12px]">{leg.entry || '-'}</span>
-                                <span className="font-mono text-stone-600 font-semibold shrink-0 text-[13px]">@{Number(leg.odds || 0).toFixed(2)}</span>
-                                <span className={`font-mono font-semibold shrink-0 text-[12px] ${(leg.calibratedP || leg.conf) >= 0.55 ? 'text-emerald-600' : 'text-amber-500'}`}>
+                                <span className="text-stone-500 font-semibold shrink-0 text-[13px] tracking-tight" style={{ fontVariantNumeric: 'tabular-nums' }}>@{Number(leg.odds || 0).toFixed(2)}</span>
+                                <span className={`font-semibold shrink-0 text-[12px] tracking-tight ${(leg.calibratedP || leg.conf) >= 0.55 ? 'text-emerald-600' : 'text-amber-500'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
                                   P:{((leg.calibratedP || leg.conf) * 100).toFixed(0)}%
                                 </span>
-                                <span className={`font-mono shrink-0 text-[11px] ${surplusVal >= 0.04 ? 'text-emerald-600' : surplusVal >= -0.03 ? 'text-stone-400' : 'text-rose-400'}`}>
+                                <span className={`shrink-0 text-[11px] font-medium tracking-tight ${surplusVal >= 0.04 ? 'text-emerald-500' : surplusVal >= -0.03 ? 'text-stone-400' : 'text-rose-400'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
                                   {surplusVal >= 0 ? '+' : ''}{(surplusVal * 100).toFixed(0)}pp
                                 </span>
                               </div>
