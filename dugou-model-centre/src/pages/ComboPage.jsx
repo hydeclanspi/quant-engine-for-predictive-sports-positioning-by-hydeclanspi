@@ -3321,32 +3321,32 @@ export default function ComboPage({ openModal }) {
 
       <div className={`combo-main-grid mb-6${leftPanelCollapsed ? ' combo-left-collapsed' : ''}`}>
         <div className={`motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 ${leftPanelCollapsed ? 'px-4 py-4' : 'p-6'} transition-[padding] duration-300`}>
-          {/* Collapse/Expand toggle button */}
-          <button
-            onClick={() => setLeftPanelCollapsed((p) => !p)}
-            className={`absolute ${leftPanelCollapsed ? 'top-2.5 right-2.5' : 'top-3 right-3'} z-10 p-1.5 rounded-lg text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors`}
-            title={leftPanelCollapsed ? '展开面板' : '收起面板'}
-          >
-            {leftPanelCollapsed ? <ChevronsRight size={14} /> : <ChevronsLeft size={14} />}
-          </button>
-
           <div className={`flex items-center justify-between ${leftPanelCollapsed ? 'mb-2' : 'mb-4'}`}>
             <h3 className={`font-medium text-stone-700 ${leftPanelCollapsed ? 'text-[13px]' : ''}`}>今日备选比赛</h3>
-            {!leftPanelCollapsed && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={clearTodayCandidates}
-                  disabled={candidateRows.length === 0}
-                  className="px-2.5 py-1.5 rounded-lg border border-stone-200 text-stone-400 hover:text-rose-500 hover:bg-rose-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  title="清空今日备选"
-                >
-                  <XCircle size={13} />
-                </button>
-                <button onClick={() => navigate('/new')} className="text-xs text-amber-500 hover:text-amber-600 flex items-center gap-1">
-                  <Plus size={12} /> 添加比赛
-                </button>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              {!leftPanelCollapsed && (
+                <>
+                  <button
+                    onClick={clearTodayCandidates}
+                    disabled={candidateRows.length === 0}
+                    className="px-2.5 py-1.5 rounded-lg border border-stone-200 text-stone-400 hover:text-rose-500 hover:bg-rose-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="清空今日备选"
+                  >
+                    <XCircle size={13} />
+                  </button>
+                  <button onClick={() => navigate('/new')} className="text-xs text-amber-500 hover:text-amber-600 flex items-center gap-1">
+                    <Plus size={12} /> 添加比赛
+                  </button>
+                </>
+              )}
+              <button
+                onClick={() => setLeftPanelCollapsed((p) => !p)}
+                className={`p-1.5 rounded-lg text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors ${leftPanelCollapsed ? 'absolute top-2.5 right-2.5 z-10' : ''}`}
+                title={leftPanelCollapsed ? '展开面板' : '收起面板'}
+              >
+                {leftPanelCollapsed ? <ChevronsRight size={14} /> : <ChevronsLeft size={14} />}
+              </button>
+            </div>
           </div>
 
           {!leftPanelCollapsed && analysisFilter && (
