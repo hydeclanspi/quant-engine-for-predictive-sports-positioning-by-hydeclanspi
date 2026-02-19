@@ -2661,7 +2661,8 @@ export default function ParamsPage({ openModal }) {
         <p className="text-[11px] text-stone-400 mt-3">Mode 建议用于参考，可点击“应用”将该分母设为全局。</p>
       </div>
 
-      <div className="glow-card relative overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/30 to-cyan-50/30 p-6 mb-6">
+      <div className="flex flex-col">
+      <div className="order-6 glow-card relative overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/30 to-cyan-50/30 p-6 mb-0">
         <div className="pointer-events-none absolute -top-14 -right-8 h-36 w-36 rounded-full bg-indigo-200/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-12 -left-10 h-36 w-36 rounded-full bg-cyan-200/20 blur-3xl" />
         <div className="relative">
@@ -2712,7 +2713,7 @@ export default function ParamsPage({ openModal }) {
         </div>
       </div>
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
+      <div className="order-5 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={Clock3} /> 时间近因机制
@@ -2765,7 +2766,7 @@ export default function ParamsPage({ openModal }) {
         )}
       </div>
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
+      <div className="order-1 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={LineChart} /> 回归分析校准
@@ -2939,7 +2940,7 @@ export default function ParamsPage({ openModal }) {
         </p>
       </div>
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
+      <div className="order-3 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={ShieldCheck} /> 模型收口验证
@@ -3039,9 +3040,11 @@ export default function ParamsPage({ openModal }) {
       </div>
 
       {/* 自适应权重优化 Beta */}
-      <AdaptiveWeightCard config={config} setConfig={setConfig} saveSystemConfig={saveSystemConfig} dataVersion={dataVersion} />
+      <div className="order-2">
+        <AdaptiveWeightCard config={config} setConfig={setConfig} saveSystemConfig={saveSystemConfig} dataVersion={dataVersion} />
+      </div>
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+      <div className="order-4 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={SlidersHorizontal} /> 动态校准系数
@@ -3177,6 +3180,7 @@ export default function ParamsPage({ openModal }) {
         <p className="text-xs text-stone-400 mt-4 text-center">
           系数 &gt; 1 代表该因子提升判断质量；系数 &lt; 1 代表该因子应下调权重。
         </p>
+      </div>
       </div>
 
       {/* Layout Mode Toggle */}
