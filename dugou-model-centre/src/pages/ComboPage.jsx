@@ -1072,6 +1072,12 @@ const formatPercent = (value) => {
   return `${sign}${num.toFixed(1)}%`
 }
 
+const formatPercentProbe = (value) => {
+  const num = Number(value || 0)
+  const sign = num >= 0 ? '+' : ''
+  return `${sign}${num.toFixed(2)}%`
+}
+
 const formatDateKey = (iso) => {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
@@ -2681,6 +2687,9 @@ export default function ComboPage({ openModal }) {
 
   const riskProbeRows = useMemo(() => {
     const prefs = [30, 40, 50, 60, 70]
+    // Use precision allocation inside probe to surface risk-sensitivity
+    // instead of being flattened by 10-rmb bucket rounding.
+    const probeAllocationMode = 'precision'
     const rows = prefs.map((pref) => {
       const generated = generateRecommendations(
         selectedMatches,
@@ -2694,7 +2703,7 @@ export default function ComboPage({ openModal }) {
         rolePreference,
         null,
         comboRetrospective,
-        allocationMode,
+        probeAllocationMode,
       )
       if (!generated || generated.recommendations.length === 0) {
         return {
@@ -2727,7 +2736,7 @@ export default function ComboPage({ openModal }) {
       ...row,
       best: Boolean(best && row.riskPref === best.riskPref),
     }))
-  }, [allocationMode, calibrationContext, comboStrategy, comboStructure, qualityFilter, riskCap, rolePreference, selectedMatches, systemConfig])
+  }, [calibrationContext, comboStrategy, comboStructure, qualityFilter, riskCap, rolePreference, selectedMatches, systemConfig, comboRetrospective])
 
   const matchExposure = useMemo(() => {
     const map = new Map()
@@ -4170,13 +4179,13 @@ export default function ComboPage({ openModal }) {
                                   return (
                                     <span key={mk} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium transition-all ${
                                       isFullCoverage
-                                        ? 'text-stone-300 border border-stone-100/50'
+                                        ? 'text-emerald-300/80 border border-emerald-100/30'
                                         : isCovered
                                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
                                           : 'bg-stone-100/60 text-stone-400 border border-stone-200/50'
                                     }`}>
                                       <span className={isFullCoverage ? '' : 'font-semibold'}>{m.homeTeam || '?'}</span>
-                                      <span className={isFullCoverage ? 'text-stone-200' : isCovered ? 'text-emerald-500/70' : 'text-stone-300'}>{entryLabel(m.entry)}</span>
+                                      <span className={isFullCoverage ? 'text-emerald-200/70' : isCovered ? 'text-emerald-500/70' : 'text-stone-300'}>{entryLabel(m.entry)}</span>
                                       <span className={isFullCoverage ? '' : 'font-semibold'}>{m.awayTeam || '?'}</span>
                                     </span>
                                   )
@@ -4437,11 +4446,11 @@ export default function ComboPage({ openModal }) {
                                 return (
                                   <span key={leg.key || `${leg.homeTeam}-${leg.awayTeam}-${leg.entry}-${legIdx}`} className="inline-flex items-baseline">
                                     {legIdx > 0 && (
-                                      <span className="mx-1 text-[10px] text-stone-400/90 align-middle">×</span>
+                                      <span className="mx-1 text-[13px] font-semibold text-stone-800 align-middle">×</span>
                                     )}
                                     <span className="font-semibold text-stone-800">{leg.homeTeam || '-'}</span>
                                     {legEntry && (
-                                      <span className="ml-0.5 text-[10px] font-medium text-stone-500">
+                                      <span className="ml-0.5 text-[11px] font-medium text-stone-500">
                                         {legEntry}
                                       </span>
                                     )}
@@ -4849,7 +4858,7 @@ export default function ComboPage({ openModal }) {
                         <span className={`font-medium ${row.best ? 'text-amber-700' : 'text-stone-700'}`}>{row.riskPref}%</span>
                       </td>
                       <td className={`py-1.5 ${row.available ? 'text-emerald-600' : 'text-stone-400'}`}>
-                        {row.available ? formatPercent(row.evPct) : '--'}
+                        {row.available ? formatPercentProbe(row.evPct) : '--'}
                       </td>
                       <td className="py-1.5 text-stone-600">{row.available ? `${Math.round(row.totalInvest)} rmb` : '--'}</td>
                       <td className="py-1.5 text-violet-700">{row.available ? row.topSharpe.toFixed(2) : '--'}</td>
