@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, ChevronsLeft, ChevronsRight, Info, Plus, RefreshCw, SlidersHorizontal, Sparkles, XCircle } from 'lucide-react'
+import { Check, ChevronsLeft, ChevronsRight, Info, Plus, RefreshCw, ShieldCheck, ShieldOff, SlidersHorizontal, Sparkles, XCircle } from 'lucide-react'
 import { bumpTeamSamples, getInvestments, getSystemConfig, saveInvestment } from '../lib/localData'
 import { getPredictionCalibrationContext, buildComboRetrospective } from '../lib/analytics'
 import {
@@ -1035,6 +1035,7 @@ const DEFAULT_QUALITY_FILTER = {
   minWinRate: 5,
   maxCorr: 0.85,
   minCoveragePercent: 90,
+  minCoverageEnabled: true,
 }
 
 const sanitizeComboStructure = (value) => ({
@@ -1049,6 +1050,7 @@ const sanitizeQualityFilter = (value) => ({
   minWinRate: clamp(Number.parseInt(value?.minWinRate ?? DEFAULT_QUALITY_FILTER.minWinRate, 10), 0, 100),
   maxCorr: clamp(Number.parseFloat(value?.maxCorr ?? DEFAULT_QUALITY_FILTER.maxCorr), 0, 1),
   minCoveragePercent: clamp(Number.parseFloat(value?.minCoveragePercent ?? DEFAULT_QUALITY_FILTER.minCoveragePercent), 0, 100),
+  minCoverageEnabled: value?.minCoverageEnabled !== false,
 })
 
 const getFactorWeight = (value, fallback) => {
@@ -1979,7 +1981,10 @@ const generateRecommendations = (
   const minEv = Number(qualityFilter?.minEvPercent || 0) / 100
   const minWinRate = clamp(Number(qualityFilter?.minWinRate || 0) / 100, 0, 1)
   const maxCorr = clamp(Number(qualityFilter?.maxCorr ?? 1), 0, 1)
-  const minCoverage = clamp(Number(qualityFilter?.minCoveragePercent ?? DEFAULT_QUALITY_FILTER.minCoveragePercent) / 100, 0, 1)
+  const minCoverageEnabled = qualityFilter?.minCoverageEnabled !== false
+  const minCoverage = minCoverageEnabled
+    ? clamp(Number(qualityFilter?.minCoveragePercent ?? DEFAULT_QUALITY_FILTER.minCoveragePercent) / 100, 0, 1)
+    : 0
   const selectedMatchKeyCount = Math.max(1, new Set(selectedMatches.map((match) => buildMatchRefKey(match))).size)
 
   const normalizedComboStructure = sanitizeComboStructure(comboStructure)
@@ -2218,9 +2223,13 @@ const generateRecommendations = (
   // ── Pre-filter: apply minLegs (思路4) ──
   const legsFiltered = scoredAll.filter((item) => item.legs >= minLegs)
   const pool = legsFiltered.length > 0 ? legsFiltered : scoredAll // graceful fallback
+  const coverageEligiblePool = minCoverageEnabled
+    ? pool.filter((item) => (item.coverageRate || 0) >= minCoverage)
+    : pool
+  if (coverageEligiblePool.length === 0) return null
 
-  const rankedAllByUtility = dedupeRankedBySignature([...pool].sort((a, b) => b.utility - a.utility || b.sharpe - a.sharpe))
-  const qualifiedRaw = pool.filter(
+  const rankedAllByUtility = dedupeRankedBySignature([...coverageEligiblePool].sort((a, b) => b.utility - a.utility || b.sharpe - a.sharpe))
+  const qualifiedRaw = coverageEligiblePool.filter(
     (item) =>
       item.ev >= minEv &&
       item.p >= minWinRate &&
@@ -2513,6 +2522,7 @@ export default function ComboPage({ openModal }) {
   }, [systemConfig.maxWorstDrawdownAlertPct])
   const activeStrategyMeta =
     COMBO_STRATEGY_OPTIONS.find((option) => option.value === comboStrategy) || COMBO_STRATEGY_OPTIONS[0]
+  const minCoverageGateEnabled = qualityFilter.minCoverageEnabled !== false
 
   const candidateRows = useMemo(
     () =>
@@ -3060,7 +3070,7 @@ export default function ComboPage({ openModal }) {
     if (!generated) {
       window.alert(
         comboStrategy === 'thresholdStrict'
-          ? '当前阈值下没有可用方案，请降低最小 EV / 最小胜率 / 最小覆盖率，或放宽最大相关性。'
+          ? `当前阈值下没有可用方案，请降低最小 EV / 最小胜率${minCoverageGateEnabled ? ' / 最小覆盖率' : ''}，或放宽最大相关性。`
           : '当前参数下没有可用方案，请调整风险偏好或降低过滤强度后重试。',
       )
       return
@@ -3676,12 +3686,12 @@ export default function ComboPage({ openModal }) {
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() =>
-                    setQualityFilter(
+                    setQualityFilter((prev) =>
                       sanitizeQualityFilter({
+                        ...prev,
                         minEvPercent: 2,
                         minWinRate: 45,
                         maxCorr: 0.65,
-                        minCoveragePercent: 90,
                       }),
                     )
                   }
@@ -3690,7 +3700,14 @@ export default function ComboPage({ openModal }) {
                   一键强化过滤
                 </button>
                 <button
-                  onClick={() => setQualityFilter(sanitizeQualityFilter(DEFAULT_QUALITY_FILTER))}
+                  onClick={() =>
+                    setQualityFilter((prev) =>
+                      sanitizeQualityFilter({
+                        ...DEFAULT_QUALITY_FILTER,
+                        minCoverageEnabled: prev.minCoverageEnabled !== false,
+                      }),
+                    )
+                  }
                   className="px-2.5 py-1 rounded-md text-[11px] border border-stone-200 bg-white/85 text-stone-600 hover:border-indigo-200 hover:text-indigo-700 transition-colors"
                 >
                   重置
@@ -3750,7 +3767,27 @@ export default function ComboPage({ openModal }) {
               </p>
             </div>
             <div className="mt-3.5 pt-3 border-t border-indigo-200/70">
-              <p className="text-[11px] text-indigo-700/85 mb-1.5 font-medium">阈值参数</p>
+              <div className="mb-1.5 flex items-center justify-between">
+                <p className="text-[11px] text-indigo-700/85 font-medium">阈值参数</p>
+                <button
+                  onClick={() =>
+                    setQualityFilter((prev) =>
+                      sanitizeQualityFilter({
+                        ...prev,
+                        minCoverageEnabled: !(prev.minCoverageEnabled !== false),
+                      }),
+                    )
+                  }
+                  className={`h-6 w-6 inline-flex items-center justify-center rounded-md border transition-all ${
+                    minCoverageGateEnabled
+                      ? 'border-emerald-300/80 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                      : 'border-stone-300/80 bg-white text-stone-400 hover:border-indigo-300 hover:text-indigo-600'
+                  }`}
+                  title={minCoverageGateEnabled ? '关闭最小覆盖率硬约束' : '开启最小覆盖率硬约束'}
+                >
+                  {minCoverageGateEnabled ? <ShieldCheck size={12} /> : <ShieldOff size={12} />}
+                </button>
+              </div>
               <div className="grid grid-cols-4 gap-2">
                 <label className="text-[11px] text-stone-500 rounded-xl border border-indigo-100/80 bg-white/78 px-2.5 py-2 backdrop-blur-[2px]">
                   最小 EV %
