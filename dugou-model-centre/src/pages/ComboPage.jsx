@@ -2595,32 +2595,6 @@ export default function ComboPage({ openModal }) {
     [recommendations, showAllQuickRecommendations],
   )
 
-  // Match coverage matrix: which matches appear in which combos
-  const coverageMatrix = useMemo(() => {
-    if (recommendations.length === 0) return null
-    const allMatchKeys = []
-    const matchKeySet = new Set()
-    const matchLabels = {}
-    recommendations.forEach((item) => {
-      ;(item.subset || []).forEach((leg) => {
-        const key = leg.key || `${leg.homeTeam}-${leg.awayTeam}`
-        if (!matchKeySet.has(key)) {
-          matchKeySet.add(key)
-          allMatchKeys.push(key)
-          matchLabels[key] = leg.homeTeam || key.split('-')[0]
-        }
-      })
-    })
-    const comboPresence = quickPreviewRecommendations.map((item) => {
-      const keys = new Set()
-      ;(item.subset || []).forEach((leg) => {
-        keys.add(leg.key || `${leg.homeTeam}-${leg.awayTeam}`)
-      })
-      return keys
-    })
-    return { allMatchKeys, matchLabels, comboPresence }
-  }, [recommendations, quickPreviewRecommendations])
-
   const toggleQuickComboExpand = (idx) => {
     setExpandedComboIdxSet((prev) => {
       const next = new Set(prev)
@@ -4313,15 +4287,15 @@ export default function ComboPage({ openModal }) {
                                             </td>
                                           )
                                         })}
-                                        <td className="py-1.5 pl-1 pr-0.5">
+                                        <td className="py-1.5 pl-1.5 pr-1">
                                           {redCount > 0 && (
                                             <button
                                               onClick={() => handleFtRowReduce(aIdx, rowMatch.key, ftMatches, comboMatchSets)}
-                                              className="inline-flex items-center justify-center w-5 h-5 rounded-md transition-all duration-150 hover:scale-110 active:scale-95"
-                                              style={{ background: 'rgba(236,253,245,0.6)', border: '1px solid rgba(16,185,129,0.2)' }}
+                                              className="ft-dissolve-bar group flex items-center h-5 cursor-pointer"
                                               title={`降低 ${rowMatch.shortLabel} 的依赖性`}
                                             >
-                                              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" className="text-emerald-400"><path d="M8 1.5L3 3.5v4c0 3.5 2.5 5.5 5 6.5 2.5-1 5-3 5-6.5v-4L8 1.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill="rgba(16,185,129,0.08)"/><path d="M6 8l1.5 1.5L10.5 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                              <span className="ft-dissolve-rose" />
+                                              <span className="ft-dissolve-emerald" />
                                             </button>
                                           )}
                                         </td>
@@ -4558,33 +4532,6 @@ export default function ComboPage({ openModal }) {
                     : `一键展开全部 ${recommendations.length} 场 ▼`}
                 </button>
               )}
-            </div>
-          )}
-
-          {/* Match Coverage Matrix — Premium Tag Grid */}
-          {coverageMatrix && coverageMatrix.allMatchKeys.length > 0 && (
-            <div className="mt-4 p-4 rounded-2xl border border-stone-100/80 overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(249,250,255,0.92) 0%, rgba(255,255,255,0.88) 100%)', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7)' }}>
-              <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-3">场次覆盖</p>
-              <div className="space-y-2">
-                {coverageMatrix.comboPresence.map((presenceSet, idx) => (
-                  <div key={idx} className="flex items-center gap-2.5">
-                    <span className="text-[11px] font-mono font-semibold text-stone-400 w-5 shrink-0 text-right">{idx + 1}</span>
-                    <div className="flex-1 flex flex-wrap gap-1">
-                      {coverageMatrix.allMatchKeys.map((mk) => (
-                        presenceSet.has(mk) ? (
-                          <span key={mk} className="coverage-cell-active px-2 py-0.5 text-[10px] font-medium text-white">
-                            {coverageMatrix.matchLabels[mk]}
-                          </span>
-                        ) : (
-                          <span key={mk} className="coverage-cell-inactive px-2 py-0.5 text-[10px] text-stone-300">
-                            {coverageMatrix.matchLabels[mk]}
-                          </span>
-                        )
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           )}
 
