@@ -3837,6 +3837,10 @@ export default function ComboPage({ openModal }) {
                 <span className="text-stone-400">关数</span>
                 <span className="font-medium text-stone-600">≥{comboStructure.minLegs}</span>
               </div>
+              <div className="flex items-center justify-between">
+                <span className="text-stone-400">资金分配</span>
+                <span className="font-medium text-stone-600">{allocationMode}</span>
+              </div>
               <div className="flex items-center gap-1.5 text-[9px] text-stone-400 font-mono pt-0.5">
                 <span>β {comboStructure.parlayBeta.toFixed(2)}</span>
                 <span className="text-stone-200">·</span>
