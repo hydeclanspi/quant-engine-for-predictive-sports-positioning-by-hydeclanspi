@@ -3457,9 +3457,9 @@ export default function ComboPage({ openModal }) {
             </button>
           </div>
 
-          <div className="mt-4 p-4 rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/60 shadow-[0_14px_34px_rgba(16,185,129,0.10)] backdrop-blur-sm">
+          <div className="mt-4 p-4 rounded-2xl border border-emerald-100/85 bg-gradient-to-br from-emerald-50/55 via-white to-teal-50/40 shadow-[0_10px_24px_rgba(52,211,153,0.07)] backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-emerald-700 font-semibold tracking-[0.02em]">串关结构偏好</span>
+              <span className="text-xs text-emerald-600 font-semibold tracking-[0.02em]">串关结构偏好</span>
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() =>
@@ -3470,7 +3470,7 @@ export default function ComboPage({ openModal }) {
                       coverageEta: 0.2,
                     })
                   }
-                  className="px-2.5 py-1 rounded-md text-[11px] border border-emerald-300/80 bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-700 hover:from-emerald-200 hover:to-teal-200 transition-colors"
+                  className="px-2.5 py-1 rounded-md text-[11px] border border-emerald-200/80 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-600 hover:from-emerald-100 hover:to-teal-100 transition-colors"
                 >
                   强串联
                 </button>
@@ -3490,14 +3490,14 @@ export default function ComboPage({ openModal }) {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <label className="text-[11px] text-stone-500 rounded-xl border border-emerald-100/80 bg-white/75 px-2.5 py-2 backdrop-blur-[2px]">
+              <label className="text-[11px] text-stone-500 rounded-xl border border-emerald-100/75 bg-white/80 px-2.5 py-2 backdrop-blur-[2px]">
                 最小关数
                 <select
                   value={comboStructure.minLegs}
                   onChange={(e) =>
                     setComboStructure((prev) => ({ ...prev, minLegs: Number(e.target.value) }))
                   }
-                  className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-emerald-100 text-xs bg-white/90"
+                  className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-emerald-100/80 text-xs bg-white/90"
                 >
                   <option value={1}>1（含单关）</option>
                   <option value={2}>2（至少2串1）</option>
@@ -3505,7 +3505,7 @@ export default function ComboPage({ openModal }) {
                   <option value={4}>4（至少4串1）</option>
                 </select>
               </label>
-              <label className="text-[11px] text-stone-500 rounded-xl border border-emerald-100/80 bg-white/75 px-2.5 py-2 backdrop-blur-[2px]">
+              <label className="text-[11px] text-stone-500 rounded-xl border border-emerald-100/75 bg-white/80 px-2.5 py-2 backdrop-blur-[2px]">
                 串关偏好 β
                 <input
                   type="range"
@@ -3516,11 +3516,11 @@ export default function ComboPage({ openModal }) {
                   onChange={(e) =>
                     setComboStructure((prev) => ({ ...prev, parlayBeta: Number(e.target.value) }))
                   }
-                  className="mt-1 w-full accent-emerald-500"
+                  className="mt-1 w-full accent-emerald-400"
                 />
-                <span className="text-[10px] text-emerald-700/70">{comboStructure.parlayBeta.toFixed(2)}（0=无偏好）</span>
+                <span className="text-[10px] text-emerald-600/75">{comboStructure.parlayBeta.toFixed(2)}（0=无偏好）</span>
               </label>
-              <label className="text-[11px] text-stone-500 rounded-xl border border-emerald-100/80 bg-white/75 px-2.5 py-2 backdrop-blur-[2px]">
+              <label className="text-[11px] text-stone-500 rounded-xl border border-emerald-100/75 bg-white/80 px-2.5 py-2 backdrop-blur-[2px]">
                 多样性强度 λ
                 <input
                   type="range"
@@ -3531,11 +3531,11 @@ export default function ComboPage({ openModal }) {
                   onChange={(e) =>
                     setComboStructure((prev) => ({ ...prev, mmrLambda: Number(e.target.value) }))
                   }
-                  className="mt-1 w-full accent-emerald-500"
+                  className="mt-1 w-full accent-emerald-400"
                 />
-                <span className="text-[10px] text-emerald-700/70">{comboStructure.mmrLambda.toFixed(2)}（低=更多样化）</span>
+                <span className="text-[10px] text-emerald-600/75">{comboStructure.mmrLambda.toFixed(2)}（低=更多样化）</span>
               </label>
-              <label className="text-[11px] text-stone-500 rounded-xl border border-emerald-100/80 bg-white/75 px-2.5 py-2 backdrop-blur-[2px]">
+              <label className="text-[11px] text-stone-500 rounded-xl border border-emerald-100/75 bg-white/80 px-2.5 py-2 backdrop-blur-[2px]">
                 覆盖强度 η
                 <input
                   type="range"
@@ -3546,22 +3546,22 @@ export default function ComboPage({ openModal }) {
                   onChange={(e) =>
                     setComboStructure((prev) => ({ ...prev, coverageEta: Number(e.target.value) }))
                   }
-                  className="mt-1 w-full accent-emerald-500"
+                  className="mt-1 w-full accent-emerald-400"
                 />
-                <span className="text-[10px] text-emerald-700/70">{comboStructure.coverageEta.toFixed(2)}（高=候选全覆盖）</span>
+                <span className="text-[10px] text-emerald-600/75">{comboStructure.coverageEta.toFixed(2)}（高=候选全覆盖）</span>
               </label>
             </div>
-            <p className="text-[10px] text-emerald-700/70 mt-2">
+            <p className="text-[10px] text-emerald-600/75 mt-2">
               β 提升多关串联的效用分；λ 控制 MMR 去重力度；η 给未覆盖候选加分。
             </p>
             {Object.keys(generationSummary.legsDistribution || {}).length > 0 && (
-              <div className="mt-2.5 pt-2.5 border-t border-emerald-200/70">
-                <p className="text-[10px] text-emerald-700 mb-1">上次生成关数分布</p>
+              <div className="mt-2.5 pt-2.5 border-t border-emerald-100/90">
+                <p className="text-[10px] text-emerald-600 mb-1">上次生成关数分布</p>
                 <div className="flex gap-2 flex-wrap">
                   {Object.entries(generationSummary.legsDistribution)
                     .sort(([a], [b]) => Number(a) - Number(b))
                     .map(([legs, count]) => (
-                      <span key={legs} className="px-1.5 py-0.5 rounded border border-emerald-200/70 bg-emerald-100/80 text-emerald-700 text-[10px]">
+                      <span key={legs} className="px-1.5 py-0.5 rounded border border-emerald-100/90 bg-emerald-50/85 text-emerald-600 text-[10px]">
                         {legs}关×{count}
                       </span>
                     ))}
