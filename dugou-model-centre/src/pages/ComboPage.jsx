@@ -3457,9 +3457,9 @@ export default function ComboPage({ openModal }) {
             </button>
           </div>
 
-          <div className="mt-4 p-3.5 rounded-xl bg-teal-50/60 border border-teal-100">
+          <div className="mt-4 p-4 rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/60 shadow-[0_14px_34px_rgba(16,185,129,0.10)] backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-teal-700 font-medium">串关结构偏好</span>
+              <span className="text-xs text-emerald-700 font-semibold tracking-[0.02em]">串关结构偏好</span>
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() =>
@@ -3470,7 +3470,7 @@ export default function ComboPage({ openModal }) {
                       coverageEta: 0.2,
                     })
                   }
-                  className="px-2 py-1 rounded-md text-[11px] bg-teal-100 text-teal-700 hover:bg-teal-200 transition-colors"
+                  className="px-2.5 py-1 rounded-md text-[11px] border border-emerald-300/80 bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-700 hover:from-emerald-200 hover:to-teal-200 transition-colors"
                 >
                   强串联
                 </button>
@@ -3483,21 +3483,21 @@ export default function ComboPage({ openModal }) {
                       coverageEta: 0.15,
                     })
                   }
-                  className="px-2 py-1 rounded-md text-[11px] bg-stone-200 text-stone-600 hover:bg-stone-300 transition-colors"
+                  className="px-2.5 py-1 rounded-md text-[11px] border border-stone-200 bg-white/85 text-stone-600 hover:border-emerald-200 hover:text-emerald-700 transition-colors"
                 >
                   默认
                 </button>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <label className="text-[11px] text-stone-500">
+              <label className="text-[11px] text-stone-500 rounded-xl border border-emerald-100/80 bg-white/75 px-2.5 py-2 backdrop-blur-[2px]">
                 最小关数
                 <select
                   value={comboStructure.minLegs}
                   onChange={(e) =>
                     setComboStructure((prev) => ({ ...prev, minLegs: Number(e.target.value) }))
                   }
-                  className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-stone-200 text-xs"
+                  className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-emerald-100 text-xs bg-white/90"
                 >
                   <option value={1}>1（含单关）</option>
                   <option value={2}>2（至少2串1）</option>
@@ -3505,7 +3505,7 @@ export default function ComboPage({ openModal }) {
                   <option value={4}>4（至少4串1）</option>
                 </select>
               </label>
-              <label className="text-[11px] text-stone-500">
+              <label className="text-[11px] text-stone-500 rounded-xl border border-emerald-100/80 bg-white/75 px-2.5 py-2 backdrop-blur-[2px]">
                 串关偏好 β
                 <input
                   type="range"
@@ -3516,11 +3516,11 @@ export default function ComboPage({ openModal }) {
                   onChange={(e) =>
                     setComboStructure((prev) => ({ ...prev, parlayBeta: Number(e.target.value) }))
                   }
-                  className="mt-1 w-full"
+                  className="mt-1 w-full accent-emerald-500"
                 />
-                <span className="text-[10px] text-stone-400">{comboStructure.parlayBeta.toFixed(2)}（0=无偏好）</span>
+                <span className="text-[10px] text-emerald-700/70">{comboStructure.parlayBeta.toFixed(2)}（0=无偏好）</span>
               </label>
-              <label className="text-[11px] text-stone-500">
+              <label className="text-[11px] text-stone-500 rounded-xl border border-emerald-100/80 bg-white/75 px-2.5 py-2 backdrop-blur-[2px]">
                 多样性强度 λ
                 <input
                   type="range"
@@ -3531,11 +3531,11 @@ export default function ComboPage({ openModal }) {
                   onChange={(e) =>
                     setComboStructure((prev) => ({ ...prev, mmrLambda: Number(e.target.value) }))
                   }
-                  className="mt-1 w-full"
+                  className="mt-1 w-full accent-emerald-500"
                 />
-                <span className="text-[10px] text-stone-400">{comboStructure.mmrLambda.toFixed(2)}（低=更多样化）</span>
+                <span className="text-[10px] text-emerald-700/70">{comboStructure.mmrLambda.toFixed(2)}（低=更多样化）</span>
               </label>
-              <label className="text-[11px] text-stone-500">
+              <label className="text-[11px] text-stone-500 rounded-xl border border-emerald-100/80 bg-white/75 px-2.5 py-2 backdrop-blur-[2px]">
                 覆盖强度 η
                 <input
                   type="range"
@@ -3546,22 +3546,22 @@ export default function ComboPage({ openModal }) {
                   onChange={(e) =>
                     setComboStructure((prev) => ({ ...prev, coverageEta: Number(e.target.value) }))
                   }
-                  className="mt-1 w-full"
+                  className="mt-1 w-full accent-emerald-500"
                 />
-                <span className="text-[10px] text-stone-400">{comboStructure.coverageEta.toFixed(2)}（高=候选全覆盖）</span>
+                <span className="text-[10px] text-emerald-700/70">{comboStructure.coverageEta.toFixed(2)}（高=候选全覆盖）</span>
               </label>
             </div>
-            <p className="text-[10px] text-teal-500/70 mt-2">
+            <p className="text-[10px] text-emerald-700/70 mt-2">
               β 提升多关串联的效用分；λ 控制 MMR 去重力度；η 给未覆盖候选加分。
             </p>
             {Object.keys(generationSummary.legsDistribution || {}).length > 0 && (
-              <div className="mt-2 pt-2 border-t border-teal-100">
-                <p className="text-[10px] text-teal-600 mb-1">上次生成关数分布</p>
+              <div className="mt-2.5 pt-2.5 border-t border-emerald-200/70">
+                <p className="text-[10px] text-emerald-700 mb-1">上次生成关数分布</p>
                 <div className="flex gap-2 flex-wrap">
                   {Object.entries(generationSummary.legsDistribution)
                     .sort(([a], [b]) => Number(a) - Number(b))
                     .map(([legs, count]) => (
-                      <span key={legs} className="px-1.5 py-0.5 rounded bg-teal-100 text-teal-700 text-[10px]">
+                      <span key={legs} className="px-1.5 py-0.5 rounded border border-emerald-200/70 bg-emerald-100/80 text-emerald-700 text-[10px]">
                         {legs}关×{count}
                       </span>
                     ))}
@@ -3570,9 +3570,9 @@ export default function ComboPage({ openModal }) {
             )}
           </div>
 
-          <div className="mt-4 p-3.5 rounded-xl bg-stone-50 border border-stone-100">
+          <div className="mt-4 p-4 rounded-2xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50/78 via-white to-violet-50/62 shadow-[0_14px_34px_rgba(99,102,241,0.10)] backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-stone-500">质量阈值过滤（生成前）</span>
+              <span className="text-xs text-indigo-700 font-semibold tracking-[0.02em]">质量阈值过滤（生成前）</span>
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() =>
@@ -3582,7 +3582,7 @@ export default function ComboPage({ openModal }) {
                       maxCorr: 0.65,
                     })
                   }
-                  className="px-2 py-1 rounded-md text-[11px] bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
+                  className="px-2.5 py-1 rounded-md text-[11px] border border-indigo-300/80 bg-gradient-to-r from-indigo-100 to-violet-100 text-indigo-700 hover:from-indigo-200 hover:to-violet-200 transition-colors"
                 >
                   一键强化过滤
                 </button>
@@ -3594,14 +3594,14 @@ export default function ComboPage({ openModal }) {
                       maxCorr: 0.85,
                     })
                   }
-                  className="px-2 py-1 rounded-md text-[11px] bg-stone-200 text-stone-600 hover:bg-stone-300 transition-colors"
+                  className="px-2.5 py-1 rounded-md text-[11px] border border-stone-200 bg-white/85 text-stone-600 hover:border-indigo-200 hover:text-indigo-700 transition-colors"
                 >
                   重置
                 </button>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <label className="text-[11px] text-stone-500">
+              <label className="text-[11px] text-stone-500 rounded-xl border border-indigo-100/80 bg-white/78 px-2.5 py-2 backdrop-blur-[2px]">
                 最小 EV %
                 <input
                   type="number"
@@ -3613,10 +3613,10 @@ export default function ComboPage({ openModal }) {
                       minEvPercent: Number.parseFloat(event.target.value) || 0,
                     }))
                   }
-                  className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-stone-200 text-xs text-right"
+                  className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-indigo-100 text-xs text-right bg-white/90"
                 />
               </label>
-              <label className="text-[11px] text-stone-500">
+              <label className="text-[11px] text-stone-500 rounded-xl border border-indigo-100/80 bg-white/78 px-2.5 py-2 backdrop-blur-[2px]">
                 最小胜率 %
                 <input
                   type="number"
@@ -3630,10 +3630,10 @@ export default function ComboPage({ openModal }) {
                       minWinRate: clamp(Number.parseInt(event.target.value || '0', 10), 0, 100),
                     }))
                   }
-                  className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-stone-200 text-xs text-right"
+                  className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-indigo-100 text-xs text-right bg-white/90"
                 />
               </label>
-              <label className="text-[11px] text-stone-500">
+              <label className="text-[11px] text-stone-500 rounded-xl border border-indigo-100/80 bg-white/78 px-2.5 py-2 backdrop-blur-[2px]">
                 最大相关性
                 <input
                   type="number"
@@ -3647,15 +3647,15 @@ export default function ComboPage({ openModal }) {
                       maxCorr: clamp(Number.parseFloat(event.target.value || '0'), 0, 1),
                     }))
                   }
-                  className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-stone-200 text-xs text-right"
+                  className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-indigo-100 text-xs text-right bg-white/90"
                 />
               </label>
             </div>
-            <p className="text-[11px] text-stone-400 mt-2">
+            <p className="text-[11px] text-indigo-700/65 mt-2">
               相关性基于“同源注单集中度”（HHI）估计；值越大，组合越可能同涨同跌。
             </p>
             <div className="mt-3">
-              <p className="text-[11px] text-stone-500 mb-1.5">组合生成策略</p>
+              <p className="text-[11px] text-indigo-700/85 mb-1.5 font-medium">组合生成策略</p>
               <div className="grid grid-cols-3 gap-2">
                 {COMBO_STRATEGY_OPTIONS.map((option) => {
                   const selected = comboStrategy === option.value
@@ -3663,10 +3663,10 @@ export default function ComboPage({ openModal }) {
                     <button
                       key={option.value}
                       onClick={() => setComboStrategy(option.value)}
-                      className={`px-2 py-1.5 rounded-lg text-[11px] border transition-colors ${
+                      className={`px-2 py-1.5 rounded-lg text-[11px] border transition-all ${
                         selected
-                          ? 'border-amber-300 bg-amber-100 text-amber-700'
-                          : 'border-stone-200 bg-white text-stone-600 hover:border-amber-200 hover:text-amber-700'
+                          ? 'border-violet-300 bg-gradient-to-r from-violet-100 to-indigo-100 text-violet-700 shadow-[0_4px_14px_rgba(139,92,246,0.14)]'
+                          : 'border-stone-200 bg-white/90 text-stone-600 hover:border-indigo-200 hover:text-indigo-700'
                       }`}
                     >
                       {option.label}
@@ -3674,12 +3674,12 @@ export default function ComboPage({ openModal }) {
                   )
                 })}
               </div>
-              <p className="text-[11px] text-stone-400 mt-1.5">{activeStrategyMeta.desc}</p>
+              <p className="text-[11px] text-indigo-700/60 mt-1.5">{activeStrategyMeta.desc}</p>
             </div>
-            <div className="mt-3.5 pt-3 border-t border-stone-200/80">
+            <div className="mt-3.5 pt-3 border-t border-indigo-200/70">
               <div className="flex items-center justify-between mb-1.5">
-                <p className="text-[11px] font-medium text-stone-600 tracking-wide">资金分配模式</p>
-                <span className="text-[10px] text-stone-400 uppercase tracking-[0.16em]">Allocation</span>
+                <p className="text-[11px] font-semibold text-indigo-700/85 tracking-wide">资金分配模式</p>
+                <span className="text-[10px] text-indigo-500/60 uppercase tracking-[0.16em]">Allocation</span>
               </div>
               <div className="grid grid-cols-2 gap-2 p-1.5 rounded-xl border border-sky-100/80 bg-gradient-to-r from-sky-50/70 via-white to-emerald-50/65 backdrop-blur-sm">
                 {ALLOCATION_MODE_OPTIONS.map((option) => {
@@ -3700,15 +3700,15 @@ export default function ComboPage({ openModal }) {
                   )
                 })}
               </div>
-              <p className="text-[11px] text-stone-400 mt-1.5">
+              <p className="text-[11px] text-indigo-700/60 mt-1.5">
                 Precision 按 1 rmb 细粒度分配；Balanced 按 10 rmb 递进并优先保障组合覆盖面。
               </p>
             </div>
           </div>
 
-          <div className="mt-4 p-3.5 rounded-xl bg-sky-50/60 border border-sky-100">
+          <div className="mt-4 p-4 rounded-2xl border border-sky-200/75 bg-gradient-to-br from-sky-50/82 via-white to-cyan-50/62 shadow-[0_14px_34px_rgba(14,165,233,0.10)] backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-sky-700 font-medium">角色结构引导（软约束）</span>
+              <span className="text-xs text-sky-700 font-semibold tracking-[0.02em]">角色结构引导（软约束）</span>
               <div className="flex items-center gap-1.5">
                 {Object.entries(MATCH_ROLE_PRESETS).map(([key, preset]) => {
                   const active = rolePreference.preset === key
@@ -3724,10 +3724,10 @@ export default function ComboPage({ openModal }) {
                           }),
                         )
                       }
-                      className={`px-2 py-1 rounded-md text-[11px] border transition-colors ${
+                      className={`px-2.5 py-1 rounded-md text-[11px] border transition-all ${
                         active
-                          ? 'border-sky-300 bg-sky-100 text-sky-700'
-                          : 'border-stone-200 bg-white text-stone-600 hover:border-sky-200 hover:text-sky-700'
+                          ? 'border-sky-300/90 bg-gradient-to-r from-sky-100 to-cyan-100 text-sky-700 shadow-[0_4px_14px_rgba(14,165,233,0.14)]'
+                          : 'border-stone-200 bg-white/90 text-stone-600 hover:border-sky-200 hover:text-sky-700'
                       }`}
                     >
                       {preset.label}
@@ -3736,7 +3736,7 @@ export default function ComboPage({ openModal }) {
                 })}
               </div>
             </div>
-            <label className="text-[11px] text-stone-500 block">
+            <label className="text-[11px] text-stone-500 block rounded-xl border border-sky-100/80 bg-white/76 px-2.5 py-2 backdrop-blur-[2px]">
               结构引导强度 γ
               <input
                 type="range"
@@ -3752,16 +3752,16 @@ export default function ComboPage({ openModal }) {
                     }),
                   )
                 }
-                className="mt-1 w-full"
+                className="mt-1 w-full accent-sky-500"
               />
-              <span className="text-[10px] text-stone-400">
+              <span className="text-[10px] text-sky-700/70">
                 {rolePreference.mixStrength.toFixed(2)}（0=不引导，越高越贴近你选择的“稳/杠杆/中性”风格）
               </span>
             </label>
-            <p className="text-[10px] text-sky-600/80 mt-2">
+            <p className="text-[10px] text-sky-700/80 mt-2">
               该机制只影响打分，不做硬筛选，不会强行锁死总赔率或固定配比。
             </p>
-            <div className="mt-2.5 rounded-lg border border-sky-100 bg-white/70 px-2.5 py-2 text-[10px] text-stone-500 space-y-1">
+            <div className="mt-2.5 rounded-xl border border-sky-200/70 bg-gradient-to-br from-white/92 to-sky-50/60 px-2.5 py-2 text-[10px] text-stone-500 space-y-1">
               <p>操作解释：先选预设（平衡/稳健底盘/杠杆推进）定义你的大方向。</p>
               <p>γ（结构引导强度）：0 附近几乎不干预，越高越偏向你设定的角色结构。</p>
               <p>逐场角色按钮用于“点杀”某场风格；没把握就用“自动”。</p>
