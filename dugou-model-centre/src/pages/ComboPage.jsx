@@ -4172,20 +4172,22 @@ export default function ComboPage({ openModal }) {
                           const isFullCoverage = selectedMatches.every((m) => coveredKeys.has(m.key))
                           return (
                             <div className="px-4 pt-3 pb-1">
-                              <div className="flex flex-wrap gap-1.5">
+                              <div className={`inline-flex flex-wrap gap-1.5 ${isFullCoverage ? 'px-2.5 py-1.5 rounded-xl' : ''}`}
+                                style={isFullCoverage ? { background: 'linear-gradient(135deg, rgba(16,185,129,0.05) 0%, rgba(52,211,153,0.07) 100%)' } : undefined}
+                              >
                                 {selectedMatches.map((m) => {
                                   const mk = m.key
                                   const isCovered = coveredKeys.has(mk)
                                   return (
                                     <span key={mk} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium transition-all ${
                                       isFullCoverage
-                                        ? 'text-emerald-300/80 border border-emerald-100/30'
+                                        ? 'text-emerald-400/90 border border-emerald-200/25'
                                         : isCovered
                                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
                                           : 'bg-stone-100/60 text-stone-400 border border-stone-200/50'
                                     }`}>
                                       <span className={isFullCoverage ? '' : 'font-semibold'}>{m.homeTeam || '?'}</span>
-                                      <span className={isFullCoverage ? 'text-emerald-200/70' : isCovered ? 'text-emerald-500/70' : 'text-stone-300'}>{entryLabel(m.entry)}</span>
+                                      <span className={isFullCoverage ? 'text-emerald-300/70' : isCovered ? 'text-emerald-500/70' : 'text-stone-300'}>{entryLabel(m.entry)}</span>
                                       <span className={isFullCoverage ? '' : 'font-semibold'}>{m.awayTeam || '?'}</span>
                                     </span>
                                   )
@@ -4446,9 +4448,9 @@ export default function ComboPage({ openModal }) {
                                 return (
                                   <span key={leg.key || `${leg.homeTeam}-${leg.awayTeam}-${leg.entry}-${legIdx}`} className="inline-flex items-baseline">
                                     {legIdx > 0 && (
-                                      <span className="mx-1 text-[13px] font-semibold text-stone-800 align-middle">×</span>
+                                      <span className="mx-1 text-[13px] font-medium text-stone-800 align-middle">×</span>
                                     )}
-                                    <span className="font-semibold text-stone-800">{leg.homeTeam || '-'}</span>
+                                    <span className="font-medium text-stone-800">{leg.homeTeam || '-'}</span>
                                     {legEntry && (
                                       <span className="ml-0.5 text-[11px] font-medium text-stone-500">
                                         {legEntry}
