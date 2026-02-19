@@ -3387,7 +3387,12 @@ export default function ComboPage({ openModal }) {
                   className="flex items-center gap-2.5 py-1.5 px-2 rounded-lg border border-stone-100 hover:border-indigo-200 bg-white hover:bg-indigo-50/20 transition-all cursor-pointer"
                 >
                   <div className={`custom-checkbox flex-shrink-0 ${checkedMatches[i] ? 'checked' : ''}`} />
-                  <p className="text-[12px] font-medium text-stone-700 truncate flex-1">{item.match}</p>
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                    <p className="text-[12px] font-medium text-stone-700 truncate flex-1">{item.match}</p>
+                    <span className={`px-1.5 py-[1px] rounded border text-[9px] font-medium flex-shrink-0 ${activeRoleMeta?.tone || 'bg-stone-100 text-stone-500 border-stone-200'}`}>
+                      {MATCH_ROLE_COMPACT_LABEL[effectiveRole] || '自动'}
+                    </span>
+                  </div>
                 </div>
               ) : (
                 <div
