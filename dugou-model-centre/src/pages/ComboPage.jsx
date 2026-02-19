@@ -4465,20 +4465,20 @@ export default function ComboPage({ openModal }) {
                       <div className="ml-4 mt-1.5 p-3.5 rounded-xl border border-stone-100/80 animate-fade-in" style={{ background: 'linear-gradient(135deg, rgba(249,250,255,0.92) 0%, rgba(255,255,255,0.88) 100%)' }}>
                         <div className="grid grid-cols-4 gap-2 mb-3">
                           <div className="text-center py-1.5 rounded-lg bg-sky-50/60">
-                            <p className="text-[10px] text-stone-400 mb-0.5">命中率</p>
-                            <p className="font-bold text-sky-600 text-[14px]">{item.winRate}</p>
+                            <p className="text-[9px] text-stone-400 mb-0.5">命中率</p>
+                            <p className="font-bold text-sky-600 text-[12px]">{item.winRate}</p>
                           </div>
                           <div className="text-center py-1.5 rounded-lg bg-indigo-50/60">
-                            <p className="text-[10px] text-stone-400 mb-0.5">盈利率</p>
-                            <p className="font-bold text-indigo-600 text-[14px]">{item.profitWinRate}</p>
+                            <p className="text-[9px] text-stone-400 mb-0.5">盈利率</p>
+                            <p className="font-bold text-indigo-600 text-[12px]">{item.profitWinRate}</p>
                           </div>
                           <div className="text-center py-1.5 rounded-lg bg-violet-50/50">
-                            <p className="text-[10px] text-stone-400 mb-0.5">Sharpe</p>
-                            <p className="font-bold text-violet-600 text-[14px]">{item.sharpe}</p>
+                            <p className="text-[9px] text-stone-400 mb-0.5">Sharpe</p>
+                            <p className="font-bold text-violet-600 text-[12px]">{item.sharpe}</p>
                           </div>
                           <div className="text-center py-1.5 rounded-lg bg-stone-50/80">
-                            <p className="text-[10px] text-stone-400 mb-0.5">校准增益</p>
-                            <p className={`font-bold text-[14px] ${item.explain.calibGainPp >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                            <p className="text-[9px] text-stone-400 mb-0.5">校准增益</p>
+                            <p className={`font-bold text-[12px] ${item.explain.calibGainPp >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                               {item.explain.calibGainPp >= 0 ? '+' : ''}{item.explain.calibGainPp.toFixed(1)}pp
                             </p>
                           </div>
@@ -4488,22 +4488,22 @@ export default function ComboPage({ openModal }) {
                             const cs = leg.confSurplus
                             const surplusVal = cs?.surplus || 0
                             return (
-                              <div key={li} className="flex items-center gap-2.5 py-1.5 px-2.5 rounded-lg bg-white/60 text-[13px]">
-                                <span className="text-stone-300 text-[11px] w-4 shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>{li + 1}</span>
-                                <span className="font-medium text-stone-800 flex-1 truncate">{leg.homeTeam} vs {leg.awayTeam}</span>
-                                <span className="text-indigo-600 font-semibold shrink-0 px-1.5 py-0.5 rounded bg-indigo-50 text-[12px]">{leg.entry || '-'}</span>
-                                <span className="text-stone-500 font-semibold shrink-0 text-[13px] tracking-tight" style={{ fontVariantNumeric: 'tabular-nums' }}>@{Number(leg.odds || 0).toFixed(2)}</span>
-                                <span className={`font-semibold shrink-0 text-[12px] tracking-tight ${(leg.calibratedP || leg.conf) >= 0.55 ? 'text-emerald-600' : 'text-amber-500'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+                              <div key={li} className="flex items-center gap-2.5 py-1.5 px-2.5 rounded-lg bg-white/60 text-[11px]">
+                                <span className="text-stone-300 text-[10px] w-4 shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>{li + 1}</span>
+                                <span className="font-medium text-stone-800 flex-1 truncate text-[11px]">{leg.homeTeam} vs {leg.awayTeam}</span>
+                                <span className="text-indigo-600 font-semibold shrink-0 px-1.5 py-0.5 rounded bg-indigo-50 text-[10px]">{leg.entry || '-'}</span>
+                                <span className="text-stone-500 font-semibold shrink-0 text-[11px] tracking-tight" style={{ fontVariantNumeric: 'tabular-nums' }}>@{Number(leg.odds || 0).toFixed(2)}</span>
+                                <span className={`font-semibold shrink-0 text-[10px] tracking-tight ${(leg.calibratedP || leg.conf) >= 0.55 ? 'text-emerald-600' : 'text-amber-500'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
                                   P:{((leg.calibratedP || leg.conf) * 100).toFixed(0)}%
                                 </span>
-                                <span className={`shrink-0 text-[11px] font-medium tracking-tight ${surplusVal >= 0.04 ? 'text-emerald-500' : surplusVal >= -0.03 ? 'text-stone-400' : 'text-rose-400'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+                                <span className={`shrink-0 text-[10px] font-medium tracking-tight ${surplusVal >= 0.04 ? 'text-emerald-500' : surplusVal >= -0.03 ? 'text-stone-400' : 'text-rose-400'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
                                   {surplusVal >= 0 ? '+' : ''}{(surplusVal * 100).toFixed(0)}pp
                                 </span>
                               </div>
                             )
                           })}
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]">
+                        <div className="mt-2 flex flex-wrap gap-1.5 text-[9px]">
                           <span className="px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-500">相关 {item.explain.corr.toFixed(2)}</span>
                           <span className="px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-500">Conf均 {item.explain.confAvg.toFixed(2)}</span>
                           {item.explain.avgSurplus != null && (
