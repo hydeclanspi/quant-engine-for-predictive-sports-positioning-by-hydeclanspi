@@ -2680,7 +2680,7 @@ export default function ComboPage({ openModal }) {
   const drawdownExceeded = adoptPreview.ready && adoptPreview.worstDrawdownPct > maxWorstDrawdownAlertPct
 
   const riskProbeRows = useMemo(() => {
-    const prefs = [40, 50, 60]
+    const prefs = [30, 40, 50, 60, 70]
     const rows = prefs.map((pref) => {
       const generated = generateRecommendations(
         selectedMatches,
@@ -2746,6 +2746,12 @@ export default function ComboPage({ openModal }) {
       .sort((a, b) => b.amount - a.amount || b.count - a.count)
       .slice(0, 5)
   }, [selectedRecommendations])
+
+  const applyRiskProbeBest = (nextRiskPref) => {
+    if (!Number.isFinite(nextRiskPref) || nextRiskPref === riskPref) return
+    setRiskPref(nextRiskPref)
+    regenerateWithOverrides({ riskPref: nextRiskPref })
+  }
 
   const allChecked = checkedMatches.length > 0 && checkedMatches.every(Boolean)
 
@@ -4121,23 +4127,13 @@ export default function ComboPage({ openModal }) {
                 </button>
               </div>
               <div className="space-y-1.5">
-                {(showAllPortfolios ? portfolioAllocations : portfolioAllocations.slice(0, 6)).map((alloc, aIdx) => {
-                  const isFullCoverage = (alloc.coverageRatio || 0) >= 0.999
-                  return (
+                {(showAllPortfolios ? portfolioAllocations : portfolioAllocations.slice(0, 6)).map((alloc, aIdx) => (
                   <div key={aIdx}>
                     <div
                       onClick={() => togglePortfolioExpand(aIdx)}
-                      className={`motion-v2-row flex items-center gap-2 px-2.5 py-1.5 rounded-lg cursor-pointer transition-all ${
-                        isFullCoverage
-                          ? 'bg-emerald-50/35 border border-emerald-200/50 hover:bg-emerald-50/45'
-                          : 'bg-white/70 border border-indigo-100/60 hover:bg-white'
-                      }`}
+                      className="motion-v2-row flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/70 border border-indigo-100/60 cursor-pointer hover:bg-white transition-all"
                     >
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                        isFullCoverage
-                          ? (aIdx === 0 ? 'bg-emerald-400 text-white' : 'bg-emerald-100 text-emerald-600')
-                          : (aIdx === 0 ? 'bg-indigo-500 text-white' : 'bg-indigo-100 text-indigo-600')
-                      }`}>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${aIdx === 0 ? 'bg-indigo-500 text-white' : 'bg-indigo-100 text-indigo-600'}`}>
                         {aIdx === 0 ? '最优' : `#${aIdx + 1}`}
                       </span>
                       <span className="text-[13px] font-medium text-stone-700 flex-1">
@@ -4145,7 +4141,7 @@ export default function ComboPage({ openModal }) {
                       </span>
                       <div className="flex items-center gap-2 text-[10px] text-stone-500">
                         <span>覆盖{alloc.covered}/{alloc.totalMatches}场</span>
-                        <span className={`${isFullCoverage ? 'text-emerald-500' : 'text-emerald-600'} font-medium`}>EV {alloc.weightedEv}%</span>
+                        <span className="text-emerald-600 font-medium">EV {alloc.weightedEv}%</span>
                         <span>{alloc.totalStake} rmb</span>
                       </div>
                       <svg className={`w-3 h-3 text-stone-400 transition-transform ${expandedPortfolioIdxSet.has(aIdx) ? 'rotate-180' : ''}`} viewBox="0 0 12 12" fill="none">
@@ -4153,19 +4149,7 @@ export default function ComboPage({ openModal }) {
                       </svg>
                     </div>
                     {expandedPortfolioIdxSet.has(aIdx) && (
-                      <div
-                        className="mt-2 rounded-2xl overflow-hidden animate-fade-in"
-                        style={{
-                          background: isFullCoverage
-                            ? 'linear-gradient(135deg, rgba(236,253,245,0.72) 0%, rgba(255,255,255,0.92) 50%, rgba(236,253,245,0.62) 100%)'
-                            : 'linear-gradient(135deg, rgba(249,250,255,0.95) 0%, rgba(255,255,255,0.92) 50%, rgba(245,248,255,0.95) 100%)',
-                          backdropFilter: 'blur(16px) saturate(120%)',
-                          border: isFullCoverage ? '1px solid rgba(16,185,129,0.16)' : '1px solid rgba(99,102,241,0.08)',
-                          boxShadow: isFullCoverage
-                            ? '0 4px 20px -4px rgba(16,185,129,0.10), inset 0 1px 0 rgba(255,255,255,0.82)'
-                            : '0 4px 20px -4px rgba(99,102,241,0.10), inset 0 1px 0 rgba(255,255,255,0.8)',
-                        }}
-                      >
+                      <div className="mt-2 rounded-2xl overflow-hidden animate-fade-in" style={{ background: 'linear-gradient(135deg, rgba(249,250,255,0.95) 0%, rgba(255,255,255,0.92) 50%, rgba(245,248,255,0.95) 100%)', backdropFilter: 'blur(16px) saturate(120%)', border: '1px solid rgba(99,102,241,0.08)', boxShadow: '0 4px 20px -4px rgba(99,102,241,0.10), inset 0 1px 0 rgba(255,255,255,0.8)' }}>
                         {/* ─── Coverage info bar ─── */}
                         {(() => {
                           const coveredKeys = new Set()
@@ -4176,6 +4160,7 @@ export default function ComboPage({ openModal }) {
                             if (!e) return 'vs'
                             return e.trim()
                           }
+                          const isFullCoverage = selectedMatches.every((m) => coveredKeys.has(m.key))
                           return (
                             <div className="px-4 pt-3 pb-1">
                               <div className="flex flex-wrap gap-1.5">
@@ -4184,13 +4169,15 @@ export default function ComboPage({ openModal }) {
                                   const isCovered = coveredKeys.has(mk)
                                   return (
                                     <span key={mk} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium transition-all ${
-                                      isCovered
-                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
-                                        : 'bg-stone-100/60 text-stone-400 border border-stone-200/50'
+                                      isFullCoverage
+                                        ? 'bg-emerald-50/40 text-emerald-400 border border-emerald-100/40'
+                                        : isCovered
+                                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                                          : 'bg-stone-100/60 text-stone-400 border border-stone-200/50'
                                     }`}>
-                                      <span className="font-semibold">{m.homeTeam || '?'}</span>
-                                      <span className={isCovered ? 'text-emerald-500/70' : 'text-stone-300'}>{entryLabel(m.entry)}</span>
-                                      <span className="font-semibold">{m.awayTeam || '?'}</span>
+                                      <span className={isFullCoverage ? '' : 'font-semibold'}>{m.homeTeam || '?'}</span>
+                                      <span className={isFullCoverage ? 'text-emerald-300' : isCovered ? 'text-emerald-500/70' : 'text-stone-300'}>{entryLabel(m.entry)}</span>
+                                      <span className={isFullCoverage ? '' : 'font-semibold'}>{m.awayTeam || '?'}</span>
                                     </span>
                                   )
                                 })}
@@ -4208,12 +4195,10 @@ export default function ComboPage({ openModal }) {
                               <div key={cIdx} className="combo-portfolio-card p-4">
                                 <div className="flex items-center justify-between mb-3">
                                   <div className="flex items-center gap-2.5">
-                                    <span className={`text-[13px] font-bold ${isFullCoverage ? 'text-emerald-600' : 'text-indigo-600'}`}>组合 {comboOrigIdx != null ? comboOrigIdx + 1 : cIdx + 1}</span>
+                                    <span className="text-[13px] font-bold text-indigo-600">组合 {comboOrigIdx != null ? comboOrigIdx + 1 : cIdx + 1}</span>
                                     {cLayerTag && (
                                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide ${
-                                        isFullCoverage
-                                          ? 'bg-emerald-50/85 text-emerald-600 border border-emerald-200/70'
-                                          : cLayerTag === 'core' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/60'
+                                        cLayerTag === 'core' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/60'
                                           : cLayerTag === 'covering' ? 'bg-teal-50 text-teal-600 border border-teal-200/60'
                                           : cLayerTag === 'satellite' ? 'bg-sky-50 text-sky-600 border border-sky-200/60'
                                           : 'bg-violet-50 text-violet-600 border border-violet-200/60'
@@ -4231,7 +4216,7 @@ export default function ComboPage({ openModal }) {
                                   {(combo.subset || []).map((leg, li) => (
                                     <div key={li} className="combo-team-pill px-3 py-2 flex items-center gap-1.5">
                                       <span className="text-[13px] font-semibold text-stone-800">{leg.homeTeam}</span>
-                                      <span className={`text-[11px] font-medium ${isFullCoverage ? 'text-emerald-400/85' : 'text-indigo-400/70'}`}>{translateEntry(leg.entry) || 'vs'}</span>
+                                      <span className="text-[11px] text-indigo-400/70 font-medium">{translateEntry(leg.entry) || 'vs'}</span>
                                       <span className="text-[13px] font-semibold text-stone-800">{leg.awayTeam}</span>
                                     </div>
                                   ))}
@@ -4349,21 +4334,21 @@ export default function ComboPage({ openModal }) {
                         {/* ─── Stats ribbon (compact, below combos) ─── */}
                         <div className="px-4 pb-4 space-y-2">
                           <div className="grid grid-cols-4 gap-1.5">
-                            <div className={`text-center py-2 px-1 rounded-xl ${isFullCoverage ? 'bg-emerald-50/70' : 'bg-indigo-50/60'}`}>
+                            <div className="text-center py-2 px-1 rounded-xl bg-indigo-50/60">
                               <p className="text-[9px] text-stone-400 uppercase tracking-wider">覆盖率</p>
-                              <p className={`font-bold text-[15px] mt-0.5 ${isFullCoverage ? 'text-emerald-600' : 'text-indigo-600'}`}>{(alloc.coverageRatio * 100).toFixed(0)}%</p>
+                              <p className="font-bold text-indigo-600 text-[15px] mt-0.5">{(alloc.coverageRatio * 100).toFixed(0)}%</p>
                             </div>
-                            <div className={`text-center py-2 px-1 rounded-xl ${isFullCoverage ? 'bg-emerald-50/55' : 'bg-violet-50/50'}`}>
+                            <div className="text-center py-2 px-1 rounded-xl bg-violet-50/50">
                               <p className="text-[9px] text-stone-400 uppercase tracking-wider">层多样</p>
-                              <p className={`font-bold text-[15px] mt-0.5 ${isFullCoverage ? 'text-emerald-600' : 'text-violet-600'}`}>{(alloc.layerDiv * 100).toFixed(0)}%</p>
+                              <p className="font-bold text-violet-600 text-[15px] mt-0.5">{(alloc.layerDiv * 100).toFixed(0)}%</p>
                             </div>
-                            <div className={`text-center py-2 px-1 rounded-xl ${isFullCoverage ? 'bg-emerald-50/50' : 'bg-sky-50/50'}`}>
+                            <div className="text-center py-2 px-1 rounded-xl bg-sky-50/50">
                               <p className="text-[9px] text-stone-400 uppercase tracking-wider">独立性</p>
-                              <p className={`font-bold text-[15px] mt-0.5 ${isFullCoverage ? 'text-emerald-600' : 'text-sky-600'}`}>{(alloc.diversityScore * 100).toFixed(0)}%</p>
+                              <p className="font-bold text-sky-600 text-[15px] mt-0.5">{(alloc.diversityScore * 100).toFixed(0)}%</p>
                             </div>
-                            <div className={`text-center py-2 px-1 rounded-xl ${isFullCoverage ? 'bg-emerald-50/45' : 'bg-stone-50/80'}`}>
+                            <div className="text-center py-2 px-1 rounded-xl bg-stone-50/80">
                               <p className="text-[9px] text-stone-400 uppercase tracking-wider">效用</p>
-                              <p className={`font-bold text-[15px] mt-0.5 ${isFullCoverage ? 'text-emerald-700' : 'text-stone-700'}`}>{alloc.utility.toFixed(3)}</p>
+                              <p className="font-bold text-stone-700 text-[15px] mt-0.5">{alloc.utility.toFixed(3)}</p>
                             </div>
                           </div>
                           {alloc.mc && (
@@ -4392,7 +4377,7 @@ export default function ComboPage({ openModal }) {
                       </div>
                     )}
                   </div>
-                )})}
+                ))}
                 {portfolioAllocations.length > 6 && (
                   <button
                     onClick={() => setShowAllPortfolios(v => !v)}
@@ -4854,6 +4839,7 @@ export default function ComboPage({ openModal }) {
                     <th className="py-1.5">EV</th>
                     <th className="py-1.5">投入</th>
                     <th className="py-1.5">Top Sharpe</th>
+                    <th className="py-1.5 text-right"> </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -4867,6 +4853,16 @@ export default function ComboPage({ openModal }) {
                       </td>
                       <td className="py-1.5 text-stone-600">{row.available ? `${Math.round(row.totalInvest)} rmb` : '--'}</td>
                       <td className="py-1.5 text-violet-700">{row.available ? row.topSharpe.toFixed(2) : '--'}</td>
+                      <td className="py-1.5 text-right">
+                        {row.best && row.available && row.riskPref !== riskPref ? (
+                          <button
+                            onClick={() => applyRiskProbeBest(row.riskPref)}
+                            className="px-2 py-0.5 rounded-md border border-emerald-300/80 bg-emerald-50 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-100/75 transition-colors"
+                          >
+                            Apply
+                          </button>
+                        ) : null}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
