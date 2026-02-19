@@ -3914,7 +3914,14 @@ export default function ComboPage({ openModal }) {
                 <span>η {comboStructure.coverageEta.toFixed(2)}</span>
               </div>
             </div>
-            <div className="flex gap-2 mt-2.5">
+            <div className="flex gap-2 mt-3.5">
+              <button
+                onClick={handleConfirmChecked}
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-stone-200 text-stone-600 shadow-sm hover:border-indigo-300 hover:text-indigo-600 hover:shadow-[0_2px_8px_rgba(99,102,241,0.12)] hover:scale-105 active:scale-95 transition-all"
+                title="确认投资已勾选"
+              >
+                <Check size={15} strokeWidth={2.5} />
+              </button>
               <button
                 onClick={handleGenerate}
                 className="h-9 px-3.5 inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-[12px] font-medium whitespace-nowrap shadow-[0_2px_8px_rgba(99,102,241,0.35)] hover:shadow-[0_4px_14px_rgba(99,102,241,0.45)] hover:scale-[1.02] active:scale-95 transition-all"
@@ -3922,13 +3929,6 @@ export default function ComboPage({ openModal }) {
               >
                 <Sparkles size={15} strokeWidth={2} />
                 <span>生成最优组合</span>
-              </button>
-              <button
-                onClick={handleConfirmChecked}
-                className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-stone-200 text-stone-600 shadow-sm hover:border-indigo-300 hover:text-indigo-600 hover:shadow-[0_2px_8px_rgba(99,102,241,0.12)] hover:scale-105 active:scale-95 transition-all"
-                title="确认投资已勾选"
-              >
-                <Check size={15} strokeWidth={2.5} />
               </button>
             </div>
           </div>
