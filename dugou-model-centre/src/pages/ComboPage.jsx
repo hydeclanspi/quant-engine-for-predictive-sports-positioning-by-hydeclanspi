@@ -962,6 +962,7 @@ const COMBO_STRATEGY_OPTIONS = [
     desc: '只保留满足 EV/胜率/相关性阈值的组合。',
   },
 ]
+const COMBO_STRATEGY_DISPLAY_ORDER = ['manualCoverage', 'softPenalty', 'thresholdStrict']
 const DEFAULT_COMBO_STRATEGY = 'softPenalty'
 const DEFAULT_ALLOCATION_MODE = 'balanced'
 const ALLOCATION_MODE_OPTIONS = [
@@ -3616,7 +3617,9 @@ export default function ComboPage({ openModal }) {
             <div className="mt-3">
               <p className="text-[11px] text-indigo-700/85 mb-1.5 font-medium">组合生成策略</p>
               <div className="grid grid-cols-3 gap-2">
-                {COMBO_STRATEGY_OPTIONS.map((option) => {
+                {COMBO_STRATEGY_DISPLAY_ORDER.map((strategyValue) => {
+                  const option = COMBO_STRATEGY_OPTIONS.find((item) => item.value === strategyValue)
+                  if (!option) return null
                   const selected = comboStrategy === option.value
                   return (
                     <button
