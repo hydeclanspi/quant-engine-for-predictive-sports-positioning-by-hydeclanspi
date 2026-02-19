@@ -336,7 +336,6 @@ export default function TeamsPage() {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                {isSelected && <span className="team-select-pill">已选中</span>}
                 <span className={`text-[11px] tabular-nums ${isSelected ? 'text-sky-600' : 'text-stone-400'}`}>{team.totalSamples} 场</span>
               </div>
             </div>
