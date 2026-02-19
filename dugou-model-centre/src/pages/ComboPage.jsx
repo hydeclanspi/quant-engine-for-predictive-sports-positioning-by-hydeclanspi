@@ -963,6 +963,24 @@ const COMBO_STRATEGY_OPTIONS = [
   },
 ]
 const DEFAULT_COMBO_STRATEGY = 'softPenalty'
+const DEFAULT_ALLOCATION_MODE = 'balanced'
+const ALLOCATION_MODE_OPTIONS = [
+  {
+    value: 'precision',
+    label: 'Precision',
+    sub: '1 rmb 精细分配',
+    selectedTone:
+      'border-emerald-300/80 bg-gradient-to-br from-emerald-100/85 via-white to-teal-100/75 text-emerald-700 shadow-[0_8px_20px_rgba(16,185,129,0.18)]',
+  },
+  {
+    value: 'balanced',
+    label: 'Balanced',
+    sub: '10 rmb 平衡覆盖',
+    selectedTone:
+      'border-indigo-300/80 bg-gradient-to-br from-indigo-100/85 via-white to-sky-100/75 text-indigo-700 shadow-[0_8px_20px_rgba(99,102,241,0.16)]',
+  },
+]
+const normalizeAllocationMode = (value) => (value === 'precision' ? 'precision' : 'balanced')
 
 const normalizeMode = (mode) => (mode === '常规-激进' ? '常规-杠杆' : mode || '常规')
 
@@ -1915,6 +1933,7 @@ const generateRecommendations = (
   rolePreference = null,
   teamBias = null, // Map<teamName, number> — positive = boost, negative = penalize
   comboRetrospective = null, // FIX #9: Combo-level retrospective learning signals
+  allocationMode = DEFAULT_ALLOCATION_MODE,
 ) => {
   if (selectedMatches.length === 0) return null
   const recommendationCount = RECOMMENDATION_OUTPUT_COUNT
@@ -1928,6 +1947,8 @@ const generateRecommendations = (
   const maxCorr = clamp(Number(qualityFilter?.maxCorr ?? 1), 0, 1)
 
   const normalizedComboStructure = sanitizeComboStructure(comboStructure)
+  const normalizedAllocationMode = normalizeAllocationMode(allocationMode)
+  const allocationUnit = normalizedAllocationMode === 'precision' ? 1 : 10
   // ── 思路4: Minimum legs floor ──
   const minLegs = normalizedComboStructure.minLegs
   // ── 思路2: Parlay bonus strength ──
@@ -2242,15 +2263,17 @@ const generateRecommendations = (
   })
   const weightSum = allocationSeed.reduce((sum, value) => sum + value, 0)
   const normalizedWeights = allocationSeed.map((value) => (weightSum > 0 ? value / weightSum : 1 / allocationSeed.length))
-  const minActiveCombos = Math.min(
-    fallbackRanked.length,
-    Math.max(1, Math.floor(Math.max(0, Number(riskCap) || 0) / 10)),
-    Math.max(3, Math.min(6, recommendationCount)),
-  )
+  const minActiveCombos = normalizedAllocationMode === 'precision'
+    ? 0
+    : Math.min(
+      fallbackRanked.length,
+      Math.max(1, Math.floor(Math.max(0, Number(riskCap) || 0) / allocationUnit)),
+      Math.max(3, Math.min(6, recommendationCount)),
+    )
   const allocatedAmounts = allocateAmountsWithinRiskCap(
     normalizedWeights,
     riskCap,
-    10,
+    allocationUnit,
     minActiveCombos,
   )
   const rankedWithAmounts = fallbackRanked.map((item, idx) => ({
@@ -2400,6 +2423,7 @@ export default function ComboPage({ openModal }) {
     maxCorr: 0.85,
   })
   const [comboStrategy, setComboStrategy] = useState(DEFAULT_COMBO_STRATEGY)
+  const [allocationMode, setAllocationMode] = useState(DEFAULT_ALLOCATION_MODE)
   const [comboStructure, setComboStructure] = useState(() => sanitizeComboStructure(DEFAULT_COMBO_STRUCTURE))
   const [rolePreference, setRolePreference] = useState(() => sanitizeRolePreference(DEFAULT_ROLE_PREFERENCE))
   const [matchRoleOverrides, setMatchRoleOverrides] = useState({})
@@ -2610,6 +2634,7 @@ export default function ComboPage({ openModal }) {
         rolePreference,
         null,
         comboRetrospective,
+        allocationMode,
       )
       if (!generated || generated.recommendations.length === 0) {
         return {
@@ -2642,7 +2667,7 @@ export default function ComboPage({ openModal }) {
       ...row,
       best: Boolean(best && row.riskPref === best.riskPref),
     }))
-  }, [calibrationContext, comboStrategy, comboStructure, qualityFilter, riskCap, rolePreference, selectedMatches, systemConfig])
+  }, [allocationMode, calibrationContext, comboStrategy, comboStructure, qualityFilter, riskCap, rolePreference, selectedMatches, systemConfig])
 
   const matchExposure = useMemo(() => {
     const map = new Map()
@@ -2778,6 +2803,7 @@ export default function ComboPage({ openModal }) {
       layerSummary: generated.layerSummary,
       candidateMatchKeys,
       comboStrategy,
+      allocationMode: normalizeAllocationMode(allocationMode),
       comboStructure: sanitizeComboStructure(comboStructure),
       rolePreference: sanitizeRolePreference(rolePreference),
       selectedRoleMap: roleMap,
@@ -2838,6 +2864,9 @@ export default function ComboPage({ openModal }) {
     setRiskPref(Number(historyRow.riskPref || 50))
     if (historyRow.comboStrategy) {
       setComboStrategy(historyRow.comboStrategy)
+    }
+    if (historyRow.allocationMode) {
+      setAllocationMode(normalizeAllocationMode(historyRow.allocationMode))
     }
     if (historyRow.comboStructure) {
       setComboStructure(sanitizeComboStructure(historyRow.comboStructure))
@@ -2952,6 +2981,7 @@ export default function ComboPage({ openModal }) {
       rolePreference,
       null,
       comboRetrospective,
+      allocationMode,
     )
     if (!generated) {
       window.alert(
@@ -3012,11 +3042,13 @@ export default function ComboPage({ openModal }) {
     if (selectedMatches.length === 0) return
     const jRisk = overrides.riskPref ?? riskPref
     const jStructure = overrides.comboStructure ?? comboStructure
+    const jAllocationMode = normalizeAllocationMode(overrides.allocationMode ?? allocationMode)
     const bias = overrides.teamBias ?? null
     const generated = generateRecommendations(
       selectedMatches, jRisk, riskCap, systemConfig, calibrationContext,
       qualityFilter, comboStrategy, jStructure, rolePreference, bias,
       comboRetrospective,
+      jAllocationMode,
     )
     if (!generated) return
     setRecommendations(generated.recommendations)
@@ -3643,6 +3675,34 @@ export default function ComboPage({ openModal }) {
                 })}
               </div>
               <p className="text-[11px] text-stone-400 mt-1.5">{activeStrategyMeta.desc}</p>
+            </div>
+            <div className="mt-3.5 pt-3 border-t border-stone-200/80">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[11px] font-medium text-stone-600 tracking-wide">资金分配模式</p>
+                <span className="text-[10px] text-stone-400 uppercase tracking-[0.16em]">Allocation</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 p-1.5 rounded-xl border border-sky-100/80 bg-gradient-to-r from-sky-50/70 via-white to-emerald-50/65 backdrop-blur-sm">
+                {ALLOCATION_MODE_OPTIONS.map((option) => {
+                  const selected = allocationMode === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      onClick={() => setAllocationMode(option.value)}
+                      className={`rounded-lg border px-2.5 py-2.5 text-left transition-all ${
+                        selected
+                          ? option.selectedTone
+                          : 'border-stone-200/80 bg-white/85 text-stone-600 hover:border-sky-200 hover:bg-sky-50/40'
+                      }`}
+                    >
+                      <p className="text-[12px] font-semibold leading-tight">{option.label}</p>
+                      <p className="mt-0.5 text-[10px] leading-tight opacity-90">{option.sub}</p>
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="text-[11px] text-stone-400 mt-1.5">
+                Precision 按 1 rmb 细粒度分配；Balanced 按 10 rmb 递进并优先保障组合覆盖面。
+              </p>
             </div>
           </div>
 
