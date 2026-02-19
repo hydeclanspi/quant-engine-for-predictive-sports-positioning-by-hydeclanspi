@@ -1516,25 +1516,25 @@ export default function NewInvestmentPage() {
         </div>
 
         <div className="px-6 py-6 bg-gradient-to-r from-stone-50 to-orange-50/30 border-t border-stone-100">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
+          <div className="flex items-center justify-between gap-4 max-[960px]:flex-wrap">
+            <div className="flex items-center gap-6 min-w-0 flex-nowrap">
               <div>
-                <span className="text-xs text-stone-400 block">综合 Odds</span>
+                <span className="text-xs text-stone-400 block whitespace-nowrap">综合 Odds</span>
                 <span className="text-xl font-semibold text-stone-800">{Number.isFinite(combinedOdds) ? combinedOdds.toFixed(2) : '--'}</span>
               </div>
               <div className="w-px h-10 bg-stone-200" />
               <div>
-                <span className="text-xs text-stone-400 block">Expected Rating</span>
+                <span className="text-xs text-stone-400 block whitespace-nowrap">Expected Rating</span>
                 <span className="text-xl font-semibold text-stone-800">{Number.isFinite(expectedRating) ? expectedRating.toFixed(2) : '--'}</span>
               </div>
               <div className="w-px h-10 bg-stone-200" />
               <div>
-                <span className="text-xs text-stone-400 block">Recom. Invest</span>
+                <span className="text-xs text-stone-400 block whitespace-nowrap">Recom. Invest</span>
                 <span className="text-xl font-semibold text-amber-600">¥ {recommendedInvest}</span>
               </div>
               <div className="w-px h-10 bg-stone-200" />
               <div>
-                <span className="text-xs text-stone-400 block">风控上限</span>
+                <span className="text-xs text-stone-400 block whitespace-nowrap">风控上限</span>
                 <span className="text-sm text-stone-500">¥ {riskCap} ({Math.round(systemConfig.riskCapRatio * 100)}%)</span>
                 <span className="block text-[10px] text-stone-400 mt-0.5">
                   Atomic Kelly÷{effectiveKellyDivisor.toFixed(1)} · Conf×{calibrationContext.multipliers.conf.toFixed(2)} · FSE×
@@ -1544,7 +1544,7 @@ export default function NewInvestmentPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-nowrap shrink-0">
               <div>
                 <label className="text-xs text-stone-400 mb-1 block">Inputs 实际投资</label>
                 <input
