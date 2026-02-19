@@ -4181,13 +4181,13 @@ export default function ComboPage({ openModal }) {
                                   return (
                                     <span key={mk} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium transition-all ${
                                       isFullCoverage
-                                        ? 'text-emerald-400/90 border border-emerald-200/25'
+                                        ? 'text-stone-300 border border-stone-100/50'
                                         : isCovered
                                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
                                           : 'bg-stone-100/60 text-stone-400 border border-stone-200/50'
                                     }`}>
                                       <span className={isFullCoverage ? '' : 'font-semibold'}>{m.homeTeam || '?'}</span>
-                                      <span className={isFullCoverage ? 'text-emerald-300/70' : isCovered ? 'text-emerald-500/70' : 'text-stone-300'}>{entryLabel(m.entry)}</span>
+                                      <span className={isFullCoverage ? 'text-stone-200' : isCovered ? 'text-emerald-500/70' : 'text-stone-300'}>{entryLabel(m.entry)}</span>
                                       <span className={isFullCoverage ? '' : 'font-semibold'}>{m.awayTeam || '?'}</span>
                                     </span>
                                   )
