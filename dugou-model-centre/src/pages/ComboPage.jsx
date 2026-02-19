@@ -4380,14 +4380,6 @@ export default function ComboPage({ openModal }) {
         </div>
 
         <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 relative">
-          <div className="flex justify-end mb-2">
-            <button
-              onClick={() => setShowRiskProbe((prev) => !prev)}
-              className="px-2.5 py-1.5 rounded-lg border border-stone-200 text-[11px] text-stone-600 hover:border-amber-300 hover:text-amber-700 hover:bg-amber-50 transition-colors"
-            >
-              快速回测 40/50/60
-            </button>
-          </div>
           {showRiskProbe && (
             <div className="absolute right-6 top-14 z-30 w-[20rem] rounded-xl border border-stone-200 bg-white shadow-xl p-3 animate-fade-in">
               <div className="flex items-center justify-between mb-2">
@@ -4430,7 +4422,15 @@ export default function ComboPage({ openModal }) {
           )}
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium text-stone-700">分层下注建议</h3>
-            <Sparkles size={14} className="text-amber-500" />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowRiskProbe((prev) => !prev)}
+                className="px-2.5 py-1.5 rounded-lg border border-stone-200 text-[11px] text-stone-600 hover:border-amber-300 hover:text-amber-700 hover:bg-amber-50 transition-colors"
+              >
+                快速回测 40/50/60
+              </button>
+              <Sparkles size={14} className="text-amber-500" />
+            </div>
           </div>
 
           {layerSummary.length === 0 ? (
