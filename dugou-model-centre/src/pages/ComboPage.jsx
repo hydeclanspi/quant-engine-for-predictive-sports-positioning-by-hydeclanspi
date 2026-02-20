@@ -5136,11 +5136,15 @@ export default function ComboPage({ openModal }) {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowRiskProbe((prev) => !prev)}
-                className="px-2.5 py-1.5 rounded-lg border border-stone-200 text-[11px] text-stone-600 hover:border-amber-300 hover:text-amber-700 hover:bg-amber-50 transition-colors"
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[10px] border text-[11px] font-medium tracking-[0.02em] backdrop-blur-[1px] transition-all ${
+                  showRiskProbe
+                    ? 'border-violet-300/85 bg-[linear-gradient(120deg,rgba(237,233,254,0.9),rgba(255,255,255,0.92)_55%,rgba(224,231,255,0.88))] text-violet-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_10px_22px_-18px_rgba(99,102,241,0.55)]'
+                    : 'border-violet-200/80 bg-[linear-gradient(120deg,rgba(243,244,255,0.9),rgba(255,255,255,0.9)_55%,rgba(238,242,255,0.84))] text-violet-600 hover:border-violet-300/90 hover:text-violet-700 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_10px_20px_-16px_rgba(99,102,241,0.45)]'
+                }`}
               >
+                <Sparkles size={12} strokeWidth={1.9} className={showRiskProbe ? 'text-violet-600' : 'text-violet-500'} />
                 快速回测 40/50/60
               </button>
-              <Sparkles size={14} className="text-amber-500" />
             </div>
           </div>
 
