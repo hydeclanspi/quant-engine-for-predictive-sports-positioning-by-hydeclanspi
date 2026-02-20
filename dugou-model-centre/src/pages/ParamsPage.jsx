@@ -2352,8 +2352,8 @@ export default function ParamsPage({ openModal }) {
                 <p className="text-xs text-emerald-600">
                   {analyticsProgress.rating ? `样本 ${ratingRows.length}` : '样本计算中...'}
                 </p>
-                <span className="inline-flex items-center gap-1 rounded-[10px] border border-sky-200/90 bg-[linear-gradient(120deg,rgba(236,254,255,0.88),rgba(255,255,255,0.9)_56%,rgba(224,242,254,0.8))] px-2 py-0.5 text-[10px] font-semibold text-sky-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
-                  <span className="uppercase tracking-[0.06em] text-sky-500/90">CI</span>
+                <span className="inline-flex items-center gap-1 rounded-[10px] border border-emerald-200/90 bg-[linear-gradient(120deg,rgba(236,253,245,0.9),rgba(255,255,255,0.9)_56%,rgba(220,252,231,0.82))] px-2 py-0.5 text-[10px] font-semibold text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                  <span className="uppercase tracking-[0.06em] text-emerald-500/90">CI</span>
                   <span>{calibrationConfidenceBand !== null ? `±${calibrationConfidenceBand.toFixed(3)}` : '--'}</span>
                 </span>
               </div>
