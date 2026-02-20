@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 import { getTeamsSnapshot } from '../lib/analytics'
 import { getInvestments, getTeamProfiles } from '../lib/localData'
+import { lookupTeam, LEAGUE_TAGS } from '../lib/teamDatabase'
 import TimeRangePicker from '../components/TimeRangePicker'
 
 const PERIOD_LABELS = {
@@ -12,51 +13,8 @@ const PERIOD_LABELS = {
 }
 
 const LEAGUE_ALL_KEY = 'all'
-const LEAGUE_ORDER = ['英超', '西甲', '意甲', '德甲', '法甲', '荷甲', '葡超', '土超', '沙特联', '国际赛', '其他']
-const TEAM_LEAGUE_MAP = {
-  曼城: '英超',
-  阿森纳: '英超',
-  利物浦: '英超',
-  切尔西: '英超',
-  狼队: '英超',
-  桑德兰: '英超',
-  热刺: '英超',
-  纽卡: '英超',
-  曼联: '英超',
-  伯恩茅斯: '英超',
-  利兹联: '英超',
-  水晶宫: '英超',
-  埃弗顿: '英超',
-  富勒姆: '英超',
-  布伦特福德: '英超',
-  西汉姆: '英超',
-  西汉姆联: '英超',
-  伯恩利: '英超',
-  诺丁汉森林: '英超',
-  阿斯顿维拉: '英超',
-  维拉: '英超',
-  巴萨: '西甲',
-  皇马: '西甲',
-  马竞: '西甲',
-  黄潜: '西甲',
-  阿拉维斯: '西甲',
-  那不勒斯: '意甲',
-  博洛尼亚: '意甲',
-  国际米兰: '意甲',
-  热那亚: '意甲',
-  米兰: '意甲',
-  拜仁: '德甲',
-  勒沃库森: '德甲',
-  奥格斯堡: '德甲',
-  法兰克福: '德甲',
-  巴黎: '法甲',
-  埃因霍温: '荷甲',
-  波尔图: '葡超',
-  葡体: '葡超',
-  加拉塔萨雷: '土超',
-  利雅得新月: '沙特联',
-  达马克: '沙特联',
-}
+// LEAGUE_ORDER uses imported LEAGUE_TAGS — comprehensive list from teamDatabase.js
+const LEAGUE_ORDER = LEAGUE_TAGS
 
 const toSigned = (value, digits = 2, suffix = '') => {
   const num = Number(value || 0)
@@ -151,8 +109,9 @@ const normalizeTeamName = (teamName, aliasMap) => {
 const getTeamLeague = (teamName) => {
   const normalizedName = String(teamName || '').trim()
   if (!normalizedName) return '其他'
-  if (/u23/i.test(normalizedName)) return '国际赛'
-  return TEAM_LEAGUE_MAP[normalizedName] || '其他'
+  if (/u\d+|U\d+/i.test(normalizedName)) return '国际赛'
+  const match = lookupTeam(normalizedName)
+  return match ? match.league : '其他'
 }
 
 const buildTeamHistoryRowsMap = (periodKey) => {

@@ -1,5 +1,6 @@
 import { findTeamProfile, getInvestments, getSystemConfig, getTeamProfiles } from './localData'
 import { getPrimaryEntryMarket } from './entryParsing'
+import { lookupTeam } from './teamDatabase'
 
 const MODE_KEYS = ['常规', '常规-稳', '常规-杠杆', '半彩票半保险', '保险产品', '赌一把']
 const MODE_ALIAS = {
@@ -1123,6 +1124,11 @@ const buildAliasMap = (profiles) => {
 }
 
 const pickTeamAbbr = (teamName, profile) => {
+  // 1. Try the comprehensive team database first — authoritative abbreviations
+  const dbMatch = lookupTeam(String(teamName || '').trim())
+  if (dbMatch?.abbr) return dbMatch.abbr
+
+  // 2. Fallback: derive from profile aliases (legacy path for teams not in DB)
   const aliases = [profile?.abbreviations || [], profile?.teamName, teamName]
     .flat()
     .map((value) => String(value || '').trim())
