@@ -57,6 +57,7 @@ const MATCH_ROLE_COMPACT_LABEL = {
 
 const RECOMMENDATION_OUTPUT_COUNT = 15
 const QUICK_PREVIEW_RECOMMENDATION_COUNT = 8
+const HARD_DECOUPLING_HINT_THRESHOLD = 5
 
 const MATCH_ROLE_TILT_MAP = {
   stable: 0.18,
@@ -1706,6 +1707,102 @@ const dedupeRankedBySignature = (rankedRows) => {
   return next
 }
 
+const parseDirectedDecouplingConstraints = (decouplingPairs) => {
+  if (!decouplingPairs || decouplingPairs.size <= 0) return []
+  const seen = new Set()
+  const parsed = []
+  decouplingPairs.forEach((pairKey) => {
+    const [fromKey, toKey] = String(pairKey || '').split('|')
+    if (!fromKey || !toKey || fromKey === toKey) return
+    const key = `${fromKey}|${toKey}`
+    if (seen.has(key)) return
+    seen.add(key)
+    parsed.push({ key, fromKey, toKey })
+  })
+  return parsed
+}
+
+const comboSatisfiesDirectedConstraint = (combo, constraint) => {
+  if (!combo || !constraint) return false
+  const matchKeys = getSubsetMatchKeys(combo.subset)
+  return matchKeys.includes(constraint.toKey) && !matchKeys.includes(constraint.fromKey)
+}
+
+const enforceDirectedDecouplingHard = (seedRanked, fallbackRanked, constraints, maxRows = 10) => {
+  if (!Array.isArray(seedRanked) || seedRanked.length === 0) return null
+  if (!Array.isArray(constraints) || constraints.length === 0) return seedRanked.slice(0, maxRows)
+
+  const rows = seedRanked.slice(0, maxRows)
+  const usedSignatures = new Set(rows.map((row) => buildSubsetSignature(row.subset)).filter(Boolean))
+  const candidates = Array.isArray(fallbackRanked) ? fallbackRanked : []
+
+  const isConstraintSatisfied = (constraint) => rows.some((row) => comboSatisfiesDirectedConstraint(row, constraint))
+  const supportCountByConstraint = (constraint) =>
+    rows.reduce((count, row) => count + (comboSatisfiesDirectedConstraint(row, constraint) ? 1 : 0), 0)
+
+  const chooseReplaceIndex = () => {
+    const supportMap = new Map(constraints.map((constraint) => [constraint.key, supportCountByConstraint(constraint)]))
+    let bestIdx = -1
+    let bestUtility = Number.POSITIVE_INFINITY
+
+    rows.forEach((row, idx) => {
+      const supports = constraints.filter((constraint) => comboSatisfiesDirectedConstraint(row, constraint))
+      const isCritical = supports.some((constraint) => (supportMap.get(constraint.key) || 0) <= 1)
+      if (isCritical) return
+      const utility = Number(row.utility)
+      const score = Number.isFinite(utility) ? utility : Number.NEGATIVE_INFINITY
+      if (score < bestUtility) {
+        bestUtility = score
+        bestIdx = idx
+      }
+    })
+
+    if (bestIdx >= 0) return bestIdx
+
+    rows.forEach((row, idx) => {
+      const utility = Number(row.utility)
+      const score = Number.isFinite(utility) ? utility : Number.NEGATIVE_INFINITY
+      if (score < bestUtility) {
+        bestUtility = score
+        bestIdx = idx
+      }
+    })
+
+    return bestIdx
+  }
+
+  for (let guard = 0; guard < constraints.length * 6; guard += 1) {
+    const missing = constraints.find((constraint) => !isConstraintSatisfied(constraint))
+    if (!missing) break
+
+    const replacement = candidates.find((row) => {
+      if (!comboSatisfiesDirectedConstraint(row, missing)) return false
+      const sig = buildSubsetSignature(row.subset)
+      return Boolean(sig) && !usedSignatures.has(sig)
+    })
+    if (!replacement) return null
+
+    if (rows.length < maxRows) {
+      rows.push(replacement)
+      usedSignatures.add(buildSubsetSignature(replacement.subset))
+      continue
+    }
+
+    const replaceIdx = chooseReplaceIndex()
+    if (replaceIdx < 0) return null
+
+    const nextSig = buildSubsetSignature(replacement.subset)
+    const prevSig = buildSubsetSignature(rows[replaceIdx].subset)
+    if (!nextSig || nextSig === prevSig) continue
+    usedSignatures.delete(prevSig)
+    rows[replaceIdx] = replacement
+    usedSignatures.add(nextSig)
+  }
+
+  if (constraints.some((constraint) => !isConstraintSatisfied(constraint))) return null
+  return rows.slice(0, maxRows)
+}
+
 const rankWithSoftThresholdPenalty = (rows, minEv, minWinRate, maxCorr, minCoverage, alpha, hyperparams = null) => {
   const sp = hyperparams?.softPenaltyScales || { evGapBase: 1.15, evGapAlpha: 0.55, winGapBase: 0.85, winGapAlpha: 0.45, corrGapBase: 0.72, corrGapAlpha: 0.28, coverageGapBase: 0.9, coverageGapAlpha: 0.35 }
   const evGapScale = sp.evGapBase + (1 - alpha) * sp.evGapAlpha
@@ -2005,7 +2102,7 @@ const generateRecommendations = (
   teamBias = null, // Map<teamName, number> — positive = boost, negative = penalize
   comboRetrospective = null, // FIX #9: Combo-level retrospective learning signals
   allocationMode = DEFAULT_ALLOCATION_MODE,
-  decouplingPairs = null, // Set<"keyA|keyB"> — hard decoupling pairs (must not co-occur in the same combo)
+  decouplingPairs = null, // Set<"rowKey|colKey"> — directed hard guarantee: when row fails, col must still survive elsewhere
 ) => {
   if (selectedMatches.length === 0) return null
   const recommendationCount = RECOMMENDATION_OUTPUT_COUNT
@@ -2198,21 +2295,6 @@ const generateRecommendations = (
       })
     }
 
-    // ── Decoupling hard constraint: user-requested pair must NOT co-occur in one combo ──
-    // If a pair is marked decouple (✗→✓), any combo containing both legs is invalid.
-    // This upgrades previous soft penalty to hard guarantee.
-    const subsetKeys = new Set(annotatedSubset.map((m) => buildMatchRefKey(m)))
-    let violatesDecouplingHard = false
-    if (decouplingPairs && decouplingPairs.size > 0) {
-      for (const pairKey of decouplingPairs) {
-        const [kA, kB] = pairKey.split('|')
-        if (subsetKeys.has(kA) && subsetKeys.has(kB)) {
-          violatesDecouplingHard = true
-          break
-        }
-      }
-    }
-
     // ── Conf-Surplus Bonus: reward combos that capture counter-consensus edges ──
     // A combo containing a leg where conf significantly exceeds market-implied prob
     // is capturing arbitrage value that the market is mispricing.
@@ -2268,15 +2350,11 @@ const generateRecommendations = (
       confSurplusBonus,
       avgSurplus,
       maxSurplus,
-      violatesDecouplingHard,
     }
   })
 
-  const hardDecouplingFiltered = scoredAll.filter((item) => !item.violatesDecouplingHard)
-  if (decouplingPairs && decouplingPairs.size > 0 && hardDecouplingFiltered.length === 0) return null
-
   // ── Pre-filter: apply minLegs (思路4) ──
-  const scoredBase = hardDecouplingFiltered.length > 0 ? hardDecouplingFiltered : scoredAll
+  const scoredBase = scoredAll
   const legsFiltered = scoredBase.filter((item) => item.legs >= minLegs)
   const pool = legsFiltered.length > 0 ? legsFiltered : scoredBase // graceful fallback
   const coverageEligiblePool = minCoverageEnabled
@@ -2366,6 +2444,20 @@ const generateRecommendations = (
   // Max concentration: no single match may appear in more than 60% of combos
   // This prevents the single-point-of-failure scenario (e.g., 切尔西 miss kills ALL combos)
   selectedRanked = rebalanceMatchConcentration(selectedRanked, concentrationPool, recommendationCount, hp?.matchConcentrationCap ?? 0.60)
+
+  // ── Directed hard guarantee (A→B): if A fails, B must have at least one surviving line ──
+  // NOTE: This is directional. A→B does NOT imply B→A.
+  const directedDecouplingConstraints = parseDirectedDecouplingConstraints(decouplingPairs)
+  if (directedDecouplingConstraints.length > 0) {
+    const constrainedRanked = enforceDirectedDecouplingHard(
+      selectedRanked,
+      concentrationPool,
+      directedDecouplingConstraints,
+      recommendationCount,
+    )
+    if (!constrainedRanked || constrainedRanked.length === 0) return null
+    selectedRanked = constrainedRanked
+  }
 
   const fallbackRanked = selectedRanked.length > 0 ? selectedRanked : weightedUniverse.slice(0, Math.min(3, weightedUniverse.length))
   const allocationSeed = fallbackRanked.map((item) => {
@@ -3297,10 +3389,10 @@ export default function ComboPage({ openModal }) {
     setFtDirtyPortfolios((prev) => new Set([...prev, aIdx]))
   }
 
-  // Fault tolerance matrix: confirm and regenerate with decoupling pairs
+  // Fault tolerance matrix: confirm and regenerate with directed hard guarantees
   // SEMANTICS:
   //   ✗→✓ ('decouple') = "when row-match fails, I want col-match to survive elsewhere"
-  //     → generates a decoupling HARD constraint: this pair must not co-occur in one combo
+  //     → generates a directed HARD guarantee (row→col), not symmetric.
   //   ✓→✗ ('release') = "I don't care about this dependency, free up room for algorithm"
   //     → NO constraint generated, just releases freedom for the optimizer
   //
@@ -3318,8 +3410,8 @@ export default function ComboPage({ openModal }) {
     entries.forEach(([k, intent]) => {
       if (intent !== 'decouple') return // skip 'release' — no constraint
       const [rk, ck] = k.split('|')
-      const normalized = rk < ck ? `${rk}|${ck}` : `${ck}|${rk}`
-      pairSet.add(normalized)
+      if (!rk || !ck || rk === ck) return
+      pairSet.add(`${rk}|${ck}`)
     })
     // Capture the current portfolio as a pinned snapshot before regeneration replaces everything
     const currentPortfolio = portfolioAllocations[aIdx]
