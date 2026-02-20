@@ -2634,6 +2634,7 @@ export default function ComboPage({ openModal }) {
   const [showRiskProbe, setShowRiskProbe] = useState(false)
   const [showAllRecommendations, setShowAllRecommendations] = useState(false)
   const [showAllQuickRecommendations, setShowAllQuickRecommendations] = useState(false)
+  const [showRecommendationDetailCard, setShowRecommendationDetailCard] = useState(false)
   const [selectedRecommendationIds, setSelectedRecommendationIds] = useState({})
   const [showDeepRefresh, setShowDeepRefresh] = useState(false)
   const [lessTeams, setLessTeams] = useState(new Set())
@@ -2988,6 +2989,7 @@ export default function ComboPage({ openModal }) {
     })
     setShowAllRecommendations(false)
     setShowAllQuickRecommendations(false)
+    setShowRecommendationDetailCard(false)
   }
 
   const pushPlanHistory = (generated, selectedRows, pref, snapshot = null) => {
@@ -3119,6 +3121,7 @@ export default function ComboPage({ openModal }) {
     })
     setShowAllRecommendations(false)
     setShowAllQuickRecommendations(false)
+    setShowRecommendationDetailCard(false)
     const restoreCoverageTargetKeys =
       historyMatchKeys.size > 0
         ? Array.from(historyMatchKeys)
@@ -3231,6 +3234,7 @@ export default function ComboPage({ openModal }) {
     })
     setShowAllRecommendations(false)
     setShowAllQuickRecommendations(false)
+    setShowRecommendationDetailCard(false)
 
     // Auto-run Monte Carlo simulation on the generated package
     const mc = runPortfolioMonteCarlo(generated.recommendations.slice(0, RECOMMENDATION_OUTPUT_COUNT))
@@ -3295,6 +3299,7 @@ export default function ComboPage({ openModal }) {
     })
     setShowAllRecommendations(false)
     setShowAllQuickRecommendations(false)
+    setShowRecommendationDetailCard(false)
     setSelectedRecommendationIds({})
     // Auto-run MC on the new package
     const mc = runPortfolioMonteCarlo(generated.recommendations.slice(0, RECOMMENDATION_OUTPUT_COUNT))
@@ -4641,7 +4646,18 @@ export default function ComboPage({ openModal }) {
             </div>
           ) : (
             <div className="space-y-1.5">
-              <div className="flex items-center justify-end -mt-1 mb-1.5">
+              <div className="flex items-center justify-end gap-1.5 -mt-1 mb-1.5">
+                <button
+                  onClick={() => setShowRecommendationDetailCard((v) => !v)}
+                  title={showRecommendationDetailCard ? '隐藏方案详情' : '显示方案详情'}
+                  className={`motion-v2-ghost-btn inline-flex items-center justify-center w-7 h-7 rounded-md border backdrop-blur-md transition-colors ${
+                    showRecommendationDetailCard
+                      ? 'border-emerald-300/80 bg-emerald-50/75 text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.78),0_6px_18px_-14px_rgba(16,185,129,0.55)]'
+                      : 'border-emerald-200/70 bg-white/75 text-emerald-500 hover:bg-emerald-50/70'
+                  }`}
+                >
+                  <Sparkles size={13} strokeWidth={1.9} />
+                </button>
                 <button
                   onClick={toggleExpandAllQuickComboDetails}
                   className="motion-v2-ghost-btn text-[10px] px-2 py-1 rounded-md border border-emerald-200/70 bg-emerald-50/55 text-emerald-700 hover:bg-emerald-50/75 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_6px_18px_-14px_rgba(16,185,129,0.55)] transition-colors"
@@ -4918,7 +4934,7 @@ export default function ComboPage({ openModal }) {
       </div>
 
       {/* ═══ Detailed Recommendations (moved from hero) ═══ */}
-      {recommendations.length > 0 && (
+      {recommendations.length > 0 && showRecommendationDetailCard && (
         <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium text-stone-700">方案详情</h3>
@@ -5033,7 +5049,10 @@ export default function ComboPage({ openModal }) {
         <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium text-stone-700">单组合方案排序</h3>
-            <span className="text-xs text-stone-400">按效用 U 排序</span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[10px] border border-emerald-200/80 bg-[linear-gradient(120deg,rgba(236,253,245,0.86),rgba(255,255,255,0.9)_52%,rgba(240,253,250,0.84))] text-[11px] font-medium text-emerald-700 tracking-[0.02em] shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_10px_22px_-18px_rgba(16,185,129,0.5)] backdrop-blur-[1px]">
+              按效用 U 排序
+              <Sparkles size={12} strokeWidth={1.9} className="text-emerald-500" />
+            </span>
           </div>
           {rankingRows.length === 0 ? (
             <p className="text-sm text-stone-400">先点击「生成最优组合」查看 Top 排序。</p>
