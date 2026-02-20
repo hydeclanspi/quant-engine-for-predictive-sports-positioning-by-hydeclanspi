@@ -2005,6 +2005,7 @@ const generateRecommendations = (
   teamBias = null, // Map<teamName, number> — positive = boost, negative = penalize
   comboRetrospective = null, // FIX #9: Combo-level retrospective learning signals
   allocationMode = DEFAULT_ALLOCATION_MODE,
+  decouplingPairs = null, // Set<"keyA|keyB"> — pairs the user wants less co-occurrence for (fault tolerance freedom)
 ) => {
   if (selectedMatches.length === 0) return null
   const recommendationCount = RECOMMENDATION_OUTPUT_COUNT
@@ -2197,6 +2198,23 @@ const generateRecommendations = (
       })
     }
 
+    // ── Decoupling penalty: user-requested match-pair independence ──
+    // When a user flips a cell in the fault tolerance matrix, they signal "I don't care about
+    // the co-occurrence of these two matches — give the algorithm freedom to separate them."
+    // This is NOT "force them apart" — it's a soft penalty that discourages co-occurrence,
+    // providing the optimizer room to explore more independent combo structures.
+    let decouplingPenalty = 0
+    if (decouplingPairs && decouplingPairs.size > 0) {
+      const subsetKeys = new Set(annotatedSubset.map((m) => buildMatchRefKey(m)))
+      const decouplingMag = hp?.decouplingPenaltyMag ?? 0.08
+      decouplingPairs.forEach((pairKey) => {
+        const [kA, kB] = pairKey.split('|')
+        if (subsetKeys.has(kA) && subsetKeys.has(kB)) {
+          decouplingPenalty += decouplingMag
+        }
+      })
+    }
+
     // ── Conf-Surplus Bonus: reward combos that capture counter-consensus edges ──
     // A combo containing a leg where conf significantly exceeds market-implied prob
     // is capturing arbitrage value that the market is mispricing.
@@ -2212,7 +2230,7 @@ const generateRecommendations = (
 
     const utility = rewardTerm - riskPenalty + pBonus + familyBonus + roleSignal.bonus
       - tierPenalty + tierAnchorBonus + coveringBonus - hardConstraintPenalty + teamBiasBonus
-      + confSurplusBonus
+      + confSurplusBonus - decouplingPenalty
     const corr = calcSubsetSourceCorrelation(annotatedSubset)
     const confAvg = annotatedSubset.reduce((sum, item) => sum + clamp(item.conf, 0.05, 0.95), 0) / Math.max(legs, 1)
     const subsetMatchKeyCount = new Set(annotatedSubset.map((match) => buildMatchRefKey(match))).size
@@ -3161,11 +3179,13 @@ export default function ComboPage({ openModal }) {
     const jStructure = overrides.comboStructure ?? comboStructure
     const jAllocationMode = normalizeAllocationMode(overrides.allocationMode ?? allocationMode)
     const bias = overrides.teamBias ?? null
+    const decouple = overrides.decouplingPairs ?? null
     const generated = generateRecommendations(
       selectedMatches, jRisk, riskCap, systemConfig, calibrationContext,
       qualityFilter, comboStrategy, jStructure, rolePreference, bias,
       comboRetrospective,
       jAllocationMode,
+      decouple,
     )
     if (!generated) return
     setRecommendations(generated.recommendations)
@@ -3257,27 +3277,22 @@ export default function ComboPage({ openModal }) {
     setFtDirtyPortfolios((prev) => new Set([...prev, aIdx]))
   }
 
-  // Fault tolerance matrix: confirm and regenerate with bias
+  // Fault tolerance matrix: confirm and regenerate with decoupling pairs
+  // Semantic: flipping a cell ✓→✗ means "I don't care about the co-occurrence dependency
+  // between these two matches — give the algorithm freedom to separate them."
+  // This is NOT "force them to fail together" — it's a soft signal to reduce co-occurrence,
+  // providing the optimizer room to explore more independent combo structures.
   const handleFtConfirmRegenerate = (aIdx) => {
     const overrides = ftCellOverrides[aIdx] || {}
-    if (Object.keys(overrides).length === 0) return
-    // Count how many times each match's row was flipped (desiring it to NOT be in all combos)
-    // This means we want to reduce that match's concentration → apply negative team bias
-    const matchPenalties = new Map()
-    Object.keys(overrides).forEach((k) => {
-      const [rowKey] = k.split('|')
-      matchPenalties.set(rowKey, (matchPenalties.get(rowKey) || 0) + 1)
-    })
-    // Map match keys back to team names and create bias
-    const bias = new Map()
-    const biasMag = calibrationContext?.comboHyperparams?.teamBiasMagnitude ?? 0.12
-    selectedMatches.forEach((m) => {
-      const mk = m.key
-      if (matchPenalties.has(mk)) {
-        const penaltyCount = matchPenalties.get(mk)
-        const magnitude = Math.min(biasMag * penaltyCount, biasMag * 3)
-        if (m.homeTeam) bias.set(m.homeTeam, (bias.get(m.homeTeam) || 0) - magnitude)
-      }
+    const keys = Object.keys(overrides)
+    if (keys.length === 0) return
+    // Build decoupling pair set — each override key is "rowKey|colKey"
+    // Normalize pair order so "A|B" and "B|A" are the same pair
+    const pairSet = new Set()
+    keys.forEach((k) => {
+      const [rk, ck] = k.split('|')
+      const normalized = rk < ck ? `${rk}|${ck}` : `${ck}|${rk}`
+      pairSet.add(normalized)
     })
     // Clear overrides for this portfolio
     setFtCellOverrides((prev) => {
@@ -3290,7 +3305,7 @@ export default function ComboPage({ openModal }) {
       next.delete(aIdx)
       return next
     })
-    regenerateWithOverrides({ teamBias: bias })
+    regenerateWithOverrides({ decouplingPairs: pairSet })
   }
 
   // Extract unique team names from current candidates
