@@ -3382,96 +3382,100 @@ export default function ComboPage({ openModal }) {
       title: 'Portfolio Optimization 算法说明 v4.9',
           content: (
         <div className="text-sm text-stone-600 space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-          <p className="font-semibold text-indigo-600 text-xs tracking-wide">— 基础架构 (v1–v3) —</p>
-          <p><strong>1. 输入处理</strong>：录入今日 n 场比赛参数（Conf, Mode, TYS, FID, FSE, Odds），系统构建候选组合池（最多到 5 关，且按最小关数筛选，候选数为 ΣC(n,k)）。</p>
-          <p><strong>2. 复合校准管线 (Composite Calibration)</strong>：线性回归校准 + Pool-Adjacent-Violators 保序回归 (PAV) 混合输出。保序回归权重由模型可靠度自适应控制（最高 60%），确保概率单调性与小样本稳健性兼顾。叠加球队层级偏差收缩校准。</p>
-          <p><strong>3. 自学习情境因子 (Learned Context Factors)</strong>：MODE / TYS / FID / FSE 四维因子不再采用硬编码先验，而由历史命中率经 Shrinkage Estimation（K=12）自动学习。FSE 连续因子使用分位数分桶 + 分段线性插值。样本不足时自动降级至先验映射表。</p>
-          <p><strong>4. 市场先验融合</strong>：模型概率与 Odds 隐含概率做动态融合；球队样本越可靠，越偏向模型；可靠度不足时自动向市场先验回归。</p>
-          <p><strong>5. Walk-Forward 反馈回路</strong>：滚动窗口评估 Brier / LogLoss / ROI，自动微调 Kelly 除数（±15%）、Odds 融合权重（±0.015）、置信度阈值（±0.03）。Bootstrap Monte Carlo 回测动态调节 market lean，抑制过拟合。</p>
-          <p><strong>6. 原子结果建模</strong>：同场多 Entry 先拆成原子状态（含 miss），按分支权重与赔率计算每个原子收益，再做跨场联合分布。多 Entry 使用联合概率 P = 1 - Π(1 - pᵢ)，避免条目剥离。</p>
-          <p><strong>7. 预期收益与风险</strong>：联合分布直接求 E[R] / Var[R] / Sharpe，同时输出命中概率与盈利概率，覆盖单 Entry 与多 Entry 串联。</p>
-          <p><strong>8. 纯分数 Kelly 仓位</strong>：f* = (p·b - q) / b / kellyDivisor，不使用任何经验提升因子。Kelly 除数由 Walk-Forward 反馈自动调节。</p>
-          <p><strong>9. Risk Preference 加权</strong>：效用函数 U = α × μ - (1-α) × σ，α 由滑杆控制（0=稳健，100=激进）。</p>
-          <p><strong>10. 组合策略</strong>：可选「勾选优先 / 阈值优先 / 软惩罚」。软惩罚对阈值外方案降分但不直接淘汰。</p>
-          <p><strong>11. 角色结构软约束</strong>：支持"稳/杠杆/中性双档"逐场自定义，以软约束项参与打分。</p>
-          <p><strong>12. Portfolio 分配</strong>：Top 组合按效用打分分配仓位，约束总仓位 ≤ Risk Cap。</p>
-          <p><strong>13. 串关偏好 (Parlay Bonus)</strong>：效用函数加入 β·√(legs-1) 项，β 由串关偏好滑杆控制。</p>
+          <p className="font-semibold text-indigo-600 text-xs tracking-wide">— 概率校准与信号提取 —</p>
+          <p><strong>1. 输入建模</strong>：接入 n 场比赛的多维特征向量（Conf, Mode, TYS, FID, FSE, Odds），构建候选组合池 ΣC(n,k)（k ≤ 5，受最小关数约束）。</p>
+          <p><strong>2. 复合校准管线</strong>：线性回归与 Pool-Adjacent-Violators 保序回归 (PAV) 的自适应混合。保序回归权重由样本可靠度控制（上限 60%），在概率单调性保证与小样本稳健性之间取得最优平衡，叠加球队层级偏差收缩校准。</p>
+          <p><strong>3. 自学习情境因子</strong>：MODE / TYS / FID / FSE 四维情境因子经 Shrinkage Estimation（K=12）从历史命中率中在线学习。FSE 连续维度采用分位数分桶 + 分段线性插值建模。样本量不足时平滑降级至先验映射。</p>
+          <p><strong>4. 市场先验融合</strong>：模型后验概率与赔率隐含概率动态加权融合。融合系数随样本可靠度自适应——高可靠度偏向模型输出，低可靠度自动回归市场先验。</p>
+          <p><strong>5. Walk-Forward 反馈回路</strong>：滚动窗口计算 Brier Score / LogLoss / ROI 诊断指标，自动微调 Kelly 除数（±15%）、赔率融合权重（±0.015）、置信度阈值（±0.03）。Bootstrap Monte Carlo 动态调节 market lean，抑制过拟合风险。</p>
+          <p><strong>6. 原子结果建模</strong>：同场多 Entry 拆解为原子状态（含 miss 分支），按分支权重与赔率构建收益树，跨场做联合分布。多 Entry 采用联合概率 P = 1 - Π(1 - pᵢ)，保持条目完整性。</p>
+          <p><strong>7. 收益与风险度量</strong>：基于联合分布直接求解 E[R] / Var[R] / Sharpe，同步输出命中概率与盈利概率，统一覆盖单 Entry 与多 Entry 串联场景。</p>
+          <p><strong>8. 纯分数 Kelly 仓位</strong>：f* = (p·b - q) / b / kellyDivisor，无任何经验修正因子。Kelly 除数由 Walk-Forward 反馈实时调节。</p>
 
-          <p className="font-semibold text-indigo-600 text-xs tracking-wide mt-2">— v4.0 容错串关引擎 —</p>
-          <p><strong>14. Conf×Odds 交叉校准</strong>：按赔率分桶（低/中/高/超高赔），分析历史 Conf 在每个赔率区间的系统性偏差，通过收缩估计修正。</p>
-          <p><strong>15. 四级置信度梯度</strong>：强洞察（≥0.72）→ 中洞察（≥0.55）→ 弱洞察（≥0.40）→ 极弱（＜0.40）。阈值由动态回测自动调节（Walk-Forward tierShift ±0.03）。</p>
-          <p><strong>16. 容错覆盖设计</strong>：N 场非极弱场次生成 C(N, N-1) + 强势场次 C(N, N-2) 全覆盖子集，"5中4""4中3"仍有存活票。</p>
-          <p><strong>17. 边际 Sharpe 门控</strong>：每增一腿前计算 ΔEV/Δσ，低于动态阈值（由回测优化器输出）的弱腿被拒绝。</p>
-          <p><strong>18. 分层对冲架构</strong>：锚定层（2串1→回本）、扩展层（3串1→利润）、容错覆盖层（保险）、博冷层（小注尾部）。</p>
-          <p><strong>19. 动态回测参数优化器</strong>：<code>backtestDynamicParams</code> 分析历史 Conf vs 实际结果散点，自动调优：弱腿惩罚系数、锚定加分、覆盖加分、Sharpe 阈值、弱腿上限、置信度阈值。输出回测可信度评分（0–1）。</p>
+          <p className="font-semibold text-indigo-600 text-xs tracking-wide mt-2">— 效用函数与策略控制 —</p>
+          <p><strong>9. Risk Preference 加权</strong>：效用函数 U = α·μ - (1-α)·σ，α 由风险偏好滑杆控制（0 = 稳健，100 = 激进）。</p>
+          <p><strong>10. 组合策略模式</strong>：支持勾选优先 / 阈值优先 / 软惩罚三种模式。软惩罚对阈值外方案施加梯度降分而非硬淘汰，保留长尾价值。</p>
+          <p><strong>11. 角色结构软约束</strong>：逐场支持"稳 / 杠杆 / 中性双档"自定义标注，以软约束项参与效用打分。</p>
+          <p><strong>12. 仓位分配</strong>：Top 组合按效用排序分配仓位，总仓位受 Risk Cap 硬约束。</p>
+          <p><strong>13. 串关偏好</strong>：效用函数引入 β·√(legs-1) 凸奖励项，β 由串关偏好滑杆参数化。</p>
 
-          <p className="font-semibold text-indigo-600 text-xs tracking-wide mt-2">— v4.3 模型审计修复 —</p>
-          <p><strong>20. 保序回归校准 (Isotonic Regression)</strong>：Pool-Adjacent-Violators 算法实现非参数、保单调性概率校准。与线性回归按可靠度加权混合（最高 60% 保序权重）。报告 Brier 改善度指标。</p>
-          <p><strong>21. Entry 相关性矩阵</strong>：从历史结算多腿组合中构建 Entry 类型两两 Phi 系数矩阵（收缩估计 K=10）。正相关 → 联合概率上修（{'>'} 独立乘积），负相关 → 下修。组合评分中以 ±4% 幅度修正联合概率。</p>
-          <p><strong>22. Per-Match EJR 追踪</strong>：逐场记录 EJR（Conf）vs AJR（Match Rating）的 delta / MAE / RMSE，按 Mode 拆分准确率，持续监控模型预测偏差。</p>
+          <p className="font-semibold text-indigo-600 text-xs tracking-wide mt-2">— 容错串关引擎 —</p>
+          <p><strong>14. Conf×Odds 交叉校准</strong>：按赔率区间分桶（低 / 中 / 高 / 超高），分析模型置信度在各赔率段的系统性偏差，经收缩估计修正。</p>
+          <p><strong>15. 四级置信度梯度</strong>：强洞察（≥0.72）→ 中洞察（≥0.55）→ 弱洞察（≥0.40）→ 极弱（＜0.40）。阈值由 Walk-Forward tierShift（±0.03）自适应调节。</p>
+          <p><strong>16. 容错覆盖设计</strong>：N 场非极弱场次生成 C(N, N-1) + 强势场次 C(N, N-2) 覆盖子集——即"N 中 N-1"与"N 中 N-2"均保有存活票。</p>
+          <p><strong>17. 边际 Sharpe 门控</strong>：每增一腿前计算边际 ΔEV/Δσ，低于动态阈值（由回测优化器输出）的弱腿被拒绝加入。</p>
+          <p><strong>18. 四层对冲架构</strong>：锚定层（2 串 1 → 回本基线）、扩展层（3 串 1 → 利润增长）、容错覆盖层（保险冗余）、博冷层（小仓位尾部博弈）。</p>
+          <p><strong>19. 动态参数优化器</strong>：分析历史 Conf vs 实际结果散点图，自动调优弱腿惩罚系数、锚定加分、覆盖加分、Sharpe 阈值、弱腿上限、置信度阈值六类参数，输出回测可信度评分（0–1）。</p>
 
-          <p className="font-semibold text-indigo-600 text-xs tracking-wide mt-2">— v4.4 Conf-Surplus 与分散化 —</p>
-          <p><strong>23. Conf-Surplus 反共识信号</strong>：<code>surplus = conf - (1/odds × 0.95)</code>，评估模型置信度相对于去水后市场隐含概率的超额。edge 分级：strong_edge（+12pp）→ moderate_edge（+4pp）→ neutral → negative_edge。Surplus 正向加分融入效用函数（avg × 0.15 + 最大 surplus ≥ 12pp 额外 +3%），鼓励"反共识但高信心"的高赔率投注。</p>
-          <p><strong>24. 锚定分散化惩罚</strong>：MMR 重排序引入锚定共享惩罚——若多个候选组合共享同一最高信心场次（锚定场），后续复用该场的组合受 12% × (复用次/已选数) 惩罚，避免"全军覆没"单点故障。</p>
-          <p><strong>25. 场次集中度硬上限</strong>：单场出现频率不超过输出组合总数的 60%（由 78% 下调），强制分散风险。</p>
-          <p><strong>26. 浓度惩罚强化</strong>：通用 MMR 浓度罚项 +0.5×使用比，与锚定惩罚叠加，确保输出组合在场次维度充分多样化。</p>
+          <p className="font-semibold text-indigo-600 text-xs tracking-wide mt-2">— 高阶校准与相关性建模 —</p>
+          <p><strong>20. 保序回归校准</strong>：Pool-Adjacent-Violators 算法实现非参数、保单调性概率校准，与线性回归按可靠度加权混合（保序权重上限 60%）。输出 Brier Score 改善度指标。</p>
+          <p><strong>21. Entry 相关性矩阵</strong>：从历史结算多腿组合中构建 Entry 类型两两 φ 系数矩阵（收缩估计 K=10）。正相关 → 联合概率乘性上修（{'>'} 独立乘积），负相关 → 乘性下修，修正幅度与概率水平等比例。</p>
+          <p><strong>22. Per-Match EJR 监控</strong>：逐场追踪 EJR（模型置信度）vs AJR（赛后评级）的 δ / MAE / RMSE，按 Mode 维度拆分，持续监控预测偏差分布。</p>
+
+          <p className="font-semibold text-indigo-600 text-xs tracking-wide mt-2">— Conf-Surplus 与组合分散化 —</p>
+          <p><strong>23. Conf-Surplus 反共识信号</strong>：<code>surplus = conf - (1/odds × 0.95)</code>，量化模型置信度相对去水市场隐含概率的超额。分四级 edge：strong（+12pp）→ moderate（+4pp）→ neutral → negative。Surplus 正向加分融入效用函数（均值 × 0.15 + 峰值 ≥ 12pp 额外 +3%），激励反共识高信心投注。</p>
+          <p><strong>24. 锚定分散化惩罚</strong>：MMR 重排序中引入锚定共享惩罚——共享同一最高信心场次的后续组合受 12% × (复用次 / 已选数) 效用扣减，防止单点故障导致全军覆没。</p>
+          <p><strong>25. 场次集中度硬上限</strong>：单场出现频率不超过输出组合总数的 60%，强制分散场次维度风险。</p>
+          <p><strong>26. 浓度惩罚叠加</strong>：通用 MMR 浓度罚项 +0.5 × 使用比，与锚定惩罚叠加，确保输出组合充分多样化。</p>
 
           <p className="font-semibold text-indigo-600 text-xs tracking-wide mt-2">— 智能组合包 —</p>
-          <p><strong>27. Portfolio Allocation 优化器</strong>：枚举 2–5 方案子集，按复合效用打分（EV 35% + 覆盖率 30% + 独立性 20% + 层级多样 10% + 信心分层多样 5%）。每个候选子集跑 10k 次 Mini Monte Carlo 评估盈利概率 / 中位收益 / VaR₉₅。去重后输出 Top-10 投资组合建议（默认展示 6 个）。</p>
-          <p><strong>28. 50k Monte Carlo 引擎</strong>：seeded xorshift32 PRNG，逐组合 Bernoulli 采样（使用校准后概率 <code>calibratedP</code>），5 桶 P&L 直方图可视化，输出盈利概率 / 中位 / 95%VaR / 均值 / 最大收益 / 全亏概率。</p>
-          <p><strong>29. Soft Refresh / Deep Refresh</strong>：Soft Refresh 对 riskPref / mmrLambda / parlayBeta 添加微小 jitter（±4 / ±0.06 / ±0.03），输出"同源但不同"方案。Deep Refresh 收集用户偏好（"少/多一点"球队倾向），以 ±0.12 效用修正注入生成管线。</p>
-          <p><strong>30. 分层选优 + MMR 去重</strong>：按关数分层（2/3/4/5关）每层 Top-K，Maximal Marginal Relevance 同时考虑效用和差异度。覆盖动态加分 + Entry Family 多样化。</p>
+          <p><strong>27. Portfolio Allocation 优化器</strong>：枚举 2–5 方案子集，按复合效用打分（EV 35% · 覆盖率 30% · 独立性 20% · 层级多样 10% · 信心梯度多样 5%）。每个候选子集运行 10k Mini Monte Carlo 评估盈利概率 / 中位收益 / VaR₉₅，去重后输出 Top-10 投资组合。</p>
+          <p><strong>28. 50k Monte Carlo 引擎</strong>：Seeded xorshift32 PRNG，逐组合 Bernoulli 采样（使用校准后概率 calibratedP），生成 5 桶 P&L 直方图。输出：盈利概率 / 中位收益 / 95% VaR / 均值 / 最大收益 / 全亏概率。</p>
+          <p><strong>29. Soft / Deep Refresh</strong>：Soft Refresh 对 riskPref / mmrLambda / parlayBeta 注入微量 jitter（±4 / ±0.06 / ±0.03），输出同源异构方案。Deep Refresh 收集用户球队偏好，以 ±0.12 效用修正注入生成管线。</p>
+          <p><strong>30. 分层选优 + MMR 去重</strong>：按关数分层（2/3/4/5 关）每层 Top-K，Maximal Marginal Relevance 兼顾效用与差异度，叠加覆盖动态加分与 Entry Family 多样化。</p>
 
-          <p className="font-semibold text-indigo-600 text-xs tracking-wide mt-2">— v4.9 全参数自旋转引擎 (Feb 18, 2026) —</p>
-          <p className="text-xs text-stone-400 italic">模型审计发现系统旋转覆盖率约 55%——概率校准管线高度自适应，但 Kelly 仓位、组合生成、组合评分三大模块中大量参数仍为硬编码常量，未被历史数据反哺。本版全面修复，将旋转覆盖率提升至 ~92%。</p>
+          <p className="font-semibold text-indigo-600 text-xs tracking-wide mt-2">— 全参数自适应引擎 —</p>
+          <p className="text-xs text-stone-400 italic">系统审计显示参数自适应覆盖率约 55%——概率校准管线高度自适应，但仓位、组合生成、组合评分三大模块中大量参数仍为静态常量。本版将全链路参数纳入 Walk-Forward 校准，自适应覆盖率提升至 ~92%。</p>
 
-          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 关键 Bug 修复</p>
-          <p><strong>31. confidenceLift 经验因子清除</strong>：发现 Kelly 仓位计算中残留 <code>confLift = 0.88 + p × 0.24</code> 启发式因子（分别存在于 NewInvestmentPage 与 analytics.js <code>calcKellyStake</code>），该因子在概率已经过 13 级复合校准后仍人为放大下注量，导致仓位系统性偏高。已全部移除，还原纯分数 Kelly：<code>f* = (p·b - q) / b / divisor</code>。</p>
-          <p><strong>32. Walk-Forward Kelly 除数旁路修复</strong>：NewInvestmentPage 的 <code>recommendedInvest</code> 计算从未消费 <code>walkForwardFeedback.adjustments.kellyDivisor</code>——Walk-Forward 回路精心计算的动态除数被直接丢弃，页面始终使用静态 <code>systemConfig.kellyDivisor</code>。现已接入：当 Walk-Forward 就绪时优先使用动态除数，未就绪时降级为静态值。</p>
-          <p><strong>33. 置信度阈值假动态修复</strong>：<code>backtestDynamicParams</code> 中 tier2/tier3 阈值使用 <code>clamp(常量, min, max)</code> 形式（如 <code>clamp(0.55, 0.45, 0.65)</code> 恒等于 0.55），看似动态实则永不变化。现改为基于历史命中率交叉分析——tier2 由中信心/强信心命中率比值驱动，tier3 由弱信心/中信心命中率比值驱动，实现真正的数据自适应阈值。</p>
-          <p><strong>34. 阈值键名不匹配修复</strong>：<code>generateRecommendations</code> 中构建的 <code>dynThresholds</code> 使用带下划线键名（<code>tier_1</code> / <code>tier_2</code> / <code>tier_3</code>），但下游 <code>classifyConfidenceTier</code> 读取无下划线键名（<code>tier1</code> / <code>tier2</code> / <code>tier3</code>）。导致 Walk-Forward tierShift 计算出的动态阈值从未被实际应用，系统始终使用默认阈值。已统一为无下划线键名。</p>
+          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ Kelly 仓位校准</p>
+          <p><strong>31. 经验因子清除</strong>：移除 Kelly 计算中残留的启发式增益因子 <code>confLift = 0.88 + p × 0.24</code>（该因子在概率已经过 13 级复合校准后仍人为放大仓位），还原纯分数 Kelly <code>f* = (p·b - q) / b / divisor</code>。</p>
+          <p><strong>32. Walk-Forward 除数全链路接入</strong>：Kelly 除数由 Walk-Forward 反馈回路动态输出，现已在全部仓位计算路径中接入消费。未就绪时平滑降级为静态配置值。</p>
 
-          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 自适应权重自动应用</p>
-          <p><strong>35. Adaptive Weight Auto-Apply</strong>：<code>computeAdaptiveWeightSuggestions</code> 原先仅计算建议但从不自动执行。新增 <code>autoApplyAdaptiveWeights()</code>，在每次校准周期末尾自动将权重建议写入 <code>systemConfig</code>。准入门槛：建议置信度 ≥ 30%。安全约束：单权重最大调整 ±0.02，单周期总调整量 ≤ 0.08，防止极端数据导致权重剧烈漂移。元数据（时间戳、调整明细、置信度）持久化以供审计。</p>
+          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 置信度阈值自适应</p>
+          <p><strong>33. 数据驱动阈值</strong>：置信度分层阈值（tier2 / tier3）由历史命中率交叉分析驱动——tier2 响应中信心 / 强信心命中率比值，tier3 响应弱信心 / 中信心命中率比值，实现真正的数据自适应边界。</p>
+          <p><strong>34. 阈值传递一致性</strong>：统一阈值键名格式，确保 Walk-Forward tierShift 计算出的动态阈值在全链路中被正确消费。</p>
 
-          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 全参数 Walk-Forward 超参校准引擎</p>
-          <p><strong>36. backtestComboHyperparams 引擎</strong>：新增 ~250 行 Walk-Forward 校准引擎，从历史结算数据中自动学习此前全部硬编码的组合生成与评分参数。校准覆盖 20+ 参数族群：</p>
+          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 自适应权重引擎</p>
+          <p><strong>35. Adaptive Weight Auto-Apply</strong>：每次结算周期末尾，系统自动评估权重调整建议（置信度 ≥ 30% 准入），在安全约束内执行微调（单权重 ±0.02，单周期总量 ≤ 0.08），并持久化审计元数据。</p>
+
+          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 全参数 Walk-Forward 超参校准</p>
+          <p><strong>36. Hyperparameter WF 引擎</strong>：从历史结算数据中自动学习此前全部静态参数，校准覆盖 20+ 参数族群：</p>
           <ul className="list-disc list-inside ml-4 space-y-0.5 text-[12.5px] text-stone-500">
-            <li><strong>市场结构</strong>：vig 估计（赔率→隐含概率反推实际抽水比）、surplus 阈值（edge 分级边界）、surplus bonus 缩放系数</li>
-            <li><strong>分层配额</strong>：core / satellite / covering / moonshot 四层动态配额，基于历史各关数段命中率与收益率加权确定最优分配比例</li>
-            <li><strong>MMR 惩罚</strong>：concentration penalty 基础值与锚定共享惩罚系数，从历史组合多样性与存活率反推</li>
-            <li><strong>角色系数</strong>：稳定/杠杆/中性三角色权重，由角色标签与实际命中率的关联强度决定</li>
-            <li><strong>组合优化器</strong>：diversification penalty 基础与风险缩放、梯度下降学习率与迭代数，基于历史最优组合的风险-收益特征反演</li>
-            <li><strong>时序权重</strong>：近期/中期/基准三档 recency 半衰权重与 REP 分桶权重，追踪模型近期表现趋势</li>
-            <li><strong>软惩罚</strong>：EV/WinRate/Correlation 三维软惩罚系数，基于阈值外方案的历史表现校准惩罚力度</li>
-            <li><strong>覆盖衰减</strong>：Coverage boost 的初始增益与衰减率，从覆盖组合的边际存活贡献学习</li>
-            <li><strong>硬约束与相关性</strong>：弱腿硬约束惩罚值、entry 相关性缩放系数、相关性公式（base/overlapWeight/jaccardWeight）三参数</li>
-            <li><strong>组合包配置</strong>：Portfolio 评分权重（EV/覆盖/独立性/层级多样/阈值多样五维）、场次集中度上限、team bias 效用修正幅度、family bonus 参数</li>
+            <li><strong>市场结构</strong>：vig 估计、surplus 阈值边界、surplus bonus 缩放系数</li>
+            <li><strong>分层配额</strong>：core / satellite / covering / moonshot 四层配额，按历史各关数段命中率与收益率加权优化</li>
+            <li><strong>MMR 惩罚</strong>：concentration penalty 与锚定共享惩罚系数，从组合多样性与存活率反推</li>
+            <li><strong>角色系数</strong>：稳定 / 杠杆 / 中性三角色权重，由角色标签与命中率关联强度决定</li>
+            <li><strong>组合优化器</strong>：diversification penalty、学习率与迭代数，基于历史最优组合的风险-收益特征反演</li>
+            <li><strong>时序权重</strong>：近期 / 中期 / 基准三档 recency 半衰权重，追踪模型近期表现趋势</li>
+            <li><strong>软惩罚</strong>：EV / WinRate / Correlation 三维惩罚系数，基于阈值外方案的历史表现校准</li>
+            <li><strong>覆盖衰减</strong>：Coverage boost 初始增益与衰减率，从覆盖组合的边际存活贡献学习</li>
+            <li><strong>硬约束与相关性</strong>：弱腿惩罚值、entry 相关性缩放系数、相关性三参数（base / overlapWeight / jaccardWeight）</li>
+            <li><strong>组合包配置</strong>：Portfolio 五维评分权重、场次集中度上限、team bias 修正幅度、family bonus 参数</li>
           </ul>
-          <p className="mt-1"><strong>37. 可靠度加权混合</strong>：所有校准参数均以 <code>reliability = clamp((n - 25) / 95, 0, 1)</code> 与硬编码默认值做线性插值（25 条起步，120 条满置信），确保小样本下不会偏离经验先验，大样本下完全由数据驱动。</p>
-          <p><strong>38. 全链路消费接入</strong>：<code>comboHyperparams</code> 经由 <code>calibrationContext</code> 传递至 ComboPage 所有消费函数：<code>calcConfSurplus</code>（动态 vig + surplus 阈值）、<code>calcRoleStructureSignal</code>（动态角色系数）、<code>mmrRerank</code>（动态集中度惩罚 + 锚定惩罚）、<code>stratifiedSelect</code>（动态分层配额）、<code>applyCoverageDynamicBoost</code>（动态覆盖衰减）、<code>rankWithSoftThresholdPenalty</code>（动态软惩罚）、<code>calcSubsetPairCorrelation</code> → <code>buildCovarianceMatrix</code>（动态相关性公式）、<code>optimizePortfolioWeights</code>（动态组合优化器参数）、<code>optimizePortfolioAllocations</code>（动态组合包权重）。每个函数在 <code>hyperparams</code> 为 null 时自动降级为硬编码默认值，保证零历史数据下系统仍可正常运行。</p>
+          <p className="mt-1"><strong>37. 可靠度加权混合</strong>：全部校准参数以 <code>reliability = clamp((n-25)/95, 0, 1)</code> 与先验默认值线性插值。25 条数据起步学习，120 条达到满置信——小样本不偏离先验，大样本完全数据驱动。</p>
+          <p><strong>38. 全链路参数传递</strong>：校准后的 <code>comboHyperparams</code> 经 <code>calibrationContext</code> 注入全部下游消费函数（surplus 计算、角色评分、MMR 重排、分层选优、覆盖加分、软惩罚、相关性建模、组合优化、组合包评分共 9 个模块）。任一模块在参数缺失时自动降级为内置默认值，保证零历史数据下系统正常运行。</p>
 
-          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 自旋转覆盖率总览</p>
-          <p><strong>39. 系统旋转度 ~92%</strong>：修复后，概率校准（13 级管线 + 保序回归 + Conf×Odds + 球队偏差 + 市场融合 + Walk-Forward 反馈）、Kelly 仓位（纯分数 + 动态除数）、组合生成（四级阈值 + 分层配额 + 边际 Sharpe 门控）、组合评分（surplus 阈值 + 角色系数 + MMR 惩罚 + 软惩罚 + 覆盖衰减 + 相关性公式）、组合包优化（五维权重 + 集中度上限）均由结算数据 Walk-Forward 自动校准。剩余 ~8% 为结构性常量（梯度下降学习率、收缩估计 K 值、迭代次数上限等），属于算法超结构参数，按设计应保持固定。</p>
+          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 自适应覆盖率</p>
+          <p><strong>39. ~92% 参数自适应</strong>：概率校准（13 级管线 + 保序回归 + Conf×Odds + 球队偏差 + 市场融合 + Walk-Forward）、Kelly 仓位（纯分数 + 动态除数）、组合生成（四级阈值 + 分层配额 + Sharpe 门控）、组合评分（surplus + 角色 + MMR + 软惩罚 + 覆盖衰减 + 相关性）、组合包（五维权重 + 集中度上限）均由结算数据自动校准。余 ~8% 为算法超结构常量（学习率、收缩 K 值、迭代上限等），按设计保持固定。</p>
 
-          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 组合级事后回溯学习引擎</p>
-          <p><strong>40. Combo Retrospective Engine</strong>：新增 <code>buildComboRetrospective(planHistory)</code>，在比赛结算后回溯分析历史推荐快照 vs 实际结果。从 planHistory 中提取每期推荐组合的实际命中情况，按层级（core/satellite/covering/moonshot）统计命中率，追踪锚定场成败率、各腿数段 combo 命中率分布。输出结构性学习信号反馈到下一次组合生成。</p>
-          <p><strong>41. 反共识遗漏检测 (Surplus Miss Detection)</strong>：对比"备选池中高 surplus（≥+8pp）但未进入推荐"的比赛，在结算后检测其实际命中率。若高 surplus 被遗漏的场次命中率 {'>'} 40%，自动上调 <code>surplusBonusScale</code>，鼓励模型更积极地推荐反共识洞察组合。</p>
-          <p><strong>42. 锚定场成败自适应</strong>：统计被选为锚定场（combo 内最高 conf 场次）的历史命中率。若锚定场命中率低于 65% 基准，下调 <code>tierAnchorBonus</code>；高于 65% 则上调。以可靠度加权（需 ≥3 场锚定数据）。</p>
-          <p><strong>43. 腿数分布回溯微调</strong>：比较历史各腿数段（2/3/4/5 关）combo 的实际命中率与全局平均，对高于平均的腿数段上调 <code>stratifiedQuotas</code>。调整幅度以可靠度衰减（≤9 期数据线性递增）。</p>
+          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 组合级回溯学习</p>
+          <p><strong>40. Combo Retrospective Engine</strong>：每轮结算后，系统自动回溯比对历史推荐快照与实际结果——按层级（core / satellite / covering / moonshot）统计命中率，追踪锚定场表现与各腿数段分布特征，输出结构性学习信号反馈至下一轮组合生成。</p>
+          <p><strong>41. 反共识遗漏检测</strong>：追踪备选池中高 surplus（≥+8pp）但未入选的场次，在结算后校验其实际命中率。若遗漏场次命中率 {'>'} 40%，自动上调 surplus bonus 缩放系数，提升模型对反共识洞察的推荐灵敏度。</p>
+          <p><strong>42. 锚定场自适应</strong>：持续统计锚定场（组合内最高置信度场次）的历史命中率。偏离 65% 基准时自动调节锚定加分系数，以可靠度加权平滑（需 ≥3 场锚定样本）。</p>
+          <p><strong>43. 腿数配额回溯微调</strong>：对比各腿数段（2/3/4/5 关）的实际命中率与全局均值，对表现优于均值的腿数段上调分层配额，调整幅度随数据量（≤9 期）线性递增。</p>
 
-          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 死代码激活与诊断接入</p>
-          <p><strong>44. autoApplyAdaptiveWeights 激活</strong>：原先该函数实现完整但从未被调用（死代码）。现在每次结算（SettlePage <code>confirmSettlement</code>）完成后自动触发，实现权重在每次新数据进入时自动微调。内建安全约束不变：单权重 ±0.02，总量 ≤0.08。</p>
-          <p><strong>45. EJR 诊断接入校准上下文</strong>：<code>getPerMatchEjrSnapshot()</code> 原先从未被调用。现已接入 <code>getPredictionCalibrationContext</code> 返回值（<code>ejrDiagnostics</code> 字段），显式暴露 per-mode EJR bias 数据供下游消费和 UI 展示。</p>
+          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 在线学习闭环</p>
+          <p><strong>44. 权重实时微调</strong>：每次结算完成后自动触发自适应权重评估与应用，实现模型参数在每批新数据进入时的增量更新。安全约束：单权重 ±0.02，单周期总量 ≤ 0.08。</p>
+          <p><strong>45. EJR 诊断管线</strong>：Per-Match EJR 快照（逐场置信度偏差、分 Mode 精度）实时接入校准上下文，为下游校准与 UI 监控提供结构化诊断数据。</p>
 
-          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 核心算法精度修复</p>
-          <p><strong>46. Entry 相关性乘性修正</strong>：相关性对联合概率的修正从加性（<code>p + adj</code>）改为乘性（<code>p × (1 + adj/p)</code>）。加性修正的问题：低概率 combo（如 p=0.05）受 +0.03 的修正影响 60%，而高概率 combo（p=0.80）仅受 3.75% 影响——这在统计学上不正确。乘性修正使 phi 系数对所有概率水平产生等比例影响。</p>
-          <p><strong>47. Monte Carlo 共享比赛采样</strong>：修复了 MC 模拟中的独立性假设错误。此前同一场比赛（如曼城 vs 利物浦）出现在多个 combo 中时，每个 combo 独立采样该比赛结果——导致同一场比赛在 combo A 中命中但在 combo B 中失败的物理不可能情况。修复后，每轮 MC 迭代先在 match 级别生成唯一结果（per unique match key → one random draw），所有 combo 共享该结果。这使 VaR 和全亏概率更真实地反映组合包的相关性风险。</p>
-          <p><strong>48. Portfolio 优化器余弦退火</strong>：投影梯度上升的学习率从固定值改为余弦退火衰减（<code>lr × (0.1 + 0.9 × cos_schedule)</code>），从初始 100% 平滑衰减至约 10%。固定学习率在接近最优解时会振荡（超过最优→投影回来→反复跳跃），余弦退火在前期保持快速探索、后期精细收敛，最终解质量提升约 5-15%。</p>
-          <p><strong>49. Histogram 零区间防护</strong>：当所有 MC 模拟结果完全相同时（<code>maxPnl === minPnl</code>），<code>bucketWidth</code> 为零导致 <code>NaN</code> 索引。现增加 <code>range {'>'} 1e-9</code> 守卫，零区间时全部计入第一桶。</p>
-          <p><strong>50. PRNG 种子质量提升</strong>：xorshift32 种子初始化从简单 XOR 改为混合 combo 数量、stake、odds 和索引偏移的多层哈希，避免不同 portfolio 凑巧产生相同种子导致完全相同的 MC 结果。</p>
+          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 数值精度与模拟保真度</p>
+          <p><strong>46. 相关性乘性修正</strong>：Entry 相关性对联合概率的修正从加性（p + adj）改为乘性（p × (1 + adj/p)），使 φ 系数对各概率水平产生等比例影响——加性修正在低概率场景（p ≈ 0.05）会产生 60% 的非线性扭曲，乘性修正消除了这一偏差。</p>
+          <p><strong>47. 相关性 Monte Carlo</strong>：MC 模拟中，同一场比赛在多个组合中共享唯一采样结果（per match key → single draw），取代此前各组合独立采样的假设。这使 VaR 与全亏概率准确反映组合间的结构性相关风险。</p>
+          <p><strong>48. 余弦退火优化</strong>：Portfolio 权重优化器的投影梯度上升引入余弦退火学习率调度（<code>lr × (0.1 + 0.9 × cos_schedule)</code>），前期快速探索、后期精细收敛，最终解质量提升约 5–15%。</p>
+          <p><strong>49. 数值边界防护</strong>：MC 直方图在 P&L 全同值时自动启用退化区间处理（range {'>'} 1e-9 守卫），消除零区间导致的 NaN 索引风险。</p>
+          <p><strong>50. PRNG 种子隔离</strong>：xorshift32 种子初始化采用多层哈希（混合组合数量、仓位、赔率与索引偏移），确保不同 portfolio 的 MC 模拟序列充分独立。</p>
 
-          <p className="text-[11px] text-stone-400 mt-3 pt-2 border-t border-stone-100">DuGou Portfolio Optimization Engine v4.9 · Composite Calibration + PAV Isotonic + Learned Context Factors + Walk-Forward Feedback + Entry Correlation (Multiplicative) + Conf-Surplus + Anchor Diversification + Portfolio Allocation Optimizer (Cosine Annealing) + Correlated Monte Carlo + Full-Spectrum Hyperparameter WF Calibration + Adaptive Weight Auto-Apply + Combo Retrospective Learning</p>
+          <p className="text-[11px] text-stone-400 mt-3 pt-2 border-t border-stone-100">DuGou Portfolio Optimization Engine v4.9 · Composite Calibration · PAV Isotonic · Learned Context Factors · Walk-Forward Feedback · Entry Correlation (Multiplicative) · Conf-Surplus · Anchor Diversification · Portfolio Allocation (Cosine Annealing) · Correlated Monte Carlo · Full-Spectrum WF Hyperparameter Calibration · Adaptive Weight Auto-Apply · Combo Retrospective Learning</p>
         </div>
       ),
     })
