@@ -5185,7 +5185,7 @@ export default function ComboPage({ openModal }) {
           基于 Markowitz 均值-方差框架，融合复合概率校准管线（线性回归 + PAV 保序回归自适应混合）、自学习情境因子（Shrinkage K=12）、Walk-Forward 反馈回路（自动调参 Kelly/Odds权重/阈值），构建多资产联合分布并以纯分数 Kelly 准则优化仓位。v4.0 容错引擎实现四级置信度梯度 + C(N,N-1) 容错覆盖 + 边际 Sharpe 门控 + 分层对冲架构。v4.3 引入 Entry 相关性矩阵（Phi 系数修正联合概率）与 Per-Match EJR 追踪。v4.4 新增 Conf-Surplus 反共识信号 + 锚定分散化惩罚 + Portfolio Allocation 优化器 + 50k Monte Carlo。v4.9 全参数自旋转引擎：修复 Kelly 经验因子残留与 Walk-Forward 旁路，新增 backtestComboHyperparams 引擎从结算数据自动校准 20+ 组合生成/评分参数族群（vig、surplus 阈值、分层配额、MMR 惩罚、角色系数、组合优化器、时序权重、软惩罚、覆盖衰减、相关性公式等），可靠度加权混合确保小样本稳健。系统旋转覆盖率从 ~55% 提升至 ~92%。
         </p>
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {['复合校准','保序回归','自学习因子','Walk-Forward','原子建模','Kelly准则','容错覆盖','Sharpe门控','Conf-Surplus','锚定分散化','Entry相关性','Monte Carlo','Portfolio优化','超参WF校准','自适应权重','全参数自旋转','组合回溯学习','遗漏检测'].map(tag => (
+          {['复合校准','保序回归','自学习因子','Walk-Forward','原子建模','Kelly准则','容错覆盖','Sharpe门控','Conf-Surplus','锚定分散化','Entry相关性','Monte Carlo','Portfolio优化','超参WF校准','自适应权重','全参数自旋转','组合回溯学习'].map(tag => (
             <span key={tag} className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-indigo-50 text-indigo-500 border border-indigo-100/60">{tag}</span>
           ))}
         </div>
