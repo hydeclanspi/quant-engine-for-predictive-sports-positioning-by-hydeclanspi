@@ -54,9 +54,9 @@ export const TEAM_DB = [
   // ----------------------------------------------------------
   //  英冠 Championship (24 teams)
   // ----------------------------------------------------------
-  { name: '利兹联', league: '英冠', abbr: 'LEE', aliases: ['利兹', '利兹联队', 'Leeds'] },
-  { name: '伯恩利', league: '英冠', abbr: 'BUR', aliases: ['伯恩利队', 'Burnley'] },
-  { name: '谢菲尔德联', league: '英冠', abbr: 'SHU', aliases: ['谢菲联', '谢联', '谢菲尔德联队', 'Sheffield United'] },
+  { name: '利兹联', league: '英超', abbr: 'LEE', aliases: ['利兹', '利兹联队', 'Leeds'] },
+  { name: '伯恩利', league: '英超', abbr: 'BUR', aliases: ['伯恩利队', 'Burnley'] },
+  { name: '谢菲尔德联', league: '英超', abbr: 'SHU', aliases: ['谢菲联', '谢联', '谢菲尔德联队', 'Sheffield United'] },
   { name: '卢顿', league: '英冠', abbr: 'LUT', aliases: ['卢顿队', '卢顿城', 'Luton'] },
   { name: '桑德兰', league: '英冠', abbr: 'SUN', aliases: ['桑德兰队', '黑猫', 'Sunderland'] },
   { name: '米德尔斯堡', league: '英冠', abbr: 'MID', aliases: ['米堡', '米德尔斯堡队', 'Middlesbrough'] },
