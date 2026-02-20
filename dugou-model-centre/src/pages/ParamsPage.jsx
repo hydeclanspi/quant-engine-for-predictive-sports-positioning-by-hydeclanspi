@@ -1805,6 +1805,34 @@ export default function ParamsPage({ openModal }) {
     const fit = ratingRows.reduce((sum, row) => sum + (1 - Math.abs(row.diff)), 0) / Math.max(ratingRows.length, 1)
     return Number(fit.toFixed(2))
   }, [analyticsProgress.rating, ratingRows])
+  const ratingDiagnostics = useMemo(() => {
+    if (!analyticsProgress.rating || ratingRows.length === 0) {
+      return {
+        closeHitPct: null,
+        meanBias: null,
+        meanAbsError: null,
+      }
+    }
+    const total = Math.max(ratingRows.length, 1)
+    const closeHit = ratingRows.reduce((sum, row) => sum + (Math.abs(row.diff) <= 0.1 ? 1 : 0), 0)
+    const bias = ratingRows.reduce((sum, row) => sum + Number(row.diff || 0), 0) / total
+    const mae = ratingRows.reduce((sum, row) => sum + Math.abs(Number(row.diff || 0)), 0) / total
+    return {
+      closeHitPct: Number(((closeHit / total) * 100).toFixed(1)),
+      meanBias: Number(bias.toFixed(3)),
+      meanAbsError: Number(mae.toFixed(3)),
+    }
+  }, [analyticsProgress.rating, ratingRows])
+  const regressionSnapshot = useMemo(() => {
+    if (!analyticsProgress.calibration) return { r2: null, rmse: null }
+    const r2 = Number.isFinite(Number(calibrationContext.regression?.r2))
+      ? Number(calibrationContext.regression.r2)
+      : null
+    const rmse = Number.isFinite(Number(calibrationContext.regression?.rmse))
+      ? Number(calibrationContext.regression.rmse)
+      : null
+    return { r2, rmse }
+  }, [analyticsProgress.calibration, calibrationContext.regression])
   const settledInvestments = useMemo(
     () =>
       getInvestments().filter(
@@ -2284,24 +2312,67 @@ export default function ParamsPage({ openModal }) {
 
       <div
         onClick={openRatingModal}
-        className="console-interactive-surface glow-card bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 rounded-2xl p-6 border border-amber-200 mb-6 cursor-pointer"
+        className="console-interactive-surface glow-card relative overflow-hidden rounded-2xl border border-indigo-200/75 bg-[linear-gradient(145deg,rgba(244,247,255,0.96),rgba(255,255,255,0.95)_48%,rgba(238,247,255,0.92))] p-6 mb-6 cursor-pointer shadow-[0_24px_44px_-34px_rgba(79,70,229,0.42)]"
       >
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <ConsoleCardIcon IconComp={BarChart3} />
-              <span className="text-xs text-amber-600 font-medium uppercase">Core Metric</span>
+        <div className="pointer-events-none absolute -top-16 -left-16 h-44 w-44 rounded-full bg-sky-200/22 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 right-16 h-48 w-48 rounded-full bg-violet-200/16 blur-3xl" />
+        <div className="relative">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                <ConsoleCardIcon IconComp={BarChart3} />
+                <span className="text-xs text-indigo-600 font-medium uppercase tracking-[0.08em]">Core Metric</span>
+                <span className="inline-flex items-center rounded-[8px] border border-indigo-200/85 bg-white/82 px-1.5 py-[1px] text-[9px] font-semibold uppercase tracking-[0.08em] text-indigo-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.94)]">
+                  fit engine
+                </span>
+              </div>
+              <h3 className="text-xl font-semibold text-stone-800">Expected vs Actual Judgmental Rating</h3>
+              <p className="text-sm text-stone-500 mt-1">系统预期拟合度 · 点击查看完整历史记录</p>
+              <p className="mt-2 text-[11px] text-stone-400">
+                基于已结算样本持续跟踪模型判断与真实结果的贴合程度，并同步输出稳定性诊断。
+              </p>
             </div>
-            <h3 className="text-xl font-semibold text-stone-800">Expected vs Actual Judgmental Rating</h3>
-            <p className="text-sm text-stone-500 mt-1">系统预期拟合度（点击查看完整历史记录）</p>
+            <div className="shrink-0 w-full max-w-[220px] rounded-2xl border border-indigo-200/85 bg-[linear-gradient(145deg,rgba(255,255,255,0.9),rgba(239,246,255,0.72)_55%,rgba(238,242,255,0.64))] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.94),0_18px_30px_-28px_rgba(79,70,229,0.5)]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-stone-400">Calibration Score</p>
+              <div className="mt-1 text-4xl font-bold text-amber-600">
+                {ratingFitScore !== null ? ratingFitScore.toFixed(2) : '--'}
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <p className="text-xs text-emerald-600">
+                  {analyticsProgress.rating ? `样本 ${ratingRows.length}` : '样本计算中...'}
+                </p>
+                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${modelValidationMeta.badge}`}>
+                  {modelValidationMeta.label}
+                </span>
+              </div>
+            </div>
           </div>
-          <div className="text-right">
-            <div className="text-4xl font-bold text-amber-600">
-              {ratingFitScore !== null ? ratingFitScore.toFixed(2) : '--'}
+
+          <div className="mt-4 grid grid-cols-2 xl:grid-cols-4 gap-2.5">
+            <div className="rounded-xl border border-sky-100/90 bg-white/82 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
+              <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">近窗命中</p>
+              <p className="mt-1 text-lg font-semibold text-sky-700">
+                {ratingDiagnostics.closeHitPct !== null ? `${ratingDiagnostics.closeHitPct}%` : '--'}
+              </p>
             </div>
-            <p className="text-sm text-emerald-600 mt-1">
-              {analyticsProgress.rating ? `样本 ${ratingRows.length}` : '样本计算中...'}
-            </p>
+            <div className="rounded-xl border border-violet-100/90 bg-white/82 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
+              <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">均值偏差</p>
+              <p className={`mt-1 text-lg font-semibold ${ratingDiagnostics.meanBias !== null && ratingDiagnostics.meanBias >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                {ratingDiagnostics.meanBias !== null ? toSigned(ratingDiagnostics.meanBias, 3) : '--'}
+              </p>
+            </div>
+            <div className="rounded-xl border border-indigo-100/90 bg-white/82 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
+              <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">回归 R²</p>
+              <p className="mt-1 text-lg font-semibold text-indigo-700">
+                {regressionSnapshot.r2 !== null ? `${(regressionSnapshot.r2 * 100).toFixed(1)}%` : '--'}
+              </p>
+            </div>
+            <div className="rounded-xl border border-amber-100/90 bg-white/82 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
+              <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">回归 RMSE</p>
+              <p className="mt-1 text-lg font-semibold text-amber-700">
+                {regressionSnapshot.rmse !== null ? regressionSnapshot.rmse.toFixed(3) : '--'}
+              </p>
+            </div>
           </div>
         </div>
       </div>
