@@ -2732,18 +2732,68 @@ export default function ParamsPage({ openModal }) {
                       const chartTop = 8
                       const chartBottom = 52
                       const step = series.length > 1 ? (chartRight - chartLeft) / (series.length - 1) : 0
+                      const clampToRange = (value, low, high) => Math.max(low, Math.min(high, value))
+                      const buildSmoothPath = (inputPoints) => {
+                        if (!inputPoints.length) return ''
+                        if (inputPoints.length === 1) return `M ${inputPoints[0].x} ${inputPoints[0].y}`
+                        const tension = 0.18
+                        let path = `M ${inputPoints[0].x} ${inputPoints[0].y}`
+                        for (let idx = 0; idx < inputPoints.length - 1; idx += 1) {
+                          const p0 = inputPoints[idx - 1] || inputPoints[idx]
+                          const p1 = inputPoints[idx]
+                          const p2 = inputPoints[idx + 1]
+                          const p3 = inputPoints[idx + 2] || p2
+                          const cp1x = p1.x + (p2.x - p0.x) * tension
+                          const cp1y = p1.y + (p2.y - p0.y) * tension
+                          const cp2x = p2.x - (p3.x - p1.x) * tension
+                          const cp2y = p2.y - (p3.y - p1.y) * tension
+                          path += ` C ${cp1x.toFixed(3)} ${cp1y.toFixed(3)}, ${cp2x.toFixed(3)} ${cp2y.toFixed(3)}, ${p2.x.toFixed(3)} ${p2.y.toFixed(3)}`
+                        }
+                        return path
+                      }
                       const points = series.map((value, idx) => {
                         const x = chartLeft + idx * step
                         const y = chartBottom - ((value - min) / span) * (chartBottom - chartTop)
                         return { x, y, value }
                       })
-                      const line = points.map((point, idx) => `${idx === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
-                      const sampledPoints = points.filter((_, idx) => idx % Math.max(1, Math.floor(points.length / 14)) === 0)
-                      const first = points[0]
-                      const latest = points[points.length - 1]
+                      const rawLine = points.map((point, idx) => `${idx === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
+                      const smoothLine = buildSmoothPath(points)
+                      const bandRadius = Math.min(4, Math.max(2, Math.floor(points.length / 14)))
+                      const minBandPx = 0.95
+                      const maxBandPx = 6.5
+                      const upperPoints = points.map((point, idx) => {
+                        const start = Math.max(0, idx - bandRadius)
+                        const end = Math.min(series.length - 1, idx + bandRadius)
+                        const local = series.slice(start, end + 1)
+                        const localMean = local.reduce((sum, value) => sum + value, 0) / Math.max(local.length, 1)
+                        const localVar =
+                          local.reduce((sum, value) => sum + (value - localMean) ** 2, 0) / Math.max(local.length, 1)
+                        const localStd = Math.sqrt(Math.max(localVar, 0))
+                        const bandPx = clampToRange(((localStd / span) * (chartBottom - chartTop) * 0.9) + minBandPx, minBandPx, maxBandPx)
+                        return {
+                          x: point.x,
+                          y: clampToRange(point.y - bandPx, chartTop, chartBottom),
+                        }
+                      })
+                      const lowerPoints = points.map((point, idx) => {
+                        const start = Math.max(0, idx - bandRadius)
+                        const end = Math.min(series.length - 1, idx + bandRadius)
+                        const local = series.slice(start, end + 1)
+                        const localMean = local.reduce((sum, value) => sum + value, 0) / Math.max(local.length, 1)
+                        const localVar =
+                          local.reduce((sum, value) => sum + (value - localMean) ** 2, 0) / Math.max(local.length, 1)
+                        const localStd = Math.sqrt(Math.max(localVar, 0))
+                        const bandPx = clampToRange(((localStd / span) * (chartBottom - chartTop) * 0.9) + minBandPx, minBandPx, maxBandPx)
+                        return {
+                          x: point.x,
+                          y: clampToRange(point.y + bandPx, chartTop, chartBottom),
+                        }
+                      })
+                      const smoothUpper = buildSmoothPath(upperPoints)
+                      const smoothLower = buildSmoothPath([...lowerPoints].reverse())
+                      const ribbonPath = `${smoothUpper} ${smoothLower.replace(/^M/, 'L')} Z`
                       const zeroYRaw = chartBottom - ((0 - min) / span) * (chartBottom - chartTop)
                       const zeroY = Math.max(chartTop, Math.min(chartBottom, zeroYRaw))
-                      const areaPath = `${line} L ${latest.x} ${chartBottom} L ${first.x} ${chartBottom} Z`
                       return (
                         <>
                           <defs>
@@ -2752,9 +2802,10 @@ export default function ParamsPage({ openModal }) {
                               <stop offset="45%" stopColor="#6366f1" />
                               <stop offset="100%" stopColor="#8b5cf6" />
                             </linearGradient>
-                            <linearGradient id="coreFitAreaLg" x1="0%" y1="0%" x2="0%" y2="100%">
-                              <stop offset="0%" stopColor="rgba(99,102,241,0.24)" />
-                              <stop offset="100%" stopColor="rgba(99,102,241,0.02)" />
+                            <linearGradient id="coreFitRibbonLg" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" stopColor="rgba(99,102,241,0.22)" />
+                              <stop offset="60%" stopColor="rgba(99,102,241,0.11)" />
+                              <stop offset="100%" stopColor="rgba(99,102,241,0.03)" />
                             </linearGradient>
                           </defs>
                           <line x1={chartLeft} y1={chartTop} x2={chartRight} y2={chartTop} stroke="#eff6ff" strokeWidth="0.8" />
@@ -2762,20 +2813,23 @@ export default function ParamsPage({ openModal }) {
                           <line x1={chartLeft} y1={zeroY} x2={chartRight} y2={zeroY} stroke="#bfdbfe" strokeWidth="0.7" strokeDasharray="2 1.8" />
                           <line x1="118" y1={chartTop} x2="118" y2={chartBottom} stroke="#e0e7ff" strokeWidth="0.6" />
                           <line x1="228" y1={chartTop} x2="228" y2={chartBottom} stroke="#e0e7ff" strokeWidth="0.6" />
-                          <path d={areaPath} fill="url(#coreFitAreaLg)" />
-                          <path d={line} fill="none" stroke="url(#coreFitLineLg)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-                          {sampledPoints.map((point) => (
-                            <circle key={`fit-point-${point.x}-${point.y}`} cx={point.x} cy={point.y} r="0.85" fill="#6366f1" opacity="0.55" />
-                          ))}
-                          {latest && (
-                            <>
-                              <circle cx={latest.x} cy={latest.y} r="1.95" fill="#6366f1" />
-                              <text x={Math.max(chartLeft, latest.x - 10)} y={Math.max(chartTop, latest.y - 3)} fontSize="2.9" fill="#6366f1">
-                                {latest.value >= 0 ? '+' : ''}
-                                {latest.value.toFixed(2)}
-                              </text>
-                            </>
-                          )}
+                          <path d={ribbonPath} fill="url(#coreFitRibbonLg)" />
+                          <path
+                            d={rawLine}
+                            fill="none"
+                            stroke="rgba(99,102,241,0.2)"
+                            strokeWidth="0.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <path
+                            d={smoothLine}
+                            fill="none"
+                            stroke="url(#coreFitLineLg)"
+                            strokeWidth="1.95"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
                           <text x={chartLeft} y="61" fontSize="2.6" fill="#94a3b8">
                             start
                           </text>
