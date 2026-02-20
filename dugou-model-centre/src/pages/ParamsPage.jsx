@@ -1844,39 +1844,128 @@ export default function ParamsPage({ openModal }) {
     const std = Math.sqrt(Math.max(variance, 0))
     return Number((1.645 * std).toFixed(3))
   }, [analyticsProgress.rating, ratingRows])
-  const fitHealth = useMemo(() => {
-    if (!analyticsProgress.rating || ratingDiagnostics.meanAbsError === null) {
+  const deskStance = useMemo(() => {
+    if (!analyticsProgress.rating || ratingDiagnostics.meanAbsError === null || ratingFitScore === null) {
       return {
-        label: '数据准备中',
-        tone: 'text-stone-500',
+        label: 'Standby',
         badge:
           'border-stone-200/90 bg-[linear-gradient(120deg,rgba(250,250,250,0.94),rgba(255,255,255,0.92)_56%,rgba(245,245,245,0.86))] text-stone-500',
       }
     }
     const mae = Math.abs(Number(ratingDiagnostics.meanAbsError || 0))
-    if (mae <= 0.08) {
+    const fitScore = Number(ratingFitScore || 0)
+    if (fitScore >= 0.78 && mae <= 0.12) {
       return {
-        label: '拟合稳定',
-        tone: 'text-emerald-700',
+        label: 'In-Band',
         badge:
           'border-emerald-200/90 bg-[linear-gradient(120deg,rgba(236,253,245,0.92),rgba(255,255,255,0.92)_56%,rgba(220,252,231,0.84))] text-emerald-700',
       }
     }
-    if (mae <= 0.14) {
+    if (fitScore >= 0.65 && mae <= 0.2) {
       return {
-        label: '拟合中性',
-        tone: 'text-sky-700',
+        label: 'Monitor',
         badge:
           'border-sky-200/90 bg-[linear-gradient(120deg,rgba(240,249,255,0.92),rgba(255,255,255,0.92)_56%,rgba(224,242,254,0.84))] text-sky-700',
       }
     }
     return {
-      label: 'Calibration Watch',
-      tone: 'text-amber-700',
+      label: 'Guarded',
       badge:
         'border-amber-200/90 bg-[linear-gradient(120deg,rgba(255,251,235,0.92),rgba(255,255,255,0.92)_56%,rgba(254,243,199,0.84))] text-amber-700',
     }
-  }, [analyticsProgress.rating, ratingDiagnostics.meanAbsError])
+  }, [analyticsProgress.rating, ratingDiagnostics.meanAbsError, ratingFitScore])
+  const fitRegimes = useMemo(() => {
+    const fallback = {
+      fitTrend: { state: '--', detail: '样本不足', tone: 'text-stone-500' },
+      stability: { state: '--', detail: '样本不足', tone: 'text-stone-500' },
+      persistence: { state: '--', detail: '样本不足', tone: 'text-stone-500' },
+      shock: { state: '--', detail: '样本不足', tone: 'text-stone-500' },
+    }
+    if (!analyticsProgress.rating || !Array.isArray(ratingRows) || ratingRows.length < 8) return fallback
+    const diffs = ratingRows
+      .map((row) => Number(row.diff))
+      .filter((value) => Number.isFinite(value))
+    if (diffs.length < 8) return fallback
+
+    const n = diffs.length
+    const calcMae = (arr) => arr.reduce((sum, value) => sum + Math.abs(value), 0) / Math.max(arr.length, 1)
+    const trendWindow = Math.min(12, Math.max(4, Math.floor(n / 2)))
+    const recent = diffs.slice(-trendWindow)
+    const previous = diffs.slice(-(trendWindow * 2), -trendWindow)
+    const maeRecent = calcMae(recent)
+    const maePrev = previous.length > 0 ? calcMae(previous) : maeRecent
+    const trendDelta = maeRecent - maePrev
+    const fitTrendState = trendDelta <= -0.012 ? 'Improving' : trendDelta >= 0.012 ? 'Softening' : 'Flat'
+    const fitTrendTone =
+      fitTrendState === 'Improving'
+        ? 'text-emerald-700'
+        : fitTrendState === 'Softening'
+          ? 'text-amber-700'
+          : 'text-sky-700'
+    const fitTrendDetail = `ΔMAE ${trendDelta >= 0 ? '+' : ''}${trendDelta.toFixed(3)}`
+
+    const mean = diffs.reduce((sum, value) => sum + value, 0) / n
+    const variance = diffs.reduce((sum, value) => sum + (value - mean) ** 2, 0) / n
+    const std = Math.sqrt(Math.max(variance, 0))
+    let jumpCount = 0
+    for (let i = 1; i < n; i += 1) {
+      if (Math.abs(diffs[i] - diffs[i - 1]) >= 0.12) jumpCount += 1
+    }
+    const jumpRate = jumpCount / Math.max(n - 1, 1)
+    const stabilityScore = std + jumpRate * 0.08
+    const stabilityState = stabilityScore <= 0.11 ? 'Stable' : stabilityScore <= 0.18 ? 'Choppy' : 'Volatile'
+    const stabilityTone =
+      stabilityState === 'Stable'
+        ? 'text-emerald-700'
+        : stabilityState === 'Choppy'
+          ? 'text-sky-700'
+          : 'text-rose-600'
+    const stabilityDetail = `σ ${std.toFixed(3)} · jump ${Math.round(jumpRate * 100)}%`
+
+    const signEps = 0.02
+    const signs = diffs.map((value) => (value > signEps ? 1 : value < -signEps ? -1 : 0))
+    let switches = 0
+    let longestRun = 1
+    let currentRun = 1
+    for (let i = 1; i < signs.length; i += 1) {
+      if (signs[i] === signs[i - 1]) {
+        currentRun += 1
+      } else {
+        switches += 1
+        currentRun = 1
+      }
+      if (currentRun > longestRun) longestRun = currentRun
+    }
+    const switchRate = switches / Math.max(signs.length - 1, 1)
+    const longestRunRatio = longestRun / signs.length
+    const persistenceState =
+      longestRunRatio >= 0.42 && switchRate <= 0.33
+        ? 'Persistent'
+        : switchRate <= 0.58
+          ? 'Rotating'
+          : 'Unstable'
+    const persistenceTone =
+      persistenceState === 'Persistent'
+        ? 'text-emerald-700'
+        : persistenceState === 'Rotating'
+          ? 'text-sky-700'
+          : 'text-rose-600'
+    const persistenceDetail = `run ${Math.round(longestRunRatio * 100)}% · switch ${Math.round(switchRate * 100)}%`
+
+    const shockThreshold = Math.max(0.16, std * 1.45)
+    const shockCount = diffs.filter((value) => Math.abs(value) >= shockThreshold).length
+    const shockRatio = shockCount / n
+    const shockState = shockRatio <= 0.12 ? 'Calm' : shockRatio <= 0.26 ? 'Elevated' : 'Fragile'
+    const shockTone = shockState === 'Calm' ? 'text-emerald-700' : shockState === 'Elevated' ? 'text-amber-700' : 'text-rose-600'
+    const shockDetail = `tail ${Math.round(shockRatio * 100)}%`
+
+    return {
+      fitTrend: { state: fitTrendState, detail: fitTrendDetail, tone: fitTrendTone },
+      stability: { state: stabilityState, detail: stabilityDetail, tone: stabilityTone },
+      persistence: { state: persistenceState, detail: persistenceDetail, tone: persistenceTone },
+      shock: { state: shockState, detail: shockDetail, tone: shockTone },
+    }
+  }, [analyticsProgress.rating, ratingRows])
   const ratingScorePct = useMemo(() => {
     if (ratingFitScore === null || !Number.isFinite(Number(ratingFitScore))) return 0
     return Math.max(0, Math.min(100, Number((Number(ratingFitScore) * 100).toFixed(1))))
@@ -2476,30 +2565,32 @@ export default function ParamsPage({ openModal }) {
               <div className="mt-3 rounded-xl border border-indigo-100/85 bg-white/76 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
                 <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-indigo-100/70">
                   <div className="px-3 py-2.5">
-                    <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">近窗命中</p>
-                    <p className="mt-0.5 text-base font-semibold text-sky-700">
-                      {ratingDiagnostics.closeHitPct !== null ? `${ratingDiagnostics.closeHitPct}%` : '--'}
+                    <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">Fit Trend</p>
+                    <p className={`mt-0.5 text-base font-semibold ${fitRegimes.fitTrend.tone}`}>
+                      {fitRegimes.fitTrend.state}
                     </p>
+                    <p className="mt-0.5 text-[10px] text-stone-400">{fitRegimes.fitTrend.detail}</p>
                   </div>
                   <div className="px-3 py-2.5">
-                    <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">均值偏差</p>
-                    <p className={`mt-0.5 text-base font-semibold ${ratingDiagnostics.meanBias !== null && ratingDiagnostics.meanBias >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                      {ratingDiagnostics.meanBias !== null ? toSigned(ratingDiagnostics.meanBias, 3) : '--'}
+                    <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">Stability Regime</p>
+                    <p className={`mt-0.5 text-base font-semibold ${fitRegimes.stability.tone}`}>
+                      {fitRegimes.stability.state}
                     </p>
+                    <p className="mt-0.5 text-[10px] text-stone-400">{fitRegimes.stability.detail}</p>
                   </div>
                   <div className="px-3 py-2.5">
-                    <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">均值绝对误差</p>
-                    <p className="mt-0.5 text-base font-semibold text-indigo-700">
-                      {ratingDiagnostics.meanAbsError !== null ? ratingDiagnostics.meanAbsError.toFixed(3) : '--'}
+                    <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">Regime Persistence</p>
+                    <p className={`mt-0.5 text-base font-semibold ${fitRegimes.persistence.tone}`}>
+                      {fitRegimes.persistence.state}
                     </p>
+                    <p className="mt-0.5 text-[10px] text-stone-400">{fitRegimes.persistence.detail}</p>
                   </div>
                   <div className="px-3 py-2.5">
-                    <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">回归 R² / RMSE</p>
-                    <p className="mt-0.5 text-base font-semibold text-amber-700">
-                      {regressionSnapshot.r2 !== null ? `${(regressionSnapshot.r2 * 100).toFixed(1)}%` : '--'}
-                      <span className="mx-1.5 text-stone-300">·</span>
-                      <span className="text-indigo-700">{regressionSnapshot.rmse !== null ? regressionSnapshot.rmse.toFixed(3) : '--'}</span>
+                    <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">Shock Exposure</p>
+                    <p className={`mt-0.5 text-base font-semibold ${fitRegimes.shock.tone}`}>
+                      {fitRegimes.shock.state}
                     </p>
+                    <p className="mt-0.5 text-[10px] text-stone-400">{fitRegimes.shock.detail}</p>
                   </div>
                 </div>
               </div>
@@ -2515,8 +2606,8 @@ export default function ParamsPage({ openModal }) {
               </p>
 
               <div className="mt-2.5 flex items-center justify-between gap-1.5">
-                <span className={`inline-flex items-center rounded-[10px] border px-2 py-0.5 text-[10px] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ${fitHealth.badge}`}>
-                  {fitHealth.label}
+                <span className={`inline-flex items-center rounded-[10px] border px-2 py-0.5 text-[10px] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ${deskStance.badge}`}>
+                  {deskStance.label}
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-[10px] border border-emerald-200/90 bg-[linear-gradient(120deg,rgba(236,253,245,0.9),rgba(255,255,255,0.9)_56%,rgba(220,252,231,0.82))] px-2 py-0.5 text-[10px] font-semibold text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
                   <span className="uppercase tracking-[0.06em] text-emerald-500/90">CI</span>
