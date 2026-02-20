@@ -5174,21 +5174,42 @@ export default function ComboPage({ openModal }) {
         </div>
       </div>
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium text-stone-700">Portfolio Optimization 算法说明 <span className="text-[10px] font-normal text-indigo-400 ml-1">v4.9</span></h3>
-          <button onClick={openAlgoModal} className="text-xs text-indigo-500 hover:text-indigo-700 flex items-center gap-1">
-            <Info size={12} /> 展开详情
-          </button>
+      <div className="motion-v2-surface glow-card relative overflow-hidden mt-6 rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50/90 via-white/92 to-cyan-50/78 p-6 backdrop-blur-sm shadow-[0_18px_42px_rgba(56,189,248,0.14),inset_0_1px_0_rgba(255,255,255,0.86)]">
+        <div className="pointer-events-none absolute -top-14 right-20 h-40 w-40 rounded-full bg-sky-200/25 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 -left-10 h-40 w-40 rounded-full bg-cyan-200/22 blur-3xl" />
+        <div className="relative">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-sky-200 bg-white/80 text-sky-600">
+                  <Info size={13} strokeWidth={1.8} />
+                </span>
+                <span className="text-xs text-sky-700 font-medium uppercase tracking-[0.1em]">Model Brief</span>
+                <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-100/70 px-2 py-0.5 text-[10px] text-sky-700 font-semibold">
+                  v4.9
+                </span>
+              </div>
+              <h3 className="text-lg font-semibold text-stone-800">Portfolio Optimization 算法说明</h3>
+            </div>
+            <button
+              onClick={openAlgoModal}
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white/85 px-3 py-2 text-xs font-medium text-sky-700 hover:bg-sky-50 transition-colors"
+            >
+              查看详情 <span className="text-sm leading-none">›</span>
+            </button>
+          </div>
+          <p className="text-sm text-stone-500 leading-relaxed">
+            基于 Markowitz 均值-方差框架，融合复合概率校准管线（线性回归 + PAV 保序回归自适应混合）、自学习情境因子（Shrinkage K=12）、Walk-Forward 反馈回路（自动调参 Kelly/Odds权重/阈值），构建多资产联合分布并以纯分数 Kelly 准则优化仓位。v4.0 容错引擎实现四级置信度梯度 + C(N,N-1) 容错覆盖 + 边际 Sharpe 门控 + 分层对冲架构。v4.3 引入 Entry 相关性矩阵（Phi 系数修正联合概率）与 Per-Match EJR 追踪。v4.4 新增 Conf-Surplus 反共识信号 + 锚定分散化惩罚 + Portfolio Allocation 优化器 + 50k Monte Carlo。v4.9 全参数自旋转引擎：修复 Kelly 经验因子残留与 Walk-Forward 旁路，新增 backtestComboHyperparams 引擎从结算数据自动校准 20+ 组合生成/评分参数族群（vig、surplus 阈值、分层配额、MMR 惩罚、角色系数、组合优化器、时序权重、软惩罚、覆盖衰减、相关性公式等），可靠度加权混合确保小样本稳健。系统旋转覆盖率从 ~55% 提升至 ~92%。
+          </p>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {['复合校准','保序回归','自学习因子','Walk-Forward','原子建模','Kelly准则','容错覆盖','Sharpe门控','Conf-Surplus','锚定分散化','Entry相关性','Monte Carlo','Portfolio优化','超参WF校准','自适应权重','全参数自旋转','组合回溯学习'].map(tag => (
+              <span key={tag} className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-white/80 text-indigo-500 border border-indigo-100/70 backdrop-blur-[1px]">
+                {tag}
+              </span>
+            ))}
+          </div>
         </div>
-        <p className="text-sm text-stone-500 leading-relaxed">
-          基于 Markowitz 均值-方差框架，融合复合概率校准管线（线性回归 + PAV 保序回归自适应混合）、自学习情境因子（Shrinkage K=12）、Walk-Forward 反馈回路（自动调参 Kelly/Odds权重/阈值），构建多资产联合分布并以纯分数 Kelly 准则优化仓位。v4.0 容错引擎实现四级置信度梯度 + C(N,N-1) 容错覆盖 + 边际 Sharpe 门控 + 分层对冲架构。v4.3 引入 Entry 相关性矩阵（Phi 系数修正联合概率）与 Per-Match EJR 追踪。v4.4 新增 Conf-Surplus 反共识信号 + 锚定分散化惩罚 + Portfolio Allocation 优化器 + 50k Monte Carlo。v4.9 全参数自旋转引擎：修复 Kelly 经验因子残留与 Walk-Forward 旁路，新增 backtestComboHyperparams 引擎从结算数据自动校准 20+ 组合生成/评分参数族群（vig、surplus 阈值、分层配额、MMR 惩罚、角色系数、组合优化器、时序权重、软惩罚、覆盖衰减、相关性公式等），可靠度加权混合确保小样本稳健。系统旋转覆盖率从 ~55% 提升至 ~92%。
-        </p>
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {['复合校准','保序回归','自学习因子','Walk-Forward','原子建模','Kelly准则','容错覆盖','Sharpe门控','Conf-Surplus','锚定分散化','Entry相关性','Monte Carlo','Portfolio优化','超参WF校准','自适应权重','全参数自旋转','组合回溯学习'].map(tag => (
-            <span key={tag} className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-indigo-50 text-indigo-500 border border-indigo-100/60">{tag}</span>
-          ))}
-        </div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-sky-300/70 to-transparent" />
       </div>
 
       <div className="glow-card relative overflow-hidden rounded-2xl border border-cyan-100 bg-gradient-to-br from-white via-cyan-50/35 to-violet-50/30 p-6 mt-6">
