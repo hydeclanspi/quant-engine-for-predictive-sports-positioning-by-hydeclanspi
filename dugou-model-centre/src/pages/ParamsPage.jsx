@@ -1871,7 +1871,7 @@ export default function ParamsPage({ openModal }) {
       }
     }
     return {
-      label: '需校准关注',
+      label: 'Calibration Watch',
       tone: 'text-amber-700',
       badge:
         'border-amber-200/90 bg-[linear-gradient(120deg,rgba(255,251,235,0.92),rgba(255,255,255,0.92)_56%,rgba(254,243,199,0.84))] text-amber-700',
@@ -2390,8 +2390,8 @@ export default function ParamsPage({ openModal }) {
                   <span>Fit Trajectory</span>
                   <span>{analyticsProgress.rating ? `最近 ${Math.min(ratingRows.length, 48)} 场` : '样本计算中...'}</span>
                 </div>
-                <div className="mt-2 h-[122px] rounded-xl border border-sky-100/85 bg-[linear-gradient(140deg,rgba(239,246,255,0.68),rgba(255,255,255,0.94)_48%,rgba(245,243,255,0.62))] px-2.5 py-2">
-                  <svg viewBox="0 0 164 64" className="h-full w-full">
+                <div className="mt-2 h-[128px] rounded-xl border border-sky-100/85 bg-[linear-gradient(140deg,rgba(239,246,255,0.68),rgba(255,255,255,0.94)_48%,rgba(245,243,255,0.62))] px-2.5 py-2">
+                  <svg viewBox="0 0 340 64" preserveAspectRatio="none" className="h-full w-full">
                     {(() => {
                       const series = ratingRows
                         .slice(-48)
@@ -2411,8 +2411,8 @@ export default function ParamsPage({ openModal }) {
                       const min = Math.min(rawMin - padding, -0.05)
                       const max = Math.max(rawMax + padding, 0.05)
                       const span = Math.max(max - min, 0.08)
-                      const chartLeft = 4
-                      const chartRight = 160
+                      const chartLeft = 6
+                      const chartRight = 334
                       const chartTop = 8
                       const chartBottom = 52
                       const step = series.length > 1 ? (chartRight - chartLeft) / (series.length - 1) : 0
@@ -2444,8 +2444,8 @@ export default function ParamsPage({ openModal }) {
                           <line x1={chartLeft} y1={chartTop} x2={chartRight} y2={chartTop} stroke="#eff6ff" strokeWidth="0.8" />
                           <line x1={chartLeft} y1={chartBottom} x2={chartRight} y2={chartBottom} stroke="#eff6ff" strokeWidth="0.8" />
                           <line x1={chartLeft} y1={zeroY} x2={chartRight} y2={zeroY} stroke="#bfdbfe" strokeWidth="0.7" strokeDasharray="2 1.8" />
-                          <line x1="56" y1={chartTop} x2="56" y2={chartBottom} stroke="#e0e7ff" strokeWidth="0.6" />
-                          <line x1="108" y1={chartTop} x2="108" y2={chartBottom} stroke="#e0e7ff" strokeWidth="0.6" />
+                          <line x1="118" y1={chartTop} x2="118" y2={chartBottom} stroke="#e0e7ff" strokeWidth="0.6" />
+                          <line x1="228" y1={chartTop} x2="228" y2={chartBottom} stroke="#e0e7ff" strokeWidth="0.6" />
                           <path d={areaPath} fill="url(#coreFitAreaLg)" />
                           <path d={line} fill="none" stroke="url(#coreFitLineLg)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
                           {sampledPoints.map((point) => (
