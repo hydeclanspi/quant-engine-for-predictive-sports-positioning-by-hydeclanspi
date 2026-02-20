@@ -134,6 +134,37 @@ const ConsoleCardIcon = ({ IconComp }) => (
   </span>
 )
 
+const ExplainHover = ({ card, align = 'left', children }) => {
+  if (!card) return children
+  const alignClass = align === 'right' ? 'right-0' : 'left-0'
+  const lines = [
+    { label: '是什么', value: card.what },
+    { label: '描述', value: card.describes },
+    { label: '当前值', value: card.current },
+    { label: '基准值', value: card.baseline },
+    { label: '当前状态', value: card.status },
+    { label: '其它状态', value: card.others },
+  ].filter((line) => line.value)
+
+  return (
+    <span className="group/explain relative inline-flex">
+      {children}
+      <span className={`pointer-events-none absolute ${alignClass} top-full z-[90] mt-2.5 w-[300px] translate-y-1 rounded-xl border border-sky-200/85 bg-[linear-gradient(145deg,rgba(240,249,255,0.95),rgba(255,255,255,0.95)_48%,rgba(238,242,255,0.9))] p-3 text-left opacity-0 shadow-[0_16px_34px_-26px_rgba(56,189,248,0.45),inset_0_1px_0_rgba(255,255,255,0.92)] transition-all duration-180 group-hover/explain:translate-y-0 group-hover/explain:opacity-100 group-hover/explain:shadow-[0_22px_44px_-24px_rgba(56,189,248,0.5),inset_0_1px_0_rgba(255,255,255,0.92)]`}>
+        <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-sky-600">{card.title}</span>
+        <span className="mt-1 block h-px w-full bg-gradient-to-r from-sky-200 via-indigo-200/80 to-transparent" />
+        <span className="mt-1.5 block space-y-1.5">
+          {lines.map((line) => (
+            <span key={`${card.title}-${line.label}`} className="block text-[11px] leading-[1.45] text-stone-600">
+              <span className="font-semibold text-stone-700">{line.label}：</span>
+              {line.value}
+            </span>
+          ))}
+        </span>
+      </span>
+    </span>
+  )
+}
+
 const PAGE_AMBIENT_ITEMS = [
   { key: 'new', label: 'New', hint: '新建投资' },
   { key: 'combo', label: 'Portfolio', hint: '智能组合建议' },
@@ -1844,7 +1875,7 @@ export default function ParamsPage({ openModal }) {
     const std = Math.sqrt(Math.max(variance, 0))
     return Number((1.645 * std).toFixed(3))
   }, [analyticsProgress.rating, ratingRows])
-  const deskStance = useMemo(() => {
+  const riskPosture = useMemo(() => {
     if (!analyticsProgress.rating || ratingDiagnostics.meanAbsError === null || ratingFitScore === null) {
       return {
         label: 'Standby',
@@ -1856,7 +1887,7 @@ export default function ParamsPage({ openModal }) {
     const fitScore = Number(ratingFitScore || 0)
     if (fitScore >= 0.78 && mae <= 0.12) {
       return {
-        label: 'In-Band',
+        label: 'Aligned',
         badge:
           'border-emerald-200/90 bg-[linear-gradient(120deg,rgba(236,253,245,0.92),rgba(255,255,255,0.92)_56%,rgba(220,252,231,0.84))] text-emerald-700',
       }
@@ -1974,6 +2005,202 @@ export default function ParamsPage({ openModal }) {
     if (ratingFitScore === null || !Number.isFinite(Number(ratingFitScore))) return null
     return Number((Number(ratingFitScore) - 0.75).toFixed(2))
   }, [ratingFitScore])
+  const coreMetricGlossary = useMemo(() => {
+    const fitTrendMeaningMap = {
+      Improving: '近期误差在收敛，模型判断与结果贴合度在变好。',
+      Flat: '近期误差变化不大，当前表现基本维持原位。',
+      Softening: '近期误差有抬升迹象，说明预测稳定性在走弱。',
+      '--': '当前样本不足，暂时无法判断趋势。',
+    }
+    const stabilityMeaningMap = {
+      Stable: '波动与跳变都低，拟合质量处于平稳区间。',
+      Choppy: '存在一定抖动但仍可控，建议观察而非立刻大改。',
+      Volatile: '误差波动偏大且跳变频繁，校准结果不稳定。',
+      '--': '当前样本不足，暂时无法判断稳定性。',
+    }
+    const persistenceMeaningMap = {
+      Persistent: '同向持续段较长，结构特征相对连续。',
+      Rotating: '状态在几个区间轮换，具备可跟踪节奏但不固定。',
+      Unstable: '切换过于频繁，当前 regime 不易延续。',
+      '--': '当前样本不足，暂时无法判断持续性。',
+    }
+    const shockMeaningMap = {
+      Calm: '尾部偏差占比低，极端波动暴露较轻。',
+      Elevated: '已有一定尾部风险，建议保留风险缓冲。',
+      Fragile: '极端偏差占比偏高，需优先收敛模型风险。',
+      '--': '当前样本不足，暂时无法判断尾部暴露。',
+    }
+
+    const closeHit = ratingDiagnostics.closeHitPct
+    const mae = ratingDiagnostics.meanAbsError
+    const bias = ratingDiagnostics.meanBias
+    const r2 = regressionSnapshot.r2
+    const rmse = regressionSnapshot.rmse
+    const fitScore = ratingFitScore
+    const ci = calibrationConfidenceBand
+
+    const closeHitStatus =
+      closeHit === null
+        ? '等待样本刷新。'
+        : closeHit >= 55
+          ? '近窗贴合度较高，短期有效性较强。'
+          : closeHit >= 35
+            ? '近窗贴合度中性，建议保持观察。'
+            : '近窗贴合度偏弱，建议优先查误差来源。'
+
+    const maeStatus =
+      mae === null
+        ? '等待样本刷新。'
+        : mae <= 0.12
+          ? '误差处于紧致区间，校准质量较稳。'
+          : mae <= 0.2
+            ? '误差处于可控带，建议继续监控。'
+            : '误差偏大，建议降风险并做再校准。'
+
+    const biasStatus =
+      bias === null
+        ? '等待样本刷新。'
+        : Math.abs(bias) <= 0.03
+          ? '总体偏差接近中性，没有明显系统性偏向。'
+          : bias > 0
+            ? '存在正向偏置（模型略偏乐观）。'
+            : '存在负向偏置（模型略偏保守）。'
+
+    const r2Status =
+      r2 === null
+        ? '等待回归结果。'
+        : r2 >= 0.3
+          ? '解释度较好，线性校准关系较清晰。'
+          : r2 >= 0.15
+            ? '解释度中等，可用但仍有提升空间。'
+            : '解释度较弱，建议结合更多特征与样本。'
+
+    const postureStatusMap = {
+      Aligned: '拟合与误差都在健康带内，可保持当前策略。',
+      Monitor: '整体可用但需盯盘观察，建议小步迭代调参。',
+      Guarded: '偏差超出舒适区，应优先控风险与再校准。',
+      Standby: '样本不足，暂不建议据此做强判断。',
+    }
+
+    const ciStatus =
+      ci === null
+        ? '等待样本刷新。'
+        : ci <= 0.22
+          ? '置信区间较窄，不确定性较低。'
+          : ci <= 0.35
+            ? '置信区间中等，建议结合风险位控制使用。'
+            : '置信区间偏宽，预测不确定性较高。'
+
+    return {
+      fitTrend: {
+        title: 'Fit Trend',
+        what: '跟踪拟合误差（MAE）在近期窗口的变化方向。',
+        describes: '反映模型“最近是在变准还是变钝”。',
+        current: `${fitRegimes.fitTrend.state}（${fitRegimes.fitTrend.detail}）`,
+        baseline: 'ΔMAE ≤ -0.012 视为 Improving；|ΔMAE| < 0.012 视为 Flat；ΔMAE ≥ 0.012 视为 Softening。',
+        status: fitTrendMeaningMap[fitRegimes.fitTrend.state] || fitTrendMeaningMap['--'],
+        others: 'Improving / Flat / Softening',
+      },
+      stabilityRegime: {
+        title: 'Stability Regime',
+        what: '用误差标准差 σ + 跳变率评估拟合波动强度。',
+        describes: '衡量模型输出是否“平稳可控”。',
+        current: `${fitRegimes.stability.state}（${fitRegimes.stability.detail}）`,
+        baseline: 'stabilityScore ≤ 0.11 Stable；≤ 0.18 Choppy；> 0.18 Volatile。',
+        status: stabilityMeaningMap[fitRegimes.stability.state] || stabilityMeaningMap['--'],
+        others: 'Stable / Choppy / Volatile',
+      },
+      regimePersistence: {
+        title: 'Regime Persistence',
+        what: '看误差符号是否持续，还是频繁切换。',
+        describes: '用于识别当前状态的可延续性。',
+        current: `${fitRegimes.persistence.state}（${fitRegimes.persistence.detail}）`,
+        baseline: 'longestRunRatio ≥ 42% 且 switchRate ≤ 33% 为 Persistent；switchRate ≤ 58% 为 Rotating；否则 Unstable。',
+        status: persistenceMeaningMap[fitRegimes.persistence.state] || persistenceMeaningMap['--'],
+        others: 'Persistent / Rotating / Unstable',
+      },
+      shockExposure: {
+        title: 'Shock Exposure',
+        what: '统计尾部大偏差（shock）在样本中的占比。',
+        describes: '表示模型面对极端样本时的脆弱度。',
+        current: `${fitRegimes.shock.state}（${fitRegimes.shock.detail}）`,
+        baseline: 'tailRatio ≤ 12% Calm；≤ 26% Elevated；> 26% Fragile。',
+        status: shockMeaningMap[fitRegimes.shock.state] || shockMeaningMap['--'],
+        others: 'Calm / Elevated / Fragile',
+      },
+      closeHit: {
+        title: '近窗命中',
+        what: '近窗内 |diff| ≤ 0.10 的样本占比。',
+        describes: '衡量短期预测是否贴近真实结果。',
+        current: closeHit === null ? '--' : `${closeHit}%`,
+        baseline: '≥55% 通常较稳；35%~55% 中性；<35% 偏弱。',
+        status: closeHitStatus,
+        others: '高命中 / 中性 / 低命中',
+      },
+      meanAbsErr: {
+        title: 'Mean Abs Err',
+        what: '平均绝对误差（MAE），越小越好。',
+        describes: '衡量预测值与结果值的平均偏离幅度。',
+        current: mae === null ? '--' : mae.toFixed(3),
+        baseline: '≤0.12 健康；0.12~0.20 监控带；>0.20 偏高。',
+        status: maeStatus,
+        others: 'Low Error / Moderate / High Error',
+      },
+      bias: {
+        title: 'Bias',
+        what: '误差均值，反映系统性偏乐观或偏保守。',
+        describes: '用于判断模型方向性偏差，而非随机噪音。',
+        current: bias === null ? '--' : toSigned(bias, 3),
+        baseline: '|Bias| ≤ 0.03 通常视为中性区间。',
+        status: biasStatus,
+        others: 'Neutral / Positive Bias / Negative Bias',
+      },
+      r2: {
+        title: 'R²',
+        what: '回归解释度，表示拟合关系可解释程度。',
+        describes: '用于评估线性校准是否“讲得通”。',
+        current: r2 === null ? '--' : `${(r2 * 100).toFixed(1)}%`,
+        baseline: '≥30% 较好；15%~30% 中等；<15% 偏弱。',
+        status: `${r2Status}${rmse !== null ? `（RMSE ${rmse.toFixed(3)}）` : ''}`,
+        others: 'High Explainability / Mid / Low',
+      },
+      riskPosture: {
+        title: 'Risk Posture',
+        what: '由拟合评分与 MAE 联合给出的风控姿态分层。',
+        describes: '告诉你当前更适合“延续、监控还是防守”。',
+        current: `${riskPosture.label}${fitScore !== null ? `（score ${fitScore.toFixed(2)}）` : ''}`,
+        baseline: 'score ≥ 0.78 且 MAE ≤ 0.12 为 Aligned；score ≥ 0.65 且 MAE ≤ 0.20 为 Monitor；其余为 Guarded。',
+        status: postureStatusMap[riskPosture.label] || postureStatusMap.Standby,
+        others: 'Aligned / Monitor / Guarded / Standby',
+      },
+      ci: {
+        title: 'CI',
+        what: '用 ±1.645σ 估算误差区间宽度（约 90% 置信）。',
+        describes: '区间越窄，短期不确定性通常越低。',
+        current: ci === null ? '--' : `±${ci.toFixed(3)}`,
+        baseline: '≤0.22 紧致；0.22~0.35 中等；>0.35 偏宽。',
+        status: ciStatus,
+        others: 'Tight / Normal / Wide',
+      },
+    }
+  }, [
+    fitRegimes.fitTrend.detail,
+    fitRegimes.fitTrend.state,
+    fitRegimes.persistence.detail,
+    fitRegimes.persistence.state,
+    fitRegimes.shock.detail,
+    fitRegimes.shock.state,
+    fitRegimes.stability.detail,
+    fitRegimes.stability.state,
+    regressionSnapshot.r2,
+    regressionSnapshot.rmse,
+    riskPosture.label,
+    calibrationConfidenceBand,
+    ratingDiagnostics.closeHitPct,
+    ratingDiagnostics.meanAbsError,
+    ratingDiagnostics.meanBias,
+    ratingFitScore,
+  ])
   const settledInvestments = useMemo(
     () =>
       getInvestments().filter(
@@ -2565,28 +2792,44 @@ export default function ParamsPage({ openModal }) {
               <div className="mt-3 rounded-xl border border-indigo-100/85 bg-white/76 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
                 <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-indigo-100/70">
                   <div className="px-3 py-2.5">
-                    <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">Fit Trend</p>
+                    <ExplainHover card={coreMetricGlossary.fitTrend}>
+                      <span className="cursor-help text-[10px] uppercase tracking-[0.07em] text-stone-400 decoration-dotted underline decoration-sky-300/80 underline-offset-[3px]">
+                        Fit Trend
+                      </span>
+                    </ExplainHover>
                     <p className={`mt-0.5 text-base font-semibold ${fitRegimes.fitTrend.tone}`}>
                       {fitRegimes.fitTrend.state}
                     </p>
                     <p className="mt-0.5 text-[10px] text-stone-400">{fitRegimes.fitTrend.detail}</p>
                   </div>
                   <div className="px-3 py-2.5">
-                    <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">Stability Regime</p>
+                    <ExplainHover card={coreMetricGlossary.stabilityRegime}>
+                      <span className="cursor-help text-[10px] uppercase tracking-[0.07em] text-stone-400 decoration-dotted underline decoration-sky-300/80 underline-offset-[3px]">
+                        Stability Regime
+                      </span>
+                    </ExplainHover>
                     <p className={`mt-0.5 text-base font-semibold ${fitRegimes.stability.tone}`}>
                       {fitRegimes.stability.state}
                     </p>
                     <p className="mt-0.5 text-[10px] text-stone-400">{fitRegimes.stability.detail}</p>
                   </div>
                   <div className="px-3 py-2.5">
-                    <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">Regime Persistence</p>
+                    <ExplainHover card={coreMetricGlossary.regimePersistence}>
+                      <span className="cursor-help text-[10px] uppercase tracking-[0.07em] text-stone-400 decoration-dotted underline decoration-sky-300/80 underline-offset-[3px]">
+                        Regime Persistence
+                      </span>
+                    </ExplainHover>
                     <p className={`mt-0.5 text-base font-semibold ${fitRegimes.persistence.tone}`}>
                       {fitRegimes.persistence.state}
                     </p>
                     <p className="mt-0.5 text-[10px] text-stone-400">{fitRegimes.persistence.detail}</p>
                   </div>
                   <div className="px-3 py-2.5">
-                    <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">Shock Exposure</p>
+                    <ExplainHover card={coreMetricGlossary.shockExposure} align="right">
+                      <span className="cursor-help text-[10px] uppercase tracking-[0.07em] text-stone-400 decoration-dotted underline decoration-sky-300/80 underline-offset-[3px]">
+                        Shock Exposure
+                      </span>
+                    </ExplainHover>
                     <p className={`mt-0.5 text-base font-semibold ${fitRegimes.shock.tone}`}>
                       {fitRegimes.shock.state}
                     </p>
@@ -2606,13 +2849,17 @@ export default function ParamsPage({ openModal }) {
               </p>
 
               <div className="mt-2.5 flex items-center justify-between gap-1.5">
-                <span className={`inline-flex items-center rounded-[10px] border px-2 py-0.5 text-[10px] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ${deskStance.badge}`}>
-                  {deskStance.label}
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-[10px] border border-emerald-200/90 bg-[linear-gradient(120deg,rgba(236,253,245,0.9),rgba(255,255,255,0.9)_56%,rgba(220,252,231,0.82))] px-2 py-0.5 text-[10px] font-semibold text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
-                  <span className="uppercase tracking-[0.06em] text-emerald-500/90">CI</span>
-                  <span>{calibrationConfidenceBand !== null ? `±${calibrationConfidenceBand.toFixed(3)}` : '--'}</span>
-                </span>
+                <ExplainHover card={coreMetricGlossary.riskPosture}>
+                  <span className={`inline-flex cursor-help items-center rounded-[10px] border px-2 py-0.5 text-[10px] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ${riskPosture.badge}`}>
+                    <span className="uppercase tracking-[0.06em]">{`Risk Posture · ${riskPosture.label}`}</span>
+                  </span>
+                </ExplainHover>
+                <ExplainHover card={coreMetricGlossary.ci} align="right">
+                  <span className="inline-flex cursor-help items-center gap-1 rounded-[10px] border border-emerald-200/90 bg-[linear-gradient(120deg,rgba(236,253,245,0.9),rgba(255,255,255,0.9)_56%,rgba(220,252,231,0.82))] px-2 py-0.5 text-[10px] font-semibold text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                    <span className="uppercase tracking-[0.06em] text-emerald-500/90">CI</span>
+                    <span>{calibrationConfidenceBand !== null ? `±${calibrationConfidenceBand.toFixed(3)}` : '--'}</span>
+                  </span>
+                </ExplainHover>
               </div>
 
               <div className="mt-2.5 rounded-xl border border-indigo-100/85 bg-white/78 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
@@ -2635,25 +2882,41 @@ export default function ParamsPage({ openModal }) {
 
               <div className="mt-2.5 grid grid-cols-2 gap-1.5">
                 <div className="rounded-lg border border-sky-100/85 bg-sky-50/65 px-2 py-1.5">
-                  <p className="text-[9px] uppercase tracking-[0.06em] text-sky-500">近窗命中</p>
+                  <ExplainHover card={coreMetricGlossary.closeHit}>
+                    <span className="cursor-help text-[9px] uppercase tracking-[0.06em] text-sky-500 decoration-dotted underline decoration-sky-300/80 underline-offset-[2px]">
+                      近窗命中
+                    </span>
+                  </ExplainHover>
                   <p className="mt-0.5 text-xs font-semibold text-sky-700">
                     {ratingDiagnostics.closeHitPct !== null ? `${ratingDiagnostics.closeHitPct}%` : '--'}
                   </p>
                 </div>
                 <div className="rounded-lg border border-indigo-100/85 bg-indigo-50/70 px-2 py-1.5">
-                  <p className="text-[9px] uppercase tracking-[0.06em] text-indigo-500">Mean Abs Err</p>
+                  <ExplainHover card={coreMetricGlossary.meanAbsErr}>
+                    <span className="cursor-help text-[9px] uppercase tracking-[0.06em] text-indigo-500 decoration-dotted underline decoration-indigo-300/80 underline-offset-[2px]">
+                      Mean Abs Err
+                    </span>
+                  </ExplainHover>
                   <p className="mt-0.5 text-xs font-semibold text-indigo-700">
                     {ratingDiagnostics.meanAbsError !== null ? ratingDiagnostics.meanAbsError.toFixed(3) : '--'}
                   </p>
                 </div>
                 <div className="rounded-lg border border-emerald-100/85 bg-emerald-50/70 px-2 py-1.5">
-                  <p className="text-[9px] uppercase tracking-[0.06em] text-emerald-500">Bias</p>
+                  <ExplainHover card={coreMetricGlossary.bias}>
+                    <span className="cursor-help text-[9px] uppercase tracking-[0.06em] text-emerald-500 decoration-dotted underline decoration-emerald-300/80 underline-offset-[2px]">
+                      Bias
+                    </span>
+                  </ExplainHover>
                   <p className={`mt-0.5 text-xs font-semibold ${ratingDiagnostics.meanBias !== null && ratingDiagnostics.meanBias >= 0 ? 'text-emerald-700' : 'text-rose-500'}`}>
                     {ratingDiagnostics.meanBias !== null ? toSigned(ratingDiagnostics.meanBias, 3) : '--'}
                   </p>
                 </div>
                 <div className="rounded-lg border border-violet-100/85 bg-violet-50/70 px-2 py-1.5">
-                  <p className="text-[9px] uppercase tracking-[0.06em] text-violet-500">R²</p>
+                  <ExplainHover card={coreMetricGlossary.r2} align="right">
+                    <span className="cursor-help text-[9px] uppercase tracking-[0.06em] text-violet-500 decoration-dotted underline decoration-violet-300/80 underline-offset-[2px]">
+                      R²
+                    </span>
+                  </ExplainHover>
                   <p className="mt-0.5 text-xs font-semibold text-violet-700">
                     {regressionSnapshot.r2 !== null ? `${(regressionSnapshot.r2 * 100).toFixed(1)}%` : '--'}
                   </p>
