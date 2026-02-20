@@ -5202,17 +5202,15 @@ export default function ComboPage({ openModal }) {
         <div className="pointer-events-none absolute -bottom-16 -left-10 h-40 w-40 rounded-full bg-cyan-200/22 blur-3xl" />
         <div className="relative">
           <div className="flex items-start justify-between gap-4 mb-4">
-            <div>
-              <div className="flex items-center gap-2 mb-2.5">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-[8px] border border-sky-200/90 bg-gradient-to-br from-white/95 via-sky-50/85 to-cyan-50/80 text-sky-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
-                  <Sparkles size={12} strokeWidth={1.9} />
-                </span>
-                <span className="text-xs text-sky-700 font-medium uppercase tracking-[0.1em]">Algorithm Brief</span>
-                <span className="inline-flex items-center rounded-[7px] border border-sky-200/90 bg-gradient-to-r from-white/92 via-sky-50/82 to-white/88 px-1.5 py-[1px] text-[9px] tracking-[0.03em] text-sky-700 font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
-                  v4.9
-                </span>
-              </div>
-              <h3 className="text-lg font-semibold text-stone-800">Portfolio Optimization 算法说明</h3>
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-[8px] border border-sky-200/90 bg-gradient-to-br from-white/95 via-sky-50/85 to-cyan-50/80 text-sky-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
+                <Sparkles size={12} strokeWidth={1.9} />
+              </span>
+              <span className="text-xs text-sky-700 font-medium uppercase tracking-[0.1em] whitespace-nowrap">Algorithm Brief</span>
+              <span className="inline-flex items-center rounded-[7px] border border-sky-200/90 bg-gradient-to-r from-white/92 via-sky-50/82 to-white/88 px-1.5 py-[1px] text-[9px] tracking-[0.03em] text-sky-700 font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] whitespace-nowrap">
+                v4.9
+              </span>
+              <h3 className="text-lg font-semibold text-stone-800 leading-tight whitespace-nowrap">Portfolio Optimization 算法说明</h3>
             </div>
             <button
               onClick={openAlgoModal}
