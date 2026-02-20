@@ -2005,7 +2005,7 @@ const generateRecommendations = (
   teamBias = null, // Map<teamName, number> — positive = boost, negative = penalize
   comboRetrospective = null, // FIX #9: Combo-level retrospective learning signals
   allocationMode = DEFAULT_ALLOCATION_MODE,
-  decouplingPairs = null, // Set<"keyA|keyB"> — pairs the user wants less co-occurrence for (fault tolerance freedom)
+  decouplingPairs = null, // Set<"keyA|keyB"> — hard decoupling pairs (must not co-occur in the same combo)
 ) => {
   if (selectedMatches.length === 0) return null
   const recommendationCount = RECOMMENDATION_OUTPUT_COUNT
@@ -2198,21 +2198,19 @@ const generateRecommendations = (
       })
     }
 
-    // ── Decoupling penalty: user-requested match-pair independence ──
-    // When a user flips a cell in the fault tolerance matrix, they signal "I don't care about
-    // the co-occurrence of these two matches — give the algorithm freedom to separate them."
-    // This is NOT "force them apart" — it's a soft penalty that discourages co-occurrence,
-    // providing the optimizer room to explore more independent combo structures.
-    let decouplingPenalty = 0
+    // ── Decoupling hard constraint: user-requested pair must NOT co-occur in one combo ──
+    // If a pair is marked decouple (✗→✓), any combo containing both legs is invalid.
+    // This upgrades previous soft penalty to hard guarantee.
+    const subsetKeys = new Set(annotatedSubset.map((m) => buildMatchRefKey(m)))
+    let violatesDecouplingHard = false
     if (decouplingPairs && decouplingPairs.size > 0) {
-      const subsetKeys = new Set(annotatedSubset.map((m) => buildMatchRefKey(m)))
-      const decouplingMag = hp?.decouplingPenaltyMag ?? 0.08
-      decouplingPairs.forEach((pairKey) => {
+      for (const pairKey of decouplingPairs) {
         const [kA, kB] = pairKey.split('|')
         if (subsetKeys.has(kA) && subsetKeys.has(kB)) {
-          decouplingPenalty += decouplingMag
+          violatesDecouplingHard = true
+          break
         }
-      })
+      }
     }
 
     // ── Conf-Surplus Bonus: reward combos that capture counter-consensus edges ──
@@ -2230,7 +2228,7 @@ const generateRecommendations = (
 
     const utility = rewardTerm - riskPenalty + pBonus + familyBonus + roleSignal.bonus
       - tierPenalty + tierAnchorBonus + coveringBonus - hardConstraintPenalty + teamBiasBonus
-      + confSurplusBonus - decouplingPenalty
+      + confSurplusBonus
     const corr = calcSubsetSourceCorrelation(annotatedSubset)
     const confAvg = annotatedSubset.reduce((sum, item) => sum + clamp(item.conf, 0.05, 0.95), 0) / Math.max(legs, 1)
     const subsetMatchKeyCount = new Set(annotatedSubset.map((match) => buildMatchRefKey(match))).size
@@ -2270,12 +2268,17 @@ const generateRecommendations = (
       confSurplusBonus,
       avgSurplus,
       maxSurplus,
+      violatesDecouplingHard,
     }
   })
 
+  const hardDecouplingFiltered = scoredAll.filter((item) => !item.violatesDecouplingHard)
+  if (decouplingPairs && decouplingPairs.size > 0 && hardDecouplingFiltered.length === 0) return null
+
   // ── Pre-filter: apply minLegs (思路4) ──
-  const legsFiltered = scoredAll.filter((item) => item.legs >= minLegs)
-  const pool = legsFiltered.length > 0 ? legsFiltered : scoredAll // graceful fallback
+  const scoredBase = hardDecouplingFiltered.length > 0 ? hardDecouplingFiltered : scoredAll
+  const legsFiltered = scoredBase.filter((item) => item.legs >= minLegs)
+  const pool = legsFiltered.length > 0 ? legsFiltered : scoredBase // graceful fallback
   const coverageEligiblePool = minCoverageEnabled
     ? pool.filter((item) => (item.coverageRate || 0) >= minCoverage)
     : pool
@@ -3211,7 +3214,16 @@ export default function ComboPage({ openModal }) {
       calibrationContext?.comboHyperparams || null,
       selectedMatches.map((m) => getPortfolioCoverageKey(m)),
     )
-    setPortfolioAllocations(allocations)
+    // If a pinned portfolio is provided (from fault tolerance matrix customization),
+    // prepend it to the allocation list so it appears at position 0 with 【定制】 badge.
+    // The pinned portfolio is a snapshot of the ORIGINAL portfolio before regeneration,
+    // preserved exactly as the user saw it, immune to ranking/threshold changes.
+    const pinnedPortfolio = overrides._pinnedPortfolio ?? null
+    if (pinnedPortfolio) {
+      setPortfolioAllocations([pinnedPortfolio, ...allocations])
+    } else {
+      setPortfolioAllocations(allocations)
+    }
     setExpandedComboIdxSet(new Set())
     setExpandedPortfolioIdxSet(new Set())
     setShowAllPortfolios(false)
@@ -3244,15 +3256,23 @@ export default function ComboPage({ openModal }) {
   }
 
   // Fault tolerance matrix: toggle a cell override
-  const handleFtCellToggle = (aIdx, rowKey, colKey) => {
+  // Fault tolerance matrix: toggle a cell override
+  // We record the SEMANTIC INTENT of each flip, not just that it was flipped:
+  //   'decouple' = original ✗ flipped to ✓ = "I want these two matches to survive independently"
+  //               → generates a decoupling constraint for the algorithm
+  //   'release'  = original ✓ flipped to ✗ = "I don't care about this dependency, free up room"
+  //               → no constraint, just gives the algorithm more freedom
+  const handleFtCellToggle = (aIdx, rowKey, colKey, originalSurvives) => {
     setFtCellOverrides((prev) => {
       const patchKey = `${rowKey}|${colKey}`
       const existing = prev[aIdx] || {}
       const next = { ...existing }
       if (patchKey in next) {
-        delete next[patchKey]
+        delete next[patchKey] // undo flip — restore to original
       } else {
-        next[patchKey] = true
+        // originalSurvives=true (was ✓) → user flips to ✗ → 'release'
+        // originalSurvives=false (was ✗) → user flips to ✓ → 'decouple'
+        next[patchKey] = originalSurvives ? 'release' : 'decouple'
       }
       return { ...prev, [aIdx]: next }
     })
@@ -3269,7 +3289,7 @@ export default function ComboPage({ openModal }) {
         const survives = comboMatchSets.some((cs) => cs.has(colMatch.key) && !cs.has(rowKey))
         if (!survives) {
           const patchKey = `${rowKey}|${colMatch.key}`
-          next[patchKey] = true // Flip red → desired-green
+          next[patchKey] = 'decouple' // original ✗ → desired ✓
         }
       })
       return { ...prev, [aIdx]: next }
@@ -3278,22 +3298,34 @@ export default function ComboPage({ openModal }) {
   }
 
   // Fault tolerance matrix: confirm and regenerate with decoupling pairs
-  // Semantic: flipping a cell ✓→✗ means "I don't care about the co-occurrence dependency
-  // between these two matches — give the algorithm freedom to separate them."
-  // This is NOT "force them to fail together" — it's a soft signal to reduce co-occurrence,
-  // providing the optimizer room to explore more independent combo structures.
+  // SEMANTICS:
+  //   ✗→✓ ('decouple') = "when row-match fails, I want col-match to survive elsewhere"
+  //     → generates a decoupling HARD constraint: this pair must not co-occur in one combo
+  //   ✓→✗ ('release') = "I don't care about this dependency, free up room for algorithm"
+  //     → NO constraint generated, just releases freedom for the optimizer
+  //
+  // The ORIGINAL portfolio (before regeneration) is captured as a pinned 【定制】 snapshot
+  // and prepended to the new results — it keeps its exact position-0 slot regardless of
+  // whether its utility ranking would otherwise drop after the decoupling constraint changes
+  // the combo landscape. This is the user's "golden pass" — it bypasses all hard thresholds.
   const handleFtConfirmRegenerate = (aIdx) => {
     const overrides = ftCellOverrides[aIdx] || {}
-    const keys = Object.keys(overrides)
-    if (keys.length === 0) return
-    // Build decoupling pair set — each override key is "rowKey|colKey"
-    // Normalize pair order so "A|B" and "B|A" are the same pair
+    const entries = Object.entries(overrides)
+    if (entries.length === 0) return
+    // Only collect 'decouple' overrides (✗→✓) as actual constraints
+    // 'release' overrides (✓→✗) are intentional freedom grants — no constraint needed
     const pairSet = new Set()
-    keys.forEach((k) => {
+    entries.forEach(([k, intent]) => {
+      if (intent !== 'decouple') return // skip 'release' — no constraint
       const [rk, ck] = k.split('|')
       const normalized = rk < ck ? `${rk}|${ck}` : `${ck}|${rk}`
       pairSet.add(normalized)
     })
+    // Capture the current portfolio as a pinned snapshot before regeneration replaces everything
+    const currentPortfolio = portfolioAllocations[aIdx]
+    const pinnedSnapshot = currentPortfolio
+      ? { ...currentPortfolio, pinned: true }
+      : null
     // Clear overrides for this portfolio
     setFtCellOverrides((prev) => {
       const next = { ...prev }
@@ -3305,7 +3337,11 @@ export default function ComboPage({ openModal }) {
       next.delete(aIdx)
       return next
     })
-    regenerateWithOverrides({ decouplingPairs: pairSet })
+    // Regenerate with decoupling constraints + pinned portfolio
+    const regenOverrides = {}
+    if (pairSet.size > 0) regenOverrides.decouplingPairs = pairSet
+    if (pinnedSnapshot) regenOverrides._pinnedPortfolio = pinnedSnapshot
+    regenerateWithOverrides(regenOverrides)
   }
 
   // Extract unique team names from current candidates
@@ -4228,9 +4264,20 @@ export default function ComboPage({ openModal }) {
                       onClick={() => togglePortfolioExpand(aIdx)}
                       className="motion-v2-row flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/70 border border-indigo-100/60 cursor-pointer hover:bg-white transition-all"
                     >
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${aIdx === 0 ? 'bg-indigo-500 text-white' : 'bg-indigo-100 text-indigo-600'}`}>
-                        {aIdx === 0 ? '最优' : `#${aIdx + 1}`}
-                      </span>
+                      {(() => {
+                        const hasPinned = portfolioAllocations[0]?.pinned
+                        const isFirstNonPinned = hasPinned ? aIdx === 1 : aIdx === 0
+                        const rank = hasPinned ? aIdx : aIdx + 1 // rank among non-pinned (1-based)
+                        if (alloc.pinned) return (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: 'linear-gradient(135deg, #f59e0b, #f97316)' }}>定制</span>
+                        )
+                        if (isFirstNonPinned) return (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-500 text-white">最优</span>
+                        )
+                        return (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600">#{rank}</span>
+                        )
+                      })()}
                       <span className="text-[13px] font-medium text-stone-700 flex-1">
                         组合 {alloc.label}
                       </span>
@@ -4382,7 +4429,7 @@ export default function ComboPage({ openModal }) {
                                           return (
                                             <td key={colMatch.key} className="py-1.5 px-1.5 text-center">
                                               <button
-                                                onClick={() => handleFtCellToggle(aIdx, rowMatch.key, colMatch.key)}
+                                                onClick={() => handleFtCellToggle(aIdx, rowMatch.key, colMatch.key, survives)}
                                                 className="ft-cell-btn inline-flex items-center justify-center w-5 h-5 rounded-md cursor-pointer transition-all duration-200 ease-out hover:scale-110 active:scale-95"
                                                 style={{ background: displayGreen ? 'rgba(236,253,245,1)' : isFlipped ? 'rgba(236,253,245,0.7)' : 'rgba(255,241,242,1)', border: isFlipped ? '1.5px solid rgba(99,102,241,0.35)' : '1px solid transparent' }}
                                                 title={displayGreen ? `${colMatch.shortLabel} 存活` : `${colMatch.shortLabel} 全军覆没 — 点击以要求容错`}
