@@ -5202,7 +5202,7 @@ export default function ComboPage({ openModal }) {
         <div className="pointer-events-none absolute -bottom-16 -left-10 h-40 w-40 rounded-full bg-cyan-200/22 blur-3xl" />
         <div className="relative">
           <div className="flex items-start justify-between gap-4 mb-4">
-            <div className="mt-0.5 flex min-w-0 items-center gap-2.5">
+            <div className="mt-[3.3px] flex min-w-0 items-center gap-2.5">
               <span className="inline-flex h-5 w-5 items-center justify-center rounded-[8px] border border-sky-200/90 bg-gradient-to-br from-white/95 via-sky-50/85 to-cyan-50/80 text-sky-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
                 <Sparkles size={12} strokeWidth={1.9} />
               </span>
