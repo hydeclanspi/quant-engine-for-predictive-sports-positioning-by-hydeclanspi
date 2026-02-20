@@ -1877,6 +1877,14 @@ export default function ParamsPage({ openModal }) {
         'border-amber-200/90 bg-[linear-gradient(120deg,rgba(255,251,235,0.92),rgba(255,255,255,0.92)_56%,rgba(254,243,199,0.84))] text-amber-700',
     }
   }, [analyticsProgress.rating, ratingDiagnostics.meanAbsError])
+  const ratingScorePct = useMemo(() => {
+    if (ratingFitScore === null || !Number.isFinite(Number(ratingFitScore))) return 0
+    return Math.max(0, Math.min(100, Number((Number(ratingFitScore) * 100).toFixed(1))))
+  }, [ratingFitScore])
+  const ratingScoreDelta = useMemo(() => {
+    if (ratingFitScore === null || !Number.isFinite(Number(ratingFitScore))) return null
+    return Number((Number(ratingFitScore) - 0.75).toFixed(2))
+  }, [ratingFitScore])
   const settledInvestments = useMemo(
     () =>
       getInvestments().filter(
@@ -2361,7 +2369,7 @@ export default function ParamsPage({ openModal }) {
         <div className="pointer-events-none absolute -top-16 -left-16 h-44 w-44 rounded-full bg-sky-200/22 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 right-16 h-48 w-48 rounded-full bg-violet-200/16 blur-3xl" />
         <div className="relative">
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_236px]">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_268px]">
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-2.5">
                 <ConsoleCardIcon IconComp={BarChart3} />
@@ -2380,34 +2388,46 @@ export default function ParamsPage({ openModal }) {
               <div className="mt-3 rounded-xl border border-indigo-100/85 bg-white/78 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
                 <div className="flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.07em] text-stone-400">
                   <span>Fit Trajectory</span>
-                  <span>{analyticsProgress.rating ? `最近 ${Math.min(ratingRows.length, 36)} 场` : '样本计算中...'}</span>
+                  <span>{analyticsProgress.rating ? `最近 ${Math.min(ratingRows.length, 48)} 场` : '样本计算中...'}</span>
                 </div>
-                <div className="mt-2 h-[78px] rounded-lg border border-sky-100/85 bg-[linear-gradient(140deg,rgba(239,246,255,0.65),rgba(255,255,255,0.92)_48%,rgba(245,243,255,0.56))] px-2 py-1.5">
-                  <svg viewBox="0 0 100 36" className="h-full w-full">
+                <div className="mt-2 h-[122px] rounded-xl border border-sky-100/85 bg-[linear-gradient(140deg,rgba(239,246,255,0.68),rgba(255,255,255,0.94)_48%,rgba(245,243,255,0.62))] px-2.5 py-2">
+                  <svg viewBox="0 0 164 64" className="h-full w-full">
                     {(() => {
                       const series = ratingRows
-                        .slice(-36)
+                        .slice(-48)
                         .map((row) => Number(row.diff))
                         .filter((value) => Number.isFinite(value))
                       if (series.length === 0) {
                         return (
-                          <text x="50" y="19" textAnchor="middle" fontSize="3.2" fill="#94a3b8">
+                          <text x="82" y="32" textAnchor="middle" fontSize="4" fill="#94a3b8">
                             暂无拟合轨迹
                           </text>
                         )
                       }
-                      const min = Math.min(...series, -0.18)
-                      const max = Math.max(...series, 0.18)
-                      const span = Math.max(max - min, 0.06)
-                      const step = series.length > 1 ? 88 / (series.length - 1) : 0
+                      const rawMin = Math.min(...series)
+                      const rawMax = Math.max(...series)
+                      const spread = Math.max(rawMax - rawMin, 0.03)
+                      const padding = Math.max(spread * 0.22, 0.015)
+                      const min = Math.min(rawMin - padding, -0.05)
+                      const max = Math.max(rawMax + padding, 0.05)
+                      const span = Math.max(max - min, 0.08)
+                      const chartLeft = 4
+                      const chartRight = 160
+                      const chartTop = 8
+                      const chartBottom = 52
+                      const step = series.length > 1 ? (chartRight - chartLeft) / (series.length - 1) : 0
                       const points = series.map((value, idx) => {
-                        const x = 6 + idx * step
-                        const y = 28 - ((value - min) / span) * 20
+                        const x = chartLeft + idx * step
+                        const y = chartBottom - ((value - min) / span) * (chartBottom - chartTop)
                         return { x, y, value }
                       })
-                      const line = points.map((point) => `${point.x},${point.y}`).join(' ')
-                      const zeroY = 28 - ((0 - min) / span) * 20
+                      const line = points.map((point, idx) => `${idx === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
+                      const sampledPoints = points.filter((_, idx) => idx % Math.max(1, Math.floor(points.length / 14)) === 0)
+                      const first = points[0]
                       const latest = points[points.length - 1]
+                      const zeroYRaw = chartBottom - ((0 - min) / span) * (chartBottom - chartTop)
+                      const zeroY = Math.max(chartTop, Math.min(chartBottom, zeroYRaw))
+                      const areaPath = `${line} L ${latest.x} ${chartBottom} L ${first.x} ${chartBottom} Z`
                       return (
                         <>
                           <defs>
@@ -2416,18 +2436,36 @@ export default function ParamsPage({ openModal }) {
                               <stop offset="45%" stopColor="#6366f1" />
                               <stop offset="100%" stopColor="#8b5cf6" />
                             </linearGradient>
+                            <linearGradient id="coreFitAreaLg" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" stopColor="rgba(99,102,241,0.24)" />
+                              <stop offset="100%" stopColor="rgba(99,102,241,0.02)" />
+                            </linearGradient>
                           </defs>
-                          <line x1="6" y1={zeroY} x2="94" y2={zeroY} stroke="#bfdbfe" strokeWidth="0.55" strokeDasharray="1.4 1.6" />
-                          <polyline fill="none" stroke="url(#coreFitLineLg)" strokeWidth="1.18" strokeLinecap="round" points={line} />
+                          <line x1={chartLeft} y1={chartTop} x2={chartRight} y2={chartTop} stroke="#eff6ff" strokeWidth="0.8" />
+                          <line x1={chartLeft} y1={chartBottom} x2={chartRight} y2={chartBottom} stroke="#eff6ff" strokeWidth="0.8" />
+                          <line x1={chartLeft} y1={zeroY} x2={chartRight} y2={zeroY} stroke="#bfdbfe" strokeWidth="0.7" strokeDasharray="2 1.8" />
+                          <line x1="56" y1={chartTop} x2="56" y2={chartBottom} stroke="#e0e7ff" strokeWidth="0.6" />
+                          <line x1="108" y1={chartTop} x2="108" y2={chartBottom} stroke="#e0e7ff" strokeWidth="0.6" />
+                          <path d={areaPath} fill="url(#coreFitAreaLg)" />
+                          <path d={line} fill="none" stroke="url(#coreFitLineLg)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                          {sampledPoints.map((point) => (
+                            <circle key={`fit-point-${point.x}-${point.y}`} cx={point.x} cy={point.y} r="0.85" fill="#6366f1" opacity="0.55" />
+                          ))}
                           {latest && (
                             <>
-                              <circle cx={latest.x} cy={latest.y} r="1.45" fill="#6366f1" />
-                              <text x={Math.max(6, latest.x - 9)} y={Math.max(4, latest.y - 2)} fontSize="2.8" fill="#6366f1">
+                              <circle cx={latest.x} cy={latest.y} r="1.95" fill="#6366f1" />
+                              <text x={Math.max(chartLeft, latest.x - 10)} y={Math.max(chartTop, latest.y - 3)} fontSize="2.9" fill="#6366f1">
                                 {latest.value >= 0 ? '+' : ''}
                                 {latest.value.toFixed(2)}
                               </text>
                             </>
                           )}
+                          <text x={chartLeft} y="61" fontSize="2.6" fill="#94a3b8">
+                            start
+                          </text>
+                          <text x={chartRight - 11} y="61" fontSize="2.6" fill="#94a3b8">
+                            now
+                          </text>
                         </>
                       )
                     })()}
@@ -2472,20 +2510,70 @@ export default function ParamsPage({ openModal }) {
               <div className="mt-1 text-4xl font-bold text-amber-600">
                 {ratingFitScore !== null ? ratingFitScore.toFixed(2) : '--'}
               </div>
-              <div className="mt-2.5 space-y-1.5">
-                <p className="text-xs text-emerald-600">
-                  {analyticsProgress.rating ? `样本 ${ratingRows.length}` : '样本计算中...'}
-                </p>
-                <div className="flex items-center justify-between gap-1.5">
-                  <span className={`inline-flex items-center rounded-[10px] border px-2 py-0.5 text-[10px] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ${fitHealth.badge}`}>
-                    {fitHealth.label}
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-[10px] border border-emerald-200/90 bg-[linear-gradient(120deg,rgba(236,253,245,0.9),rgba(255,255,255,0.9)_56%,rgba(220,252,231,0.82))] px-2 py-0.5 text-[10px] font-semibold text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
-                    <span className="uppercase tracking-[0.06em] text-emerald-500/90">CI</span>
-                    <span>{calibrationConfidenceBand !== null ? `±${calibrationConfidenceBand.toFixed(3)}` : '--'}</span>
-                  </span>
+              <p className="mt-1 text-xs text-emerald-600">
+                {analyticsProgress.rating ? `样本 ${ratingRows.length}` : '样本计算中...'}
+              </p>
+
+              <div className="mt-2.5 flex items-center justify-between gap-1.5">
+                <span className={`inline-flex items-center rounded-[10px] border px-2 py-0.5 text-[10px] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ${fitHealth.badge}`}>
+                  {fitHealth.label}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-[10px] border border-emerald-200/90 bg-[linear-gradient(120deg,rgba(236,253,245,0.9),rgba(255,255,255,0.9)_56%,rgba(220,252,231,0.82))] px-2 py-0.5 text-[10px] font-semibold text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                  <span className="uppercase tracking-[0.06em] text-emerald-500/90">CI</span>
+                  <span>{calibrationConfidenceBand !== null ? `±${calibrationConfidenceBand.toFixed(3)}` : '--'}</span>
+                </span>
+              </div>
+
+              <div className="mt-2.5 rounded-xl border border-indigo-100/85 bg-white/78 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
+                <div className="flex items-center justify-between text-[9.5px] font-semibold uppercase tracking-[0.07em] text-stone-400">
+                  <span>Score Band</span>
+                  <span>{ratingFitScore !== null ? `${ratingScorePct.toFixed(1)}%` : '--'}</span>
+                </div>
+                <div className="mt-1.5 h-1.5 rounded-full bg-indigo-100/80">
+                  <div
+                    className="h-full rounded-full bg-[linear-gradient(90deg,rgba(14,165,233,0.92),rgba(99,102,241,0.9)_58%,rgba(139,92,246,0.92))] shadow-[0_3px_10px_-6px_rgba(79,70,229,0.8)]"
+                    style={{ width: `${ratingScorePct}%` }}
+                  />
+                </div>
+                <div className="mt-1 flex items-center justify-between text-[9px] text-stone-400">
+                  <span>0.00</span>
+                  <span>target 0.75</span>
+                  <span>1.00</span>
                 </div>
               </div>
+
+              <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+                <div className="rounded-lg border border-sky-100/85 bg-sky-50/65 px-2 py-1.5">
+                  <p className="text-[9px] uppercase tracking-[0.06em] text-sky-500">近窗命中</p>
+                  <p className="mt-0.5 text-xs font-semibold text-sky-700">
+                    {ratingDiagnostics.closeHitPct !== null ? `${ratingDiagnostics.closeHitPct}%` : '--'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-indigo-100/85 bg-indigo-50/70 px-2 py-1.5">
+                  <p className="text-[9px] uppercase tracking-[0.06em] text-indigo-500">Mean Abs Err</p>
+                  <p className="mt-0.5 text-xs font-semibold text-indigo-700">
+                    {ratingDiagnostics.meanAbsError !== null ? ratingDiagnostics.meanAbsError.toFixed(3) : '--'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-emerald-100/85 bg-emerald-50/70 px-2 py-1.5">
+                  <p className="text-[9px] uppercase tracking-[0.06em] text-emerald-500">Bias</p>
+                  <p className={`mt-0.5 text-xs font-semibold ${ratingDiagnostics.meanBias !== null && ratingDiagnostics.meanBias >= 0 ? 'text-emerald-700' : 'text-rose-500'}`}>
+                    {ratingDiagnostics.meanBias !== null ? toSigned(ratingDiagnostics.meanBias, 3) : '--'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-violet-100/85 bg-violet-50/70 px-2 py-1.5">
+                  <p className="text-[9px] uppercase tracking-[0.06em] text-violet-500">R²</p>
+                  <p className="mt-0.5 text-xs font-semibold text-violet-700">
+                    {regressionSnapshot.r2 !== null ? `${(regressionSnapshot.r2 * 100).toFixed(1)}%` : '--'}
+                  </p>
+                </div>
+              </div>
+
+              <p className="mt-2.5 text-[10px] leading-4 text-stone-400">
+                {ratingScoreDelta === null
+                  ? '拟合得分等待样本刷新后自动更新。'
+                  : `相对目标 0.75 ${ratingScoreDelta >= 0 ? '领先' : '落后'} ${Math.abs(ratingScoreDelta).toFixed(2)}。`}
+              </p>
             </div>
           </div>
         </div>
