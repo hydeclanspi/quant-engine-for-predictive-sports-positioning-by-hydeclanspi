@@ -4656,7 +4656,22 @@ export default function ComboPage({ openModal }) {
                       : 'border-emerald-200/70 bg-white/75 text-emerald-500 hover:bg-emerald-50/70'
                   }`}
                 >
-                  <Sparkles size={13} strokeWidth={1.9} />
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path
+                      d="M4.25 2.95c2.8.3 4.58 2.38 4.58 4.96 0 2.05-1 3.66-2.68 5.03"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M4.2 11.65l1.9 1.9 2.05-1.9"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                 </button>
                 <button
                   onClick={toggleExpandAllQuickComboDetails}
