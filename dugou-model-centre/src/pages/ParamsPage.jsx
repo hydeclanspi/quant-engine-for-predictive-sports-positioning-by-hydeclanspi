@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
+  AlertTriangle,
   BarChart3,
   ChevronRight,
   Clock3,
@@ -2306,77 +2307,110 @@ export default function ParamsPage({ openModal }) {
       </div>
 
       <div className="grid grid-cols-2 gap-6 mb-6">
-        <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
-          <h3 className="font-medium text-stone-700 mb-4 flex items-center gap-2">
-            <ConsoleCardIcon IconComp={Wallet} /> 资金与风控
-          </h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl">
-              <div>
-                <span className="text-sm text-stone-700">初始本金</span>
-                <p className="text-xs text-stone-400">Initial Capital</p>
+        <div className="glow-card relative overflow-hidden rounded-2xl border border-emerald-100/85 bg-[linear-gradient(145deg,rgba(246,253,250,0.97),rgba(255,255,255,0.95)_48%,rgba(241,246,255,0.9))] p-6 shadow-[0_18px_34px_-30px_rgba(16,185,129,0.42)]">
+          <div className="pointer-events-none absolute -top-16 -left-16 h-40 w-40 rounded-full bg-emerald-200/18 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 right-12 h-44 w-44 rounded-full bg-violet-200/14 blur-3xl" />
+          <div className="relative">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                <ConsoleCardIcon IconComp={Wallet} />
+                <div>
+                  <h3 className="font-semibold text-stone-700 leading-tight">资金与风控</h3>
+                  <p className="mt-1 text-[11px] font-medium tracking-[0.03em] text-stone-400">Capital & Risk Controls</p>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <span className="text-stone-400">¥</span>
-                <input
-                  type="number"
-                  value={config.initialCapital}
-                  onChange={(event) => handleConfigChange('initialCapital', event.target.value)}
-                  onBlur={() => {
-                    const value = Math.max(0, Number(config.initialCapital || 0))
-                    saveSystemConfig({ initialCapital: value })
-                  }}
-                  className="input-glow w-24 px-2 py-1.5 text-right text-sm font-medium rounded-lg border border-stone-200"
-                />
-              </div>
+              <span className="inline-flex items-center rounded-[10px] border border-emerald-200/85 bg-[linear-gradient(120deg,rgba(236,253,245,0.9),rgba(255,255,255,0.88)_58%,rgba(224,242,254,0.75))] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]">
+                4 Params
+              </span>
             </div>
+            <div className="mb-4 h-px bg-gradient-to-r from-emerald-200/80 via-sky-200/70 to-transparent" />
 
-            <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl">
-              <div>
-                <span className="text-sm text-stone-700">风控比例上限</span>
-                <p className="text-xs text-stone-400">Risk Cap Ratio</p>
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+              <div className="relative sm:col-span-3 rounded-2xl border border-emerald-100/80 bg-[linear-gradient(145deg,rgba(255,255,255,0.9),rgba(236,253,245,0.62)_58%,rgba(224,242,254,0.5))] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_14px_26px_-24px_rgba(16,185,129,0.42)]">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="inline-flex h-7 w-7 items-center justify-center rounded-xl border border-emerald-200/85 bg-white/88 text-emerald-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
+                      <Wallet size={14} strokeWidth={1.8} />
+                    </div>
+                    <p className="mt-2 text-sm font-semibold text-stone-700">初始本金</p>
+                    <p className="text-[11px] text-stone-400">Initial Capital</p>
+                  </div>
+                  <div className="flex items-center gap-1 pt-1">
+                    <span className="text-stone-400 text-sm">¥</span>
+                    <input
+                      type="number"
+                      value={config.initialCapital}
+                      onChange={(event) => handleConfigChange('initialCapital', event.target.value)}
+                      onBlur={() => {
+                        const value = Math.max(0, Number(config.initialCapital || 0))
+                        saveSystemConfig({ initialCapital: value })
+                      }}
+                      className="input-glow w-24 rounded-lg border border-stone-200/85 bg-white/90 px-2.5 py-1.5 text-right text-sm font-semibold text-stone-700"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  step="0.01"
-                  value={config.riskCapRatio}
-                  onChange={(event) => handleConfigChange('riskCapRatio', event.target.value)}
-                  className="input-glow w-24 px-2 py-1.5 text-right text-sm font-medium rounded-lg border border-stone-200"
-                />
-              </div>
-            </div>
 
-            <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl">
-              <div>
-                <span className="text-sm text-stone-700">默认 Odds</span>
-                <p className="text-xs text-stone-400">Default Odds</p>
+              <div className="relative sm:col-span-2 rounded-2xl border border-sky-100/80 bg-[linear-gradient(145deg,rgba(255,255,255,0.9),rgba(239,246,255,0.66)_58%,rgba(238,242,255,0.56))] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_14px_26px_-24px_rgba(59,130,246,0.42)]">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="inline-flex h-7 w-7 items-center justify-center rounded-xl border border-sky-200/85 bg-white/88 text-sky-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
+                      <ShieldCheck size={14} strokeWidth={1.8} />
+                    </div>
+                    <p className="mt-2 text-sm font-semibold text-stone-700">风控比例上限</p>
+                    <p className="text-[11px] text-stone-400">Risk Cap Ratio</p>
+                  </div>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={config.riskCapRatio}
+                    onChange={(event) => handleConfigChange('riskCapRatio', event.target.value)}
+                    className="input-glow w-24 rounded-lg border border-stone-200/85 bg-white/90 px-2.5 py-1.5 text-right text-sm font-semibold text-stone-700"
+                  />
+                </div>
               </div>
-              <input
-                type="number"
-                step="0.01"
-                value={config.defaultOdds}
-                onChange={(event) => handleConfigChange('defaultOdds', event.target.value)}
-                className="input-glow w-24 px-2 py-1.5 text-right text-sm font-medium rounded-lg border border-stone-200"
-              />
-            </div>
 
-            <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl">
-              <div>
-                <span className="text-sm text-stone-700">最坏回撤二次确认阈值</span>
-                <p className="text-xs text-stone-400">Worst Drawdown Confirm (%)</p>
+              <div className="relative sm:col-span-2 rounded-2xl border border-violet-100/85 bg-[linear-gradient(145deg,rgba(255,255,255,0.9),rgba(245,243,255,0.7)_58%,rgba(238,242,255,0.58))] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_14px_26px_-24px_rgba(139,92,246,0.36)]">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="inline-flex h-7 w-7 items-center justify-center rounded-xl border border-violet-200/85 bg-white/88 text-violet-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
+                      <LineChart size={14} strokeWidth={1.8} />
+                    </div>
+                    <p className="mt-2 text-sm font-semibold text-stone-700">默认 Odds</p>
+                    <p className="text-[11px] text-stone-400">Default Odds</p>
+                  </div>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={config.defaultOdds}
+                    onChange={(event) => handleConfigChange('defaultOdds', event.target.value)}
+                    className="input-glow w-24 rounded-lg border border-stone-200/85 bg-white/90 px-2.5 py-1.5 text-right text-sm font-semibold text-stone-700"
+                  />
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  min="5"
-                  max="95"
-                  step="1"
-                  value={config.maxWorstDrawdownAlertPct}
-                  onChange={(event) => handleConfigChange('maxWorstDrawdownAlertPct', event.target.value)}
-                  className="input-glow w-24 px-2 py-1.5 text-right text-sm font-medium rounded-lg border border-stone-200"
-                />
-                <span className="text-stone-400 text-sm">%</span>
+
+              <div className="relative sm:col-span-3 rounded-2xl border border-amber-100/85 bg-[linear-gradient(145deg,rgba(255,255,255,0.9),rgba(255,251,235,0.72)_58%,rgba(254,242,242,0.5))] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_14px_26px_-24px_rgba(245,158,11,0.36)]">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="inline-flex h-7 w-7 items-center justify-center rounded-xl border border-amber-200/85 bg-white/88 text-amber-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
+                      <AlertTriangle size={14} strokeWidth={1.8} />
+                    </div>
+                    <p className="mt-2 text-sm font-semibold text-stone-700">最坏回撤二次确认阈值</p>
+                    <p className="text-[11px] text-stone-400">Worst Drawdown Confirm (%)</p>
+                  </div>
+                  <div className="flex items-center gap-1 pt-1">
+                    <input
+                      type="number"
+                      min="5"
+                      max="95"
+                      step="1"
+                      value={config.maxWorstDrawdownAlertPct}
+                      onChange={(event) => handleConfigChange('maxWorstDrawdownAlertPct', event.target.value)}
+                      className="input-glow w-24 rounded-lg border border-stone-200/85 bg-white/90 px-2.5 py-1.5 text-right text-sm font-semibold text-stone-700"
+                    />
+                    <span className="text-stone-400 text-sm">%</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
