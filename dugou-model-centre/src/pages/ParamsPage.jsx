@@ -1844,6 +1844,39 @@ export default function ParamsPage({ openModal }) {
     const std = Math.sqrt(Math.max(variance, 0))
     return Number((1.645 * std).toFixed(3))
   }, [analyticsProgress.rating, ratingRows])
+  const fitHealth = useMemo(() => {
+    if (!analyticsProgress.rating || ratingDiagnostics.meanAbsError === null) {
+      return {
+        label: '数据准备中',
+        tone: 'text-stone-500',
+        badge:
+          'border-stone-200/90 bg-[linear-gradient(120deg,rgba(250,250,250,0.94),rgba(255,255,255,0.92)_56%,rgba(245,245,245,0.86))] text-stone-500',
+      }
+    }
+    const mae = Math.abs(Number(ratingDiagnostics.meanAbsError || 0))
+    if (mae <= 0.08) {
+      return {
+        label: '拟合稳定',
+        tone: 'text-emerald-700',
+        badge:
+          'border-emerald-200/90 bg-[linear-gradient(120deg,rgba(236,253,245,0.92),rgba(255,255,255,0.92)_56%,rgba(220,252,231,0.84))] text-emerald-700',
+      }
+    }
+    if (mae <= 0.14) {
+      return {
+        label: '拟合中性',
+        tone: 'text-sky-700',
+        badge:
+          'border-sky-200/90 bg-[linear-gradient(120deg,rgba(240,249,255,0.92),rgba(255,255,255,0.92)_56%,rgba(224,242,254,0.84))] text-sky-700',
+      }
+    }
+    return {
+      label: '需校准关注',
+      tone: 'text-amber-700',
+      badge:
+        'border-amber-200/90 bg-[linear-gradient(120deg,rgba(255,251,235,0.92),rgba(255,255,255,0.92)_56%,rgba(254,243,199,0.84))] text-amber-700',
+    }
+  }, [analyticsProgress.rating, ratingDiagnostics.meanAbsError])
   const settledInvestments = useMemo(
     () =>
       getInvestments().filter(
@@ -2328,62 +2361,131 @@ export default function ParamsPage({ openModal }) {
         <div className="pointer-events-none absolute -top-16 -left-16 h-44 w-44 rounded-full bg-sky-200/22 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 right-16 h-48 w-48 rounded-full bg-violet-200/16 blur-3xl" />
         <div className="relative">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_236px]">
             <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-2.5">
                 <ConsoleCardIcon IconComp={BarChart3} />
                 <span className="text-xs text-indigo-600 font-medium uppercase tracking-[0.08em]">Core Metric</span>
                 <span className="inline-flex items-center rounded-[8px] border border-indigo-200/85 bg-white/82 px-1.5 py-[1px] text-[9px] font-semibold uppercase tracking-[0.08em] text-indigo-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.94)]">
                   fit engine
                 </span>
               </div>
-              <h3 className="text-xl font-semibold text-stone-800">Expected vs Actual Judgmental Rating</h3>
-              <p className="text-sm text-stone-500 mt-1">系统预期拟合度 · 点击查看完整历史记录</p>
-              <p className="mt-2 text-[11px] text-stone-400">
-                基于已结算样本持续跟踪模型判断与真实结果的贴合程度，并同步输出稳定性诊断。
-              </p>
+
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <h3 className="text-[23px] leading-tight font-semibold text-stone-800">Expected vs Actual Judgmental Rating</h3>
+                <span className="text-[11px] font-medium text-stone-400">点击查看完整历史记录</span>
+              </div>
+              <p className="mt-1.5 text-sm text-stone-500">系统预期拟合度：持续跟踪模型判断与真实结果的贴合程度。</p>
+
+              <div className="mt-3 rounded-xl border border-indigo-100/85 bg-white/78 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
+                <div className="flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.07em] text-stone-400">
+                  <span>Fit Trajectory</span>
+                  <span>{analyticsProgress.rating ? `最近 ${Math.min(ratingRows.length, 36)} 场` : '样本计算中...'}</span>
+                </div>
+                <div className="mt-2 h-[78px] rounded-lg border border-sky-100/85 bg-[linear-gradient(140deg,rgba(239,246,255,0.65),rgba(255,255,255,0.92)_48%,rgba(245,243,255,0.56))] px-2 py-1.5">
+                  <svg viewBox="0 0 100 36" className="h-full w-full">
+                    {(() => {
+                      const series = ratingRows
+                        .slice(-36)
+                        .map((row) => Number(row.diff))
+                        .filter((value) => Number.isFinite(value))
+                      if (series.length === 0) {
+                        return (
+                          <text x="50" y="19" textAnchor="middle" fontSize="3.2" fill="#94a3b8">
+                            暂无拟合轨迹
+                          </text>
+                        )
+                      }
+                      const min = Math.min(...series, -0.18)
+                      const max = Math.max(...series, 0.18)
+                      const span = Math.max(max - min, 0.06)
+                      const step = series.length > 1 ? 88 / (series.length - 1) : 0
+                      const points = series.map((value, idx) => {
+                        const x = 6 + idx * step
+                        const y = 28 - ((value - min) / span) * 20
+                        return { x, y, value }
+                      })
+                      const line = points.map((point) => `${point.x},${point.y}`).join(' ')
+                      const zeroY = 28 - ((0 - min) / span) * 20
+                      const latest = points[points.length - 1]
+                      return (
+                        <>
+                          <defs>
+                            <linearGradient id="coreFitLineLg" x1="0%" y1="0%" x2="100%" y2="0%">
+                              <stop offset="0%" stopColor="#0ea5e9" />
+                              <stop offset="45%" stopColor="#6366f1" />
+                              <stop offset="100%" stopColor="#8b5cf6" />
+                            </linearGradient>
+                          </defs>
+                          <line x1="6" y1={zeroY} x2="94" y2={zeroY} stroke="#bfdbfe" strokeWidth="0.55" strokeDasharray="1.4 1.6" />
+                          <polyline fill="none" stroke="url(#coreFitLineLg)" strokeWidth="1.18" strokeLinecap="round" points={line} />
+                          {latest && (
+                            <>
+                              <circle cx={latest.x} cy={latest.y} r="1.45" fill="#6366f1" />
+                              <text x={Math.max(6, latest.x - 9)} y={Math.max(4, latest.y - 2)} fontSize="2.8" fill="#6366f1">
+                                {latest.value >= 0 ? '+' : ''}
+                                {latest.value.toFixed(2)}
+                              </text>
+                            </>
+                          )}
+                        </>
+                      )
+                    })()}
+                  </svg>
+                </div>
+              </div>
+
+              <div className="mt-3 rounded-xl border border-indigo-100/85 bg-white/76 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
+                <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-indigo-100/70">
+                  <div className="px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">近窗命中</p>
+                    <p className="mt-0.5 text-base font-semibold text-sky-700">
+                      {ratingDiagnostics.closeHitPct !== null ? `${ratingDiagnostics.closeHitPct}%` : '--'}
+                    </p>
+                  </div>
+                  <div className="px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">均值偏差</p>
+                    <p className={`mt-0.5 text-base font-semibold ${ratingDiagnostics.meanBias !== null && ratingDiagnostics.meanBias >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                      {ratingDiagnostics.meanBias !== null ? toSigned(ratingDiagnostics.meanBias, 3) : '--'}
+                    </p>
+                  </div>
+                  <div className="px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">均值绝对误差</p>
+                    <p className="mt-0.5 text-base font-semibold text-indigo-700">
+                      {ratingDiagnostics.meanAbsError !== null ? ratingDiagnostics.meanAbsError.toFixed(3) : '--'}
+                    </p>
+                  </div>
+                  <div className="px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">回归 R² / RMSE</p>
+                    <p className="mt-0.5 text-base font-semibold text-amber-700">
+                      {regressionSnapshot.r2 !== null ? `${(regressionSnapshot.r2 * 100).toFixed(1)}%` : '--'}
+                      <span className="mx-1.5 text-stone-300">·</span>
+                      <span className="text-indigo-700">{regressionSnapshot.rmse !== null ? regressionSnapshot.rmse.toFixed(3) : '--'}</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="shrink-0 w-full max-w-[220px] rounded-2xl border border-indigo-200/85 bg-[linear-gradient(145deg,rgba(255,255,255,0.9),rgba(239,246,255,0.72)_55%,rgba(238,242,255,0.64))] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.94),0_18px_30px_-28px_rgba(79,70,229,0.5)]">
+
+            <div className="shrink-0 rounded-2xl border border-indigo-200/85 bg-[linear-gradient(145deg,rgba(255,255,255,0.9),rgba(239,246,255,0.72)_55%,rgba(238,242,255,0.64))] px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.94),0_18px_30px_-28px_rgba(79,70,229,0.5)]">
               <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-stone-400">Calibration Score</p>
               <div className="mt-1 text-4xl font-bold text-amber-600">
                 {ratingFitScore !== null ? ratingFitScore.toFixed(2) : '--'}
               </div>
-              <div className="mt-2 flex items-center justify-between gap-2">
+              <div className="mt-2.5 space-y-1.5">
                 <p className="text-xs text-emerald-600">
                   {analyticsProgress.rating ? `样本 ${ratingRows.length}` : '样本计算中...'}
                 </p>
-                <span className="inline-flex items-center gap-1 rounded-[10px] border border-emerald-200/90 bg-[linear-gradient(120deg,rgba(236,253,245,0.9),rgba(255,255,255,0.9)_56%,rgba(220,252,231,0.82))] px-2 py-0.5 text-[10px] font-semibold text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
-                  <span className="uppercase tracking-[0.06em] text-emerald-500/90">CI</span>
-                  <span>{calibrationConfidenceBand !== null ? `±${calibrationConfidenceBand.toFixed(3)}` : '--'}</span>
-                </span>
+                <div className="flex items-center justify-between gap-1.5">
+                  <span className={`inline-flex items-center rounded-[10px] border px-2 py-0.5 text-[10px] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ${fitHealth.badge}`}>
+                    {fitHealth.label}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-[10px] border border-emerald-200/90 bg-[linear-gradient(120deg,rgba(236,253,245,0.9),rgba(255,255,255,0.9)_56%,rgba(220,252,231,0.82))] px-2 py-0.5 text-[10px] font-semibold text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                    <span className="uppercase tracking-[0.06em] text-emerald-500/90">CI</span>
+                    <span>{calibrationConfidenceBand !== null ? `±${calibrationConfidenceBand.toFixed(3)}` : '--'}</span>
+                  </span>
+                </div>
               </div>
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 xl:grid-cols-4 gap-2.5">
-            <div className="rounded-xl border border-sky-100/90 bg-white/82 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
-              <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">近窗命中</p>
-              <p className="mt-1 text-lg font-semibold text-sky-700">
-                {ratingDiagnostics.closeHitPct !== null ? `${ratingDiagnostics.closeHitPct}%` : '--'}
-              </p>
-            </div>
-            <div className="rounded-xl border border-violet-100/90 bg-white/82 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
-              <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">均值偏差</p>
-              <p className={`mt-1 text-lg font-semibold ${ratingDiagnostics.meanBias !== null && ratingDiagnostics.meanBias >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                {ratingDiagnostics.meanBias !== null ? toSigned(ratingDiagnostics.meanBias, 3) : '--'}
-              </p>
-            </div>
-            <div className="rounded-xl border border-indigo-100/90 bg-white/82 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
-              <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">回归 R²</p>
-              <p className="mt-1 text-lg font-semibold text-indigo-700">
-                {regressionSnapshot.r2 !== null ? `${(regressionSnapshot.r2 * 100).toFixed(1)}%` : '--'}
-              </p>
-            </div>
-            <div className="rounded-xl border border-amber-100/90 bg-white/82 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
-              <p className="text-[10px] uppercase tracking-[0.07em] text-stone-400">回归 RMSE</p>
-              <p className="mt-1 text-lg font-semibold text-amber-700">
-                {regressionSnapshot.rmse !== null ? regressionSnapshot.rmse.toFixed(3) : '--'}
-              </p>
             </div>
           </div>
         </div>
