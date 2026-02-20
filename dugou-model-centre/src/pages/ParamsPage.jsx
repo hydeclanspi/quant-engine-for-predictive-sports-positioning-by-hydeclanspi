@@ -1833,6 +1833,17 @@ export default function ParamsPage({ openModal }) {
       : null
     return { r2, rmse }
   }, [analyticsProgress.calibration, calibrationContext.regression])
+  const calibrationConfidenceBand = useMemo(() => {
+    if (!analyticsProgress.rating || ratingRows.length < 2) return null
+    const diffs = ratingRows
+      .map((row) => Number(row.diff))
+      .filter((value) => Number.isFinite(value))
+    if (diffs.length < 2) return null
+    const mean = diffs.reduce((sum, value) => sum + value, 0) / diffs.length
+    const variance = diffs.reduce((sum, value) => sum + (value - mean) ** 2, 0) / Math.max(diffs.length - 1, 1)
+    const std = Math.sqrt(Math.max(variance, 0))
+    return Number((1.645 * std).toFixed(3))
+  }, [analyticsProgress.rating, ratingRows])
   const settledInvestments = useMemo(
     () =>
       getInvestments().filter(
@@ -2341,8 +2352,9 @@ export default function ParamsPage({ openModal }) {
                 <p className="text-xs text-emerald-600">
                   {analyticsProgress.rating ? `样本 ${ratingRows.length}` : '样本计算中...'}
                 </p>
-                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${modelValidationMeta.badge}`}>
-                  {modelValidationMeta.label}
+                <span className="inline-flex items-center gap-1 rounded-[10px] border border-sky-200/90 bg-[linear-gradient(120deg,rgba(236,254,255,0.88),rgba(255,255,255,0.9)_56%,rgba(224,242,254,0.8))] px-2 py-0.5 text-[10px] font-semibold text-sky-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                  <span className="uppercase tracking-[0.06em] text-sky-500/90">CI</span>
+                  <span>{calibrationConfidenceBand !== null ? `±${calibrationConfidenceBand.toFixed(3)}` : '--'}</span>
                 </span>
               </div>
             </div>
