@@ -3633,7 +3633,7 @@ export default function ComboPage({ openModal }) {
     <div className="page-shell page-content-wide motion-v2-scope">
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-stone-800 font-display">智能组合建议</h2>
-        <p className="text-stone-400 text-sm mt-1">基于 Portfolio Optimization 的最优下注方案</p>
+        <p className="text-stone-400 text-sm mt-1">基于 Portfolio Optimization 的最优投资方案</p>
       </div>
 
       <div className={`combo-main-grid mb-6${leftPanelCollapsed ? ' combo-left-collapsed' : ''}`}>
@@ -5147,7 +5147,7 @@ export default function ComboPage({ openModal }) {
             </div>
           )}
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium text-stone-700">分层下注建议</h3>
+            <h3 className="font-medium text-stone-700">分层投资建议</h3>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowRiskProbe((prev) => !prev)}
