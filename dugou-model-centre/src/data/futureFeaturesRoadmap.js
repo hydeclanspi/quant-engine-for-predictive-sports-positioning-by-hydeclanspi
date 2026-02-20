@@ -34,7 +34,7 @@ export const FUTURE_FEATURE_OVERVIEW_TEXT = `### 4. 高级 AI/ML 赋能汇报（
 **⑤ 碰撞模拟引擎 (Collision Simulation Engine)**
 
 - 思路：在每场比赛层先生成带不确定性的 outcome 分布（胜/平/负及其置信带），再在组合层做多轮"场景碰撞"（Scenario Collision）模拟，输出分位数收益、尾部回撤和结构脆弱点。
-- 价值：比单点 EV 更贴近真实下注感受，能看见"同样高 EV 但回撤路径完全不同"的组合差异，帮助你筛掉看似高分但结构脆弱的方案。
+- 价值：比单点 EV 更贴近真实投资感受，能看见"同样高 EV 但回撤路径完全不同"的组合差异，帮助你筛掉看似高分但结构脆弱的方案。
 - 挑战：需要更细粒度的结果采样逻辑（赔率冲击、模式冲击、联赛共振冲击）和更严格的回测切分，避免模拟器过拟合历史噪声。
 
 **⑥ NLP 舆情信号 (Sentiment Signal)**
@@ -58,11 +58,11 @@ export const FUTURE_FEATURE_OVERVIEW_TEXT = `### 4. 高级 AI/ML 赋能汇报（
 
 #### Tier 3 — 实验性 / 长期方向
 
-**⑨ Reinforcement Learning 下注策略**
+**⑨ Reinforcement Learning 投资策略**
 
 - 思路：把 Kelly sizing + combo selection 建模为 MDP (Markov Decision Process)。State = 当前资金 + 今日比赛参数，Action = 选哪些 combo + 各投多少，Reward = 实际 P&L。
 - 用 PPO/DQN 训练策略网络，自动学习最优 combo 构成和仓位分配。
-- 挑战：超大 action space，样本效率极低（需要数万轮交互），不太适合真实下注场景。可以用模拟环境离线训练。
+- 挑战：超大 action space，样本效率极低（需要数万轮交互），不太适合真实投资场景。可以用模拟环境离线训练。
 
 **⑩ 图神经网络 (GNN) 建模球队关系**
 
@@ -93,7 +93,7 @@ export const FUTURE_FEATURE_POINTS = [
   { id: '5', tier: 'Tier 2', title: `⑥ NLP 舆情信号 (Sentiment Signal)`, shortIntro: `引入赛前新闻与伤停舆情的语义信号，为 Conf 提供外部信息校验，捕捉纯参数难以感知的突发变量。` },
   { id: '6', tier: 'Tier 2', title: `⑦ 赔率变动时序建模 (Odds Movement Features)`, shortIntro: `把开盘到临场的赔率路径转成时序特征，利用市场资金流变化校准主观判断与风险暴露。` },
   { id: '7', tier: 'Tier 2', title: `⑧ Ensemble 模型 + Stacking — 集成学习`, shortIntro: `通过多基学习器 + 元学习器做集成融合，降低单模型偏差与方差，在小样本阶段提升稳健性。` },
-  { id: '8', tier: 'Tier 3', title: `⑨ Reinforcement Learning (RL) — 强化学习下注策略`, shortIntro: `将组合选择和仓位分配建模为 MDP，用强化学习在模拟环境里学习长期最优策略。` },
+  { id: '8', tier: 'Tier 3', title: `⑨ Reinforcement Learning (RL) — 强化学习投资策略`, shortIntro: `将组合选择和仓位分配建模为 MDP，用强化学习在模拟环境里学习长期最优策略。` },
   { id: '9', tier: 'Tier 3', title: `⑩ 图神经网络 (GNN) — 建模球队关系`, shortIntro: `以球队关系图构建 Team Embedding，利用传递性与结构信息提升跨对阵场景的泛化推断能力。` },
   { id: '10', tier: 'Tier 3', title: `⑪ Transformer 序列模型`, shortIntro: `把投注历史视作序列，用 Transformer 捕捉时序依赖与状态迁移，强化中长期行为模式建模。` },
 ]
@@ -417,7 +417,7 @@ Copula 就是专门建模第 2 部分的数学工具。
 
 ### 在 DUGOU 中怎么用
 
-**场景**：你一天可能下注 3-5 场比赛，然后组成各种 combo（2 腿、3 腿、4 腿……）。
+**场景**：你一天可能投资 3-5 场比赛，然后组成各种 combo（2 腿、3 腿、4 腿……）。
 
 **当前问题**：Entry 相关性 Phi 修正只是一个简单的线性调整，本质还是"独立假设 + 微调"。
 
@@ -477,7 +477,7 @@ Statistics（统计学）
 ### 它是什么
 
 你当前很多核心指标仍是**单值视角**：单个 EV、单个 hit rate、单个推荐金额。  
-但真实下注是"路径问题"：同一个 EV，在不同市场状态下会走出完全不同的资金曲线。
+但真实投资是"路径问题"：同一个 EV，在不同市场状态下会走出完全不同的资金曲线。
 
 碰撞模拟引擎做的事情是把这个路径展开：
 
@@ -676,7 +676,7 @@ Artificial Intelligence（人工智能）
 | **Steam Move** | 短时间内赔率大幅变动 | 股票的异常放量拉升 |
 | **Sharp Money** | 专业/机构投注者的资金 | 股票市场的机构投资者 |
 | **Square Money** | 大众/业余投注者的资金 | 散户资金 |
-| **CLV (Closing Line Value)** | 你的下注赔率 vs 收盘赔率 | 你的买入价 vs 收盘价（你的系统已经在追踪这个！） |
+| **CLV (Closing Line Value)** | 你的投资赔率 vs 收盘赔率 | 你的买入价 vs 收盘价（你的系统已经在追踪这个！） |
 
 **为什么赔率变动是有价值的信号**：
 
@@ -868,11 +868,11 @@ Machine Learning（机器学习）
 **相关课程**：斯坦福 CS229 第 12 讲、CMU 10-701 Machine Learning
 
 ---`,
-  '8': `## ⑨ Reinforcement Learning (RL) — 强化学习下注策略
+  '8': `## ⑨ Reinforcement Learning (RL) — 强化学习投资策略
 
 ### 一句话概括
 
-把每天的"选哪些组合 + 各投多少钱"这个决策问题，交给一个 AI agent 来学习最优策略——它通过反复试错（模拟下注 → 看结果 → 调整策略）来找到长期利润最大化的下注方案。
+把每天的"选哪些组合 + 各投多少钱"这个决策问题，交给一个 AI agent 来学习最优策略——它通过反复试错（模拟投资 → 看结果 → 调整策略）来找到长期利润最大化的投资方案。
 
 ### 它是什么
 
@@ -1221,7 +1221,7 @@ Deep Learning（深度学习）
 | 6 | ⑤ 碰撞模拟引擎 | 需可复用的场景冲击参数 | ⭐⭐⭐ 中高 | ⭐⭐⭐ 中高 | 1-2月 |
 | 7 | ⑦ 赔率变动 | 需赔率API | ⭐⭐⭐ 中高 | ⭐⭐⭐⭐ 高 | 取决于数据获取 |
 | 8 | ⑥ NLP舆情 | 需新闻数据源 | ⭐⭐⭐⭐ 高 | ⭐⭐⭐ 中 | 长期方向 |
-| 9 | ⑨ RL下注策略 | 需大量模拟数据 | ⭐⭐⭐⭐⭐ 很高 | ⭐⭐ 中 | 实验性 |
+| 9 | ⑨ RL投资策略 | 需大量模拟数据 | ⭐⭐⭐⭐⭐ 很高 | ⭐⭐ 中 | 实验性 |
 | 10 | ⑪ Transformer | 需500+条记录 | ⭐⭐⭐⭐ 高 | ⭐ 低(数据不足) | 实验性 |
 | 11 | ⑩ GNN | 需完整对战网络 | ⭐⭐⭐⭐⭐ 很高 | ⭐⭐ 中 | 实验性 |
 

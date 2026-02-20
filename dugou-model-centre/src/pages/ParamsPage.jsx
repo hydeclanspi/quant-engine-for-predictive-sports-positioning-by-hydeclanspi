@@ -524,7 +524,7 @@ const BayesianRemarks = () => (
       <div className="space-y-1.5">
         <p className="font-medium text-stone-500">一句话决策</p>
         <p>
-          对当前应用，贝叶斯更新值得做，但应作为增强层而不是替代层；优先引入分层后验与不确定性折扣，让 New 的下注建议和
+          对当前应用，贝叶斯更新值得做，但应作为增强层而不是替代层；优先引入分层后验与不确定性折扣，让 New 的投资建议和
           Portfolio 的最优组合排序在小样本阶段更稳健。
         </p>
       </div>
