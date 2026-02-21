@@ -198,18 +198,18 @@ const LAYOUT_MODE_OPTIONS = ['modern', 'topbar', 'sidebar']
 const ACCESS_LOG_PAGE_SIZE = 6
 const FIT_TRAJECTORY_WINDOW_OPTIONS = [24, 36, 48, 72, 96, 120]
 const FIT_TRAJECTORY_MODE_OPTIONS = [
-  { value: '1', label: '#1 Regime River' },
-  { value: '2', label: '#2 Error Horizon' },
-  { value: '3', label: '#3 Pulse Timeline' },
-  { value: '4', label: '#4 Ribbon + Median' },
-  { value: '5', label: '#5 Regime Mosaic' },
-  { value: '6', label: '#6 Control Corridor' },
-  { value: '7', label: '#7 Fit Ladder' },
-  { value: '8', label: '#8 Scatter Cloud' },
-  { value: '9', label: '#9 Deviation Waterfall' },
-  { value: '10', label: '#10 Stability Thermometer' },
-  { value: '11', label: '#11 Dual Track' },
-  { value: '12', label: '#12 Signal Ladder' },
+  { value: '1', label: '#1 Regime River · 态势河流' },
+  { value: '2', label: '#2 Error Horizon · 误差地平线' },
+  { value: '3', label: '#3 Pulse Timeline · 脉冲时间轴' },
+  { value: '4', label: '#4 Ribbon + Median · 丝带中轴' },
+  { value: '5', label: '#5 Regime Mosaic · 态势拼图' },
+  { value: '6', label: '#6 Control Corridor · 控制廊道' },
+  { value: '7', label: '#7 Fit Ladder · 拟合阶梯' },
+  { value: '8', label: '#8 Scatter Cloud · 散点云图' },
+  { value: '9', label: '#9 Deviation Waterfall · 偏差瀑布' },
+  { value: '10', label: '#10 Stability Thermometer · 稳定温标' },
+  { value: '11', label: '#11 Dual Track · 双轨对照' },
+  { value: '12', label: '#12 Signal Ladder · 信号阶梯' },
 ]
 
 const clampNumber = (value, min, max) => Math.max(min, Math.min(max, value))
@@ -570,12 +570,15 @@ const renderFitTrajectoryChart = ({ model, mode }) => {
                 y={chartTop}
                 width={segment.width}
                 height={chartBottom - chartTop}
-                fill={segment.tone.replace(/0\.\d+\)/, '0.045)')}
+                fill={segment.tone.replace(/0\.\d+\)/, '0.03)')}
               />
             ))}
-            <path d={trendBandPath} fill="rgba(56,189,248,0.11)" />
-            <path d={lineLongMovingPath} fill="none" stroke="rgba(14,165,233,0.9)" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
-            <path d={lineSmoothPath} fill="none" stroke="rgba(99,102,241,0.5)" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={wideBandPath} fill="rgba(56,189,248,0.07)" />
+            <path d={narrowBandPath} fill="rgba(99,102,241,0.09)" />
+            <path d={trendBandPath} fill="rgba(14,165,233,0.06)" />
+            <path d={lineMovingPath} fill="none" stroke="rgba(56,189,248,0.34)" strokeWidth="0.92" strokeDasharray="2 1.8" strokeLinecap="round" />
+            <path d={lineLongMovingPath} fill="none" stroke="rgba(14,165,233,0.4)" strokeWidth="1.05" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={lineSmoothPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="1.72" strokeLinecap="round" strokeLinejoin="round" />
           </>
         )
       case '2':
@@ -703,10 +706,18 @@ const renderFitTrajectoryChart = ({ model, mode }) => {
       case '9':
         return (
           <>
-            <path d={areaLongToZeroPath} fill="rgba(99,102,241,0.08)" />
-            <path d={trendBandPath} fill="rgba(79,70,229,0.07)" />
-            <path d={lineLongMovingPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="2.02" strokeLinecap="round" strokeLinejoin="round" />
-            <path d={lineSmoothPath} fill="none" stroke="rgba(99,102,241,0.44)" strokeWidth="0.92" strokeLinecap="round" strokeLinejoin="round" />
+            {bars.map((bar, idx) => (
+              <rect
+                key={`waterfall-bar-${idx}`}
+                x={bar.x}
+                y={bar.y}
+                width={bar.width}
+                height={bar.height}
+                fill={bar.positive ? 'rgba(34,197,94,0.16)' : 'rgba(99,102,241,0.15)'}
+                rx={Math.min(1.6, bar.width / 2)}
+              />
+            ))}
+            <path d={cumulativePath} fill="none" stroke="rgba(99,102,241,0.72)" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round" />
           </>
         )
       case '10':
