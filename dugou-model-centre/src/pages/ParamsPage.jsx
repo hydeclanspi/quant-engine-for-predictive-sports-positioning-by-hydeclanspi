@@ -2680,7 +2680,7 @@ export default function ParamsPage({ openModal }) {
 
       <div
         onClick={openRatingModal}
-        className="console-interactive-surface glow-card relative overflow-hidden rounded-2xl border border-indigo-200/75 bg-[linear-gradient(145deg,rgba(244,247,255,0.96),rgba(255,255,255,0.95)_48%,rgba(238,247,255,0.92))] p-6 mb-6 cursor-pointer shadow-[0_24px_44px_-34px_rgba(79,70,229,0.42)]"
+        className="console-interactive-surface glow-card relative overflow-visible rounded-2xl border border-indigo-200/75 bg-[linear-gradient(145deg,rgba(244,247,255,0.96),rgba(255,255,255,0.95)_48%,rgba(238,247,255,0.92))] p-6 mb-6 cursor-pointer shadow-[0_24px_44px_-34px_rgba(79,70,229,0.42)]"
       >
         <div className="pointer-events-none absolute -top-16 -left-16 h-44 w-44 rounded-full bg-sky-200/22 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 right-16 h-48 w-48 rounded-full bg-violet-200/16 blur-3xl" />
