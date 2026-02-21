@@ -1382,6 +1382,9 @@ const toSessionTail = (value) => {
   return text.length <= 10 ? text : text.slice(-10)
 }
 
+const getAccessRowDurationKey = (row) =>
+  [String(row?.id || ''), String(row?.session_id || ''), String(row?.created_at || ''), String(row?.route || '')].join('|')
+
 const formatSessionDuration = (durationMs) => {
   if (!Number.isFinite(durationMs) || durationMs <= 0) return '00:00'
   const totalSeconds = Math.floor(durationMs / 1000)
@@ -3052,7 +3055,7 @@ export default function ParamsPage({ openModal }) {
     return pages
   }, [accessLogPage, accessLogTotalPages])
 
-  const accessSessionDurationMap = useMemo(() => {
+  const { accessSessionDurationMap, accessSessionElapsedMap } = useMemo(() => {
     const sessionBounds = new Map()
     accessLogs.forEach((row) => {
       const sessionId = String(row.session_id || '').trim()
@@ -3068,10 +3071,25 @@ export default function ParamsPage({ openModal }) {
       if (ts > current.max) current.max = ts
     })
     const durationMap = new Map()
+    const sessionStartMap = new Map()
     sessionBounds.forEach((bounds, sessionId) => {
       durationMap.set(sessionId, formatSessionDuration(bounds.max - bounds.min))
+      sessionStartMap.set(sessionId, bounds.min)
     })
-    return durationMap
+    const elapsedMap = new Map()
+    accessLogs.forEach((row) => {
+      const sessionId = String(row.session_id || '').trim()
+      if (!sessionId) return
+      const ts = new Date(row.created_at || '').getTime()
+      const start = sessionStartMap.get(sessionId)
+      if (!Number.isFinite(ts) || !Number.isFinite(start)) return
+      const key = getAccessRowDurationKey(row)
+      elapsedMap.set(key, formatSessionDuration(Math.max(0, ts - start)))
+    })
+    return {
+      accessSessionDurationMap: durationMap,
+      accessSessionElapsedMap: elapsedMap,
+    }
   }, [accessLogs])
 
   const accessLogSummary = useMemo(() => {
@@ -5039,8 +5057,8 @@ export default function ParamsPage({ openModal }) {
                         <p className="font-medium text-stone-700">{row.route || '--'}</p>
                       </td>
                       <td className="px-3 py-2.5 align-top whitespace-nowrap">
-                        <p className="font-medium text-stone-700">{accessSessionDurationMap.get(row.session_id) || '00:00'}</p>
-                        <p className="mt-0.5 text-[11px] text-stone-400">same session span</p>
+                        <p className="font-medium text-stone-700">{accessSessionElapsedMap.get(getAccessRowDurationKey(row)) || '00:00'}</p>
+                        <p className="mt-0.5 text-[11px] text-stone-400">session total {accessSessionDurationMap.get(row.session_id) || '00:00'}</p>
                       </td>
                       <td className="px-3 py-2.5 align-top whitespace-nowrap">
                         <p className="font-medium capitalize text-stone-700">{row.device_type || '--'}</p>
