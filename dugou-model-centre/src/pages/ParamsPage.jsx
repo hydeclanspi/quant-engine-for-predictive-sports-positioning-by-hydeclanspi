@@ -195,7 +195,7 @@ const PAGE_AMBIENT_TONE_OPTIONS = [
   { value: 'soft_orange', label: '浅橙色' },
 ]
 const LAYOUT_MODE_OPTIONS = ['modern', 'topbar', 'sidebar']
-const ACCESS_LOG_PAGE_SIZE = 8
+const ACCESS_LOG_PAGE_SIZE = 6
 const FIT_TRAJECTORY_WINDOW_OPTIONS = [24, 36, 48, 72, 96, 120]
 const FIT_TRAJECTORY_MODE_OPTIONS = [
   { value: '1', label: '#1 Regime River' },
@@ -1369,6 +1369,16 @@ const toSessionTail = (value) => {
   const text = String(value || '')
   if (!text) return '--'
   return text.length <= 10 ? text : text.slice(-10)
+}
+
+const formatSessionDuration = (durationMs) => {
+  if (!Number.isFinite(durationMs) || durationMs <= 0) return '00:00'
+  const totalSeconds = Math.floor(durationMs / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  if (hours > 0) return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
 const parseEntriesJson = (value, entryText = '', oddsValue) => {
@@ -3030,6 +3040,28 @@ export default function ParamsPage({ openModal }) {
     }
     return pages
   }, [accessLogPage, accessLogTotalPages])
+
+  const accessSessionDurationMap = useMemo(() => {
+    const sessionBounds = new Map()
+    accessLogs.forEach((row) => {
+      const sessionId = String(row.session_id || '').trim()
+      if (!sessionId) return
+      const ts = new Date(row.created_at || '').getTime()
+      if (!Number.isFinite(ts)) return
+      const current = sessionBounds.get(sessionId)
+      if (!current) {
+        sessionBounds.set(sessionId, { min: ts, max: ts })
+        return
+      }
+      if (ts < current.min) current.min = ts
+      if (ts > current.max) current.max = ts
+    })
+    const durationMap = new Map()
+    sessionBounds.forEach((bounds, sessionId) => {
+      durationMap.set(sessionId, formatSessionDuration(bounds.max - bounds.min))
+    })
+    return durationMap
+  }, [accessLogs])
 
   const accessLogSummary = useMemo(() => {
     let mobileCount = 0
@@ -4700,7 +4732,7 @@ export default function ParamsPage({ openModal }) {
         </div>
       </div>
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mt-6 mb-6">
+      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mt-12 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={Cloud} /> 云端同步（Supabase）
@@ -4912,7 +4944,7 @@ export default function ParamsPage({ openModal }) {
         </div>
       </div>
 
-      <div className="glow-card mt-6 rounded-2xl border border-sky-100/85 bg-[linear-gradient(160deg,rgba(248,252,255,0.94),rgba(255,255,255,0.94)_50%,rgba(241,249,255,0.88))] p-4 sm:p-5 shadow-[0_18px_34px_-30px_rgba(56,189,248,0.38),inset_0_1px_0_rgba(255,255,255,0.9)]">
+      <div className="glow-card mt-12 rounded-2xl border border-sky-100/85 bg-[linear-gradient(160deg,rgba(248,252,255,0.94),rgba(255,255,255,0.94)_50%,rgba(241,249,255,0.88))] p-4 sm:p-5 shadow-[0_18px_34px_-30px_rgba(56,189,248,0.38),inset_0_1px_0_rgba(255,255,255,0.9)]">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="font-medium text-stone-700 flex items-center gap-2">
@@ -4965,11 +4997,12 @@ export default function ParamsPage({ openModal }) {
 
         <div className="mt-3 overflow-hidden rounded-xl border border-sky-100/90 bg-white/78">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1020px] text-xs text-stone-600">
+            <table className="w-full min-w-[1100px] text-xs text-stone-600">
               <thead className="bg-sky-50/75 text-[10.5px] uppercase tracking-[0.08em] text-stone-400">
                 <tr>
                   <th className="px-3 py-2.5 text-left font-medium">Time</th>
                   <th className="px-3 py-2.5 text-left font-medium">Endpoint</th>
+                  <th className="px-3 py-2.5 text-left font-medium">Session Duration</th>
                   <th className="px-3 py-2.5 text-left font-medium">Device</th>
                   <th className="px-3 py-2.5 text-left font-medium">Browser / OS</th>
                   <th className="px-3 py-2.5 text-left font-medium">Network</th>
@@ -4980,7 +5013,7 @@ export default function ParamsPage({ openModal }) {
               <tbody>
                 {accessLogPageRows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-3 py-6 text-center text-[12px] text-stone-400">
+                    <td colSpan={8} className="px-3 py-6 text-center text-[12px] text-stone-400">
                       当前月份暂无访问记录，访问任意页面后会自动采集。
                     </td>
                   </tr>
@@ -4993,7 +5026,10 @@ export default function ParamsPage({ openModal }) {
                       </td>
                       <td className="px-3 py-2.5 align-top">
                         <p className="font-medium text-stone-700">{row.route || '--'}</p>
-                        <p className="mt-0.5 text-[11px] text-stone-400 truncate max-w-[280px]">{row.endpoint || row.host || '--'}</p>
+                      </td>
+                      <td className="px-3 py-2.5 align-top whitespace-nowrap">
+                        <p className="font-medium text-stone-700">{accessSessionDurationMap.get(row.session_id) || '00:00'}</p>
+                        <p className="mt-0.5 text-[11px] text-stone-400">same session span</p>
                       </td>
                       <td className="px-3 py-2.5 align-top whitespace-nowrap">
                         <p className="font-medium capitalize text-stone-700">{row.device_type || '--'}</p>
