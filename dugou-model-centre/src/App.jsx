@@ -20,6 +20,7 @@ import AnalysisPage from './pages/AnalysisPage'
 import MetricsPage from './pages/MetricsPage'
 
 import { getSystemConfig, PAGE_AMBIENT_THEME_DEFAULTS } from './lib/localData'
+import { trackRouteAccess } from './lib/accessTracking'
 
 const LAYOUT_KEY = 'dugou:layout-mode'
 const VALID_MODES = ['topbar', 'sidebar', 'modern']
@@ -96,6 +97,10 @@ function App() {
     if (mainScrollRef.current) {
       mainScrollRef.current.scrollTop = 0
     }
+  }, [location.pathname])
+
+  useEffect(() => {
+    trackRouteAccess(location.pathname)
   }, [location.pathname])
 
   const openModal = (data) => setModalData(data)

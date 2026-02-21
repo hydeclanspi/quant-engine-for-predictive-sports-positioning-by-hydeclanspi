@@ -29,7 +29,6 @@ import {
 } from '../lib/analytics'
 import {
   PAGE_AMBIENT_THEME_DEFAULTS,
-  appendAccessLog,
   exportDataBundle,
   getAccessLogs,
   getCloudSyncStatus,
@@ -197,7 +196,6 @@ const PAGE_AMBIENT_TONE_OPTIONS = [
 ]
 const LAYOUT_MODE_OPTIONS = ['modern', 'topbar', 'sidebar']
 const ACCESS_LOG_PAGE_SIZE = 8
-const ACCESS_LOG_SESSION_KEY = 'dugou.access_log.session.v1'
 const FIT_TRAJECTORY_WINDOW_OPTIONS = [24, 36, 48, 72, 96, 120]
 const FIT_TRAJECTORY_MODE_OPTIONS = [
   { value: '1', label: '#1 Regime River' },
@@ -1277,86 +1275,6 @@ const parseNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
-const getAccessSessionId = () => {
-  if (typeof window === 'undefined') return 'server-session'
-  try {
-    const cached = window.sessionStorage.getItem(ACCESS_LOG_SESSION_KEY)
-    if (cached) return cached
-    const next = `sess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
-    window.sessionStorage.setItem(ACCESS_LOG_SESSION_KEY, next)
-    return next
-  } catch {
-    return `sess_${Date.now().toString(36)}`
-  }
-}
-
-const detectDeviceType = (ua, viewportWidth) => {
-  const source = String(ua || '').toLowerCase()
-  if (/ipad|tablet/.test(source)) return 'tablet'
-  if (/mobile|iphone|android/.test(source) || Number(viewportWidth || 0) <= 768) return 'mobile'
-  return 'desktop'
-}
-
-const detectBrowserName = (ua) => {
-  const source = String(ua || '')
-  if (/Edg\//.test(source)) return 'Edge'
-  if (/OPR\//.test(source)) return 'Opera'
-  if (/Chrome\//.test(source)) return 'Chrome'
-  if (/Safari\//.test(source) && !/Chrome\//.test(source)) return 'Safari'
-  if (/Firefox\//.test(source)) return 'Firefox'
-  return 'Unknown Browser'
-}
-
-const detectOsName = (ua, platform) => {
-  const source = `${String(ua || '')} ${String(platform || '')}`.toLowerCase()
-  if (source.includes('mac')) return 'macOS'
-  if (source.includes('windows')) return 'Windows'
-  if (source.includes('iphone') || source.includes('ipad') || source.includes('ios')) return 'iOS'
-  if (source.includes('android')) return 'Android'
-  if (source.includes('linux')) return 'Linux'
-  return 'Unknown OS'
-}
-
-const buildConsoleAccessSnapshot = () => {
-  if (typeof window === 'undefined') return null
-  const nav = window.navigator || {}
-  const ua = nav.userAgent || ''
-  const browser = detectBrowserName(ua)
-  const os = detectOsName(ua, nav.platform)
-  const screenWidth = window.screen?.width || 0
-  const screenHeight = window.screen?.height || 0
-  const viewportWidth = window.innerWidth || 0
-  const viewportHeight = window.innerHeight || 0
-  const language = nav.language || (Array.isArray(nav.languages) ? nav.languages[0] : '') || 'unknown'
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown'
-  const networkType = nav.connection?.effectiveType || nav.connection?.type || 'unknown'
-  const origin = window.location?.origin || ''
-  const route = window.location?.pathname || '/params'
-
-  return {
-    created_at: new Date().toISOString(),
-    route,
-    endpoint: `${origin}${route}`,
-    host: window.location?.host || '',
-    origin,
-    access_channel: 'web_console',
-    device_type: detectDeviceType(ua, viewportWidth),
-    client_browser: browser,
-    client_os: os,
-    user_agent: ua,
-    platform: nav.platform || nav.userAgentData?.platform || '',
-    language,
-    timezone,
-    viewport: `${viewportWidth}x${viewportHeight}`,
-    screen: `${screenWidth}x${screenHeight}`,
-    network_type: networkType,
-    referrer: document.referrer || 'direct',
-    session_id: getAccessSessionId(),
-    ip: 'N/A (browser restricted)',
-    mac: 'N/A (browser restricted)',
-  }
-}
-
 const formatAccessTime = (value) => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '--'
@@ -1368,6 +1286,30 @@ const formatAccessTime = (value) => {
     second: '2-digit',
     hour12: false,
   })
+}
+
+const getAccessMonthKey = (value) => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  return `${year}-${month}`
+}
+
+const formatAccessMonthLabel = (monthKey) => {
+  if (!monthKey) return '--'
+  const [year, month] = String(monthKey).split('-')
+  const monthNum = Number(month)
+  if (!year || !Number.isFinite(monthNum)) return '--'
+  return `${year}年${monthNum}月`
+}
+
+const parseAccessMonthKey = (monthKey) => {
+  const [year, month] = String(monthKey || '').split('-')
+  const parsedYear = Number(year)
+  const parsedMonth = Number(month)
+  if (!Number.isFinite(parsedYear) || !Number.isFinite(parsedMonth) || parsedMonth < 1 || parsedMonth > 12) return null
+  return new Date(parsedYear, parsedMonth - 1, 1)
 }
 
 const toSessionTail = (value) => {
@@ -2340,6 +2282,7 @@ export default function ParamsPage({ openModal }) {
   const jsonInputRef = useRef(null)
   const [jsonStatus, setJsonStatus] = useState('')
   const [accessLogPage, setAccessLogPage] = useState(1)
+  const [selectedAccessMonth, setSelectedAccessMonth] = useState(() => getAccessMonthKey(Date.now()))
   const [fitTrajectoryMode, setFitTrajectoryMode] = useState('6')
   const [fitTrajectoryWindow, setFitTrajectoryWindow] = useState(48)
 
@@ -2350,12 +2293,6 @@ export default function ParamsPage({ openModal }) {
     }
     window.addEventListener('dugou:data-changed', refresh)
     return () => window.removeEventListener('dugou:data-changed', refresh)
-  }, [])
-
-  useEffect(() => {
-    const snapshot = buildConsoleAccessSnapshot()
-    if (!snapshot) return
-    appendAccessLog(snapshot)
   }, [])
 
   useEffect(() => {
@@ -2974,20 +2911,59 @@ export default function ParamsPage({ openModal }) {
   }, [config.backupCadence, config.lastBackupAt, nowTick])
 
   const accessLogs = useMemo(() => getAccessLogs(), [dataVersion])
+  const accessMonthOptions = useMemo(() => {
+    const currentMonth = getAccessMonthKey(Date.now())
+    const earliestMonth = accessLogs[accessLogs.length - 1]?.created_at
+      ? getAccessMonthKey(accessLogs[accessLogs.length - 1].created_at)
+      : currentMonth
+    const currentDate = parseAccessMonthKey(currentMonth)
+    const earliestDate = parseAccessMonthKey(earliestMonth)
+    if (!currentDate || !earliestDate) return []
+
+    const months = []
+    const cursor = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
+    const floor = new Date(earliestDate.getFullYear(), earliestDate.getMonth(), 1)
+    while (cursor >= floor) {
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`
+      months.push({
+        value: key,
+        label: formatAccessMonthLabel(key),
+      })
+      cursor.setMonth(cursor.getMonth() - 1)
+    }
+    return months
+  }, [accessLogs])
+
+  useEffect(() => {
+    if (accessMonthOptions.length === 0) return
+    if (!accessMonthOptions.some((option) => option.value === selectedAccessMonth)) {
+      setSelectedAccessMonth(accessMonthOptions[0].value)
+    }
+  }, [accessMonthOptions, selectedAccessMonth])
+
+  const accessLogsByMonth = useMemo(() => {
+    if (!selectedAccessMonth) return accessLogs
+    return accessLogs.filter((row) => getAccessMonthKey(row.created_at) === selectedAccessMonth)
+  }, [accessLogs, selectedAccessMonth])
+
   const accessLogTotalPages = useMemo(
-    () => Math.max(1, Math.ceil(accessLogs.length / ACCESS_LOG_PAGE_SIZE)),
-    [accessLogs.length],
+    () => Math.max(1, Math.ceil(accessLogsByMonth.length / ACCESS_LOG_PAGE_SIZE)),
+    [accessLogsByMonth.length],
   )
 
   useEffect(() => {
     setAccessLogPage((prev) => Math.max(1, Math.min(prev, accessLogTotalPages)))
   }, [accessLogTotalPages])
 
+  useEffect(() => {
+    setAccessLogPage(1)
+  }, [selectedAccessMonth])
+
   const accessLogPageRows = useMemo(() => {
-    if (accessLogs.length === 0) return []
+    if (accessLogsByMonth.length === 0) return []
     const start = (accessLogPage - 1) * ACCESS_LOG_PAGE_SIZE
-    return accessLogs.slice(start, start + ACCESS_LOG_PAGE_SIZE)
-  }, [accessLogs, accessLogPage])
+    return accessLogsByMonth.slice(start, start + ACCESS_LOG_PAGE_SIZE)
+  }, [accessLogsByMonth, accessLogPage])
 
   const accessLogPageWindow = useMemo(() => {
     const radius = 2
@@ -3001,12 +2977,10 @@ export default function ParamsPage({ openModal }) {
   }, [accessLogPage, accessLogTotalPages])
 
   const accessLogSummary = useMemo(() => {
-    const sessions = new Set()
     let mobileCount = 0
     let desktopCount = 0
 
-    accessLogs.forEach((row) => {
-      if (row.session_id) sessions.add(row.session_id)
+    accessLogsByMonth.forEach((row) => {
       if (row.device_type === 'mobile' || row.device_type === 'tablet') {
         mobileCount += 1
       } else {
@@ -3015,13 +2989,13 @@ export default function ParamsPage({ openModal }) {
     })
 
     return {
-      total: accessLogs.length,
-      sessions: sessions.size,
-      latest: accessLogs[0] || null,
+      total: accessLogsByMonth.length,
+      totalAll: accessLogs.length,
+      latest: accessLogsByMonth[0] || null,
       mobileCount,
       desktopCount,
     }
-  }, [accessLogs])
+  }, [accessLogs, accessLogsByMonth])
 
   const modelValidationMeta =
     modelValidation.stability === 'stable'
@@ -4883,29 +4857,42 @@ export default function ParamsPage({ openModal }) {
         </div>
       </div>
 
-      <div className="glow-card mt-3 rounded-2xl border border-sky-100/85 bg-[linear-gradient(160deg,rgba(248,252,255,0.94),rgba(255,255,255,0.94)_50%,rgba(241,249,255,0.88))] p-4 sm:p-5 shadow-[0_18px_34px_-30px_rgba(56,189,248,0.38),inset_0_1px_0_rgba(255,255,255,0.9)]">
+      <div className="glow-card mt-6 rounded-2xl border border-sky-100/85 bg-[linear-gradient(160deg,rgba(248,252,255,0.94),rgba(255,255,255,0.94)_50%,rgba(241,249,255,0.88))] p-4 sm:p-5 shadow-[0_18px_34px_-30px_rgba(56,189,248,0.38),inset_0_1px_0_rgba(255,255,255,0.9)]">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="font-medium text-stone-700 flex items-center gap-2">
               <ConsoleCardIcon IconComp={BarChart3} /> 访问记录
             </h3>
             <p className="mt-1 text-[11px] text-stone-400">
-              记录 Console 流量轨迹（时间、端类型、会话、入口、UA、网络、IP/MAC 等）。IP/MAC 在浏览器端通常不可直接读取，默认记为占位。
+              记录全站流量轨迹（含 New / Portfolio / Settle / Dashboard / History / Console 的访问路径）。IP/MAC 在浏览器端通常不可直接读取，默认记为占位。
             </p>
           </div>
-          <span className="inline-flex items-center rounded-xl border border-sky-200/85 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-sky-700">
-            page {accessLogPage}/{accessLogTotalPages}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={selectedAccessMonth}
+              onChange={(event) => setSelectedAccessMonth(event.target.value)}
+              className="h-8 rounded-xl border border-sky-200/85 bg-white/80 px-2.5 text-[11px] font-medium text-sky-700 outline-none transition-colors hover:border-sky-300 focus:border-sky-300"
+            >
+              {accessMonthOptions.map((option) => (
+                <option key={`access-month-${option.value}`} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <span className="inline-flex items-center rounded-xl border border-sky-200/85 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-sky-700">
+              page {accessLogPage}/{accessLogTotalPages}
+            </span>
+          </div>
         </div>
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-lg border border-sky-100/90 bg-white/75 px-3 py-2">
             <p className="text-[11px] text-stone-400">总访问</p>
-            <p className="mt-0.5 text-sm font-semibold text-stone-700">{accessLogSummary.total}</p>
+            <p className="mt-0.5 text-sm font-semibold text-stone-700">{accessLogSummary.totalAll}</p>
           </div>
           <div className="rounded-lg border border-sky-100/90 bg-white/75 px-3 py-2">
-            <p className="text-[11px] text-stone-400">活跃会话</p>
-            <p className="mt-0.5 text-sm font-semibold text-stone-700">{accessLogSummary.sessions}</p>
+            <p className="text-[11px] text-stone-400">{formatAccessMonthLabel(selectedAccessMonth)}活跃访问次数</p>
+            <p className="mt-0.5 text-sm font-semibold text-stone-700">{accessLogSummary.total}</p>
           </div>
           <div className="rounded-lg border border-sky-100/90 bg-white/75 px-3 py-2">
             <p className="text-[11px] text-stone-400">端分布</p>
@@ -4939,7 +4926,7 @@ export default function ParamsPage({ openModal }) {
                 {accessLogPageRows.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-3 py-6 text-center text-[12px] text-stone-400">
-                      暂无访问记录，进入 Console 后会自动采集。
+                      当前月份暂无访问记录，访问任意页面后会自动采集。
                     </td>
                   </tr>
                 ) : (
@@ -4981,7 +4968,7 @@ export default function ParamsPage({ openModal }) {
           </div>
         </div>
 
-        {accessLogs.length > 0 ? (
+        {accessLogsByMonth.length > 0 ? (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
             <p className="text-[11px] text-stone-400">
               显示 {(accessLogPage - 1) * ACCESS_LOG_PAGE_SIZE + 1}-{Math.min(accessLogPage * ACCESS_LOG_PAGE_SIZE, accessLogSummary.total)} /{' '}
