@@ -3390,7 +3390,7 @@ export const computeAdaptiveWeightSuggestions = () => {
   const config = getSystemConfig()
   const adaptiveConfig = config.adaptiveWeights || {}
   const bounds = adaptiveConfig.bounds || DEFAULT_WEIGHT_BOUNDS
-  const priors = adaptiveConfig.priors || DEFAULT_WEIGHT_PRIORS
+  const priors = adaptiveConfig.initialPriors || DEFAULT_WEIGHT_PRIORS
   const learningRate = toNumber(adaptiveConfig.learningRate, 0.05)
   const maxSingleChange = toNumber(adaptiveConfig.maxSingleChange, 0.02)
   const priorStrength = toNumber(adaptiveConfig.priorStrength, 0.1)

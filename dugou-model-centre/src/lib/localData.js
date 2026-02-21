@@ -87,6 +87,14 @@ const DEFAULT_SYSTEM_CONFIG = {
       weightOdds: 0.06,
       weightFse: 0.07,
     },
+    initialPriors: {
+      weightConf: 0.45,
+      weightMode: 0.16,
+      weightTys: 0.12,
+      weightFid: 0.14,
+      weightOdds: 0.06,
+      weightFse: 0.07,
+    },
   },
   pageAmbientThemes: { ...PAGE_AMBIENT_THEME_DEFAULTS },
 }

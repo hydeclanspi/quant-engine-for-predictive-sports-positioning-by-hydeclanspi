@@ -5216,6 +5216,7 @@ export default function ComboPage({ openModal }) {
               onClick={openAlgoModal}
               className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white/85 px-3 py-2 text-xs font-medium text-sky-700 hover:bg-sky-50 transition-colors"
             >
+              <Sparkles size={12} strokeWidth={1.9} className="text-cyan-500" />
               查看详情 <span className="text-sm leading-none">›</span>
             </button>
           </div>
