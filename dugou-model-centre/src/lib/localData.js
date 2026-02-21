@@ -7,10 +7,12 @@ const STORAGE_KEYS = {
   investments: 'dugou.investments.v1',
   teamProfiles: 'dugou.team_profiles.v1',
   systemConfig: 'dugou.system_config.v1',
+  accessLogs: 'dugou.access_logs.v1',
 }
 const GENESIS_APPLIED_KEY = 'dugou.genesis_applied.v1'
 const DATA_PATCH_V20260205_KEY = 'dugou.data_patch.v20260205'
 const DATA_PATCH_V20260206_KEY = 'dugou.data_patch.v20260206'
+const ACCESS_LOG_MAX_ROWS = 600
 let cloudBootstrapInProgress = false
 
 export const PAGE_AMBIENT_THEME_DEFAULTS = {
@@ -261,7 +263,8 @@ const writeJSON = (key, value) => {
     (
       key === STORAGE_KEYS.investments ||
       key === STORAGE_KEYS.teamProfiles ||
-      key === STORAGE_KEYS.systemConfig
+      key === STORAGE_KEYS.systemConfig ||
+      key === STORAGE_KEYS.accessLogs
     )
   ) {
     scheduleSnapshotSync(() => exportDataBundle())
@@ -275,6 +278,34 @@ const withTeamDefaults = (profile) => ({
   totalSamples: Number(profile.totalSamples) || 0,
   avgRep: Number(profile.avgRep) || 0.5,
 })
+
+const normalizeAccessLogRecord = (record) => {
+  const createdAtDate = new Date(record?.created_at || record?.visited_at || Date.now())
+  const created_at = Number.isNaN(createdAtDate.getTime()) ? new Date().toISOString() : createdAtDate.toISOString()
+  return {
+    id: String(record?.id || `visit_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`),
+    created_at,
+    route: String(record?.route || '/params'),
+    endpoint: String(record?.endpoint || ''),
+    host: String(record?.host || ''),
+    origin: String(record?.origin || ''),
+    access_channel: String(record?.access_channel || 'web'),
+    device_type: String(record?.device_type || 'unknown'),
+    client_browser: String(record?.client_browser || ''),
+    client_os: String(record?.client_os || ''),
+    user_agent: String(record?.user_agent || ''),
+    platform: String(record?.platform || ''),
+    language: String(record?.language || ''),
+    timezone: String(record?.timezone || ''),
+    viewport: String(record?.viewport || ''),
+    screen: String(record?.screen || ''),
+    network_type: String(record?.network_type || ''),
+    referrer: String(record?.referrer || ''),
+    session_id: String(record?.session_id || ''),
+    ip: String(record?.ip || 'N/A (browser restricted)'),
+    mac: String(record?.mac || 'N/A (browser restricted)'),
+  }
+}
 
 export const getSystemConfig = () => {
   ensureGenesisApplied()
@@ -794,6 +825,9 @@ const applyDataBundle = (bundle, mode = 'replace') => {
   const incomingInvestments = toArray(bundle.investments)
     .filter((item) => item && typeof item === 'object' && item.id)
     .map((item) => normalizeInvestmentRecord(item))
+  const incomingAccessLogs = toArray(bundle.access_logs)
+    .filter((item) => item && typeof item === 'object')
+    .map((item) => normalizeAccessLogRecord(item))
 
   if (mode === 'merge') {
     const currentTeams = getTeamProfiles()
@@ -813,9 +847,28 @@ const applyDataBundle = (bundle, mode = 'replace') => {
       }
     })
 
+    const currentAccessLogs = getAccessLogs()
+    const accessMap = new Map(currentAccessLogs.map((item) => [item.id, item]))
+    incomingAccessLogs.forEach((item) => {
+      const existing = accessMap.get(item.id)
+      if (!existing) {
+        accessMap.set(item.id, item)
+        return
+      }
+      const incomingTime = new Date(item.created_at || 0).getTime()
+      const existingTime = new Date(existing.created_at || 0).getTime()
+      if (incomingTime >= existingTime) {
+        accessMap.set(item.id, item)
+      }
+    })
+    const mergedAccessLogs = [...accessMap.values()]
+      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+      .slice(0, ACCESS_LOG_MAX_ROWS)
+
     writeJSON(STORAGE_KEYS.systemConfig, { ...getSystemConfig(), ...incomingConfig })
     writeJSON(STORAGE_KEYS.teamProfiles, [...teamMap.values()])
     writeJSON(STORAGE_KEYS.investments, [...investmentMap.values()])
+    writeJSON(STORAGE_KEYS.accessLogs, mergedAccessLogs)
     markGenesisApplied()
     return true
   }
@@ -823,6 +876,7 @@ const applyDataBundle = (bundle, mode = 'replace') => {
   writeJSON(STORAGE_KEYS.systemConfig, { ...DEFAULT_SYSTEM_CONFIG, ...incomingConfig })
   writeJSON(STORAGE_KEYS.teamProfiles, incomingTeams.length > 0 ? incomingTeams : DEFAULT_TEAM_PROFILES)
   writeJSON(STORAGE_KEYS.investments, incomingInvestments)
+  writeJSON(STORAGE_KEYS.accessLogs, incomingAccessLogs.slice(0, ACCESS_LOG_MAX_ROWS))
   markGenesisApplied()
   return true
 }
@@ -845,6 +899,43 @@ export const getInvestments = () => {
   return saved
     .map((item) => normalizeInvestmentRecord(item))
     .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+}
+
+export const getAccessLogs = () => {
+  ensureGenesisApplied()
+  const saved = readJSON(STORAGE_KEYS.accessLogs, [])
+  if (!Array.isArray(saved)) return []
+  return saved
+    .map((item) => normalizeAccessLogRecord(item))
+    .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+    .slice(0, ACCESS_LOG_MAX_ROWS)
+}
+
+export const appendAccessLog = (record, options = {}) => {
+  const maxRows = Number.isFinite(Number(options.maxRows))
+    ? Math.max(50, Math.min(2000, Number(options.maxRows)))
+    : ACCESS_LOG_MAX_ROWS
+  const existing = getAccessLogs()
+  const normalized = normalizeAccessLogRecord(record)
+  const latest = existing[0]
+  if (
+    latest &&
+    latest.session_id &&
+    normalized.session_id &&
+    latest.session_id === normalized.session_id &&
+    latest.route === normalized.route &&
+    latest.endpoint === normalized.endpoint &&
+    latest.user_agent === normalized.user_agent &&
+    Math.abs(new Date(normalized.created_at).getTime() - new Date(latest.created_at).getTime()) <= 8000
+  ) {
+    return latest
+  }
+
+  const next = [normalized, ...existing.filter((item) => item.id !== normalized.id)]
+    .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+    .slice(0, maxRows)
+  writeJSON(STORAGE_KEYS.accessLogs, next)
+  return normalized
 }
 
 export const saveInvestment = (investment) => {
@@ -893,6 +984,7 @@ export const exportDataBundle = () => ({
   system_config: getSystemConfig(),
   team_profiles: getTeamProfiles(),
   investments: getInvestments(),
+  access_logs: getAccessLogs(),
 })
 
 export const importDataBundle = (bundle, mode = 'replace') => {

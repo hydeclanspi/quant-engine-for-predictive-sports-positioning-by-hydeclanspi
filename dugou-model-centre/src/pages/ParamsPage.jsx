@@ -27,7 +27,20 @@ import {
   getPredictionCalibrationContext,
   normalizeAjrForModel,
 } from '../lib/analytics'
-import { PAGE_AMBIENT_THEME_DEFAULTS, exportDataBundle, getCloudSyncStatus, getInvestments, getSystemConfig, importDataBundle, pullCloudSnapshotNow, runCloudSyncNow, saveSystemConfig, setCloudSyncEnabled } from '../lib/localData'
+import {
+  PAGE_AMBIENT_THEME_DEFAULTS,
+  appendAccessLog,
+  exportDataBundle,
+  getAccessLogs,
+  getCloudSyncStatus,
+  getInvestments,
+  getSystemConfig,
+  importDataBundle,
+  pullCloudSnapshotNow,
+  runCloudSyncNow,
+  saveSystemConfig,
+  setCloudSyncEnabled,
+} from '../lib/localData'
 import { getPrimaryEntryMarket, normalizeEntryRecord } from '../lib/entryParsing'
 import {
   FUTURE_FEATURE_DETAIL_SOURCE,
@@ -183,6 +196,8 @@ const PAGE_AMBIENT_TONE_OPTIONS = [
   { value: 'soft_orange', label: '浅橙色' },
 ]
 const LAYOUT_MODE_OPTIONS = ['modern', 'topbar', 'sidebar']
+const ACCESS_LOG_PAGE_SIZE = 8
+const ACCESS_LOG_SESSION_KEY = 'dugou.access_log.session.v1'
 
 const normalizeAmbientThemeMap = (value) => {
   const incoming = value && typeof value === 'object' ? value : {}
@@ -724,6 +739,105 @@ const parseBoolean = (value) => {
 const parseNumber = (value, fallback = 0) => {
   const parsed = Number.parseFloat(value)
   return Number.isFinite(parsed) ? parsed : fallback
+}
+
+const getAccessSessionId = () => {
+  if (typeof window === 'undefined') return 'server-session'
+  try {
+    const cached = window.sessionStorage.getItem(ACCESS_LOG_SESSION_KEY)
+    if (cached) return cached
+    const next = `sess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+    window.sessionStorage.setItem(ACCESS_LOG_SESSION_KEY, next)
+    return next
+  } catch {
+    return `sess_${Date.now().toString(36)}`
+  }
+}
+
+const detectDeviceType = (ua, viewportWidth) => {
+  const source = String(ua || '').toLowerCase()
+  if (/ipad|tablet/.test(source)) return 'tablet'
+  if (/mobile|iphone|android/.test(source) || Number(viewportWidth || 0) <= 768) return 'mobile'
+  return 'desktop'
+}
+
+const detectBrowserName = (ua) => {
+  const source = String(ua || '')
+  if (/Edg\//.test(source)) return 'Edge'
+  if (/OPR\//.test(source)) return 'Opera'
+  if (/Chrome\//.test(source)) return 'Chrome'
+  if (/Safari\//.test(source) && !/Chrome\//.test(source)) return 'Safari'
+  if (/Firefox\//.test(source)) return 'Firefox'
+  return 'Unknown Browser'
+}
+
+const detectOsName = (ua, platform) => {
+  const source = `${String(ua || '')} ${String(platform || '')}`.toLowerCase()
+  if (source.includes('mac')) return 'macOS'
+  if (source.includes('windows')) return 'Windows'
+  if (source.includes('iphone') || source.includes('ipad') || source.includes('ios')) return 'iOS'
+  if (source.includes('android')) return 'Android'
+  if (source.includes('linux')) return 'Linux'
+  return 'Unknown OS'
+}
+
+const buildConsoleAccessSnapshot = () => {
+  if (typeof window === 'undefined') return null
+  const nav = window.navigator || {}
+  const ua = nav.userAgent || ''
+  const browser = detectBrowserName(ua)
+  const os = detectOsName(ua, nav.platform)
+  const screenWidth = window.screen?.width || 0
+  const screenHeight = window.screen?.height || 0
+  const viewportWidth = window.innerWidth || 0
+  const viewportHeight = window.innerHeight || 0
+  const language = nav.language || (Array.isArray(nav.languages) ? nav.languages[0] : '') || 'unknown'
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown'
+  const networkType = nav.connection?.effectiveType || nav.connection?.type || 'unknown'
+  const origin = window.location?.origin || ''
+  const route = window.location?.pathname || '/params'
+
+  return {
+    created_at: new Date().toISOString(),
+    route,
+    endpoint: `${origin}${route}`,
+    host: window.location?.host || '',
+    origin,
+    access_channel: 'web_console',
+    device_type: detectDeviceType(ua, viewportWidth),
+    client_browser: browser,
+    client_os: os,
+    user_agent: ua,
+    platform: nav.platform || nav.userAgentData?.platform || '',
+    language,
+    timezone,
+    viewport: `${viewportWidth}x${viewportHeight}`,
+    screen: `${screenWidth}x${screenHeight}`,
+    network_type: networkType,
+    referrer: document.referrer || 'direct',
+    session_id: getAccessSessionId(),
+    ip: 'N/A (browser restricted)',
+    mac: 'N/A (browser restricted)',
+  }
+}
+
+const formatAccessTime = (value) => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '--'
+  return date.toLocaleString([], {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+}
+
+const toSessionTail = (value) => {
+  const text = String(value || '')
+  if (!text) return '--'
+  return text.length <= 10 ? text : text.slice(-10)
 }
 
 const parseEntriesJson = (value, entryText = '', oddsValue) => {
@@ -1689,6 +1803,7 @@ export default function ParamsPage({ openModal }) {
   const excelInputRef = useRef(null)
   const jsonInputRef = useRef(null)
   const [jsonStatus, setJsonStatus] = useState('')
+  const [accessLogPage, setAccessLogPage] = useState(1)
 
   useEffect(() => {
     const refresh = () => {
@@ -1697,6 +1812,12 @@ export default function ParamsPage({ openModal }) {
     }
     window.addEventListener('dugou:data-changed', refresh)
     return () => window.removeEventListener('dugou:data-changed', refresh)
+  }, [])
+
+  useEffect(() => {
+    const snapshot = buildConsoleAccessSnapshot()
+    if (!snapshot) return
+    appendAccessLog(snapshot)
   }, [])
 
   useEffect(() => {
@@ -2298,6 +2419,56 @@ export default function ParamsPage({ openModal }) {
       nextDueLabel: formatDateTime(nextDue.toISOString()),
     }
   }, [config.backupCadence, config.lastBackupAt, nowTick])
+
+  const accessLogs = useMemo(() => getAccessLogs(), [dataVersion])
+  const accessLogTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(accessLogs.length / ACCESS_LOG_PAGE_SIZE)),
+    [accessLogs.length],
+  )
+
+  useEffect(() => {
+    setAccessLogPage((prev) => Math.max(1, Math.min(prev, accessLogTotalPages)))
+  }, [accessLogTotalPages])
+
+  const accessLogPageRows = useMemo(() => {
+    if (accessLogs.length === 0) return []
+    const start = (accessLogPage - 1) * ACCESS_LOG_PAGE_SIZE
+    return accessLogs.slice(start, start + ACCESS_LOG_PAGE_SIZE)
+  }, [accessLogs, accessLogPage])
+
+  const accessLogPageWindow = useMemo(() => {
+    const radius = 2
+    const start = Math.max(1, accessLogPage - radius)
+    const end = Math.min(accessLogTotalPages, accessLogPage + radius)
+    const pages = []
+    for (let p = start; p <= end; p += 1) {
+      pages.push(p)
+    }
+    return pages
+  }, [accessLogPage, accessLogTotalPages])
+
+  const accessLogSummary = useMemo(() => {
+    const sessions = new Set()
+    let mobileCount = 0
+    let desktopCount = 0
+
+    accessLogs.forEach((row) => {
+      if (row.session_id) sessions.add(row.session_id)
+      if (row.device_type === 'mobile' || row.device_type === 'tablet') {
+        mobileCount += 1
+      } else {
+        desktopCount += 1
+      }
+    })
+
+    return {
+      total: accessLogs.length,
+      sessions: sessions.size,
+      latest: accessLogs[0] || null,
+      mobileCount,
+      desktopCount,
+    }
+  }, [accessLogs])
 
   const modelValidationMeta =
     modelValidation.stability === 'stable'
@@ -4246,6 +4417,146 @@ export default function ParamsPage({ openModal }) {
             导入 JSON
           </button>
         </div>
+      </div>
+
+      <div className="glow-card mt-3 rounded-2xl border border-sky-100/85 bg-[linear-gradient(160deg,rgba(248,252,255,0.94),rgba(255,255,255,0.94)_50%,rgba(241,249,255,0.88))] p-4 sm:p-5 shadow-[0_18px_34px_-30px_rgba(56,189,248,0.38),inset_0_1px_0_rgba(255,255,255,0.9)]">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="font-medium text-stone-700 flex items-center gap-2">
+              <ConsoleCardIcon IconComp={BarChart3} /> 访问记录
+            </h3>
+            <p className="mt-1 text-[11px] text-stone-400">
+              记录 Console 流量轨迹（时间、端类型、会话、入口、UA、网络、IP/MAC 等）。IP/MAC 在浏览器端通常不可直接读取，默认记为占位。
+            </p>
+          </div>
+          <span className="inline-flex items-center rounded-xl border border-sky-200/85 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-sky-700">
+            page {accessLogPage}/{accessLogTotalPages}
+          </span>
+        </div>
+
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-lg border border-sky-100/90 bg-white/75 px-3 py-2">
+            <p className="text-[11px] text-stone-400">总访问</p>
+            <p className="mt-0.5 text-sm font-semibold text-stone-700">{accessLogSummary.total}</p>
+          </div>
+          <div className="rounded-lg border border-sky-100/90 bg-white/75 px-3 py-2">
+            <p className="text-[11px] text-stone-400">活跃会话</p>
+            <p className="mt-0.5 text-sm font-semibold text-stone-700">{accessLogSummary.sessions}</p>
+          </div>
+          <div className="rounded-lg border border-sky-100/90 bg-white/75 px-3 py-2">
+            <p className="text-[11px] text-stone-400">端分布</p>
+            <p className="mt-0.5 text-sm font-semibold text-stone-700">
+              D {accessLogSummary.desktopCount} · M {accessLogSummary.mobileCount}
+            </p>
+          </div>
+          <div className="rounded-lg border border-sky-100/90 bg-white/75 px-3 py-2">
+            <p className="text-[11px] text-stone-400">最近访问</p>
+            <p className="mt-0.5 text-sm font-semibold text-stone-700">
+              {accessLogSummary.latest ? formatAccessTime(accessLogSummary.latest.created_at) : '--'}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-3 overflow-hidden rounded-xl border border-sky-100/90 bg-white/78">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1020px] text-xs text-stone-600">
+              <thead className="bg-sky-50/75 text-[10.5px] uppercase tracking-[0.08em] text-stone-400">
+                <tr>
+                  <th className="px-3 py-2.5 text-left font-medium">Time</th>
+                  <th className="px-3 py-2.5 text-left font-medium">Endpoint</th>
+                  <th className="px-3 py-2.5 text-left font-medium">Device</th>
+                  <th className="px-3 py-2.5 text-left font-medium">Browser / OS</th>
+                  <th className="px-3 py-2.5 text-left font-medium">Network</th>
+                  <th className="px-3 py-2.5 text-left font-medium">IP / MAC</th>
+                  <th className="px-3 py-2.5 text-left font-medium">Session / Referrer</th>
+                </tr>
+              </thead>
+              <tbody>
+                {accessLogPageRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-3 py-6 text-center text-[12px] text-stone-400">
+                      暂无访问记录，进入 Console 后会自动采集。
+                    </td>
+                  </tr>
+                ) : (
+                  accessLogPageRows.map((row) => (
+                    <tr key={row.id} className="border-t border-sky-100/70">
+                      <td className="px-3 py-2.5 align-top whitespace-nowrap">
+                        <p className="font-medium text-stone-700">{formatAccessTime(row.created_at)}</p>
+                        <p className="mt-0.5 text-[11px] text-stone-400">{row.timezone || '--'}</p>
+                      </td>
+                      <td className="px-3 py-2.5 align-top">
+                        <p className="font-medium text-stone-700">{row.route || '--'}</p>
+                        <p className="mt-0.5 text-[11px] text-stone-400 truncate max-w-[280px]">{row.endpoint || row.host || '--'}</p>
+                      </td>
+                      <td className="px-3 py-2.5 align-top whitespace-nowrap">
+                        <p className="font-medium capitalize text-stone-700">{row.device_type || '--'}</p>
+                        <p className="mt-0.5 text-[11px] text-stone-400">{row.viewport || '--'}</p>
+                      </td>
+                      <td className="px-3 py-2.5 align-top whitespace-nowrap">
+                        <p className="font-medium text-stone-700">{row.client_browser || '--'}</p>
+                        <p className="mt-0.5 text-[11px] text-stone-400">{row.client_os || '--'}</p>
+                      </td>
+                      <td className="px-3 py-2.5 align-top whitespace-nowrap">
+                        <p className="font-medium text-stone-700">{row.network_type || '--'}</p>
+                        <p className="mt-0.5 text-[11px] text-stone-400">{row.language || '--'}</p>
+                      </td>
+                      <td className="px-3 py-2.5 align-top whitespace-nowrap">
+                        <p className="font-medium text-stone-700">{row.ip || '--'}</p>
+                        <p className="mt-0.5 text-[11px] text-stone-400">{row.mac || '--'}</p>
+                      </td>
+                      <td className="px-3 py-2.5 align-top">
+                        <p className="font-medium text-stone-700 font-mono">{toSessionTail(row.session_id)}</p>
+                        <p className="mt-0.5 text-[11px] text-stone-400 truncate max-w-[210px]">{row.referrer || '--'}</p>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {accessLogs.length > 0 ? (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] text-stone-400">
+              显示 {(accessLogPage - 1) * ACCESS_LOG_PAGE_SIZE + 1}-{Math.min(accessLogPage * ACCESS_LOG_PAGE_SIZE, accessLogSummary.total)} /{' '}
+              {accessLogSummary.total}
+            </p>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setAccessLogPage((prev) => Math.max(1, prev - 1))}
+                disabled={accessLogPage <= 1}
+                className="rounded-lg border border-sky-100 bg-white/80 px-2 py-1 text-[11px] text-stone-500 transition-colors hover:border-sky-200 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                Prev
+              </button>
+              {accessLogPageWindow.map((pageNo) => (
+                <button
+                  key={`access-page-${pageNo}`}
+                  type="button"
+                  onClick={() => setAccessLogPage(pageNo)}
+                  className={`rounded-lg border px-2 py-1 text-[11px] transition-colors ${
+                    pageNo === accessLogPage
+                      ? 'border-sky-300 bg-sky-100/80 text-sky-700'
+                      : 'border-sky-100 bg-white/80 text-stone-500 hover:border-sky-200 hover:text-sky-700'
+                  }`}
+                >
+                  {pageNo}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setAccessLogPage((prev) => Math.min(accessLogTotalPages, prev + 1))}
+                disabled={accessLogPage >= accessLogTotalPages}
+                className="rounded-lg border border-sky-100 bg-white/80 px-2 py-1 text-[11px] text-stone-500 transition-colors hover:border-sky-200 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   )
