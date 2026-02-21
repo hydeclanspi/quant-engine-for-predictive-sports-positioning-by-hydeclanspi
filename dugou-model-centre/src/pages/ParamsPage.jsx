@@ -196,7 +196,7 @@ const PAGE_AMBIENT_TONE_OPTIONS = [
 ]
 const LAYOUT_MODE_OPTIONS = ['modern', 'topbar', 'sidebar']
 const ACCESS_LOG_PAGE_SIZE = 6
-const FIT_TRAJECTORY_WINDOW_OPTIONS = [24, 36, 48, 72, 96, 120]
+const FIT_TRAJECTORY_WINDOW_OPTIONS = [24, 36, 48, 72, 96, 120, 150, 0]
 const FIT_TRAJECTORY_MODE_OPTIONS = [
   { value: '1', label: '#1 Regime River · 态势河流' },
   { value: '2', label: '#2 Error Horizon · 误差地平线' },
@@ -2016,7 +2016,7 @@ function AdaptiveWeightCard({ config, setConfig, saveSystemConfig, dataVersion }
 
   const adaptiveConfig = config.adaptiveWeights || {}
   const bounds = adaptiveConfig.bounds || DEFAULT_BOUNDS
-  const priors = adaptiveConfig.priors || DEFAULT_PRIORS
+  const immutablePriors = adaptiveConfig.initialPriors || DEFAULT_PRIORS
 
   // 初始化 tempBounds
   useEffect(() => {
@@ -2025,12 +2025,32 @@ function AdaptiveWeightCard({ config, setConfig, saveSystemConfig, dataVersion }
     }
   }, [showBoundsEditor, bounds, tempBounds])
 
+  // 兼容历史版本：如果初始先验不存在，则用默认创世值回填并锁定。
+  useEffect(() => {
+    const hasInitialPriors =
+      adaptiveConfig.initialPriors &&
+      Object.keys(DEFAULT_PRIORS).every((key) => {
+        const value = Number(adaptiveConfig.initialPriors[key])
+        return Number.isFinite(value)
+      })
+    if (hasInitialPriors) return
+
+    const repairedAdaptiveConfig = {
+      ...adaptiveConfig,
+      initialPriors: { ...DEFAULT_PRIORS },
+      priors: { ...DEFAULT_PRIORS },
+    }
+    const newConfig = { ...config, adaptiveWeights: repairedAdaptiveConfig }
+    setConfig(newConfig)
+    saveSystemConfig(newConfig)
+  }, [adaptiveConfig, config, saveSystemConfig, setConfig])
+
   const handleApplySuggestion = (key, value) => {
     const newConfig = { ...config, [key]: value }
-    // 更新 priors 为新值，作为下次优化的起点
     const newAdaptive = {
       ...adaptiveConfig,
-      priors: { ...priors, [key]: value },
+      initialPriors: { ...immutablePriors },
+      priors: { ...immutablePriors },
       lastUpdateAt: new Date().toISOString(),
       updateCount: (adaptiveConfig.updateCount || 0) + 1,
     }
@@ -2043,16 +2063,15 @@ function AdaptiveWeightCard({ config, setConfig, saveSystemConfig, dataVersion }
 
   const handleApplyAllSuggestions = () => {
     const newConfig = { ...config }
-    const newPriors = { ...priors }
     suggestions.suggestions.forEach((s) => {
       if (s.confidence >= 0.5 && Math.abs(s.change) > 0.001) {
         newConfig[s.key] = s.suggested
-        newPriors[s.key] = s.suggested
       }
     })
     newConfig.adaptiveWeights = {
       ...adaptiveConfig,
-      priors: newPriors,
+      initialPriors: { ...immutablePriors },
+      priors: { ...immutablePriors },
       lastUpdateAt: new Date().toISOString(),
       updateCount: (adaptiveConfig.updateCount || 0) + 1,
     }
@@ -2095,6 +2114,7 @@ function AdaptiveWeightCard({ config, setConfig, saveSystemConfig, dataVersion }
     })
     newConfig.adaptiveWeights = {
       ...adaptiveConfig,
+      initialPriors: { ...DEFAULT_PRIORS },
       priors: { ...DEFAULT_PRIORS },
       bounds: { ...DEFAULT_BOUNDS },
       updateCount: 0,
@@ -2361,7 +2381,7 @@ export default function ParamsPage({ openModal }) {
   const [accessLogPage, setAccessLogPage] = useState(1)
   const [selectedAccessMonth, setSelectedAccessMonth] = useState(() => getAccessMonthKey(Date.now()))
   const [fitTrajectoryMode, setFitTrajectoryMode] = useState('9')
-  const [fitTrajectoryWindow, setFitTrajectoryWindow] = useState(72)
+  const [fitTrajectoryWindow, setFitTrajectoryWindow] = useState(120)
 
   useEffect(() => {
     const refresh = () => {
@@ -2672,8 +2692,12 @@ export default function ParamsPage({ openModal }) {
   }, [analyticsProgress.rating, ratingRows])
   const fitTrajectoryValues = useMemo(() => {
     if (!analyticsProgress.rating || !Array.isArray(ratingRows) || ratingRows.length === 0) return []
+    const windowSize =
+      fitTrajectoryWindow === 0
+        ? ratingRows.length
+        : Math.max(12, Number.isFinite(Number(fitTrajectoryWindow)) ? Number(fitTrajectoryWindow) : 120)
     return ratingRows
-      .slice(-Math.max(12, fitTrajectoryWindow))
+      .slice(-Math.max(1, windowSize))
       .map((row) => Number(row.diff))
       .filter((value) => Number.isFinite(value))
   }, [analyticsProgress.rating, ratingRows, fitTrajectoryWindow])
@@ -3136,8 +3160,197 @@ export default function ParamsPage({ openModal }) {
           : {
               label: '样本不足',
               tone: 'text-stone-600',
-              badge: 'bg-stone-100 border-stone-200 text-stone-600',
-            }
+          badge: 'bg-stone-100 border-stone-200 text-stone-600',
+        }
+
+  const modelValidationGlossary = useMemo(() => {
+    const sampleCount = Number(modelValidation.sampleCount || 0)
+    const minimumSamples = Number(modelValidation.minimumSamples || 24)
+    const brierGain = Number(modelValidation.brier?.gainPct || 0)
+    const logLossGain = Number(modelValidation.logLoss?.gainPct || 0)
+    const drift = Number(modelValidation.brier?.drift || 0)
+    const rawRoi = Number(modelValidation.strategy?.raw?.roi || 0)
+    const rawMaxDrawdown = Number(modelValidation.strategy?.raw?.maxDrawdown || 0)
+    const calibratedRoi = Number(modelValidation.strategy?.calibrated?.roi || 0)
+    const calibratedMaxDrawdown = Number(modelValidation.strategy?.calibrated?.maxDrawdown || 0)
+    const rawSamples = Number(modelValidation.strategy?.raw?.samples || 0)
+    const calibratedSamples = Number(modelValidation.strategy?.calibrated?.samples || 0)
+    const rawRuns = Number(modelValidation.strategy?.raw?.runs || 0)
+    const calibratedRuns = Number(modelValidation.strategy?.calibrated?.runs || 0)
+    const walkForwardTotal = Number(modelValidation.walkForward?.length || 0)
+    const walkForwardPositive = Number(modelValidation.positiveWalkForward || 0)
+    const walkForwardRatio = walkForwardTotal > 0 ? walkForwardPositive / walkForwardTotal : null
+
+    const describeGain = (gain) => {
+      if (gain >= 8) return '校准后显著改善，说明模型收口有效。'
+      if (gain >= 2) return '校准后有改善，方向正确。'
+      if (gain > -2) return '与未校准基本持平，建议继续观察。'
+      return '校准后出现退化，需排查参数或样本结构。'
+    }
+
+    const sampleStatus =
+      sampleCount < minimumSamples
+        ? '尚未达到最小样本门槛，当前结果仅供参考。'
+        : sampleCount < minimumSamples * 2
+          ? '刚越过最小门槛，建议继续累积样本后再做大改。'
+          : sampleCount < minimumSamples * 4
+            ? '样本量处于可用区间，可做阶段性判断。'
+            : '样本量充足，验证结果的稳定性更高。'
+
+    const driftStatus = (() => {
+      const absDrift = Math.abs(drift)
+      if (absDrift <= 0.015) return '训练与测试表现贴合，泛化稳定。'
+      if (absDrift <= 0.035) return '存在可控漂移，建议持续监控。'
+      return '漂移偏大，可能有过拟合或分布变化风险。'
+    })()
+
+    const rawKellyStatus =
+      rawSamples <= 0
+        ? '样本不足，暂无法评价该策略稳健性。'
+        : rawRoi >= 0 && rawMaxDrawdown <= 25
+          ? '收益为正且回撤可控，策略表现较平衡。'
+          : rawRoi >= 0
+            ? '收益为正但回撤偏高，需关注资金曲线波动。'
+            : rawMaxDrawdown <= 20
+              ? '收益转负但回撤尚可，可能是赔率结构阶段性不利。'
+              : '收益与回撤同时偏弱，建议限制风险敞口。'
+
+    const calibratedKellyStatus = (() => {
+      if (calibratedSamples <= 0) return '样本不足，暂无法评价校准后策略。'
+      const roiDelta = calibratedRoi - rawRoi
+      const drawdownDelta = calibratedMaxDrawdown - rawMaxDrawdown
+      if (roiDelta >= 2 && drawdownDelta <= 0) return '校准后收益提升且回撤未恶化，收口有效。'
+      if (roiDelta >= 0 && drawdownDelta <= 2) return '校准后总体改善，建议继续沿当前参数迭代。'
+      if (roiDelta >= 0) return '收益有改善但回撤增大，建议配合风控上限使用。'
+      return '校准后净效果偏弱，需回看校准区间与样本结构。'
+    })()
+
+    const walkForwardStatus =
+      walkForwardRatio === null
+        ? '样本不足，尚未形成正向窗口统计。'
+        : walkForwardRatio >= 0.67
+          ? '大部分窗口方向一致，时序泛化能力较强。'
+          : walkForwardRatio >= 0.45
+            ? '正负窗口接近，时序稳定性中性。'
+            : '正向窗口偏少，建议降低激进配置并复核参数。'
+
+    const positiveWindowStatus =
+      walkForwardRatio === null
+        ? '无可评估窗口。'
+        : walkForwardRatio >= 0.67
+          ? '正向窗口占比高，可维持当前策略主线。'
+          : walkForwardRatio >= 0.45
+            ? '窗口表现分化，建议以稳健仓位为主。'
+            : '窗口胜率偏低，建议优先修正模型与仓位。'
+
+    const bootstrapStatus = (() => {
+      const runsTarget = 100000
+      const runsNow = Math.max(rawRuns, calibratedRuns)
+      if (runsNow <= 0) return '尚未完成 Monte Carlo 采样。'
+      const ratio = runsNow / runsTarget
+      if (ratio >= 1) return '已达目标采样，统计噪音相对可控。'
+      if (ratio >= 0.6) return '采样次数较充足，可用于阶段性判断。'
+      return '采样偏少，结果方差较高，建议补足后再下结论。'
+    })()
+
+    const walkForwardGainCard = (row) => {
+      const gain = Number(row?.gainPct || 0)
+      return {
+        title: `${row?.label || '窗口'} · Brier 改善`,
+        what: '该窗口内，校准前后 Brier score 的相对改善幅度。',
+        describes: '用于判断模型在该时间切片上是否“越校准越准”。',
+        current: toSigned(gain, 2, '%'),
+        baseline: '≥8% 显著改善；2%~8% 有改善；-2%~2% 基本持平；< -2% 退化。',
+        status: describeGain(gain),
+        others: 'Improve / Flat / Degrade',
+      }
+    }
+
+    return {
+      sampleCount: {
+        title: '样本总量',
+        what: '参与模型收口验证的总样本量（训练 + 测试）。',
+        describes: '决定验证统计结果的可靠性与可解释性。',
+        current: `${sampleCount}（Train ${modelValidation.trainSamples} · Test ${modelValidation.testSamples}）`,
+        baseline: `最小门槛 ${minimumSamples}；建议 ≥ ${minimumSamples * 2}。`,
+        status: sampleStatus,
+        others: '不足 / 可用 / 充足',
+      },
+      testBrier: {
+        title: 'Test Brier',
+        what: 'Brier score 衡量概率预测误差，值越低越好。',
+        describes: '对比校准前后在测试集上的误差变化。',
+        current: `${modelValidation.brier.testRaw.toFixed(4)} → ${modelValidation.brier.testCalibrated.toFixed(4)}（${toSigned(brierGain, 2, '%')}）`,
+        baseline: 'gain > 0 代表校准改善；gain < 0 代表校准退化。',
+        status: describeGain(brierGain),
+        others: 'Significant Improve / Mild Improve / Flat / Degrade',
+      },
+      testLogLoss: {
+        title: 'Test LogLoss',
+        what: 'LogLoss 关注概率预测的对数损失，值越低越好。',
+        describes: '对极端错误更敏感，用于补充 Brier 的风险视角。',
+        current: `${modelValidation.logLoss.testRaw.toFixed(4)} → ${modelValidation.logLoss.testCalibrated.toFixed(4)}（${toSigned(logLossGain, 2, '%')}）`,
+        baseline: 'gain > 0 为改善；gain < 0 为退化。',
+        status: describeGain(logLossGain),
+        others: 'Significant Improve / Mild Improve / Flat / Degrade',
+      },
+      drift: {
+        title: '稳健性漂移',
+        what: '测试集校准误差相对训练集校准误差的偏移量。',
+        describes: '用于观测过拟合或样本分布偏移风险。',
+        current: toSigned(drift, 4),
+        baseline: '|drift| ≤ 0.015 稳定；≤ 0.035 观察；> 0.035 风险。',
+        status: driftStatus,
+        others: 'Stable / Watch / At Risk',
+      },
+      kellyRaw: {
+        title: 'Kelly 策略回测（Raw Conf）',
+        what: '用原始置信度（未校准）驱动 Kelly 下注的历史回测表现。',
+        describes: '作为校准策略前的对照基线。',
+        current: `ROI ${toSigned(rawRoi, 2, '%')} · 回撤 -${rawMaxDrawdown.toFixed(2)}% · 样本 ${rawSamples} · MC ${rawRuns || 0}`,
+        baseline: '常见基线：ROI > 0 且最大回撤 < 25%。',
+        status: rawKellyStatus,
+        others: 'Balanced / Positive but Risky / Defensive / Weak',
+      },
+      kellyCalibrated: {
+        title: 'Kelly 策略回测（Calibrated Conf）',
+        what: '用校准后置信度驱动 Kelly 下注的历史回测表现。',
+        describes: '用于验证“校准是否真正转化为收益质量”。',
+        current: `ROI ${toSigned(calibratedRoi, 2, '%')} · 回撤 -${calibratedMaxDrawdown.toFixed(2)}% · 样本 ${calibratedSamples} · MC ${calibratedRuns || 0}`,
+        baseline: '优先观察相对 Raw 的 ROI 增减与回撤变化。',
+        status: calibratedKellyStatus,
+        others: 'ROI Up + DD Down / ROI Up + DD Up / Flat / Weaker',
+      },
+      walkForward: {
+        title: 'Walk-forward 结果',
+        what: '按时间滚动窗口进行训练-测试的序列验证结果。',
+        describes: '衡量模型在时间推进下是否仍具泛化能力。',
+        current: walkForwardTotal > 0 ? `${walkForwardTotal} 个窗口` : '--',
+        baseline: '建议至少 3 个窗口，且正向窗口占比尽量 > 50%。',
+        status: walkForwardStatus,
+        others: 'Robust / Mixed / Weak',
+      },
+      positiveWindow: {
+        title: '正向窗口',
+        what: 'Walk-forward 中，校准后优于校准前的窗口数量。',
+        describes: '反映校准增益在时间轴上的稳定覆盖度。',
+        current: walkForwardTotal > 0 ? `${walkForwardPositive}/${walkForwardTotal}` : '--',
+        baseline: '≥67% 通常较稳；45%~67% 中性；<45% 需谨慎。',
+        status: positiveWindowStatus,
+        others: 'High Coverage / Neutral / Low Coverage',
+      },
+      bootstrap: {
+        title: 'Bootstrap Monte Carlo',
+        what: '对回测样本做重复重采样，估计策略收益分布稳定性。',
+        describes: '用于降低小样本偶然性，给 ROI/回撤更稳的统计支撑。',
+        current: `Raw ${rawRuns || 0} · Calibrated ${calibratedRuns || 0}`,
+        baseline: '目标采样 100000 次；样本少时会自动降采样预算。',
+        status: bootstrapStatus,
+        others: 'Target Reached / Usable / Under-sampled',
+      },
+      walkForwardGainCard,
+    }
+  }, [modelValidation])
 
   const openRatingModal = () => {
     openModal({
@@ -3551,7 +3764,7 @@ export default function ParamsPage({ openModal }) {
                         >
                           {FIT_TRAJECTORY_WINDOW_OPTIONS.map((windowSize) => (
                             <option key={windowSize} value={windowSize}>
-                              {`最近 ${Math.min(ratingRows.length, windowSize)} 场`}
+                              {windowSize === 0 ? `历史（全部 ${ratingRows.length} 场）` : `最近 ${Math.min(ratingRows.length, windowSize)} 场`}
                             </option>
                           ))}
                         </select>
@@ -4408,14 +4621,22 @@ export default function ParamsPage({ openModal }) {
           <>
             <div className="grid grid-cols-4 gap-3 mb-4">
               <div className="p-3 bg-stone-50 rounded-xl">
-                <p className="text-xs text-stone-400">样本总量</p>
+                <ExplainHover card={modelValidationGlossary.sampleCount}>
+                  <p className="cursor-help text-xs text-stone-400 decoration-dotted underline decoration-stone-300/80 underline-offset-[2px]">
+                    样本总量
+                  </p>
+                </ExplainHover>
                 <p className="text-sm font-semibold text-stone-700 mt-1">{modelValidation.sampleCount}</p>
                 <p className="text-[11px] text-stone-400 mt-1">
                   Train {modelValidation.trainSamples} · Test {modelValidation.testSamples}
                 </p>
               </div>
               <div className="p-3 bg-stone-50 rounded-xl">
-                <p className="text-xs text-stone-400">Test Brier</p>
+                <ExplainHover card={modelValidationGlossary.testBrier}>
+                  <p className="cursor-help text-xs text-stone-400 decoration-dotted underline decoration-stone-300/80 underline-offset-[2px]">
+                    Test Brier
+                  </p>
+                </ExplainHover>
                 <p className="text-sm font-semibold text-stone-700 mt-1">
                   {modelValidation.brier.testRaw.toFixed(4)} → {modelValidation.brier.testCalibrated.toFixed(4)}
                 </p>
@@ -4424,7 +4645,11 @@ export default function ParamsPage({ openModal }) {
                 </p>
               </div>
               <div className="p-3 bg-stone-50 rounded-xl">
-                <p className="text-xs text-stone-400">Test LogLoss</p>
+                <ExplainHover card={modelValidationGlossary.testLogLoss}>
+                  <p className="cursor-help text-xs text-stone-400 decoration-dotted underline decoration-stone-300/80 underline-offset-[2px]">
+                    Test LogLoss
+                  </p>
+                </ExplainHover>
                 <p className="text-sm font-semibold text-stone-700 mt-1">
                   {modelValidation.logLoss.testRaw.toFixed(4)} → {modelValidation.logLoss.testCalibrated.toFixed(4)}
                 </p>
@@ -4433,7 +4658,11 @@ export default function ParamsPage({ openModal }) {
                 </p>
               </div>
               <div className="p-3 bg-stone-50 rounded-xl">
-                <p className="text-xs text-stone-400">稳健性漂移</p>
+                <ExplainHover card={modelValidationGlossary.drift} align="right">
+                  <p className="cursor-help text-xs text-stone-400 decoration-dotted underline decoration-stone-300/80 underline-offset-[2px]">
+                    稳健性漂移
+                  </p>
+                </ExplainHover>
                 <p className={`text-sm font-semibold mt-1 ${modelValidationMeta.tone}`}>
                   {toSigned(modelValidation.brier.drift, 4)}
                 </p>
@@ -4443,7 +4672,11 @@ export default function ParamsPage({ openModal }) {
 
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div className="p-3 rounded-xl border border-stone-200 bg-white">
-                <p className="text-xs text-stone-400">Kelly 策略回测（Raw Conf）</p>
+                <ExplainHover card={modelValidationGlossary.kellyRaw}>
+                  <p className="cursor-help text-xs text-stone-400 decoration-dotted underline decoration-stone-300/80 underline-offset-[2px]">
+                    Kelly 策略回测（Raw Conf）
+                  </p>
+                </ExplainHover>
                 <p className={`text-sm font-semibold mt-1 ${modelValidation.strategy.raw.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                   ROI {toSigned(modelValidation.strategy.raw.roi, 2, '%')}
                 </p>
@@ -4452,7 +4685,11 @@ export default function ParamsPage({ openModal }) {
                 </p>
               </div>
               <div className="p-3 rounded-xl border border-amber-200 bg-amber-50/40">
-                <p className="text-xs text-amber-700">Kelly 策略回测（Calibrated Conf）</p>
+                <ExplainHover card={modelValidationGlossary.kellyCalibrated} align="right">
+                  <p className="cursor-help text-xs text-amber-700 decoration-dotted underline decoration-amber-300/80 underline-offset-[2px]">
+                    Kelly 策略回测（Calibrated Conf）
+                  </p>
+                </ExplainHover>
                 <p className={`text-sm font-semibold mt-1 ${modelValidation.strategy.calibrated.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                   ROI {toSigned(modelValidation.strategy.calibrated.roi, 2, '%')}
                 </p>
@@ -4464,10 +4701,16 @@ export default function ParamsPage({ openModal }) {
 
             <div className="rounded-xl border border-stone-200 bg-stone-50 p-3">
               <div className="flex items-center justify-between">
-                <p className="text-xs text-stone-500">Walk-forward 结果</p>
-                <p className="text-xs text-stone-400">
-                  正向窗口 {modelValidation.positiveWalkForward}/{modelValidation.walkForward.length}
-                </p>
+                <ExplainHover card={modelValidationGlossary.walkForward}>
+                  <p className="cursor-help text-xs text-stone-500 decoration-dotted underline decoration-stone-300/80 underline-offset-[2px]">
+                    Walk-forward 结果
+                  </p>
+                </ExplainHover>
+                <ExplainHover card={modelValidationGlossary.positiveWindow} align="right">
+                  <p className="cursor-help text-xs text-stone-400 decoration-dotted underline decoration-stone-300/80 underline-offset-[2px]">
+                    正向窗口 {modelValidation.positiveWalkForward}/{modelValidation.walkForward.length}
+                  </p>
+                </ExplainHover>
               </div>
               {modelValidation.walkForward.length === 0 ? (
                 <p className="text-xs text-stone-400 mt-2">样本不足，暂无法构建 walk-forward 窗口。</p>
@@ -4478,15 +4721,21 @@ export default function ParamsPage({ openModal }) {
                       <span className="text-stone-500">
                         {row.label} · Train {row.trainSamples} / Test {row.testSamples}
                       </span>
-                      <span className={`${row.gainPct >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                        Brier 改善 {toSigned(row.gainPct, 2, '%')}
-                      </span>
+                      <ExplainHover card={modelValidationGlossary.walkForwardGainCard(row)} align="right">
+                        <span className={`cursor-help decoration-dotted underline decoration-stone-300/80 underline-offset-[2px] ${row.gainPct >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                          Brier 改善 {toSigned(row.gainPct, 2, '%')}
+                        </span>
+                      </ExplainHover>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-            <p className="text-[11px] text-stone-400 mt-2">注：策略回测使用 Bootstrap Monte Carlo（目标 100000 次，按样本量自动做计算预算缩放）。</p>
+            <ExplainHover card={modelValidationGlossary.bootstrap} align="right">
+              <p className="mt-2 cursor-help text-[11px] text-stone-400 decoration-dotted underline decoration-stone-300/80 underline-offset-[2px]">
+                注：策略回测使用 Bootstrap Monte Carlo（目标 100000 次，按样本量自动做计算预算缩放）。
+              </p>
+            </ExplainHover>
           </>
         )}
       </div>
