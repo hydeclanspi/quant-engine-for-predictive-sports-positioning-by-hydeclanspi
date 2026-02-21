@@ -3055,13 +3055,16 @@ export default function ParamsPage({ openModal }) {
     return pages
   }, [accessLogPage, accessLogTotalPages])
 
-  const { accessSessionDurationMap, accessSessionElapsedMap } = useMemo(() => {
+  const { accessSessionDurationMap, accessSessionDeltaMap } = useMemo(() => {
     const sessionBounds = new Map()
+    const sessionRowsMap = new Map()
     accessLogs.forEach((row) => {
       const sessionId = String(row.session_id || '').trim()
       if (!sessionId) return
       const ts = new Date(row.created_at || '').getTime()
       if (!Number.isFinite(ts)) return
+      if (!sessionRowsMap.has(sessionId)) sessionRowsMap.set(sessionId, [])
+      sessionRowsMap.get(sessionId).push({ row, ts })
       const current = sessionBounds.get(sessionId)
       if (!current) {
         sessionBounds.set(sessionId, { min: ts, max: ts })
@@ -3071,24 +3074,22 @@ export default function ParamsPage({ openModal }) {
       if (ts > current.max) current.max = ts
     })
     const durationMap = new Map()
-    const sessionStartMap = new Map()
     sessionBounds.forEach((bounds, sessionId) => {
       durationMap.set(sessionId, formatSessionDuration(bounds.max - bounds.min))
-      sessionStartMap.set(sessionId, bounds.min)
     })
-    const elapsedMap = new Map()
-    accessLogs.forEach((row) => {
-      const sessionId = String(row.session_id || '').trim()
-      if (!sessionId) return
-      const ts = new Date(row.created_at || '').getTime()
-      const start = sessionStartMap.get(sessionId)
-      if (!Number.isFinite(ts) || !Number.isFinite(start)) return
-      const key = getAccessRowDurationKey(row)
-      elapsedMap.set(key, formatSessionDuration(Math.max(0, ts - start)))
+    const deltaMap = new Map()
+    sessionRowsMap.forEach((items) => {
+      const ordered = [...items].sort((a, b) => a.ts - b.ts)
+      let prevTs = null
+      ordered.forEach(({ row, ts }) => {
+        const deltaMs = prevTs === null ? 0 : Math.max(0, ts - prevTs)
+        deltaMap.set(getAccessRowDurationKey(row), formatSessionDuration(deltaMs))
+        prevTs = ts
+      })
     })
     return {
       accessSessionDurationMap: durationMap,
-      accessSessionElapsedMap: elapsedMap,
+      accessSessionDeltaMap: deltaMap,
     }
   }, [accessLogs])
 
@@ -5057,8 +5058,8 @@ export default function ParamsPage({ openModal }) {
                         <p className="font-medium text-stone-700">{row.route || '--'}</p>
                       </td>
                       <td className="px-3 py-2.5 align-top whitespace-nowrap">
-                        <p className="font-medium text-stone-700">{accessSessionElapsedMap.get(getAccessRowDurationKey(row)) || '00:00'}</p>
-                        <p className="mt-0.5 text-[11px] text-stone-400">session total {accessSessionDurationMap.get(row.session_id) || '00:00'}</p>
+                        <p className="font-medium text-stone-700">{accessSessionDeltaMap.get(getAccessRowDurationKey(row)) || '00:00'}</p>
+                        <p className="mt-0.5 text-[11px] text-stone-400">delta since prev · total {accessSessionDurationMap.get(row.session_id) || '00:00'}</p>
                       </td>
                       <td className="px-3 py-2.5 align-top whitespace-nowrap">
                         <p className="font-medium capitalize text-stone-700">{row.device_type || '--'}</p>
