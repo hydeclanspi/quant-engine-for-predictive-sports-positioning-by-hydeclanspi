@@ -52,8 +52,9 @@ export const buildAccessSnapshot = (pathname = '') => {
   const screenHeight = window.screen?.height || 0
   const viewportWidth = window.innerWidth || 0
   const viewportHeight = window.innerHeight || 0
-  const language = nav.language || (Array.isArray(nav.languages) ? nav.languages[0] : '') || 'unknown'
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown'
+  const browserLanguage = nav.language || (Array.isArray(nav.languages) ? nav.languages[0] : '') || ''
+  const language = timezone && timezone !== 'unknown' ? timezone : browserLanguage || 'unknown'
   const networkType = nav.connection?.effectiveType || nav.connection?.type || 'unknown'
   const origin = window.location?.origin || ''
   const route = pathname || window.location?.pathname || '/'
@@ -87,4 +88,3 @@ export const trackRouteAccess = (pathname = '') => {
   if (!snapshot) return null
   return appendAccessLog(snapshot)
 }
-
