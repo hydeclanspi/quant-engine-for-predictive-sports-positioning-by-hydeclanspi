@@ -214,19 +214,25 @@ const FIT_TRAJECTORY_MODE_OPTIONS = [
 
 const clampNumber = (value, min, max) => Math.max(min, Math.min(max, value))
 
-const buildSmoothPath = (inputPoints, tension = 0.18) => {
+const buildSmoothPath = (inputPoints, tension = 0.16) => {
   if (!inputPoints.length) return ''
   if (inputPoints.length === 1) return `M ${inputPoints[0].x.toFixed(3)} ${inputPoints[0].y.toFixed(3)}`
+  const t = clampNumber(tension, 0.08, 0.22)
   let path = `M ${inputPoints[0].x.toFixed(3)} ${inputPoints[0].y.toFixed(3)}`
   for (let idx = 0; idx < inputPoints.length - 1; idx += 1) {
     const p0 = inputPoints[idx - 1] || inputPoints[idx]
     const p1 = inputPoints[idx]
     const p2 = inputPoints[idx + 1]
     const p3 = inputPoints[idx + 2] || p2
-    const cp1x = p1.x + (p2.x - p0.x) * tension
-    const cp1y = p1.y + (p2.y - p0.y) * tension
-    const cp2x = p2.x - (p3.x - p1.x) * tension
-    const cp2y = p2.y - (p3.y - p1.y) * tension
+    const segmentPad = Math.abs(p2.y - p1.y) * 0.35 + 0.6
+    const minY = Math.min(p1.y, p2.y) - segmentPad
+    const maxY = Math.max(p1.y, p2.y) + segmentPad
+    const minX = Math.min(p1.x, p2.x)
+    const maxX = Math.max(p1.x, p2.x)
+    const cp1x = clampNumber(p1.x + (p2.x - p0.x) * t, minX, maxX)
+    const cp1y = clampNumber(p1.y + (p2.y - p0.y) * t, minY, maxY)
+    const cp2x = clampNumber(p2.x - (p3.x - p1.x) * t, minX, maxX)
+    const cp2y = clampNumber(p2.y - (p3.y - p1.y) * t, minY, maxY)
     path += ` C ${cp1x.toFixed(3)} ${cp1y.toFixed(3)}, ${cp2x.toFixed(3)} ${cp2y.toFixed(3)}, ${p2.x.toFixed(3)} ${p2.y.toFixed(3)}`
   }
   return path
@@ -255,6 +261,14 @@ const buildBandPath = (upperPoints, lowerPoints) => {
   const lower = buildSmoothPath([...lowerPoints].reverse(), 0.16)
   return `${upper} ${lower.replace(/^M/, 'L')} Z`
 }
+
+const buildMovingAverageValues = (values, radius) =>
+  values.map((_, idx) => {
+    const start = Math.max(0, idx - radius)
+    const end = Math.min(values.length - 1, idx + radius)
+    const window = values.slice(start, end + 1)
+    return window.reduce((sum, value) => sum + value, 0) / Math.max(window.length, 1)
+  })
 
 const buildSeriesBand = ({ points, values, span, chartTop, chartBottom, radius = 3, multiplier = 0.9, minPx = 0.8, maxPx = 7 }) => {
   if (!points.length || !values.length) return { upper: [], lower: [] }
@@ -312,21 +326,25 @@ const buildFitTrajectoryModel = (values) => {
   const span = Math.max(max - min, 0.08)
   const step = series.length > 1 ? (chartRight - chartLeft) / (series.length - 1) : 0
 
+  const projectValueToY = (value) => chartBottom - ((value - min) / span) * (chartBottom - chartTop)
+
   const points = series.map((value, idx) => {
     const x = chartLeft + idx * step
-    const y = chartBottom - ((value - min) / span) * (chartBottom - chartTop)
+    const y = projectValueToY(value)
     return { x, y, value, idx }
   })
 
-  const movingValues = series.map((_, idx) => {
-    const start = Math.max(0, idx - 2)
-    const end = Math.min(series.length - 1, idx + 2)
-    const window = series.slice(start, end + 1)
-    return window.reduce((sum, value) => sum + value, 0) / Math.max(window.length, 1)
-  })
+  const movingValues = buildMovingAverageValues(series, 2)
+  const movingLongValues = buildMovingAverageValues(series, 4)
   const movingPoints = movingValues.map((value, idx) => ({
     x: points[idx].x,
-    y: chartBottom - ((value - min) / span) * (chartBottom - chartTop),
+    y: projectValueToY(value),
+    value,
+    idx,
+  }))
+  const movingLongPoints = movingLongValues.map((value, idx) => ({
+    x: points[idx].x,
+    y: projectValueToY(value),
     value,
     idx,
   }))
@@ -352,6 +370,17 @@ const buildFitTrajectoryModel = (values) => {
     multiplier: 1.22,
     minPx: 1.1,
     maxPx: 8.2,
+  })
+  const trendBand = buildSeriesBand({
+    points: movingLongPoints,
+    values: movingLongValues,
+    span,
+    chartTop,
+    chartBottom,
+    radius: Math.min(5, Math.max(2, Math.floor(series.length / 16))),
+    multiplier: 0.68,
+    minPx: 0.65,
+    maxPx: 4.8,
   })
 
   const zeroYRaw = chartBottom - ((0 - min) / span) * (chartBottom - chartTop)
@@ -431,18 +460,26 @@ const buildFitTrajectoryModel = (values) => {
     value,
   }))
 
-  const areaToZeroPath = `${buildSmoothPath(points, 0.16)} L ${chartRight.toFixed(3)} ${zeroY.toFixed(3)} L ${chartLeft.toFixed(3)} ${zeroY.toFixed(3)} Z`
-  const areaToBottomPath = `${buildSmoothPath(points, 0.16)} L ${chartRight.toFixed(3)} ${chartBottom.toFixed(3)} L ${chartLeft.toFixed(3)} ${chartBottom.toFixed(3)} Z`
+  const lineSmoothPath = buildSmoothPath(points, 0.16)
+  const lineMovingPath = buildSmoothPath(movingPoints, 0.14)
+  const lineLongMovingPath = buildSmoothPath(movingLongPoints, 0.12)
+  const areaToZeroPath = `${lineSmoothPath} L ${chartRight.toFixed(3)} ${zeroY.toFixed(3)} L ${chartLeft.toFixed(3)} ${zeroY.toFixed(3)} Z`
+  const areaToBottomPath = `${lineSmoothPath} L ${chartRight.toFixed(3)} ${chartBottom.toFixed(3)} L ${chartLeft.toFixed(3)} ${chartBottom.toFixed(3)} Z`
+  const areaMovingToZeroPath = `${lineMovingPath} L ${chartRight.toFixed(3)} ${zeroY.toFixed(3)} L ${chartLeft.toFixed(3)} ${zeroY.toFixed(3)} Z`
+  const areaLongToZeroPath = `${lineLongMovingPath} L ${chartRight.toFixed(3)} ${zeroY.toFixed(3)} L ${chartLeft.toFixed(3)} ${zeroY.toFixed(3)} Z`
 
   return {
     values: series,
     points,
     movingPoints,
+    movingLongPoints,
     narrowBandPath: buildBandPath(narrowBand.upper, narrowBand.lower),
     wideBandPath: buildBandPath(wideBand.upper, wideBand.lower),
+    trendBandPath: buildBandPath(trendBand.upper, trendBand.lower),
     lineRawPath: buildLinePath(points),
-    lineSmoothPath: buildSmoothPath(points, 0.18),
-    lineMovingPath: buildSmoothPath(movingPoints, 0.16),
+    lineSmoothPath,
+    lineMovingPath,
+    lineLongMovingPath,
     lineStepPath: buildStepPath(points),
     lineBySign,
     slopeSegments,
@@ -451,6 +488,8 @@ const buildFitTrajectoryModel = (values) => {
     cumulativePath: buildSmoothPath(cumulativePoints, 0.14),
     areaToZeroPath,
     areaToBottomPath,
+    areaMovingToZeroPath,
+    areaLongToZeroPath,
     zeroY,
     corridorTop,
     corridorBottom,
@@ -473,11 +512,14 @@ const renderFitTrajectoryChart = ({ model, mode }) => {
   const {
     points,
     movingPoints,
+    movingLongPoints,
     narrowBandPath,
     wideBandPath,
+    trendBandPath,
     lineRawPath,
     lineSmoothPath,
     lineMovingPath,
+    lineLongMovingPath,
     lineStepPath,
     lineBySign,
     slopeSegments,
@@ -486,6 +528,8 @@ const renderFitTrajectoryChart = ({ model, mode }) => {
     cumulativePath,
     areaToZeroPath,
     areaToBottomPath,
+    areaMovingToZeroPath,
+    areaLongToZeroPath,
     zeroY,
     corridorTop,
     corridorBottom,
@@ -503,14 +547,16 @@ const renderFitTrajectoryChart = ({ model, mode }) => {
   const baseGrid = (
     <>
       {tickRows.map((y) => (
-        <line key={`grid-${y}`} x1={chartLeft} y1={y} x2={chartRight} y2={y} stroke="#eff6ff" strokeWidth="0.8" />
+        <line key={`grid-${y}`} x1={chartLeft} y1={y} x2={chartRight} y2={y} stroke="#ecf3ff" strokeWidth="0.72" />
       ))}
       {[quarterX, halfX, thirdQuarterX].map((x) => (
-        <line key={`vgrid-${x}`} x1={x} y1={chartTop} x2={x} y2={chartBottom} stroke="#e0e7ff" strokeWidth="0.62" />
+        <line key={`vgrid-${x}`} x1={x} y1={chartTop} x2={x} y2={chartBottom} stroke="#e2e8ff" strokeWidth="0.58" />
       ))}
-      <line x1={chartLeft} y1={zeroY} x2={chartRight} y2={zeroY} stroke="#bfdbfe" strokeWidth="0.75" strokeDasharray="2 1.7" />
+      <line x1={chartLeft} y1={zeroY} x2={chartRight} y2={zeroY} stroke="#bfdbfe" strokeWidth="0.72" strokeDasharray="2 1.8" />
     </>
   )
+
+  const keyDots = points.filter((_, idx) => idx % 4 === 0 || idx === points.length - 1)
 
   const modeLayers = (() => {
     switch (mode) {
@@ -518,17 +564,24 @@ const renderFitTrajectoryChart = ({ model, mode }) => {
         return (
           <>
             {mosaicSegments.map((segment, idx) => (
-              <rect key={`mosaic-river-${idx}`} x={segment.x} y={chartTop} width={segment.width} height={chartBottom - chartTop} fill={segment.tone} />
+              <rect
+                key={`mosaic-river-${idx}`}
+                x={segment.x}
+                y={chartTop}
+                width={segment.width}
+                height={chartBottom - chartTop}
+                fill={segment.tone.replace(/0\.\d+\)/, '0.045)')}
+              />
             ))}
-            <path d={wideBandPath} fill="rgba(99,102,241,0.12)" />
-            <path d={narrowBandPath} fill="rgba(56,189,248,0.12)" />
-            <path d={lineMovingPath} fill="none" stroke="rgba(14,165,233,0.55)" strokeWidth="1.15" strokeDasharray="2 1.5" strokeLinecap="round" />
-            <path d={lineSmoothPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="2.05" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={trendBandPath} fill="rgba(56,189,248,0.11)" />
+            <path d={lineLongMovingPath} fill="none" stroke="rgba(14,165,233,0.9)" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={lineSmoothPath} fill="none" stroke="rgba(99,102,241,0.5)" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
           </>
         )
       case '2':
         return (
           <>
+            <path d={areaMovingToZeroPath} fill="rgba(99,102,241,0.08)" />
             {bars.map((bar, idx) => (
               <rect
                 key={`horizon-bar-${idx}`}
@@ -536,24 +589,23 @@ const renderFitTrajectoryChart = ({ model, mode }) => {
                 y={bar.y}
                 width={bar.width}
                 height={bar.height}
-                fill={bar.positive ? 'rgba(14,165,233,0.23)' : 'rgba(139,92,246,0.22)'}
+                fill={bar.positive ? 'rgba(56,189,248,0.14)' : 'rgba(129,140,248,0.14)'}
                 rx={Math.min(1.8, bar.width / 2)}
               />
             ))}
-            <path d={lineSmoothPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={lineMovingPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
           </>
         )
       case '3':
         return (
           <>
-            <path d={lineSmoothPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-            {points.map((point, idx) => {
-              const pulse = 1 + ((idx + 1) % 4 === 0 ? 0.85 : 0.25)
-              const opacity = 0.16 + (idx / Math.max(points.length - 1, 1)) * 0.42
+            <path d={lineRawPath} fill="none" stroke="rgba(148,163,184,0.38)" strokeWidth="0.95" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={lineSmoothPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            {keyDots.map((point, idx) => {
+              const opacity = 0.25 + (idx / Math.max(keyDots.length - 1, 1)) * 0.5
               return (
                 <g key={`pulse-${idx}`}>
-                  <circle cx={point.x} cy={point.y} r={1.05 * pulse} fill={`rgba(99,102,241,${opacity * 0.42})`} />
-                  <circle cx={point.x} cy={point.y} r={0.58} fill="rgba(99,102,241,0.8)" />
+                  <circle cx={point.x} cy={point.y} r={0.68} fill={`rgba(99,102,241,${opacity})`} />
                 </g>
               )
             })}
@@ -562,28 +614,36 @@ const renderFitTrajectoryChart = ({ model, mode }) => {
       case '4':
         return (
           <>
-            <path d={wideBandPath} fill="rgba(99,102,241,0.13)" />
-            <path d={narrowBandPath} fill="rgba(14,165,233,0.12)" />
-            <path d={lineMovingPath} fill="none" stroke="rgba(79,70,229,0.48)" strokeWidth="1.18" strokeDasharray="2 1.7" strokeLinecap="round" />
-            <path d={lineSmoothPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={wideBandPath} fill="rgba(129,140,248,0.08)" />
+            <path d={narrowBandPath} fill="rgba(56,189,248,0.07)" />
+            <path d={trendBandPath} fill="rgba(14,165,233,0.08)" />
+            <path d={lineLongMovingPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="1.74" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={lineMovingPath} fill="none" stroke="rgba(71,85,105,0.38)" strokeWidth="0.95" strokeDasharray="2.2 1.9" strokeLinecap="round" />
           </>
         )
       case '5':
         return (
           <>
             {mosaicSegments.map((segment, idx) => (
-              <rect key={`mosaic-${idx}`} x={segment.x} y={chartTop} width={segment.width} height={chartBottom - chartTop} fill={segment.tone} />
+              <rect
+                key={`mosaic-${idx}`}
+                x={segment.x}
+                y={chartTop}
+                width={segment.width}
+                height={chartBottom - chartTop}
+                fill={segment.tone.replace(/0\.\d+\)/, '0.055)')}
+              />
             ))}
-            <path d={lineStepPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="1.72" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={lineStepPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round" />
             {points.map((point, idx) => (
               <rect
                 key={`mosaic-point-${idx}`}
-                x={point.x - 0.58}
-                y={point.y - 0.58}
-                width={1.16}
-                height={1.16}
-                rx={0.22}
-                fill="rgba(99,102,241,0.84)"
+                x={point.x - 0.5}
+                y={point.y - 0.5}
+                width={1}
+                height={1}
+                rx={0.2}
+                fill="rgba(99,102,241,0.7)"
               />
             ))}
           </>
@@ -596,12 +656,12 @@ const renderFitTrajectoryChart = ({ model, mode }) => {
               y={corridorTop}
               width={chartRight - chartLeft}
               height={Math.max(0.8, corridorBottom - corridorTop)}
-              fill="rgba(99,102,241,0.08)"
+              fill="rgba(99,102,241,0.065)"
               rx={2.4}
             />
-            <path d={narrowBandPath} fill="rgba(99,102,241,0.12)" />
-            <path d={lineMovingPath} fill="none" stroke="rgba(56,189,248,0.42)" strokeWidth="1.1" strokeDasharray="2 1.5" strokeLinecap="round" />
-            <path d={lineSmoothPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={trendBandPath} fill="rgba(99,102,241,0.075)" />
+            <path d={lineLongMovingPath} fill="none" stroke="rgba(79,70,229,0.88)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={lineMovingPath} fill="none" stroke="rgba(56,189,248,0.52)" strokeWidth="0.92" strokeDasharray="2 1.8" strokeLinecap="round" />
           </>
         )
       case '7':
@@ -614,25 +674,26 @@ const renderFitTrajectoryChart = ({ model, mode }) => {
                 y={bar.y}
                 width={bar.width}
                 height={bar.height}
-                fill={bar.positive ? 'rgba(14,165,233,0.16)' : 'rgba(139,92,246,0.16)'}
+                fill={bar.positive ? 'rgba(56,189,248,0.14)' : 'rgba(129,140,248,0.14)'}
                 rx={Math.min(2, bar.width / 2)}
               />
             ))}
-            <path d={lineStepPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="1.72" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={lineStepPath} fill="none" stroke="rgba(79,70,229,0.88)" strokeWidth="1.54" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={lineRawPath} fill="none" stroke="rgba(148,163,184,0.3)" strokeWidth="0.76" strokeLinecap="round" strokeLinejoin="round" />
           </>
         )
       case '8':
         return (
           <>
-            <path d={lineMovingPath} fill="none" stroke="rgba(99,102,241,0.45)" strokeWidth="1.2" strokeDasharray="2.2 1.8" strokeLinecap="round" />
+            <path d={lineMovingPath} fill="none" stroke="rgba(99,102,241,0.55)" strokeWidth="1.05" strokeDasharray="2.1 1.9" strokeLinecap="round" />
             {points.map((point, idx) => {
-              const alpha = 0.12 + (idx / Math.max(points.length - 1, 1)) * 0.45
+              const alpha = 0.15 + (idx / Math.max(points.length - 1, 1)) * 0.4
               return (
                 <circle
                   key={`scatter-${idx}`}
                   cx={point.x}
                   cy={point.y}
-                  r={0.9 + Math.min(1.2, idx / 20)}
+                  r={0.66 + Math.min(0.9, idx / 22)}
                   fill={`rgba(79,70,229,${alpha})`}
                 />
               )
@@ -642,34 +703,26 @@ const renderFitTrajectoryChart = ({ model, mode }) => {
       case '9':
         return (
           <>
-            {bars.map((bar, idx) => (
-              <rect
-                key={`waterfall-bar-${idx}`}
-                x={bar.x}
-                y={bar.y}
-                width={bar.width}
-                height={bar.height}
-                fill={bar.positive ? 'rgba(34,197,94,0.16)' : 'rgba(99,102,241,0.15)'}
-                rx={Math.min(1.6, bar.width / 2)}
-              />
-            ))}
-            <path d={cumulativePath} fill="none" stroke="rgba(99,102,241,0.72)" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={areaLongToZeroPath} fill="rgba(99,102,241,0.08)" />
+            <path d={trendBandPath} fill="rgba(79,70,229,0.07)" />
+            <path d={lineLongMovingPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="2.02" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={lineSmoothPath} fill="none" stroke="rgba(99,102,241,0.44)" strokeWidth="0.92" strokeLinecap="round" strokeLinejoin="round" />
           </>
         )
       case '10':
         return (
           <>
-            <path d={areaToBottomPath} fill="rgba(99,102,241,0.11)" />
-            <path d={lineSmoothPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" />
-            <path d={lineMovingPath} fill="none" stroke="rgba(14,165,233,0.4)" strokeWidth="1.04" strokeDasharray="1.8 1.6" strokeLinecap="round" />
+            <path d={areaToBottomPath} fill="rgba(224,231,255,0.32)" />
+            <path d={lineMovingPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={lineLongMovingPath} fill="none" stroke="rgba(56,189,248,0.55)" strokeWidth="0.9" strokeDasharray="2.1 1.7" strokeLinecap="round" />
           </>
         )
       case '11':
         return (
           <>
-            <path d={lineRawPath} fill="none" stroke="rgba(99,102,241,0.22)" strokeWidth="0.95" strokeLinecap="round" strokeLinejoin="round" />
-            <path d={lineMovingPath} fill="none" stroke="rgba(14,165,233,0.52)" strokeWidth="1.05" strokeDasharray="2.1 1.8" strokeLinecap="round" />
-            <path d={lineSmoothPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="2.05" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={lineRawPath} fill="none" stroke="rgba(148,163,184,0.42)" strokeWidth="0.78" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={lineMovingPath} fill="none" stroke="rgba(14,165,233,0.78)" strokeWidth="1.18" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={lineLongMovingPath} fill="none" stroke="rgba(99,102,241,0.86)" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" />
           </>
         )
       case '12':
@@ -683,12 +736,12 @@ const renderFitTrajectoryChart = ({ model, mode }) => {
                 x2={segment.x2}
                 y2={segment.y2}
                 stroke={segment.stroke}
-                strokeWidth="1.95"
+                strokeWidth="1.78"
                 strokeLinecap="round"
               />
             ))}
             <path d={areaToZeroPath} fill="rgba(99,102,241,0.08)" />
-            <path d={lineMovingPath} fill="none" stroke="rgba(79,70,229,0.42)" strokeWidth="1.05" strokeDasharray="2 1.8" strokeLinecap="round" />
+            <path d={lineLongMovingPath} fill="none" stroke="rgba(79,70,229,0.5)" strokeWidth="0.95" strokeDasharray="2 1.8" strokeLinecap="round" />
           </>
         )
       default:
@@ -716,13 +769,13 @@ const renderFitTrajectoryChart = ({ model, mode }) => {
       <defs>
         <linearGradient id="fitLineLg" x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stopColor="#0ea5e9" />
-          <stop offset="45%" stopColor="#6366f1" />
+          <stop offset="52%" stopColor="#6366f1" />
           <stop offset="100%" stopColor="#8b5cf6" />
         </linearGradient>
       </defs>
       {baseGrid}
       {modeLayers}
-      <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="1.6" fill="rgba(99,102,241,0.92)" />
+      <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="1.28" fill="rgba(99,102,241,0.84)" />
       <text x={chartLeft} y="61" fontSize="2.6" fill="#94a3b8">
         start
       </text>
@@ -2283,8 +2336,8 @@ export default function ParamsPage({ openModal }) {
   const [jsonStatus, setJsonStatus] = useState('')
   const [accessLogPage, setAccessLogPage] = useState(1)
   const [selectedAccessMonth, setSelectedAccessMonth] = useState(() => getAccessMonthKey(Date.now()))
-  const [fitTrajectoryMode, setFitTrajectoryMode] = useState('6')
-  const [fitTrajectoryWindow, setFitTrajectoryWindow] = useState(48)
+  const [fitTrajectoryMode, setFitTrajectoryMode] = useState('9')
+  const [fitTrajectoryWindow, setFitTrajectoryWindow] = useState(72)
 
   useEffect(() => {
     const refresh = () => {
@@ -2606,7 +2659,9 @@ export default function ParamsPage({ openModal }) {
   )
   const fitTrajectoryModeLabel = useMemo(() => {
     const found = FIT_TRAJECTORY_MODE_OPTIONS.find((option) => option.value === fitTrajectoryMode)
-    return found ? found.label : FIT_TRAJECTORY_MODE_OPTIONS[5].label
+    if (found) return found.label
+    const defaultMode = FIT_TRAJECTORY_MODE_OPTIONS.find((option) => option.value === '9')
+    return defaultMode ? defaultMode.label : FIT_TRAJECTORY_MODE_OPTIONS[0].label
   }, [fitTrajectoryMode])
   const ratingScorePct = useMemo(() => {
     if (ratingFitScore === null || !Number.isFinite(Number(ratingFitScore))) return 0
