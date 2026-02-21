@@ -198,6 +198,542 @@ const PAGE_AMBIENT_TONE_OPTIONS = [
 const LAYOUT_MODE_OPTIONS = ['modern', 'topbar', 'sidebar']
 const ACCESS_LOG_PAGE_SIZE = 8
 const ACCESS_LOG_SESSION_KEY = 'dugou.access_log.session.v1'
+const FIT_TRAJECTORY_WINDOW_OPTIONS = [24, 36, 48, 72, 96, 120]
+const FIT_TRAJECTORY_MODE_OPTIONS = [
+  { value: '1', label: '#1 Regime River' },
+  { value: '2', label: '#2 Error Horizon' },
+  { value: '3', label: '#3 Pulse Timeline' },
+  { value: '4', label: '#4 Ribbon + Median' },
+  { value: '5', label: '#5 Regime Mosaic' },
+  { value: '6', label: '#6 Control Corridor' },
+  { value: '7', label: '#7 Fit Ladder' },
+  { value: '8', label: '#8 Scatter Cloud' },
+  { value: '9', label: '#9 Deviation Waterfall' },
+  { value: '10', label: '#10 Stability Thermometer' },
+  { value: '11', label: '#11 Dual Track' },
+  { value: '12', label: '#12 Signal Ladder' },
+]
+
+const clampNumber = (value, min, max) => Math.max(min, Math.min(max, value))
+
+const buildSmoothPath = (inputPoints, tension = 0.18) => {
+  if (!inputPoints.length) return ''
+  if (inputPoints.length === 1) return `M ${inputPoints[0].x.toFixed(3)} ${inputPoints[0].y.toFixed(3)}`
+  let path = `M ${inputPoints[0].x.toFixed(3)} ${inputPoints[0].y.toFixed(3)}`
+  for (let idx = 0; idx < inputPoints.length - 1; idx += 1) {
+    const p0 = inputPoints[idx - 1] || inputPoints[idx]
+    const p1 = inputPoints[idx]
+    const p2 = inputPoints[idx + 1]
+    const p3 = inputPoints[idx + 2] || p2
+    const cp1x = p1.x + (p2.x - p0.x) * tension
+    const cp1y = p1.y + (p2.y - p0.y) * tension
+    const cp2x = p2.x - (p3.x - p1.x) * tension
+    const cp2y = p2.y - (p3.y - p1.y) * tension
+    path += ` C ${cp1x.toFixed(3)} ${cp1y.toFixed(3)}, ${cp2x.toFixed(3)} ${cp2y.toFixed(3)}, ${p2.x.toFixed(3)} ${p2.y.toFixed(3)}`
+  }
+  return path
+}
+
+const buildLinePath = (inputPoints) =>
+  inputPoints
+    .map((point, idx) => `${idx === 0 ? 'M' : 'L'} ${point.x.toFixed(3)} ${point.y.toFixed(3)}`)
+    .join(' ')
+
+const buildStepPath = (inputPoints) => {
+  if (!inputPoints.length) return ''
+  if (inputPoints.length === 1) return `M ${inputPoints[0].x.toFixed(3)} ${inputPoints[0].y.toFixed(3)}`
+  let path = `M ${inputPoints[0].x.toFixed(3)} ${inputPoints[0].y.toFixed(3)}`
+  for (let idx = 1; idx < inputPoints.length; idx += 1) {
+    const prev = inputPoints[idx - 1]
+    const curr = inputPoints[idx]
+    path += ` L ${curr.x.toFixed(3)} ${prev.y.toFixed(3)} L ${curr.x.toFixed(3)} ${curr.y.toFixed(3)}`
+  }
+  return path
+}
+
+const buildBandPath = (upperPoints, lowerPoints) => {
+  if (!upperPoints.length || !lowerPoints.length) return ''
+  const upper = buildSmoothPath(upperPoints, 0.16)
+  const lower = buildSmoothPath([...lowerPoints].reverse(), 0.16)
+  return `${upper} ${lower.replace(/^M/, 'L')} Z`
+}
+
+const buildSeriesBand = ({ points, values, span, chartTop, chartBottom, radius = 3, multiplier = 0.9, minPx = 0.8, maxPx = 7 }) => {
+  if (!points.length || !values.length) return { upper: [], lower: [] }
+  const toBandPx = (std) =>
+    clampNumber(((std / Math.max(span, 0.06)) * (chartBottom - chartTop) * multiplier) + minPx, minPx, maxPx)
+
+  const upper = points.map((point, idx) => {
+    const start = Math.max(0, idx - radius)
+    const end = Math.min(values.length - 1, idx + radius)
+    const local = values.slice(start, end + 1)
+    const mean = local.reduce((sum, value) => sum + value, 0) / Math.max(local.length, 1)
+    const variance = local.reduce((sum, value) => sum + (value - mean) ** 2, 0) / Math.max(local.length, 1)
+    const std = Math.sqrt(Math.max(variance, 0))
+    const bandPx = toBandPx(std)
+    return {
+      x: point.x,
+      y: clampNumber(point.y - bandPx, chartTop, chartBottom),
+    }
+  })
+
+  const lower = points.map((point, idx) => {
+    const start = Math.max(0, idx - radius)
+    const end = Math.min(values.length - 1, idx + radius)
+    const local = values.slice(start, end + 1)
+    const mean = local.reduce((sum, value) => sum + value, 0) / Math.max(local.length, 1)
+    const variance = local.reduce((sum, value) => sum + (value - mean) ** 2, 0) / Math.max(local.length, 1)
+    const std = Math.sqrt(Math.max(variance, 0))
+    const bandPx = toBandPx(std)
+    return {
+      x: point.x,
+      y: clampNumber(point.y + bandPx, chartTop, chartBottom),
+    }
+  })
+
+  return { upper, lower }
+}
+
+const buildFitTrajectoryModel = (values) => {
+  if (!Array.isArray(values) || values.length === 0) return null
+
+  const series = values.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+  if (series.length === 0) return null
+
+  const chartLeft = 6
+  const chartRight = 334
+  const chartTop = 8
+  const chartBottom = 52
+
+  const rawMin = Math.min(...series)
+  const rawMax = Math.max(...series)
+  const spread = Math.max(rawMax - rawMin, 0.03)
+  const padding = Math.max(spread * 0.18, 0.016)
+  const min = Math.min(rawMin - padding, -0.06)
+  const max = Math.max(rawMax + padding, 0.06)
+  const span = Math.max(max - min, 0.08)
+  const step = series.length > 1 ? (chartRight - chartLeft) / (series.length - 1) : 0
+
+  const points = series.map((value, idx) => {
+    const x = chartLeft + idx * step
+    const y = chartBottom - ((value - min) / span) * (chartBottom - chartTop)
+    return { x, y, value, idx }
+  })
+
+  const movingValues = series.map((_, idx) => {
+    const start = Math.max(0, idx - 2)
+    const end = Math.min(series.length - 1, idx + 2)
+    const window = series.slice(start, end + 1)
+    return window.reduce((sum, value) => sum + value, 0) / Math.max(window.length, 1)
+  })
+  const movingPoints = movingValues.map((value, idx) => ({
+    x: points[idx].x,
+    y: chartBottom - ((value - min) / span) * (chartBottom - chartTop),
+    value,
+    idx,
+  }))
+
+  const narrowBand = buildSeriesBand({
+    points,
+    values: series,
+    span,
+    chartTop,
+    chartBottom,
+    radius: Math.min(4, Math.max(2, Math.floor(series.length / 14))),
+    multiplier: 0.85,
+    minPx: 0.8,
+    maxPx: 5.2,
+  })
+  const wideBand = buildSeriesBand({
+    points,
+    values: series,
+    span,
+    chartTop,
+    chartBottom,
+    radius: Math.min(5, Math.max(3, Math.floor(series.length / 11))),
+    multiplier: 1.22,
+    minPx: 1.1,
+    maxPx: 8.2,
+  })
+
+  const zeroYRaw = chartBottom - ((0 - min) / span) * (chartBottom - chartTop)
+  const zeroY = clampNumber(zeroYRaw, chartTop, chartBottom)
+  const corridorHalf = ((chartBottom - chartTop) * 0.085)
+  const corridorTop = clampNumber(zeroY - corridorHalf, chartTop, chartBottom)
+  const corridorBottom = clampNumber(zeroY + corridorHalf, chartTop, chartBottom)
+
+  const bars = points.map((point) => {
+    const barWidth = Math.max(2.2, step * 0.65)
+    const x = point.x - barWidth / 2
+    const y = Math.min(point.y, zeroY)
+    const height = Math.max(0.75, Math.abs(point.y - zeroY))
+    return {
+      x,
+      y,
+      width: barWidth,
+      height,
+      positive: point.value >= 0,
+    }
+  })
+
+  const mosaicSegments = points.slice(0, -1).map((point, idx) => {
+    const next = points[idx + 1]
+    const avg = (point.value + next.value) / 2
+    const x = point.x
+    const width = Math.max(1.2, next.x - point.x)
+    return {
+      x,
+      width,
+      tone:
+        avg >= 0.08
+          ? 'rgba(56,189,248,0.11)'
+          : avg >= -0.05
+            ? 'rgba(99,102,241,0.085)'
+            : 'rgba(139,92,246,0.11)',
+    }
+  })
+
+  const lineBySign = points.slice(1).map((point, idx) => {
+    const prev = points[idx]
+    const avg = (prev.value + point.value) / 2
+    return {
+      x1: prev.x,
+      y1: prev.y,
+      x2: point.x,
+      y2: point.y,
+      stroke:
+        avg >= 0.08 ? '#0ea5e9' : avg >= -0.05 ? '#6366f1' : '#8b5cf6',
+    }
+  })
+
+  const slopeSegments = points.slice(1).map((point, idx) => {
+    const prev = points[idx]
+    const slope = point.value - prev.value
+    return {
+      x1: prev.x,
+      y1: prev.y,
+      x2: point.x,
+      y2: point.y,
+      stroke:
+        slope >= 0.02 ? '#0ea5e9' : slope <= -0.02 ? '#8b5cf6' : '#6366f1',
+    }
+  })
+
+  const cumulativeRaw = series.reduce((acc, value) => {
+    const prev = acc.length > 0 ? acc[acc.length - 1] : 0
+    acc.push(prev + value)
+    return acc
+  }, [])
+  const cumMin = Math.min(...cumulativeRaw)
+  const cumMax = Math.max(...cumulativeRaw)
+  const cumSpan = Math.max(cumMax - cumMin, 0.08)
+  const cumulativePoints = cumulativeRaw.map((value, idx) => ({
+    x: points[idx].x,
+    y: chartBottom - ((value - cumMin) / cumSpan) * (chartBottom - chartTop),
+    value,
+  }))
+
+  const areaToZeroPath = `${buildSmoothPath(points, 0.16)} L ${chartRight.toFixed(3)} ${zeroY.toFixed(3)} L ${chartLeft.toFixed(3)} ${zeroY.toFixed(3)} Z`
+  const areaToBottomPath = `${buildSmoothPath(points, 0.16)} L ${chartRight.toFixed(3)} ${chartBottom.toFixed(3)} L ${chartLeft.toFixed(3)} ${chartBottom.toFixed(3)} Z`
+
+  return {
+    values: series,
+    points,
+    movingPoints,
+    narrowBandPath: buildBandPath(narrowBand.upper, narrowBand.lower),
+    wideBandPath: buildBandPath(wideBand.upper, wideBand.lower),
+    lineRawPath: buildLinePath(points),
+    lineSmoothPath: buildSmoothPath(points, 0.18),
+    lineMovingPath: buildSmoothPath(movingPoints, 0.16),
+    lineStepPath: buildStepPath(points),
+    lineBySign,
+    slopeSegments,
+    mosaicSegments,
+    bars,
+    cumulativePath: buildSmoothPath(cumulativePoints, 0.14),
+    areaToZeroPath,
+    areaToBottomPath,
+    zeroY,
+    corridorTop,
+    corridorBottom,
+    chartLeft,
+    chartRight,
+    chartTop,
+    chartBottom,
+  }
+}
+
+const renderFitTrajectoryChart = ({ model, mode }) => {
+  if (!model) {
+    return (
+      <text x="168" y="32" textAnchor="middle" fontSize="4" fill="#94a3b8">
+        暂无拟合轨迹
+      </text>
+    )
+  }
+
+  const {
+    points,
+    movingPoints,
+    narrowBandPath,
+    wideBandPath,
+    lineRawPath,
+    lineSmoothPath,
+    lineMovingPath,
+    lineStepPath,
+    lineBySign,
+    slopeSegments,
+    mosaicSegments,
+    bars,
+    cumulativePath,
+    areaToZeroPath,
+    areaToBottomPath,
+    zeroY,
+    corridorTop,
+    corridorBottom,
+    chartLeft,
+    chartRight,
+    chartTop,
+    chartBottom,
+  } = model
+
+  const quarterX = chartLeft + (chartRight - chartLeft) * 0.25
+  const halfX = chartLeft + (chartRight - chartLeft) * 0.5
+  const thirdQuarterX = chartLeft + (chartRight - chartLeft) * 0.75
+  const tickRows = [chartTop, chartTop + (chartBottom - chartTop) * 0.5, chartBottom]
+
+  const baseGrid = (
+    <>
+      {tickRows.map((y) => (
+        <line key={`grid-${y}`} x1={chartLeft} y1={y} x2={chartRight} y2={y} stroke="#eff6ff" strokeWidth="0.8" />
+      ))}
+      {[quarterX, halfX, thirdQuarterX].map((x) => (
+        <line key={`vgrid-${x}`} x1={x} y1={chartTop} x2={x} y2={chartBottom} stroke="#e0e7ff" strokeWidth="0.62" />
+      ))}
+      <line x1={chartLeft} y1={zeroY} x2={chartRight} y2={zeroY} stroke="#bfdbfe" strokeWidth="0.75" strokeDasharray="2 1.7" />
+    </>
+  )
+
+  const modeLayers = (() => {
+    switch (mode) {
+      case '1':
+        return (
+          <>
+            {mosaicSegments.map((segment, idx) => (
+              <rect key={`mosaic-river-${idx}`} x={segment.x} y={chartTop} width={segment.width} height={chartBottom - chartTop} fill={segment.tone} />
+            ))}
+            <path d={wideBandPath} fill="rgba(99,102,241,0.12)" />
+            <path d={narrowBandPath} fill="rgba(56,189,248,0.12)" />
+            <path d={lineMovingPath} fill="none" stroke="rgba(14,165,233,0.55)" strokeWidth="1.15" strokeDasharray="2 1.5" strokeLinecap="round" />
+            <path d={lineSmoothPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="2.05" strokeLinecap="round" strokeLinejoin="round" />
+          </>
+        )
+      case '2':
+        return (
+          <>
+            {bars.map((bar, idx) => (
+              <rect
+                key={`horizon-bar-${idx}`}
+                x={bar.x}
+                y={bar.y}
+                width={bar.width}
+                height={bar.height}
+                fill={bar.positive ? 'rgba(14,165,233,0.23)' : 'rgba(139,92,246,0.22)'}
+                rx={Math.min(1.8, bar.width / 2)}
+              />
+            ))}
+            <path d={lineSmoothPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </>
+        )
+      case '3':
+        return (
+          <>
+            <path d={lineSmoothPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+            {points.map((point, idx) => {
+              const pulse = 1 + ((idx + 1) % 4 === 0 ? 0.85 : 0.25)
+              const opacity = 0.16 + (idx / Math.max(points.length - 1, 1)) * 0.42
+              return (
+                <g key={`pulse-${idx}`}>
+                  <circle cx={point.x} cy={point.y} r={1.05 * pulse} fill={`rgba(99,102,241,${opacity * 0.42})`} />
+                  <circle cx={point.x} cy={point.y} r={0.58} fill="rgba(99,102,241,0.8)" />
+                </g>
+              )
+            })}
+          </>
+        )
+      case '4':
+        return (
+          <>
+            <path d={wideBandPath} fill="rgba(99,102,241,0.13)" />
+            <path d={narrowBandPath} fill="rgba(14,165,233,0.12)" />
+            <path d={lineMovingPath} fill="none" stroke="rgba(79,70,229,0.48)" strokeWidth="1.18" strokeDasharray="2 1.7" strokeLinecap="round" />
+            <path d={lineSmoothPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+          </>
+        )
+      case '5':
+        return (
+          <>
+            {mosaicSegments.map((segment, idx) => (
+              <rect key={`mosaic-${idx}`} x={segment.x} y={chartTop} width={segment.width} height={chartBottom - chartTop} fill={segment.tone} />
+            ))}
+            <path d={lineStepPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="1.72" strokeLinecap="round" strokeLinejoin="round" />
+            {points.map((point, idx) => (
+              <rect
+                key={`mosaic-point-${idx}`}
+                x={point.x - 0.58}
+                y={point.y - 0.58}
+                width={1.16}
+                height={1.16}
+                rx={0.22}
+                fill="rgba(99,102,241,0.84)"
+              />
+            ))}
+          </>
+        )
+      case '6':
+        return (
+          <>
+            <rect
+              x={chartLeft}
+              y={corridorTop}
+              width={chartRight - chartLeft}
+              height={Math.max(0.8, corridorBottom - corridorTop)}
+              fill="rgba(99,102,241,0.08)"
+              rx={2.4}
+            />
+            <path d={narrowBandPath} fill="rgba(99,102,241,0.12)" />
+            <path d={lineMovingPath} fill="none" stroke="rgba(56,189,248,0.42)" strokeWidth="1.1" strokeDasharray="2 1.5" strokeLinecap="round" />
+            <path d={lineSmoothPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </>
+        )
+      case '7':
+        return (
+          <>
+            {bars.map((bar, idx) => (
+              <rect
+                key={`ladder-bar-${idx}`}
+                x={bar.x}
+                y={bar.y}
+                width={bar.width}
+                height={bar.height}
+                fill={bar.positive ? 'rgba(14,165,233,0.16)' : 'rgba(139,92,246,0.16)'}
+                rx={Math.min(2, bar.width / 2)}
+              />
+            ))}
+            <path d={lineStepPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="1.72" strokeLinecap="round" strokeLinejoin="round" />
+          </>
+        )
+      case '8':
+        return (
+          <>
+            <path d={lineMovingPath} fill="none" stroke="rgba(99,102,241,0.45)" strokeWidth="1.2" strokeDasharray="2.2 1.8" strokeLinecap="round" />
+            {points.map((point, idx) => {
+              const alpha = 0.12 + (idx / Math.max(points.length - 1, 1)) * 0.45
+              return (
+                <circle
+                  key={`scatter-${idx}`}
+                  cx={point.x}
+                  cy={point.y}
+                  r={0.9 + Math.min(1.2, idx / 20)}
+                  fill={`rgba(79,70,229,${alpha})`}
+                />
+              )
+            })}
+          </>
+        )
+      case '9':
+        return (
+          <>
+            {bars.map((bar, idx) => (
+              <rect
+                key={`waterfall-bar-${idx}`}
+                x={bar.x}
+                y={bar.y}
+                width={bar.width}
+                height={bar.height}
+                fill={bar.positive ? 'rgba(34,197,94,0.16)' : 'rgba(99,102,241,0.15)'}
+                rx={Math.min(1.6, bar.width / 2)}
+              />
+            ))}
+            <path d={cumulativePath} fill="none" stroke="rgba(99,102,241,0.72)" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round" />
+          </>
+        )
+      case '10':
+        return (
+          <>
+            <path d={areaToBottomPath} fill="rgba(99,102,241,0.11)" />
+            <path d={lineSmoothPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={lineMovingPath} fill="none" stroke="rgba(14,165,233,0.4)" strokeWidth="1.04" strokeDasharray="1.8 1.6" strokeLinecap="round" />
+          </>
+        )
+      case '11':
+        return (
+          <>
+            <path d={lineRawPath} fill="none" stroke="rgba(99,102,241,0.22)" strokeWidth="0.95" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={lineMovingPath} fill="none" stroke="rgba(14,165,233,0.52)" strokeWidth="1.05" strokeDasharray="2.1 1.8" strokeLinecap="round" />
+            <path d={lineSmoothPath} fill="none" stroke="url(#fitLineLg)" strokeWidth="2.05" strokeLinecap="round" strokeLinejoin="round" />
+          </>
+        )
+      case '12':
+        return (
+          <>
+            {slopeSegments.map((segment, idx) => (
+              <line
+                key={`signal-segment-${idx}`}
+                x1={segment.x1}
+                y1={segment.y1}
+                x2={segment.x2}
+                y2={segment.y2}
+                stroke={segment.stroke}
+                strokeWidth="1.95"
+                strokeLinecap="round"
+              />
+            ))}
+            <path d={areaToZeroPath} fill="rgba(99,102,241,0.08)" />
+            <path d={lineMovingPath} fill="none" stroke="rgba(79,70,229,0.42)" strokeWidth="1.05" strokeDasharray="2 1.8" strokeLinecap="round" />
+          </>
+        )
+      default:
+        return (
+          <>
+            {lineBySign.map((segment, idx) => (
+              <line
+                key={`segment-default-${idx}`}
+                x1={segment.x1}
+                y1={segment.y1}
+                x2={segment.x2}
+                y2={segment.y2}
+                stroke={segment.stroke}
+                strokeWidth="1.76"
+                strokeLinecap="round"
+              />
+            ))}
+          </>
+        )
+    }
+  })()
+
+  return (
+    <>
+      <defs>
+        <linearGradient id="fitLineLg" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#0ea5e9" />
+          <stop offset="45%" stopColor="#6366f1" />
+          <stop offset="100%" stopColor="#8b5cf6" />
+        </linearGradient>
+      </defs>
+      {baseGrid}
+      {modeLayers}
+      <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="1.6" fill="rgba(99,102,241,0.92)" />
+      <text x={chartLeft} y="61" fontSize="2.6" fill="#94a3b8">
+        start
+      </text>
+      <text x={chartRight - 11} y="61" fontSize="2.6" fill="#94a3b8">
+        now
+      </text>
+    </>
+  )
+}
 
 const normalizeAmbientThemeMap = (value) => {
   const incoming = value && typeof value === 'object' ? value : {}
@@ -1804,6 +2340,8 @@ export default function ParamsPage({ openModal }) {
   const jsonInputRef = useRef(null)
   const [jsonStatus, setJsonStatus] = useState('')
   const [accessLogPage, setAccessLogPage] = useState(1)
+  const [fitTrajectoryMode, setFitTrajectoryMode] = useState('6')
+  const [fitTrajectoryWindow, setFitTrajectoryWindow] = useState(48)
 
   useEffect(() => {
     const refresh = () => {
@@ -2118,6 +2656,21 @@ export default function ParamsPage({ openModal }) {
       shock: { state: shockState, detail: shockDetail, tone: shockTone },
     }
   }, [analyticsProgress.rating, ratingRows])
+  const fitTrajectoryValues = useMemo(() => {
+    if (!analyticsProgress.rating || !Array.isArray(ratingRows) || ratingRows.length === 0) return []
+    return ratingRows
+      .slice(-Math.max(12, fitTrajectoryWindow))
+      .map((row) => Number(row.diff))
+      .filter((value) => Number.isFinite(value))
+  }, [analyticsProgress.rating, ratingRows, fitTrajectoryWindow])
+  const fitTrajectoryModel = useMemo(
+    () => buildFitTrajectoryModel(fitTrajectoryValues),
+    [fitTrajectoryValues],
+  )
+  const fitTrajectoryModeLabel = useMemo(() => {
+    const found = FIT_TRAJECTORY_MODE_OPTIONS.find((option) => option.value === fitTrajectoryMode)
+    return found ? found.label : FIT_TRAJECTORY_MODE_OPTIONS[5].label
+  }, [fitTrajectoryMode])
   const ratingScorePct = useMemo(() => {
     if (ratingFitScore === null || !Number.isFinite(Number(ratingFitScore))) return 0
     return Math.max(0, Math.min(100, Number((Number(ratingFitScore) * 100).toFixed(1))))
@@ -2875,141 +3428,52 @@ export default function ParamsPage({ openModal }) {
               <div className="mt-3 rounded-xl border border-indigo-100/85 bg-white/78 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
                 <div className="flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.07em] text-stone-400">
                   <span>Fit Trajectory</span>
-                  <span>{analyticsProgress.rating ? `最近 ${Math.min(ratingRows.length, 48)} 场` : '样本计算中...'}</span>
+                  {analyticsProgress.rating ? (
+                    <div className="flex items-center gap-1.5">
+                      <label className="relative inline-flex items-center">
+                        <span className="sr-only">切换拟合轨迹模式</span>
+                        <select
+                          value={fitTrajectoryMode}
+                          onChange={(event) => setFitTrajectoryMode(event.target.value)}
+                          onMouseDown={(event) => event.stopPropagation()}
+                          onClick={(event) => event.stopPropagation()}
+                          className="h-6 rounded-[8px] border border-indigo-100/85 bg-white/72 px-2.5 pr-6 text-[9.5px] font-medium normal-case tracking-[0.02em] text-indigo-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)] outline-none transition-colors hover:border-indigo-200/80 hover:text-indigo-600 focus:border-indigo-300/90"
+                          title={`当前模式：${fitTrajectoryModeLabel}`}
+                        >
+                          {FIT_TRAJECTORY_MODE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="pointer-events-none absolute right-2.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 border-r border-b border-indigo-300/90" />
+                      </label>
+                      <label className="relative inline-flex items-center">
+                        <span className="sr-only">切换样本窗口</span>
+                        <select
+                          value={fitTrajectoryWindow}
+                          onChange={(event) => setFitTrajectoryWindow(Number(event.target.value))}
+                          onMouseDown={(event) => event.stopPropagation()}
+                          onClick={(event) => event.stopPropagation()}
+                          className="h-6 rounded-[8px] border border-indigo-100/85 bg-white/72 px-2.5 pr-6 text-[9.5px] font-medium normal-case tracking-[0.02em] text-stone-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)] outline-none transition-colors hover:border-indigo-200/80 hover:text-indigo-600 focus:border-indigo-300/90"
+                          title="切换样本窗口"
+                        >
+                          {FIT_TRAJECTORY_WINDOW_OPTIONS.map((windowSize) => (
+                            <option key={windowSize} value={windowSize}>
+                              {`最近 ${Math.min(ratingRows.length, windowSize)} 场`}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="pointer-events-none absolute right-2.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 border-r border-b border-indigo-300/90" />
+                      </label>
+                    </div>
+                  ) : (
+                    <span>样本计算中...</span>
+                  )}
                 </div>
                 <div className="mt-2 h-[128px] rounded-xl border border-sky-100/85 bg-[linear-gradient(140deg,rgba(239,246,255,0.68),rgba(255,255,255,0.94)_48%,rgba(245,243,255,0.62))] px-2.5 py-2">
                   <svg viewBox="0 0 340 64" preserveAspectRatio="none" className="h-full w-full">
-                    {(() => {
-                      const series = ratingRows
-                        .slice(-48)
-                        .map((row) => Number(row.diff))
-                        .filter((value) => Number.isFinite(value))
-                      if (series.length === 0) {
-                        return (
-                          <text x="82" y="32" textAnchor="middle" fontSize="4" fill="#94a3b8">
-                            暂无拟合轨迹
-                          </text>
-                        )
-                      }
-                      const rawMin = Math.min(...series)
-                      const rawMax = Math.max(...series)
-                      const spread = Math.max(rawMax - rawMin, 0.03)
-                      const padding = Math.max(spread * 0.22, 0.015)
-                      const min = Math.min(rawMin - padding, -0.05)
-                      const max = Math.max(rawMax + padding, 0.05)
-                      const span = Math.max(max - min, 0.08)
-                      const chartLeft = 6
-                      const chartRight = 334
-                      const chartTop = 8
-                      const chartBottom = 52
-                      const step = series.length > 1 ? (chartRight - chartLeft) / (series.length - 1) : 0
-                      const clampToRange = (value, low, high) => Math.max(low, Math.min(high, value))
-                      const buildSmoothPath = (inputPoints) => {
-                        if (!inputPoints.length) return ''
-                        if (inputPoints.length === 1) return `M ${inputPoints[0].x} ${inputPoints[0].y}`
-                        const tension = 0.18
-                        let path = `M ${inputPoints[0].x} ${inputPoints[0].y}`
-                        for (let idx = 0; idx < inputPoints.length - 1; idx += 1) {
-                          const p0 = inputPoints[idx - 1] || inputPoints[idx]
-                          const p1 = inputPoints[idx]
-                          const p2 = inputPoints[idx + 1]
-                          const p3 = inputPoints[idx + 2] || p2
-                          const cp1x = p1.x + (p2.x - p0.x) * tension
-                          const cp1y = p1.y + (p2.y - p0.y) * tension
-                          const cp2x = p2.x - (p3.x - p1.x) * tension
-                          const cp2y = p2.y - (p3.y - p1.y) * tension
-                          path += ` C ${cp1x.toFixed(3)} ${cp1y.toFixed(3)}, ${cp2x.toFixed(3)} ${cp2y.toFixed(3)}, ${p2.x.toFixed(3)} ${p2.y.toFixed(3)}`
-                        }
-                        return path
-                      }
-                      const points = series.map((value, idx) => {
-                        const x = chartLeft + idx * step
-                        const y = chartBottom - ((value - min) / span) * (chartBottom - chartTop)
-                        return { x, y, value }
-                      })
-                      const rawLine = points.map((point, idx) => `${idx === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
-                      const smoothLine = buildSmoothPath(points)
-                      const bandRadius = Math.min(4, Math.max(2, Math.floor(points.length / 14)))
-                      const minBandPx = 0.95
-                      const maxBandPx = 6.5
-                      const upperPoints = points.map((point, idx) => {
-                        const start = Math.max(0, idx - bandRadius)
-                        const end = Math.min(series.length - 1, idx + bandRadius)
-                        const local = series.slice(start, end + 1)
-                        const localMean = local.reduce((sum, value) => sum + value, 0) / Math.max(local.length, 1)
-                        const localVar =
-                          local.reduce((sum, value) => sum + (value - localMean) ** 2, 0) / Math.max(local.length, 1)
-                        const localStd = Math.sqrt(Math.max(localVar, 0))
-                        const bandPx = clampToRange(((localStd / span) * (chartBottom - chartTop) * 0.9) + minBandPx, minBandPx, maxBandPx)
-                        return {
-                          x: point.x,
-                          y: clampToRange(point.y - bandPx, chartTop, chartBottom),
-                        }
-                      })
-                      const lowerPoints = points.map((point, idx) => {
-                        const start = Math.max(0, idx - bandRadius)
-                        const end = Math.min(series.length - 1, idx + bandRadius)
-                        const local = series.slice(start, end + 1)
-                        const localMean = local.reduce((sum, value) => sum + value, 0) / Math.max(local.length, 1)
-                        const localVar =
-                          local.reduce((sum, value) => sum + (value - localMean) ** 2, 0) / Math.max(local.length, 1)
-                        const localStd = Math.sqrt(Math.max(localVar, 0))
-                        const bandPx = clampToRange(((localStd / span) * (chartBottom - chartTop) * 0.9) + minBandPx, minBandPx, maxBandPx)
-                        return {
-                          x: point.x,
-                          y: clampToRange(point.y + bandPx, chartTop, chartBottom),
-                        }
-                      })
-                      const smoothUpper = buildSmoothPath(upperPoints)
-                      const smoothLower = buildSmoothPath([...lowerPoints].reverse())
-                      const ribbonPath = `${smoothUpper} ${smoothLower.replace(/^M/, 'L')} Z`
-                      const zeroYRaw = chartBottom - ((0 - min) / span) * (chartBottom - chartTop)
-                      const zeroY = Math.max(chartTop, Math.min(chartBottom, zeroYRaw))
-                      return (
-                        <>
-                          <defs>
-                            <linearGradient id="coreFitLineLg" x1="0%" y1="0%" x2="100%" y2="0%">
-                              <stop offset="0%" stopColor="#0ea5e9" />
-                              <stop offset="45%" stopColor="#6366f1" />
-                              <stop offset="100%" stopColor="#8b5cf6" />
-                            </linearGradient>
-                            <linearGradient id="coreFitRibbonLg" x1="0%" y1="0%" x2="0%" y2="100%">
-                              <stop offset="0%" stopColor="rgba(99,102,241,0.22)" />
-                              <stop offset="60%" stopColor="rgba(99,102,241,0.11)" />
-                              <stop offset="100%" stopColor="rgba(99,102,241,0.03)" />
-                            </linearGradient>
-                          </defs>
-                          <line x1={chartLeft} y1={chartTop} x2={chartRight} y2={chartTop} stroke="#eff6ff" strokeWidth="0.8" />
-                          <line x1={chartLeft} y1={chartBottom} x2={chartRight} y2={chartBottom} stroke="#eff6ff" strokeWidth="0.8" />
-                          <line x1={chartLeft} y1={zeroY} x2={chartRight} y2={zeroY} stroke="#bfdbfe" strokeWidth="0.7" strokeDasharray="2 1.8" />
-                          <line x1="118" y1={chartTop} x2="118" y2={chartBottom} stroke="#e0e7ff" strokeWidth="0.6" />
-                          <line x1="228" y1={chartTop} x2="228" y2={chartBottom} stroke="#e0e7ff" strokeWidth="0.6" />
-                          <path d={ribbonPath} fill="url(#coreFitRibbonLg)" />
-                          <path
-                            d={rawLine}
-                            fill="none"
-                            stroke="rgba(99,102,241,0.2)"
-                            strokeWidth="0.8"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <path
-                            d={smoothLine}
-                            fill="none"
-                            stroke="url(#coreFitLineLg)"
-                            strokeWidth="1.95"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <text x={chartLeft} y="61" fontSize="2.6" fill="#94a3b8">
-                            start
-                          </text>
-                          <text x={chartRight - 11} y="61" fontSize="2.6" fill="#94a3b8">
-                            now
-                          </text>
-                        </>
-                      )
-                    })()}
+                    {renderFitTrajectoryChart({ model: fitTrajectoryModel, mode: fitTrajectoryMode })}
                   </svg>
                 </div>
               </div>
