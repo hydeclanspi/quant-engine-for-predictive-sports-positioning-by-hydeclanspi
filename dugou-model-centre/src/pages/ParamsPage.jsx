@@ -3751,10 +3751,10 @@ export default function ParamsPage({ openModal }) {
                           ))}
                         </select>
                         <span className="pointer-events-none absolute inset-y-0 right-[13.2px] flex items-center">
-                          <span className="h-1.5 w-1.5 rotate-45 border-r border-b border-indigo-300/90" />
+                          <span className="h-1.5 w-1.5 -translate-y-[0.9px] rotate-45 border-r border-b border-indigo-300/90" />
                         </span>
                         <span className="pointer-events-none absolute inset-y-0 right-[10px] flex items-center">
-                          <span className="h-1.5 w-1.5 rotate-45 border-r border-b border-indigo-500/90" />
+                          <span className="h-1.5 w-1.5 -translate-y-[0.9px] rotate-45 border-r border-b border-indigo-500/90" />
                         </span>
                       </label>
                       <label className="relative inline-flex items-center">
@@ -3774,10 +3774,10 @@ export default function ParamsPage({ openModal }) {
                           ))}
                         </select>
                         <span className="pointer-events-none absolute inset-y-0 right-[13.2px] flex items-center">
-                          <span className="h-1.5 w-1.5 rotate-45 border-r border-b border-indigo-300/90" />
+                          <span className="h-1.5 w-1.5 -translate-y-[0.9px] rotate-45 border-r border-b border-indigo-300/90" />
                         </span>
                         <span className="pointer-events-none absolute inset-y-0 right-[10px] flex items-center">
-                          <span className="h-1.5 w-1.5 rotate-45 border-r border-b border-indigo-500/90" />
+                          <span className="h-1.5 w-1.5 -translate-y-[0.9px] rotate-45 border-r border-b border-indigo-500/90" />
                         </span>
                       </label>
                     </div>
