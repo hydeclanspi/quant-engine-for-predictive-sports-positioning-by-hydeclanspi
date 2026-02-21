@@ -162,7 +162,7 @@ const ExplainHover = ({ card, align = 'left', children }) => {
   return (
     <span className="group/explain relative inline-flex">
       {children}
-      <span className={`pointer-events-none absolute ${alignClass} top-full z-[90] mt-2.5 w-[300px] translate-y-1 rounded-xl border border-sky-200/85 bg-[linear-gradient(145deg,rgba(240,249,255,0.95),rgba(255,255,255,0.95)_48%,rgba(238,242,255,0.9))] p-3 text-left opacity-0 shadow-[0_16px_34px_-26px_rgba(56,189,248,0.45),inset_0_1px_0_rgba(255,255,255,0.92)] transition-all duration-180 group-hover/explain:translate-y-0 group-hover/explain:opacity-100 group-hover/explain:shadow-[0_22px_44px_-24px_rgba(56,189,248,0.5),inset_0_1px_0_rgba(255,255,255,0.92)]`}>
+      <span className={`pointer-events-none absolute ${alignClass} top-full z-[240] mt-2.5 w-[300px] translate-y-1 rounded-xl border border-sky-200/85 bg-[linear-gradient(145deg,rgba(240,249,255,0.95),rgba(255,255,255,0.95)_48%,rgba(238,242,255,0.9))] p-3 text-left opacity-0 shadow-[0_16px_34px_-26px_rgba(56,189,248,0.45),inset_0_1px_0_rgba(255,255,255,0.92)] transition-all duration-180 group-hover/explain:translate-y-0 group-hover/explain:opacity-100 group-hover/explain:shadow-[0_22px_44px_-24px_rgba(56,189,248,0.5),inset_0_1px_0_rgba(255,255,255,0.92)]`}>
         <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-sky-600">{card.title}</span>
         <span className="mt-1 block h-px w-full bg-gradient-to-r from-sky-200 via-indigo-200/80 to-transparent" />
         <span className="mt-1.5 block space-y-1.5">
@@ -3404,7 +3404,7 @@ export default function ParamsPage({ openModal }) {
 
       <div
         onClick={openRatingModal}
-        className="console-interactive-surface glow-card relative overflow-visible rounded-2xl border border-indigo-200/75 bg-[linear-gradient(145deg,rgba(244,247,255,0.96),rgba(255,255,255,0.95)_48%,rgba(238,247,255,0.92))] p-6 mb-6 cursor-pointer shadow-[0_24px_44px_-34px_rgba(79,70,229,0.42)]"
+        className="console-interactive-surface glow-card relative z-30 hover:z-40 overflow-visible rounded-2xl border border-indigo-200/75 bg-[linear-gradient(145deg,rgba(244,247,255,0.96),rgba(255,255,255,0.95)_48%,rgba(238,247,255,0.92))] p-6 mb-6 cursor-pointer shadow-[0_24px_44px_-34px_rgba(79,70,229,0.42)]"
       >
         <div className="pointer-events-none absolute -top-16 -left-16 h-44 w-44 rounded-full bg-sky-200/22 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 right-16 h-48 w-48 rounded-full bg-violet-200/16 blur-3xl" />
