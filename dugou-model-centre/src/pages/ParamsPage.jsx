@@ -3750,7 +3750,7 @@ export default function ParamsPage({ openModal }) {
                             </option>
                           ))}
                         </select>
-                        <span className="pointer-events-none absolute right-3 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 border-r border-b border-indigo-300/90" />
+                        <span className="pointer-events-none absolute right-[13.2px] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 border-r border-b border-indigo-300/90" />
                       </label>
                       <label className="relative inline-flex items-center">
                         <span className="sr-only">切换样本窗口</span>
@@ -3768,7 +3768,7 @@ export default function ParamsPage({ openModal }) {
                             </option>
                           ))}
                         </select>
-                        <span className="pointer-events-none absolute right-3 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 border-r border-b border-indigo-300/90" />
+                        <span className="pointer-events-none absolute right-[13.2px] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 border-r border-b border-indigo-300/90" />
                       </label>
                     </div>
                   ) : (
