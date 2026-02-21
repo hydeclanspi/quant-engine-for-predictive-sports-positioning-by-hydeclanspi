@@ -1949,8 +1949,8 @@ export default function ParamsPage({ openModal }) {
       stabilityState === 'Stable'
         ? 'text-emerald-700'
         : stabilityState === 'Choppy'
-          ? 'text-sky-700'
-          : 'text-rose-600'
+          ? 'text-indigo-700'
+          : 'text-amber-700'
     const stabilityDetail = `σ ${std.toFixed(3)} · jump ${Math.round(jumpRate * 100)}%`
 
     const signEps = 0.02
@@ -1979,15 +1979,15 @@ export default function ParamsPage({ openModal }) {
       persistenceState === 'Persistent'
         ? 'text-emerald-700'
         : persistenceState === 'Rotating'
-          ? 'text-sky-700'
-          : 'text-rose-600'
+          ? 'text-cyan-700'
+          : 'text-amber-700'
     const persistenceDetail = `run ${Math.round(longestRunRatio * 100)}% · switch ${Math.round(switchRate * 100)}%`
 
     const shockThreshold = Math.max(0.16, std * 1.45)
     const shockCount = diffs.filter((value) => Math.abs(value) >= shockThreshold).length
     const shockRatio = shockCount / n
     const shockState = shockRatio <= 0.12 ? 'Calm' : shockRatio <= 0.26 ? 'Elevated' : 'Fragile'
-    const shockTone = shockState === 'Calm' ? 'text-emerald-700' : shockState === 'Elevated' ? 'text-amber-700' : 'text-rose-600'
+    const shockTone = shockState === 'Calm' ? 'text-emerald-700' : shockState === 'Elevated' ? 'text-violet-700' : 'text-amber-700'
     const shockDetail = `tail ${Math.round(shockRatio * 100)}%`
 
     return {
@@ -2843,53 +2843,64 @@ export default function ParamsPage({ openModal }) {
                 </div>
               </div>
 
-              <div className="mt-3 rounded-xl border border-indigo-100/85 bg-white/76 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
-                <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-indigo-100/70">
-                  <div className="px-3 py-2.5">
-                    <ExplainHover card={coreMetricGlossary.fitTrend}>
-                      <span className="cursor-help text-[10px] uppercase tracking-[0.07em] text-stone-400 decoration-dotted underline decoration-sky-300/80 underline-offset-[3px]">
-                        Fit Trend
+              <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+                {[
+                  {
+                    key: 'fit-trend',
+                    title: 'Fit Trend',
+                    value: fitRegimes.fitTrend,
+                    glossary: coreMetricGlossary.fitTrend,
+                    labelTone: 'text-sky-600/80 decoration-sky-300/80',
+                    detailTone: 'text-sky-900/45',
+                    cardTone:
+                      'border-sky-100/85 bg-[linear-gradient(145deg,rgba(240,249,255,0.82),rgba(255,255,255,0.94)_58%,rgba(224,242,254,0.6))]',
+                  },
+                  {
+                    key: 'stability-regime',
+                    title: 'Stability Regime',
+                    value: fitRegimes.stability,
+                    glossary: coreMetricGlossary.stabilityRegime,
+                    labelTone: 'text-indigo-500/80 decoration-indigo-300/80',
+                    detailTone: 'text-indigo-900/42',
+                    cardTone:
+                      'border-indigo-100/85 bg-[linear-gradient(145deg,rgba(238,242,255,0.8),rgba(255,255,255,0.94)_58%,rgba(224,231,255,0.58))]',
+                  },
+                  {
+                    key: 'regime-persistence',
+                    title: 'Regime Persistence',
+                    value: fitRegimes.persistence,
+                    glossary: coreMetricGlossary.regimePersistence,
+                    labelTone: 'text-teal-600/80 decoration-teal-300/80',
+                    detailTone: 'text-teal-900/45',
+                    cardTone:
+                      'border-teal-100/85 bg-[linear-gradient(145deg,rgba(240,253,250,0.8),rgba(255,255,255,0.94)_58%,rgba(204,251,241,0.56))]',
+                  },
+                  {
+                    key: 'shock-exposure',
+                    title: 'Shock Exposure',
+                    value: fitRegimes.shock,
+                    glossary: coreMetricGlossary.shockExposure,
+                    labelTone: 'text-violet-600/80 decoration-violet-300/80',
+                    detailTone: 'text-violet-900/42',
+                    cardTone:
+                      'border-violet-100/85 bg-[linear-gradient(145deg,rgba(245,243,255,0.8),rgba(255,255,255,0.94)_58%,rgba(233,213,255,0.56))]',
+                  },
+                ].map((item, index) => (
+                  <div
+                    key={item.key}
+                    className={`rounded-xl border px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)] ${item.cardTone}`}
+                  >
+                    <ExplainHover card={item.glossary} align={index === 3 ? 'right' : 'left'}>
+                      <span className={`cursor-help text-[10px] uppercase tracking-[0.07em] decoration-dotted underline underline-offset-[3px] ${item.labelTone}`}>
+                        {item.title}
                       </span>
                     </ExplainHover>
-                    <p className={`mt-0.5 text-base font-semibold ${fitRegimes.fitTrend.tone}`}>
-                      {fitRegimes.fitTrend.state}
+                    <p className={`mt-0.5 text-base font-semibold ${item.value.tone}`}>
+                      {item.value.state}
                     </p>
-                    <p className="mt-0.5 text-[10px] text-stone-400">{fitRegimes.fitTrend.detail}</p>
+                    <p className={`mt-0.5 text-[10px] ${item.detailTone}`}>{item.value.detail}</p>
                   </div>
-                  <div className="px-3 py-2.5">
-                    <ExplainHover card={coreMetricGlossary.stabilityRegime}>
-                      <span className="cursor-help text-[10px] uppercase tracking-[0.07em] text-stone-400 decoration-dotted underline decoration-sky-300/80 underline-offset-[3px]">
-                        Stability Regime
-                      </span>
-                    </ExplainHover>
-                    <p className={`mt-0.5 text-base font-semibold ${fitRegimes.stability.tone}`}>
-                      {fitRegimes.stability.state}
-                    </p>
-                    <p className="mt-0.5 text-[10px] text-stone-400">{fitRegimes.stability.detail}</p>
-                  </div>
-                  <div className="px-3 py-2.5">
-                    <ExplainHover card={coreMetricGlossary.regimePersistence}>
-                      <span className="cursor-help text-[10px] uppercase tracking-[0.07em] text-stone-400 decoration-dotted underline decoration-sky-300/80 underline-offset-[3px]">
-                        Regime Persistence
-                      </span>
-                    </ExplainHover>
-                    <p className={`mt-0.5 text-base font-semibold ${fitRegimes.persistence.tone}`}>
-                      {fitRegimes.persistence.state}
-                    </p>
-                    <p className="mt-0.5 text-[10px] text-stone-400">{fitRegimes.persistence.detail}</p>
-                  </div>
-                  <div className="px-3 py-2.5">
-                    <ExplainHover card={coreMetricGlossary.shockExposure} align="right">
-                      <span className="cursor-help text-[10px] uppercase tracking-[0.07em] text-stone-400 decoration-dotted underline decoration-sky-300/80 underline-offset-[3px]">
-                        Shock Exposure
-                      </span>
-                    </ExplainHover>
-                    <p className={`mt-0.5 text-base font-semibold ${fitRegimes.shock.tone}`}>
-                      {fitRegimes.shock.state}
-                    </p>
-                    <p className="mt-0.5 text-[10px] text-stone-400">{fitRegimes.shock.detail}</p>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
 
