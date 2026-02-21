@@ -3750,8 +3750,12 @@ export default function ParamsPage({ openModal }) {
                             </option>
                           ))}
                         </select>
-                        <span className="pointer-events-none absolute right-[13.2px] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 border-r border-b border-indigo-300/90" />
-                        <span className="pointer-events-none absolute right-[9.3px] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 border-r border-b border-indigo-500/90" />
+                        <span className="pointer-events-none absolute inset-y-0 right-[13.2px] flex items-center">
+                          <span className="h-1.5 w-1.5 rotate-45 border-r border-b border-indigo-300/90" />
+                        </span>
+                        <span className="pointer-events-none absolute inset-y-0 right-[10px] flex items-center">
+                          <span className="h-1.5 w-1.5 rotate-45 border-r border-b border-indigo-500/90" />
+                        </span>
                       </label>
                       <label className="relative inline-flex items-center">
                         <span className="sr-only">切换样本窗口</span>
@@ -3769,8 +3773,12 @@ export default function ParamsPage({ openModal }) {
                             </option>
                           ))}
                         </select>
-                        <span className="pointer-events-none absolute right-[13.2px] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 border-r border-b border-indigo-300/90" />
-                        <span className="pointer-events-none absolute right-[9.3px] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 border-r border-b border-indigo-500/90" />
+                        <span className="pointer-events-none absolute inset-y-0 right-[13.2px] flex items-center">
+                          <span className="h-1.5 w-1.5 rotate-45 border-r border-b border-indigo-300/90" />
+                        </span>
+                        <span className="pointer-events-none absolute inset-y-0 right-[10px] flex items-center">
+                          <span className="h-1.5 w-1.5 rotate-45 border-r border-b border-indigo-500/90" />
+                        </span>
                       </label>
                     </div>
                   ) : (
