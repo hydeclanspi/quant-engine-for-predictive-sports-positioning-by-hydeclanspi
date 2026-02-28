@@ -472,6 +472,7 @@ const optimizePortfolioAllocations = (
   maxPackages = 3,
   hyperparams = null,
   coverageTargetKeysInput = null,
+  overlapTuning = null,
 ) => {
   if (!recommendations || recommendations.length < 2) return []
   const items = recommendations.slice(0, 12)
@@ -528,19 +529,18 @@ const optimizePortfolioAllocations = (
     const tiers = new Set()
     selected.forEach((item) => (item.confTiers || []).forEach((t) => tiers.add(t)))
     const tierDiv = tiers.size / 4
-    // Avoid redundancy: penalize overlapping legs
-    let overlapPairs = 0
+    // Avoid redundancy: continuous overlap penalty (scheme5), not binary overlap count.
+    let overlapPenaltySum = 0
     let totalPairs = 0
     for (let i = 0; i < selected.length; i++) {
       for (let j = i + 1; j < selected.length; j++) {
         totalPairs++
-        const keysI = new Set((selected[i].subset || []).map((m) => m.key))
-        const keysJ = (selected[j].subset || []).map((m) => m.key)
-        const overlap = keysJ.filter((k) => keysI.has(k)).length
-        if (overlap > 0) overlapPairs++
+        const overlap = calcContinuousSubsetOverlap(selected[i].subset || [], selected[j].subset || [], overlapTuning)
+        overlapPenaltySum += overlap
       }
     }
-    const diversityScore = totalPairs > 0 ? 1 - overlapPairs / totalPairs : 1
+    const avgOverlapPenalty = totalPairs > 0 ? overlapPenaltySum / totalPairs : 0
+    const diversityScore = clamp(1 - avgOverlapPenalty, 0, 1)
 
     // Composite utility — weights from walk-forward calibration
     const pw = hyperparams?.portfolioWeights || { ev: 0.35, coverage: 0.30, diversity: 0.20, layerDiv: 0.10, tierDiv: 0.05 }
@@ -740,7 +740,28 @@ const getSubsetMatchKeys = (subset) => {
   return [...keys]
 }
 
-const mmrRerank = (candidates, lambda = 0.6, maxPick = 10, coverageTargetKeys = null, eta = 0.15, hyperparams = null) => {
+const calcContinuousSubsetOverlap = (subsetA, subsetB, overlapTuning = null) => {
+  const keysA = getSubsetMatchKeys(subsetA)
+  const keysB = getSubsetMatchKeys(subsetB)
+  if (keysA.length === 0 || keysB.length === 0) return 0
+  const setA = new Set(keysA)
+  const setB = new Set(keysB)
+  let overlap = 0
+  setA.forEach((key) => {
+    if (setB.has(key)) overlap += 1
+  })
+  if (overlap <= 0) return 0
+  const union = new Set([...setA, ...setB]).size
+  const minSize = Math.max(1, Math.min(setA.size, setB.size))
+  const jaccard = union > 0 ? overlap / union : 0
+  const contain = overlap / minSize
+  const tuning = overlapTuning || resolveOverlapTuning(DEFAULT_QUALITY_FILTER, null)
+  const base = contain * tuning.containWeight + jaccard * tuning.jaccardWeight
+  const curved = Math.max(0, Math.min(1, base)) ** tuning.curve
+  return clamp(curved * tuning.scale, 0, 1)
+}
+
+const mmrRerank = (candidates, lambda = 0.6, maxPick = 10, coverageTargetKeys = null, eta = 0.15, hyperparams = null, overlapTuning = null) => {
   // MMR: score(i) = lambda * utility(i) - (1-lambda) * maxSim(i, selected) + eta * coverageGain(i)
   if (candidates.length === 0) return []
   if (candidates.length <= 1) return [...candidates]
@@ -773,7 +794,7 @@ const mmrRerank = (candidates, lambda = 0.6, maxPick = 10, coverageTargetKeys = 
       // Max similarity to any already selected
       let maxSim = 0
       selected.forEach((sel) => {
-        const sim = calcComboJaccard(cand.subset, sel.subset)
+        const sim = calcContinuousSubsetOverlap(cand.subset, sel.subset, overlapTuning)
         if (sim > maxSim) maxSim = sim
       })
 
@@ -989,12 +1010,13 @@ const COMBO_STRATEGY_OPTIONS = [
   {
     value: 'thresholdStrict',
     label: '阈值优先',
-    desc: '只保留满足 EV/胜率/相关性阈值的组合。',
+    desc: '只保留满足胜率/相关性/覆盖率阈值的组合。',
   },
 ]
 const COMBO_STRATEGY_DISPLAY_ORDER = ['manualCoverage', 'softPenalty', 'thresholdStrict']
 const DEFAULT_COMBO_STRATEGY = 'softPenalty'
 const DEFAULT_ALLOCATION_MODE = 'balanced'
+const DEFAULT_SOLVER_MODE = 'heuristic'
 const ALLOCATION_MODE_OPTIONS = [
   {
     value: 'precision',
@@ -1012,6 +1034,23 @@ const ALLOCATION_MODE_OPTIONS = [
   },
 ]
 const normalizeAllocationMode = (value) => (value === 'precision' ? 'precision' : 'balanced')
+const SOLVER_MODE_OPTIONS = [
+  {
+    value: 'heuristic',
+    label: '现行分层',
+    sub: '分层 + MMR + 覆盖修补',
+    selectedTone:
+      'border-indigo-300/80 bg-gradient-to-br from-indigo-100/85 via-white to-sky-100/75 text-indigo-700 shadow-[0_8px_20px_rgba(99,102,241,0.16)]',
+  },
+  {
+    value: 'globalJoint',
+    label: '全局联立',
+    sub: '一次性联立优化覆盖与去重',
+    selectedTone:
+      'border-emerald-300/80 bg-gradient-to-br from-emerald-100/85 via-white to-teal-100/75 text-emerald-700 shadow-[0_8px_20px_rgba(16,185,129,0.18)]',
+  },
+]
+const normalizeSolverMode = (value) => (value === 'globalJoint' ? 'globalJoint' : 'heuristic')
 
 const normalizeMode = (mode) => (mode === '常规-激进' ? '常规-杠杆' : mode || '常规')
 
@@ -1061,12 +1100,34 @@ const DEFAULT_COMBO_STRUCTURE = {
 }
 
 const DEFAULT_QUALITY_FILTER = {
-  minEvPercent: 0,
+  overlapPreference: 'antiContain',
+  overlapSeverity: 55,
   minWinRate: 5,
   maxCorr: 0.85,
   minCoveragePercent: 55,
   minCoverageEnabled: true,
 }
+
+const OVERLAP_PREFERENCE_PRESETS = {
+  balanced: {
+    label: '平衡',
+    containWeight: 0.55,
+    jaccardWeight: 0.45,
+  },
+  antiContain: {
+    label: '反包含',
+    containWeight: 0.82,
+    jaccardWeight: 0.18,
+  },
+  antiOverlap: {
+    label: '反重叠',
+    containWeight: 0.38,
+    jaccardWeight: 0.62,
+  },
+}
+
+const normalizeOverlapPreference = (value) =>
+  OVERLAP_PREFERENCE_PRESETS[value] ? value : DEFAULT_QUALITY_FILTER.overlapPreference
 
 const sanitizeComboStructure = (value) => ({
   minLegs: clamp(Number(value?.minLegs ?? DEFAULT_COMBO_STRUCTURE.minLegs), 1, 5),
@@ -1076,12 +1137,31 @@ const sanitizeComboStructure = (value) => ({
 })
 
 const sanitizeQualityFilter = (value) => ({
-  minEvPercent: Number.parseFloat(value?.minEvPercent) || DEFAULT_QUALITY_FILTER.minEvPercent,
+  overlapPreference: normalizeOverlapPreference(value?.overlapPreference),
+  overlapSeverity: clamp(Number.parseFloat(value?.overlapSeverity ?? DEFAULT_QUALITY_FILTER.overlapSeverity), 0, 100),
   minWinRate: clamp(Number.parseInt(value?.minWinRate ?? DEFAULT_QUALITY_FILTER.minWinRate, 10), 0, 100),
   maxCorr: clamp(Number.parseFloat(value?.maxCorr ?? DEFAULT_QUALITY_FILTER.maxCorr), 0, 1),
   minCoveragePercent: clamp(Number.parseFloat(value?.minCoveragePercent ?? DEFAULT_QUALITY_FILTER.minCoveragePercent), 0, 100),
   minCoverageEnabled: value?.minCoverageEnabled !== false,
 })
+
+const resolveOverlapTuning = (qualityFilter, hyperparams = null) => {
+  const preferenceKey = normalizeOverlapPreference(qualityFilter?.overlapPreference)
+  const preset = OVERLAP_PREFERENCE_PRESETS[preferenceKey] || OVERLAP_PREFERENCE_PRESETS[DEFAULT_QUALITY_FILTER.overlapPreference]
+  const severityPct = clamp(Number(qualityFilter?.overlapSeverity ?? DEFAULT_QUALITY_FILTER.overlapSeverity), 0, 100) / 100
+  const hpScale = clamp(Number(hyperparams?.overlapPenaltyScale ?? 1), 0.75, 1.35)
+  const curve = clamp(1 + severityPct * 2 * hpScale, 1, 3.4)
+  const scale = clamp(0.45 + severityPct * 0.55 * hpScale, 0.35, 1)
+  return {
+    preferenceKey,
+    preferenceLabel: preset.label,
+    containWeight: preset.containWeight,
+    jaccardWeight: preset.jaccardWeight,
+    severityPct,
+    curve,
+    scale,
+  }
+}
 
 const getFactorWeight = (value, fallback) => {
   const n = Number.parseFloat(value)
@@ -1803,20 +1883,17 @@ const enforceDirectedDecouplingHard = (seedRanked, fallbackRanked, constraints, 
   return rows.slice(0, maxRows)
 }
 
-const rankWithSoftThresholdPenalty = (rows, minEv, minWinRate, maxCorr, minCoverage, alpha, hyperparams = null) => {
-  const sp = hyperparams?.softPenaltyScales || { evGapBase: 1.15, evGapAlpha: 0.55, winGapBase: 0.85, winGapAlpha: 0.45, corrGapBase: 0.72, corrGapAlpha: 0.28, coverageGapBase: 0.9, coverageGapAlpha: 0.35 }
-  const evGapScale = sp.evGapBase + (1 - alpha) * sp.evGapAlpha
+const rankWithSoftThresholdPenalty = (rows, minWinRate, maxCorr, minCoverage, alpha, hyperparams = null) => {
+  const sp = hyperparams?.softPenaltyScales || { winGapBase: 0.85, winGapAlpha: 0.45, corrGapBase: 0.72, corrGapAlpha: 0.28, coverageGapBase: 0.9, coverageGapAlpha: 0.35 }
   const winGapScale = sp.winGapBase + (1 - alpha) * sp.winGapAlpha
   const corrGapScale = sp.corrGapBase + (1 - alpha) * sp.corrGapAlpha
   const coverageGapScale = sp.coverageGapBase + (1 - alpha) * sp.coverageGapAlpha
   return [...rows]
     .map((item) => {
-      const evGap = Math.max(0, minEv - item.ev)
       const winGap = Math.max(0, minWinRate - item.p)
       const corrGap = Math.max(0, item.corr - maxCorr)
       const coverageGap = Math.max(0, minCoverage - (item.coverageRate || 0))
       const thresholdPenalty =
-        evGap * evGapScale +
         winGap * winGapScale +
         corrGap * corrGapScale +
         coverageGap * coverageGapScale
@@ -2089,6 +2166,174 @@ const optimizePortfolioWeights = (items, alpha, maxWeight, hyperparams = null) =
   return weights
 }
 
+const selectRankedByGlobalJointOptimization = (
+  weightedUniverse,
+  maxRows = 10,
+  selectedMatchKeyCount = 1,
+  minWinRate = 0,
+  maxCorr = 1,
+  overlapTuning = null,
+  hyperparams = null,
+) => {
+  if (!Array.isArray(weightedUniverse) || weightedUniverse.length === 0) return []
+  const pool = dedupeRankedBySignature(
+    [...weightedUniverse].sort((a, b) => b.weight - a.weight || b.utility - a.utility),
+  ).slice(0, 18)
+  const n = pool.length
+  const maxPick = Math.min(maxRows, n)
+  if (maxPick <= 1) return pool.slice(0, maxPick)
+
+  const heuristicPickCount = pool.filter((item, idx) => item.weight >= 0.045 || idx < maxRows).length
+  const baselinePick = Math.max(
+    1,
+    Math.min(
+      maxPick,
+      Math.round(
+        heuristicPickCount > 0
+          ? heuristicPickCount
+          : Math.max(3, n * 0.72),
+      ),
+    ),
+  )
+  const minPick = Math.max(1, Math.min(maxPick, Math.max(2, baselinePick - 2)))
+
+  const utilValues = pool.map((item) => Number(item.utility) || 0)
+  const weightValues = pool.map((item) => Number(item.weight) || 0)
+  const uMin = Math.min(...utilValues)
+  const uMax = Math.max(...utilValues)
+  const wMin = Math.min(...weightValues)
+  const wMax = Math.max(...weightValues)
+  const uRange = uMax - uMin || 1
+  const wRange = wMax - wMin || 1
+
+  const qualityByIdx = pool.map((item, idx) => {
+    const normUtil = (utilValues[idx] - uMin) / uRange
+    const normWeight = (weightValues[idx] - wMin) / wRange
+    return 0.68 * normUtil + 0.32 * normWeight
+  })
+  const matchKeysByIdx = pool.map((item) => getSubsetMatchKeys(item.subset))
+  const pairOverlap = Array.from({ length: n }, () => Array(n).fill(0))
+  for (let i = 0; i < n; i += 1) {
+    for (let j = i + 1; j < n; j += 1) {
+      const overlap = calcContinuousSubsetOverlap(pool[i].subset, pool[j].subset, overlapTuning)
+      pairOverlap[i][j] = overlap
+      pairOverlap[j][i] = overlap
+    }
+  }
+
+  const jw = {
+    quality: 0.52,
+    coverage: 0.22,
+    diversity: 0.2,
+    concentrationPenalty: 0.08,
+    thresholdPenalty: 0.24,
+    ...(hyperparams?.globalJointWeights || {}),
+  }
+  const chosen = []
+  const best = {
+    score: Number.NEGATIVE_INFINITY,
+    coverage: Number.NEGATIVE_INFINITY,
+    quality: Number.NEGATIVE_INFINITY,
+    indices: null,
+  }
+
+  const evaluateChosen = () => {
+    if (chosen.length === 0) return
+    let qualitySum = 0
+    let pSum = 0
+    let corrSum = 0
+    const keyUse = new Map()
+    let totalKeyUses = 0
+    chosen.forEach((idx) => {
+      qualitySum += qualityByIdx[idx]
+      pSum += Number(pool[idx].p || 0)
+      corrSum += Number(pool[idx].corr || 0)
+      matchKeysByIdx[idx].forEach((mk) => {
+        keyUse.set(mk, (keyUse.get(mk) || 0) + 1)
+        totalKeyUses += 1
+      })
+    })
+
+    const quality = qualitySum / chosen.length
+    const avgP = pSum / chosen.length
+    const avgCorr = corrSum / chosen.length
+    const coverage = keyUse.size / Math.max(1, selectedMatchKeyCount)
+
+    let pairSum = 0
+    let pairCount = 0
+    for (let i = 0; i < chosen.length; i += 1) {
+      for (let j = i + 1; j < chosen.length; j += 1) {
+        pairSum += pairOverlap[chosen[i]][chosen[j]]
+        pairCount += 1
+      }
+    }
+    const overlapAvg = pairCount > 0 ? pairSum / pairCount : 0
+    const diversity = clamp(1 - overlapAvg, 0, 1)
+
+    const maxUse = keyUse.size > 0 ? Math.max(...keyUse.values()) : 0
+    const maxShare = chosen.length > 0 ? maxUse / chosen.length : 0
+    let hhi = 0
+    if (totalKeyUses > 0) {
+      keyUse.forEach((count) => {
+        const share = count / totalKeyUses
+        hhi += share * share
+      })
+    }
+    const keySize = Math.max(1, keyUse.size)
+    const baseline = 1 / keySize
+    const hhiNorm = keySize > 1 ? clamp((hhi - baseline) / (1 - baseline), 0, 1) : hhi
+    const concentrationPenalty = clamp(0.65 * maxShare + 0.35 * hhiNorm, 0, 1.5)
+
+    const winGap = Math.max(0, minWinRate - avgP)
+    const corrGap = Math.max(0, avgCorr - maxCorr)
+    const thresholdPenalty = winGap * 1.2 + corrGap
+
+    const score =
+      quality * jw.quality +
+      coverage * jw.coverage +
+      diversity * jw.diversity -
+      concentrationPenalty * jw.concentrationPenalty -
+      thresholdPenalty * jw.thresholdPenalty
+
+    const better =
+      score > best.score + 1e-9 ||
+      (Math.abs(score - best.score) <= 1e-9 && (
+        coverage > best.coverage + 1e-9 ||
+        (Math.abs(coverage - best.coverage) <= 1e-9 && quality > best.quality + 1e-9)
+      ))
+    if (better) {
+      best.score = score
+      best.coverage = coverage
+      best.quality = quality
+      best.indices = [...chosen]
+    }
+  }
+
+  const dfs = (start, need) => {
+    if (need === 0) {
+      evaluateChosen()
+      return
+    }
+    for (let i = start; i <= n - need; i += 1) {
+      chosen.push(i)
+      dfs(i + 1, need - 1)
+      chosen.pop()
+    }
+  }
+
+  for (let k = minPick; k <= maxPick; k += 1) {
+    dfs(0, k)
+  }
+
+  if (!best.indices || best.indices.length === 0) {
+    return pool.slice(0, maxPick)
+  }
+
+  return best.indices
+    .map((idx) => pool[idx])
+    .sort((a, b) => b.weight - a.weight || b.utility - a.utility)
+}
+
 const generateRecommendations = (
   selectedMatches,
   riskPref,
@@ -2102,6 +2347,7 @@ const generateRecommendations = (
   teamBias = null, // Map<teamName, number> — positive = boost, negative = penalize
   comboRetrospective = null, // FIX #9: Combo-level retrospective learning signals
   allocationMode = DEFAULT_ALLOCATION_MODE,
+  solverMode = DEFAULT_SOLVER_MODE,
   decouplingPairs = null, // Set<"rowKey|colKey"> — directed hard guarantee: when row fails, col must still survive elsewhere
 ) => {
   if (selectedMatches.length === 0) return null
@@ -2111,7 +2357,6 @@ const generateRecommendations = (
   const universeCap = Math.max(14, recommendationCount + 2)
 
   const alpha = clamp(riskPref / 100, 0, 1)
-  const minEv = Number(qualityFilter?.minEvPercent || 0) / 100
   const minWinRate = clamp(Number(qualityFilter?.minWinRate || 0) / 100, 0, 1)
   const maxCorr = clamp(Number(qualityFilter?.maxCorr ?? 1), 0, 1)
   const minCoverageEnabled = qualityFilter?.minCoverageEnabled !== false
@@ -2122,6 +2367,7 @@ const generateRecommendations = (
 
   const normalizedComboStructure = sanitizeComboStructure(comboStructure)
   const normalizedAllocationMode = normalizeAllocationMode(allocationMode)
+  const normalizedSolverMode = normalizeSolverMode(solverMode)
   const allocationUnit = normalizedAllocationMode === 'precision' ? 1 : 10
   // ── 思路4: Minimum legs floor ──
   const minLegs = normalizedComboStructure.minLegs
@@ -2139,6 +2385,7 @@ const generateRecommendations = (
   const dynParams = backtestDynamicParams(calibrationContext)
   // ── Comprehensive combo hyperparameter calibration ──
   const hp = calibrationContext?.comboHyperparams || null
+  const overlapTuning = resolveOverlapTuning(qualityFilter, hp)
 
   // ── FIX #9: Apply combo-level retrospective learning signals ──
   const retro = comboRetrospective?.ready ? comboRetrospective : null
@@ -2365,14 +2612,13 @@ const generateRecommendations = (
   const rankedAllByUtility = dedupeRankedBySignature([...coverageEligiblePool].sort((a, b) => b.utility - a.utility || b.sharpe - a.sharpe))
   const qualifiedRaw = coverageEligiblePool.filter(
     (item) =>
-      item.ev >= minEv &&
       item.p >= minWinRate &&
       item.corr <= maxCorr &&
       (item.coverageRate || 0) >= minCoverage,
   )
   const rankedQualified = dedupeRankedBySignature([...qualifiedRaw].sort((a, b) => b.utility - a.utility || b.sharpe - a.sharpe))
   const rankedSoftPenalty = dedupeRankedBySignature(
-    rankWithSoftThresholdPenalty(rankedAllByUtility, minEv, minWinRate, maxCorr, minCoverage, alpha, hp),
+    rankWithSoftThresholdPenalty(rankedAllByUtility, minWinRate, maxCorr, minCoverage, alpha, hp),
   )
 
   let preparedRanked = []
@@ -2418,6 +2664,7 @@ const generateRecommendations = (
     comboStrategy !== 'thresholdStrict' ? targetKeys : null,
     coverageEta,
     hp,
+    overlapTuning,
   )
 
   const maxUniverse = Math.min(universeCap, mmrPool.length)
@@ -2429,10 +2676,21 @@ const generateRecommendations = (
     ...item,
     weight: Number.isFinite(weights[idx]) ? weights[idx] : 0,
   }))
-  let selectedRanked = weightedUniverse
-    .filter((item, idx) => item.weight >= 0.045 || idx < recommendationCount)
-    .sort((a, b) => b.weight - a.weight || b.utility - a.utility)
-    .slice(0, recommendationCount)
+  let selectedRanked =
+    normalizedSolverMode === 'globalJoint'
+      ? selectRankedByGlobalJointOptimization(
+        weightedUniverse,
+        recommendationCount,
+        selectedMatchKeyCount,
+        minWinRate,
+        maxCorr,
+        overlapTuning,
+        hp,
+      )
+      : weightedUniverse
+        .filter((item, idx) => item.weight >= 0.045 || idx < recommendationCount)
+        .sort((a, b) => b.weight - a.weight || b.utility - a.utility)
+        .slice(0, recommendationCount)
 
   // Legacy coverage injection as final safety net (lightweight, only fills gaps)
   if (comboStrategy !== 'thresholdStrict') {
@@ -2538,7 +2796,6 @@ const generateRecommendations = (
         roleMixBonus: Number((item.roleMixBonus || 0).toFixed(3)),
         roleSignature: item.roleSignature || '--',
         thresholdPass:
-          item.ev >= minEv &&
           item.p >= minWinRate &&
           item.corr <= maxCorr &&
           (item.coverageRate || 0) >= minCoverage,
@@ -2628,6 +2885,7 @@ export default function ComboPage({ openModal }) {
   const [qualityFilter, setQualityFilter] = useState(() => sanitizeQualityFilter(DEFAULT_QUALITY_FILTER))
   const [comboStrategy, setComboStrategy] = useState(DEFAULT_COMBO_STRATEGY)
   const [allocationMode, setAllocationMode] = useState(DEFAULT_ALLOCATION_MODE)
+  const [solverMode, setSolverMode] = useState(DEFAULT_SOLVER_MODE)
   const [comboStructure, setComboStructure] = useState(() => sanitizeComboStructure(DEFAULT_COMBO_STRUCTURE))
   const [rolePreference, setRolePreference] = useState(() => sanitizeRolePreference(DEFAULT_ROLE_PREFERENCE))
   const [matchRoleOverrides, setMatchRoleOverrides] = useState({})
@@ -2673,7 +2931,13 @@ export default function ComboPage({ openModal }) {
   }, [systemConfig.maxWorstDrawdownAlertPct])
   const activeStrategyMeta =
     COMBO_STRATEGY_OPTIONS.find((option) => option.value === comboStrategy) || COMBO_STRATEGY_OPTIONS[0]
+  const activeSolverMeta =
+    SOLVER_MODE_OPTIONS.find((option) => option.value === solverMode) || SOLVER_MODE_OPTIONS[0]
   const minCoverageGateEnabled = qualityFilter.minCoverageEnabled !== false
+  const overlapTuning = useMemo(
+    () => resolveOverlapTuning(qualityFilter, calibrationContext?.comboHyperparams || null),
+    [qualityFilter, calibrationContext],
+  )
 
   const candidateRows = useMemo(
     () =>
@@ -2847,6 +3111,7 @@ export default function ComboPage({ openModal }) {
         null,
         comboRetrospective,
         probeAllocationMode,
+        solverMode,
       )
       if (!generated || generated.recommendations.length === 0) {
         return {
@@ -2879,7 +3144,7 @@ export default function ComboPage({ openModal }) {
       ...row,
       best: Boolean(best && row.riskPref === best.riskPref),
     }))
-  }, [calibrationContext, comboStrategy, comboStructure, qualityFilter, riskCap, rolePreference, selectedMatches, systemConfig, comboRetrospective])
+  }, [calibrationContext, comboStrategy, comboStructure, qualityFilter, riskCap, rolePreference, selectedMatches, systemConfig, comboRetrospective, solverMode])
 
   const matchExposure = useMemo(() => {
     const map = new Map()
@@ -3023,6 +3288,7 @@ export default function ComboPage({ openModal }) {
       candidateMatchKeys,
       comboStrategy,
       allocationMode: normalizeAllocationMode(allocationMode),
+      solverMode: normalizeSolverMode(solverMode),
       comboStructure: sanitizeComboStructure(comboStructure),
       rolePreference: sanitizeRolePreference(rolePreference),
       selectedRoleMap: roleMap,
@@ -3087,6 +3353,9 @@ export default function ComboPage({ openModal }) {
     if (historyRow.allocationMode) {
       setAllocationMode(normalizeAllocationMode(historyRow.allocationMode))
     }
+    if (historyRow.solverMode) {
+      setSolverMode(normalizeSolverMode(historyRow.solverMode))
+    }
     if (historyRow.comboStructure) {
       setComboStructure(sanitizeComboStructure(historyRow.comboStructure))
     }
@@ -3134,6 +3403,7 @@ export default function ComboPage({ openModal }) {
           10,
           calibrationContext?.comboHyperparams || null,
           restoreCoverageTargetKeys,
+          overlapTuning,
         )
     setPortfolioAllocations(restoredAllocations)
     const restoredMc =
@@ -3207,11 +3477,12 @@ export default function ComboPage({ openModal }) {
       null,
       comboRetrospective,
       allocationMode,
+      solverMode,
     )
     if (!generated) {
       window.alert(
         comboStrategy === 'thresholdStrict'
-          ? `当前阈值下没有可用方案，请降低最小 EV / 最小胜率${minCoverageGateEnabled ? ' / 最小覆盖率' : ''}，或放宽最大相关性。`
+          ? `当前阈值下没有可用方案，请降低最小胜率${minCoverageGateEnabled ? ' / 最小覆盖率' : ''}，或放宽最大相关性。`
           : '当前参数下没有可用方案，请调整风险偏好或降低过滤强度后重试。',
       )
       return
@@ -3246,6 +3517,7 @@ export default function ComboPage({ openModal }) {
       10,
       calibrationContext?.comboHyperparams || null,
       selectedMatches.map((m) => getPortfolioCoverageKey(m)),
+      overlapTuning,
     )
     setPortfolioAllocations(allocations)
     pushPlanHistory(generated, selectedMatches, riskPref, {
@@ -3277,6 +3549,7 @@ export default function ComboPage({ openModal }) {
     const jRisk = overrides.riskPref ?? riskPref
     const jStructure = overrides.comboStructure ?? comboStructure
     const jAllocationMode = normalizeAllocationMode(overrides.allocationMode ?? allocationMode)
+    const jSolverMode = normalizeSolverMode(overrides.solverMode ?? solverMode)
     const bias = overrides.teamBias ?? null
     const decouple = overrides.decouplingPairs ?? null
     const generated = generateRecommendations(
@@ -3284,6 +3557,7 @@ export default function ComboPage({ openModal }) {
       qualityFilter, comboStrategy, jStructure, rolePreference, bias,
       comboRetrospective,
       jAllocationMode,
+      jSolverMode,
       decouple,
     )
     if (!generated) return
@@ -3310,17 +3584,16 @@ export default function ComboPage({ openModal }) {
       10,
       calibrationContext?.comboHyperparams || null,
       selectedMatches.map((m) => getPortfolioCoverageKey(m)),
+      overlapTuning,
     )
-    // If a pinned portfolio is provided (from fault tolerance matrix customization),
-    // prepend it to the allocation list so it appears at position 0 with 【定制】 badge.
-    // The pinned portfolio is a snapshot of the ORIGINAL portfolio before regeneration,
-    // preserved exactly as the user saw it, immune to ranking/threshold changes.
-    const pinnedPortfolio = overrides._pinnedPortfolio ?? null
-    if (pinnedPortfolio) {
-      setPortfolioAllocations([pinnedPortfolio, ...allocations])
-    } else {
-      setPortfolioAllocations(allocations)
-    }
+    // Fault-tolerance customization should pin the NEW regenerated top package,
+    // not the pre-regeneration snapshot. Otherwise the user sees a placebo "定制".
+    const pinGeneratedTop = Boolean(overrides._pinGeneratedTop)
+    const nextAllocations = allocations.map((row, idx) => {
+      const pinned = pinGeneratedTop && idx === 0
+      return row?.pinned === pinned ? row : { ...row, pinned }
+    })
+    setPortfolioAllocations(nextAllocations)
     setExpandedComboIdxSet(new Set())
     setExpandedPortfolioIdxSet(new Set())
     setShowAllPortfolios(false)
@@ -3401,10 +3674,8 @@ export default function ComboPage({ openModal }) {
   //   ✓→✗ ('release') = "I don't care about this dependency, free up room for algorithm"
   //     → NO constraint generated, just releases freedom for the optimizer
   //
-  // The ORIGINAL portfolio (before regeneration) is captured as a pinned 【定制】 snapshot
-  // and prepended to the new results — it keeps its exact position-0 slot regardless of
-  // whether its utility ranking would otherwise drop after the decoupling constraint changes
-  // the combo landscape. This is the user's "golden pass" — it bypasses all hard thresholds.
+  // The regenerated result should be surfaced as 【定制】 at position 0, so the user sees
+  // the actual effect of matrix customization instead of a stale pre-regeneration snapshot.
   const handleFtConfirmRegenerate = (aIdx) => {
     const overrides = ftCellOverrides[aIdx] || {}
     const entries = Object.entries(overrides)
@@ -3418,11 +3689,6 @@ export default function ComboPage({ openModal }) {
       if (!rk || !ck || rk === ck) return
       pairSet.add(`${rk}|${ck}`)
     })
-    // Capture the current portfolio as a pinned snapshot before regeneration replaces everything
-    const currentPortfolio = portfolioAllocations[aIdx]
-    const pinnedSnapshot = currentPortfolio
-      ? { ...currentPortfolio, pinned: true }
-      : null
     // Clear overrides for this portfolio
     setFtCellOverrides((prev) => {
       const next = { ...prev }
@@ -3434,10 +3700,9 @@ export default function ComboPage({ openModal }) {
       next.delete(aIdx)
       return next
     })
-    // Regenerate with decoupling constraints + pinned portfolio
-    const regenOverrides = {}
+    // Regenerate with decoupling constraints, and pin the regenerated top package as 【定制】
+    const regenOverrides = { _pinGeneratedTop: true }
     if (pairSet.size > 0) regenOverrides.decouplingPairs = pairSet
-    if (pinnedSnapshot) regenOverrides._pinnedPortfolio = pinnedSnapshot
     regenerateWithOverrides(regenOverrides)
   }
 
@@ -3950,7 +4215,8 @@ export default function ComboPage({ openModal }) {
                     setQualityFilter((prev) =>
                       sanitizeQualityFilter({
                         ...prev,
-                        minEvPercent: 2,
+                        overlapPreference: 'antiContain',
+                        overlapSeverity: 82,
                         minWinRate: 45,
                         maxCorr: 0.65,
                       }),
@@ -4051,18 +4317,42 @@ export default function ComboPage({ openModal }) {
               </div>
               <div className="grid grid-cols-4 gap-2">
                 <label className="text-[11px] text-stone-500 rounded-xl border border-indigo-100/80 bg-white/78 px-2.5 py-2 backdrop-blur-[2px]">
-                  最小 EV %
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={qualityFilter.minEvPercent}
+                  重叠偏好
+                  <select
+                    value={qualityFilter.overlapPreference}
                     onChange={(event) =>
-                      setQualityFilter((prev) => ({
-                        ...prev,
-                        minEvPercent: Number.parseFloat(event.target.value) || 0,
-                      }))
+                      setQualityFilter((prev) =>
+                        sanitizeQualityFilter({
+                          ...prev,
+                          overlapPreference: event.target.value,
+                        }),
+                      )
                     }
-                    className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-indigo-100 text-xs text-right bg-white/90"
+                    className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-indigo-100 text-xs bg-white/90"
+                  >
+                    {Object.entries(OVERLAP_PREFERENCE_PRESETS).map(([key, preset]) => (
+                      <option key={key} value={key}>{preset.label}</option>
+                    ))}
+                  </select>
+                  <div className="mt-1 flex items-center justify-between text-[10px] text-indigo-500/80">
+                    <span>严厉度</span>
+                    <span>{Math.round(qualityFilter.overlapSeverity)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={qualityFilter.overlapSeverity}
+                    onChange={(event) =>
+                      setQualityFilter((prev) =>
+                        sanitizeQualityFilter({
+                          ...prev,
+                          overlapSeverity: Number(event.target.value),
+                        }),
+                      )
+                    }
+                    className="mt-1 w-full accent-indigo-500"
                   />
                 </label>
                 <label className="text-[11px] text-stone-500 rounded-xl border border-indigo-100/80 bg-white/78 px-2.5 py-2 backdrop-blur-[2px]">
@@ -4118,8 +4408,37 @@ export default function ComboPage({ openModal }) {
                 </label>
               </div>
               <p className="text-[11px] text-indigo-700/65 mt-2">
-                覆盖率按“组合覆盖的候选比赛占比”估计；相关性基于“同源注单集中度”（HHI）估计，值越大越可能同涨同跌。
+                覆盖率按“组合覆盖的候选比赛占比”估计；相关性基于“同源注单集中度”（HHI）估计。
+                方案5重叠惩罚会用连续函数（Jaccard+包含度）对 A+B / A+B+C 这类近包含关系做更强扣分。
               </p>
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-[11px] font-semibold text-indigo-700/85 tracking-wide">求解模式</p>
+                  <span className="text-[10px] text-indigo-500/60 uppercase tracking-[0.16em]">Solver</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 p-1.5 rounded-xl border border-sky-100/80 bg-gradient-to-r from-sky-50/70 via-white to-emerald-50/65 backdrop-blur-sm">
+                  {SOLVER_MODE_OPTIONS.map((option) => {
+                    const selected = solverMode === option.value
+                    return (
+                      <button
+                        key={option.value}
+                        onClick={() => setSolverMode(option.value)}
+                        className={`rounded-lg border px-2.5 py-2.5 text-left transition-all ${
+                          selected
+                            ? option.selectedTone
+                            : 'border-stone-200/80 bg-white/85 text-stone-600 hover:border-sky-200 hover:bg-sky-50/40'
+                        }`}
+                      >
+                        <p className="text-[12px] font-semibold leading-tight">{option.label}</p>
+                        <p className="mt-0.5 text-[10px] leading-tight opacity-90">{option.sub}</p>
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-[11px] text-indigo-700/60 mt-1.5">
+                  当前：{activeSolverMeta.label}。切换后将直接影响生成排序与最终组合包。
+                </p>
+              </div>
             </div>
           </div>
 
