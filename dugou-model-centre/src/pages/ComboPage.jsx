@@ -1037,14 +1037,14 @@ const normalizeAllocationMode = (value) => (value === 'precision' ? 'precision' 
 const SOLVER_MODE_OPTIONS = [
   {
     value: 'heuristic',
-    label: '现行分层',
+    label: '多阶段启发式',
     sub: '分层 + MMR + 覆盖修补',
     selectedTone:
       'border-indigo-300/80 bg-gradient-to-br from-indigo-100/85 via-white to-sky-100/75 text-indigo-700 shadow-[0_8px_20px_rgba(99,102,241,0.16)]',
   },
   {
     value: 'globalJoint',
-    label: '全局联立',
+    label: '全局联立优化',
     sub: '一次性联立优化覆盖与去重',
     selectedTone:
       'border-emerald-300/80 bg-gradient-to-br from-emerald-100/85 via-white to-teal-100/75 text-emerald-700 shadow-[0_8px_20px_rgba(16,185,129,0.18)]',
@@ -1100,34 +1100,12 @@ const DEFAULT_COMBO_STRUCTURE = {
 }
 
 const DEFAULT_QUALITY_FILTER = {
-  overlapPreference: 'antiContain',
-  overlapSeverity: 55,
+  antiOverlapPercent: 60,
   minWinRate: 5,
   maxCorr: 0.85,
   minCoveragePercent: 55,
   minCoverageEnabled: true,
 }
-
-const OVERLAP_PREFERENCE_PRESETS = {
-  balanced: {
-    label: '平衡',
-    containWeight: 0.55,
-    jaccardWeight: 0.45,
-  },
-  antiContain: {
-    label: '反包含',
-    containWeight: 0.82,
-    jaccardWeight: 0.18,
-  },
-  antiOverlap: {
-    label: '反重叠',
-    containWeight: 0.38,
-    jaccardWeight: 0.62,
-  },
-}
-
-const normalizeOverlapPreference = (value) =>
-  OVERLAP_PREFERENCE_PRESETS[value] ? value : DEFAULT_QUALITY_FILTER.overlapPreference
 
 const sanitizeComboStructure = (value) => ({
   minLegs: clamp(Number(value?.minLegs ?? DEFAULT_COMBO_STRUCTURE.minLegs), 1, 5),
@@ -1137,8 +1115,11 @@ const sanitizeComboStructure = (value) => ({
 })
 
 const sanitizeQualityFilter = (value) => ({
-  overlapPreference: normalizeOverlapPreference(value?.overlapPreference),
-  overlapSeverity: clamp(Number.parseFloat(value?.overlapSeverity ?? DEFAULT_QUALITY_FILTER.overlapSeverity), 0, 100),
+  antiOverlapPercent: clamp(
+    Number.parseFloat(value?.antiOverlapPercent ?? value?.overlapSeverity ?? DEFAULT_QUALITY_FILTER.antiOverlapPercent),
+    0,
+    100,
+  ),
   minWinRate: clamp(Number.parseInt(value?.minWinRate ?? DEFAULT_QUALITY_FILTER.minWinRate, 10), 0, 100),
   maxCorr: clamp(Number.parseFloat(value?.maxCorr ?? DEFAULT_QUALITY_FILTER.maxCorr), 0, 1),
   minCoveragePercent: clamp(Number.parseFloat(value?.minCoveragePercent ?? DEFAULT_QUALITY_FILTER.minCoveragePercent), 0, 100),
@@ -1146,18 +1127,14 @@ const sanitizeQualityFilter = (value) => ({
 })
 
 const resolveOverlapTuning = (qualityFilter, hyperparams = null) => {
-  const preferenceKey = normalizeOverlapPreference(qualityFilter?.overlapPreference)
-  const preset = OVERLAP_PREFERENCE_PRESETS[preferenceKey] || OVERLAP_PREFERENCE_PRESETS[DEFAULT_QUALITY_FILTER.overlapPreference]
-  const severityPct = clamp(Number(qualityFilter?.overlapSeverity ?? DEFAULT_QUALITY_FILTER.overlapSeverity), 0, 100) / 100
+  const antiOverlapPct = clamp(Number(qualityFilter?.antiOverlapPercent ?? DEFAULT_QUALITY_FILTER.antiOverlapPercent), 0, 100) / 100
   const hpScale = clamp(Number(hyperparams?.overlapPenaltyScale ?? 1), 0.75, 1.35)
-  const curve = clamp(1 + severityPct * 2 * hpScale, 1, 3.4)
-  const scale = clamp(0.45 + severityPct * 0.55 * hpScale, 0.35, 1)
+  const curve = clamp(1 + antiOverlapPct * 2 * hpScale, 1, 3.4)
+  const scale = clamp(0.45 + antiOverlapPct * 0.55 * hpScale, 0.35, 1)
   return {
-    preferenceKey,
-    preferenceLabel: preset.label,
-    containWeight: preset.containWeight,
-    jaccardWeight: preset.jaccardWeight,
-    severityPct,
+    containWeight: 0.38,
+    jaccardWeight: 0.62,
+    antiOverlapPct,
     curve,
     scale,
   }
@@ -4215,8 +4192,7 @@ export default function ComboPage({ openModal }) {
                     setQualityFilter((prev) =>
                       sanitizeQualityFilter({
                         ...prev,
-                        overlapPreference: 'antiContain',
-                        overlapSeverity: 82,
+                        antiOverlapPercent: 78,
                         minWinRate: 45,
                         maxCorr: 0.65,
                       }),
@@ -4317,42 +4293,22 @@ export default function ComboPage({ openModal }) {
               </div>
               <div className="grid grid-cols-4 gap-2">
                 <label className="text-[11px] text-stone-500 rounded-xl border border-indigo-100/80 bg-white/78 px-2.5 py-2 backdrop-blur-[2px]">
-                  重叠偏好
-                  <select
-                    value={qualityFilter.overlapPreference}
-                    onChange={(event) =>
-                      setQualityFilter((prev) =>
-                        sanitizeQualityFilter({
-                          ...prev,
-                          overlapPreference: event.target.value,
-                        }),
-                      )
-                    }
-                    className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-indigo-100 text-xs bg-white/90"
-                  >
-                    {Object.entries(OVERLAP_PREFERENCE_PRESETS).map(([key, preset]) => (
-                      <option key={key} value={key}>{preset.label}</option>
-                    ))}
-                  </select>
-                  <div className="mt-1 flex items-center justify-between text-[10px] text-indigo-500/80">
-                    <span>严厉度</span>
-                    <span>{Math.round(qualityFilter.overlapSeverity)}%</span>
-                  </div>
+                  Anti-overlap 偏好 %
                   <input
-                    type="range"
+                    type="number"
                     min="0"
                     max="100"
                     step="1"
-                    value={qualityFilter.overlapSeverity}
+                    value={qualityFilter.antiOverlapPercent}
                     onChange={(event) =>
                       setQualityFilter((prev) =>
                         sanitizeQualityFilter({
                           ...prev,
-                          overlapSeverity: Number(event.target.value),
+                          antiOverlapPercent: Number(event.target.value),
                         }),
                       )
                     }
-                    className="mt-1 w-full accent-indigo-500"
+                    className="input-glow mt-1 w-full px-2 py-1.5 rounded-lg border border-indigo-100 text-xs text-right bg-white/90"
                   />
                 </label>
                 <label className="text-[11px] text-stone-500 rounded-xl border border-indigo-100/80 bg-white/78 px-2.5 py-2 backdrop-blur-[2px]">
@@ -4408,12 +4364,11 @@ export default function ComboPage({ openModal }) {
                 </label>
               </div>
               <p className="text-[11px] text-indigo-700/65 mt-2">
-                覆盖率按“组合覆盖的候选比赛占比”估计；相关性基于“同源注单集中度”（HHI）估计。
-                方案5重叠惩罚会用连续函数（Jaccard+包含度）对 A+B / A+B+C 这类近包含关系做更强扣分。
+                覆盖率按“组合覆盖的候选比赛占比”估计；相关性基于“同源注单集中度”（HHI）估计，值越大越可能同涨同跌。
               </p>
-              <div className="mt-3">
+              <div className="mt-3.5 pt-3 border-t border-indigo-200/70">
                 <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-[11px] font-semibold text-indigo-700/85 tracking-wide">求解模式</p>
+                  <p className="text-[11px] font-semibold text-indigo-700/85 tracking-wide">算法求解模式</p>
                   <span className="text-[10px] text-indigo-500/60 uppercase tracking-[0.16em]">Solver</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 p-1.5 rounded-xl border border-sky-100/80 bg-gradient-to-r from-sky-50/70 via-white to-emerald-50/65 backdrop-blur-sm">
