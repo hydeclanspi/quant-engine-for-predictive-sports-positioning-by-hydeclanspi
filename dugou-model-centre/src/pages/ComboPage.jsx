@@ -55,8 +55,8 @@ const MATCH_ROLE_COMPACT_LABEL = {
   neutral_soft: '中-守',
 }
 
-const RECOMMENDATION_OUTPUT_COUNT = 15
-const QUICK_PREVIEW_RECOMMENDATION_COUNT = 8
+const RECOMMENDATION_OUTPUT_COUNT = 20
+const QUICK_PREVIEW_RECOMMENDATION_COUNT = 7
 const HARD_DECOUPLING_HINT_THRESHOLD = 5
 
 const MATCH_ROLE_TILT_MAP = {
@@ -371,7 +371,7 @@ const runPortfolioMonteCarlo = (packageItems, iterations = 50000) => {
       return matchKeyToIdx.get(mk) ?? -1
     }).filter((idx) => idx >= 0)
     const odds = Math.max(1.01, Number(item.combinedOdds || item.odds || 2.0))
-    const stake = Number(item.amount || 10)
+    const stake = getEffectiveStakeForScoring(item)
     return { legMatchIndices, odds, stake }
   })
 
@@ -467,6 +467,16 @@ const getPortfolioCoverageKey = (item) => {
   return `${home}-${away}`
 }
 
+const getEffectiveStakeForScoring = (item) => {
+  const amount = Number(item?.amount)
+  if (Number.isFinite(amount) && amount > 0) return amount
+  const allocatedWeight = Number(item?.allocatedWeight)
+  if (Number.isFinite(allocatedWeight) && allocatedWeight > 0) return Math.max(1, allocatedWeight * 100)
+  const explainWeightPct = Number(item?.explain?.weightPct)
+  if (Number.isFinite(explainWeightPct) && explainWeightPct > 0) return Math.max(1, explainWeightPct)
+  return 10
+}
+
 const optimizePortfolioAllocations = (
   recommendations,
   maxPackages = 3,
@@ -510,7 +520,12 @@ const optimizePortfolioAllocations = (
   // Score each portfolio
   const scored = portfolios.map((indices) => {
     const selected = indices.map((i) => items[i])
-    const totalStake = selected.reduce((s, item) => s + (Number(item.amount) || 10), 0)
+    const effectiveStakes = selected.map((item) => getEffectiveStakeForScoring(item))
+    const totalStake = effectiveStakes.reduce((s, value) => s + value, 0)
+    const totalTheoreticalWeightPct = selected.reduce(
+      (sum, item) => sum + Math.max(0, Number(item.allocatedWeight || 0) * 100),
+      0,
+    )
     // Coverage: how many unique matches are covered
     const covered = new Set()
     selected.forEach((item) => {
@@ -521,7 +536,10 @@ const optimizePortfolioAllocations = (
     })
     const coverageRatio = allMatchKeys.size > 0 ? covered.size / allMatchKeys.size : 0
     // Expected value (weighted avg)
-    const weightedEv = selected.reduce((s, item) => s + (item.expectedReturn || 0) * (Number(item.amount) || 10), 0) / Math.max(totalStake, 1)
+    const weightedEv = selected.reduce(
+      (s, item, idx) => s + (item.expectedReturn || 0) * effectiveStakes[idx],
+      0,
+    ) / Math.max(totalStake, 1)
     // Layer diversity (unique layer tags)
     const layers = new Set(selected.map((item) => item.explain?.ftLayerTag).filter(Boolean))
     const layerDiv = layers.size / 4
@@ -560,6 +578,7 @@ const optimizePortfolioAllocations = (
       label: indices.map((i) => i + 1).join('+'),
       combos: selected,
       totalStake: Math.round(totalStake),
+      totalTheoreticalWeightPct: Number(totalTheoreticalWeightPct.toFixed(1)),
       coverageRatio: Number(coverageRatio.toFixed(2)),
       covered: covered.size,
       totalMatches: allMatchKeys.size,
@@ -723,15 +742,6 @@ const calcEntryFamilyDiversity = (subset) => {
 }
 
 /* ── MMR (Maximal Marginal Relevance) reranking ──────────────────────── */
-const calcComboJaccard = (subsetA, subsetB) => {
-  const keysA = new Set(subsetA.map((item) => item.key))
-  const keysB = new Set(subsetB.map((item) => item.key))
-  let overlap = 0
-  keysA.forEach((k) => { if (keysB.has(k)) overlap += 1 })
-  const union = new Set([...keysA, ...keysB]).size
-  return union > 0 ? overlap / union : 0
-}
-
 const getSubsetMatchKeys = (subset) => {
   const keys = new Set()
   ;(subset || []).forEach((item) => {
@@ -1408,6 +1418,17 @@ const normalizeHistoryRecommendation = (row, index = 0) => {
   const expectedRating = clamp(toFiniteNumber(row?.expectedRating, hitProbability), 0, 1)
   const layer = row?.layer || getLayerByRank(fallbackRank)
   const tier = row?.tier || `T${fallbackRank}`
+  const theoreticalWeightPct = (() => {
+    const direct = toFiniteNumber(row?.theoreticalWeightPct, Number.NaN)
+    if (Number.isFinite(direct)) return Math.max(0, direct)
+    const fromExplain = toFiniteNumber(explainSource.weightPct, Number.NaN)
+    if (Number.isFinite(fromExplain)) return Math.max(0, fromExplain)
+    if (typeof row?.allocation === 'string') {
+      const match = row.allocation.match(/([0-9]+(?:\.[0-9]+)?)\s*%/)
+      if (match?.[1]) return Math.max(0, toFiniteNumber(match[1], 0))
+    }
+    return 0
+  })()
 
   return {
     ...row,
@@ -1419,7 +1440,8 @@ const normalizeHistoryRecommendation = (row, index = 0) => {
     combo: String(row?.combo || buildComboTitle(subset) || `组合 ${fallbackRank}`),
     legs,
     amount,
-    allocation: row?.allocation || `${amount} rmb`,
+    allocation: `理论权重 ${theoreticalWeightPct.toFixed(1)}%`,
+    theoreticalWeightPct: Number(theoreticalWeightPct.toFixed(1)),
     ev: row?.ev || formatPercent(expectedReturn * 100),
     winRate: row?.winRate || `${Math.round(hitProbability * 100)}%`,
     profitWinRate: row?.profitWinRate || `${Math.round(profitWinProbability * 100)}%`,
@@ -2720,8 +2742,13 @@ const generateRecommendations = (
     allocatedAmount: allocatedAmounts[idx] || 0,
     allocatedWeight: normalizedWeights[idx] || 0,
   }))
-  const materializedRanked = rankedWithAmounts.filter((item) => item.allocatedAmount > 0)
-  const outputRanked = materializedRanked.length > 0 ? materializedRanked : rankedWithAmounts.slice(0, 1)
+  const fundedRanked = rankedWithAmounts
+    .filter((item) => item.allocatedAmount > 0)
+    .sort((a, b) => b.allocatedAmount - a.allocatedAmount || b.allocatedWeight - a.allocatedWeight || b.utility - a.utility)
+  const reserveRanked = rankedWithAmounts
+    .filter((item) => item.allocatedAmount <= 0)
+    .sort((a, b) => b.allocatedWeight - a.allocatedWeight || b.utility - a.utility || b.sharpe - a.sharpe)
+  const outputRanked = [...fundedRanked, ...reserveRanked].slice(0, recommendationCount)
 
   const FT_LAYER_TO_DISPLAY = {
     core: '主推',
@@ -2735,6 +2762,7 @@ const generateRecommendations = (
     // Use fault-tolerant layer tag if available, otherwise fall back to rank-based
     const layer = (item.ftLayerTag && FT_LAYER_TO_DISPLAY[item.ftLayerTag]) || getLayerByRank(rank)
     const amount = item.allocatedAmount || 0
+    const theoreticalWeightPct = (item.allocatedWeight || 0) * 100
     const tierLabel = `T${rank}`
 
     return {
@@ -2746,7 +2774,8 @@ const generateRecommendations = (
       combo: buildComboTitle(item.subset),
       legs: item.legs,
       amount,
-      allocation: `${amount} rmb`,
+      allocation: `理论权重 ${theoreticalWeightPct.toFixed(1)}%`,
+      theoreticalWeightPct: Number(theoreticalWeightPct.toFixed(1)),
       ev: formatPercent(item.ev * 100),
       winRate: `${Math.round(item.p * 100)}%`,
       profitWinRate: `${Math.round(item.profitWinProbability * 100)}%`,
@@ -2973,7 +3002,7 @@ export default function ComboPage({ openModal }) {
   )
 
   const displayedRecommendations = useMemo(
-    () => (showAllRecommendations ? recommendations : recommendations.slice(0, 3)),
+    () => (showAllRecommendations ? recommendations : recommendations.slice(0, QUICK_PREVIEW_RECOMMENDATION_COUNT)),
     [recommendations, showAllRecommendations],
   )
 
@@ -4293,7 +4322,7 @@ export default function ComboPage({ openModal }) {
               </div>
               <div className="grid grid-cols-4 gap-2">
                 <label className="text-[11px] text-stone-500 rounded-xl border border-indigo-100/80 bg-white/78 px-2.5 py-2 backdrop-blur-[2px]">
-                  Anti-overlap 偏好 %
+                  Overlap Aversion %
                   <input
                     type="number"
                     min="0"
@@ -4655,7 +4684,7 @@ export default function ComboPage({ openModal }) {
                       <div className="flex items-center gap-2 text-[10px] text-stone-500">
                         <span>覆盖{coverageCovered}/{coverageTotal}场</span>
                         <span className="text-emerald-600 font-medium">EV {alloc.weightedEv}%</span>
-                        <span>{alloc.totalStake} rmb</span>
+                        <span>理论{Number(alloc.totalTheoreticalWeightPct || 0).toFixed(1)}%</span>
                       </div>
                       <svg className={`w-3 h-3 text-stone-400 transition-transform ${expandedPortfolioIdxSet.has(aIdx) ? 'rotate-180' : ''}`} viewBox="0 0 12 12" fill="none">
                         <path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -5086,8 +5115,8 @@ export default function ComboPage({ openModal }) {
                   className="w-full pt-1 text-[10px] text-center text-indigo-500 hover:text-indigo-600"
                 >
                   {showAllQuickRecommendations
-                    ? `收起到前 ${QUICK_PREVIEW_RECOMMENDATION_COUNT} 场 ▲`
-                    : `一键展开全部 ${recommendations.length} 场 ▼`}
+                    ? `收起到前 ${QUICK_PREVIEW_RECOMMENDATION_COUNT} 个方案 ▲`
+                    : `一键展开全部 ${recommendations.length} 个方案 ▼`}
                 </button>
               )}
             </div>
@@ -5276,7 +5305,7 @@ export default function ComboPage({ openModal }) {
               )
             })}
           </div>
-          {recommendations.length > 3 && !showAllRecommendations && (
+          {recommendations.length > QUICK_PREVIEW_RECOMMENDATION_COUNT && !showAllRecommendations && (
             <button
               onClick={() => setShowAllRecommendations(true)}
               className="w-full mt-2.5 py-1.5 text-[13px] text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
@@ -5284,7 +5313,7 @@ export default function ComboPage({ openModal }) {
               展开全部 {recommendations.length} 个方案 ▼
             </button>
           )}
-          {recommendations.length > 3 && showAllRecommendations && (
+          {recommendations.length > QUICK_PREVIEW_RECOMMENDATION_COUNT && showAllRecommendations && (
             <button
               onClick={() => setShowAllRecommendations(false)}
               className="w-full mt-2.5 py-1.5 text-[13px] text-stone-500 hover:text-stone-700 hover:bg-stone-50 rounded-xl transition-all"
