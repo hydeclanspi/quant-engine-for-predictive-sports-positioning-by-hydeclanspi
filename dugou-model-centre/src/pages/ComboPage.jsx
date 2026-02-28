@@ -467,13 +467,25 @@ const getPortfolioCoverageKey = (item) => {
   return `${home}-${away}`
 }
 
+const getTheoreticalWeightPctForScoring = (item) => {
+  const allocatedWeight = Number(item?.allocatedWeight)
+  if (Number.isFinite(allocatedWeight) && allocatedWeight >= 0) return Math.max(0, allocatedWeight * 100)
+  const directPct = Number(item?.theoreticalWeightPct)
+  if (Number.isFinite(directPct) && directPct >= 0) return Math.max(0, directPct)
+  const explainPct = Number(item?.explain?.weightPct)
+  if (Number.isFinite(explainPct) && explainPct >= 0) return Math.max(0, explainPct)
+  if (typeof item?.allocation === 'string') {
+    const match = item.allocation.match(/([0-9]+(?:\.[0-9]+)?)\s*%/)
+    if (match?.[1]) return Math.max(0, Number(match[1]) || 0)
+  }
+  return 0
+}
+
 const getEffectiveStakeForScoring = (item) => {
   const amount = Number(item?.amount)
   if (Number.isFinite(amount) && amount > 0) return amount
-  const allocatedWeight = Number(item?.allocatedWeight)
-  if (Number.isFinite(allocatedWeight) && allocatedWeight > 0) return Math.max(1, allocatedWeight * 100)
-  const explainWeightPct = Number(item?.explain?.weightPct)
-  if (Number.isFinite(explainWeightPct) && explainWeightPct > 0) return Math.max(1, explainWeightPct)
+  const theoreticalWeightPct = getTheoreticalWeightPctForScoring(item)
+  if (theoreticalWeightPct > 0) return Math.max(1, theoreticalWeightPct)
   return 10
 }
 
@@ -522,8 +534,9 @@ const optimizePortfolioAllocations = (
     const selected = indices.map((i) => items[i])
     const effectiveStakes = selected.map((item) => getEffectiveStakeForScoring(item))
     const totalStake = effectiveStakes.reduce((s, value) => s + value, 0)
+    const totalInvest = selected.reduce((sum, item) => sum + Math.max(0, Number(item?.amount) || 0), 0)
     const totalTheoreticalWeightPct = selected.reduce(
-      (sum, item) => sum + Math.max(0, Number(item.allocatedWeight || 0) * 100),
+      (sum, item) => sum + getTheoreticalWeightPctForScoring(item),
       0,
     )
     // Coverage: how many unique matches are covered
@@ -578,6 +591,7 @@ const optimizePortfolioAllocations = (
       label: indices.map((i) => i + 1).join('+'),
       combos: selected,
       totalStake: Math.round(totalStake),
+      totalInvest: Math.round(totalInvest),
       totalTheoreticalWeightPct: Number(totalTheoreticalWeightPct.toFixed(1)),
       coverageRatio: Number(coverageRatio.toFixed(2)),
       covered: covered.size,
@@ -1429,6 +1443,7 @@ const normalizeHistoryRecommendation = (row, index = 0) => {
     }
     return 0
   })()
+  const allocationText = amount > 0 ? `${amount} rmb` : `理论权重 ${theoreticalWeightPct.toFixed(1)}%`
 
   return {
     ...row,
@@ -1440,8 +1455,9 @@ const normalizeHistoryRecommendation = (row, index = 0) => {
     combo: String(row?.combo || buildComboTitle(subset) || `组合 ${fallbackRank}`),
     legs,
     amount,
-    allocation: `理论权重 ${theoreticalWeightPct.toFixed(1)}%`,
+    allocation: allocationText,
     theoreticalWeightPct: Number(theoreticalWeightPct.toFixed(1)),
+    allocatedWeight: Number((theoreticalWeightPct / 100).toFixed(6)),
     ev: row?.ev || formatPercent(expectedReturn * 100),
     winRate: row?.winRate || `${Math.round(hitProbability * 100)}%`,
     profitWinRate: row?.profitWinRate || `${Math.round(profitWinProbability * 100)}%`,
@@ -2717,13 +2733,31 @@ const generateRecommendations = (
   }
 
   const fallbackRanked = selectedRanked.length > 0 ? selectedRanked : weightedUniverse.slice(0, Math.min(3, weightedUniverse.length))
-  const allocationSeed = fallbackRanked.map((item) => {
-    const base = Math.max(0, item.weight)
+  const baseWeights = fallbackRanked.map((item) => Math.max(0, Number(item.weight) || 0))
+  const utilityValues = fallbackRanked.map((item) => Number(item.utility) || 0)
+  const evValues = fallbackRanked.map((item) => Number(item.ev) || 0)
+  const baseMin = baseWeights.length > 0 ? Math.min(...baseWeights) : 0
+  const baseMax = baseWeights.length > 0 ? Math.max(...baseWeights) : 0
+  const baseSpread = baseMax - baseMin
+  const utilMin = utilityValues.length > 0 ? Math.min(...utilityValues) : 0
+  const utilMax = utilityValues.length > 0 ? Math.max(...utilityValues) : 0
+  const utilRange = utilMax - utilMin
+  const evMin = evValues.length > 0 ? Math.min(...evValues) : 0
+  const evMax = evValues.length > 0 ? Math.max(...evValues) : 0
+  const evRange = evMax - evMin
+  const utilityBlend = baseSpread <= 0.012 ? 0.055 : 0.018
+  const evBlend = baseSpread <= 0.012 ? 0.028 : 0.010
+  const allocationSeed = fallbackRanked.map((item, idx) => {
+    const base = baseWeights[idx]
     const injectedBoost = item.coverageInjected && comboStrategy !== 'thresholdStrict' ? 0.05 : 0
-    return base + injectedBoost
+    const utilNorm = utilRange > 1e-9 ? (utilityValues[idx] - utilMin) / utilRange : 0.5
+    const evNorm = evRange > 1e-9 ? (evValues[idx] - evMin) / evRange : 0.5
+    return base + injectedBoost + utilityBlend * utilNorm + evBlend * evNorm
   })
   const weightSum = allocationSeed.reduce((sum, value) => sum + value, 0)
-  const normalizedWeights = allocationSeed.map((value) => (weightSum > 0 ? value / weightSum : 1 / allocationSeed.length))
+  const normalizedWeights = weightSum > 0
+    ? allocationSeed.map((value) => value / weightSum)
+    : allocationSeed.map((_, idx) => (fallbackRanked.length - idx) / (fallbackRanked.length * (fallbackRanked.length + 1) / 2))
   const minActiveCombos = normalizedAllocationMode === 'precision'
     ? 0
     : Math.min(
@@ -2763,6 +2797,7 @@ const generateRecommendations = (
     const layer = (item.ftLayerTag && FT_LAYER_TO_DISPLAY[item.ftLayerTag]) || getLayerByRank(rank)
     const amount = item.allocatedAmount || 0
     const theoreticalWeightPct = (item.allocatedWeight || 0) * 100
+    const allocationText = amount > 0 ? `${amount} rmb` : `理论权重 ${theoreticalWeightPct.toFixed(1)}%`
     const tierLabel = `T${rank}`
 
     return {
@@ -2774,8 +2809,9 @@ const generateRecommendations = (
       combo: buildComboTitle(item.subset),
       legs: item.legs,
       amount,
-      allocation: `理论权重 ${theoreticalWeightPct.toFixed(1)}%`,
+      allocation: allocationText,
       theoreticalWeightPct: Number(theoreticalWeightPct.toFixed(1)),
+      allocatedWeight: Number((item.allocatedWeight || 0).toFixed(6)),
       ev: formatPercent(item.ev * 100),
       winRate: `${Math.round(item.p * 100)}%`,
       profitWinRate: `${Math.round(item.profitWinProbability * 100)}%`,
@@ -4657,6 +4693,9 @@ export default function ComboPage({ openModal }) {
                       ? [...selectedCoverageTargetKeys].filter((key) => coveredKeysForHeader.has(key)).length
                       : Math.max(0, Number(alloc.covered) || 0)
                   const coverageRatioDisplay = coverageTotal > 0 ? coverageCovered / coverageTotal : 0
+                  const portfolioExposureText = Number(alloc.totalInvest || 0) > 0
+                    ? `${Math.round(Number(alloc.totalInvest || 0))} rmb`
+                    : `理论${Number(alloc.totalTheoreticalWeightPct || 0).toFixed(1)}%`
 
                   return (
                   <div key={aIdx}>
@@ -4684,7 +4723,7 @@ export default function ComboPage({ openModal }) {
                       <div className="flex items-center gap-2 text-[10px] text-stone-500">
                         <span>覆盖{coverageCovered}/{coverageTotal}场</span>
                         <span className="text-emerald-600 font-medium">EV {alloc.weightedEv}%</span>
-                        <span>理论{Number(alloc.totalTheoreticalWeightPct || 0).toFixed(1)}%</span>
+                        <span>{portfolioExposureText}</span>
                       </div>
                       <svg className={`w-3 h-3 text-stone-400 transition-transform ${expandedPortfolioIdxSet.has(aIdx) ? 'rotate-180' : ''}`} viewBox="0 0 12 12" fill="none">
                         <path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
