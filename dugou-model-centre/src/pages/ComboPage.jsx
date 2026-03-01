@@ -60,18 +60,18 @@ const QUICK_PREVIEW_RECOMMENDATION_COUNT = 7
 const HARD_DECOUPLING_HINT_THRESHOLD = 5
 
 const SHARPE_BADGE_TONE_CLASS = {
-  low: 'border-teal-100/80 bg-[linear-gradient(120deg,rgba(246,251,251,0.96),rgba(255,255,255,0.96)_52%,rgba(242,249,249,0.92))] text-teal-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_4px_12px_-11px_rgba(13,148,136,0.14)]',
-  midLow: 'border-teal-200/75 bg-[linear-gradient(120deg,rgba(241,248,248,0.94),rgba(255,255,255,0.95)_52%,rgba(236,246,246,0.90))] text-teal-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.90),0_4px_14px_-11px_rgba(13,148,136,0.20)]',
-  midHigh: 'border-teal-300/75 bg-[linear-gradient(120deg,rgba(238,249,248,0.95),rgba(253,255,255,0.95)_52%,rgba(234,246,245,0.92))] text-teal-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.90),0_4px_14px_-11px_rgba(13,148,136,0.24)]',
-  high: 'border-teal-400/80 bg-[linear-gradient(120deg,rgba(228,244,242,0.96),rgba(247,253,252,0.95)_52%,rgba(223,239,236,0.93))] text-teal-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.88),0_6px_16px_-11px_rgba(15,118,110,0.30)]',
+  low: 'border-teal-100/80 bg-[linear-gradient(120deg,rgba(247,252,252,0.96),rgba(255,255,255,0.96)_52%,rgba(243,250,250,0.92))] text-teal-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_3px_10px_-10px_rgba(13,148,136,0.12)]',
+  midLow: 'border-teal-200/75 bg-[linear-gradient(120deg,rgba(242,249,249,0.94),rgba(255,255,255,0.95)_52%,rgba(237,247,246,0.90))] text-teal-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.90),0_4px_12px_-10px_rgba(13,148,136,0.18)]',
+  midHigh: 'border-teal-300/70 bg-[linear-gradient(120deg,rgba(239,248,247,0.94),rgba(253,255,255,0.95)_52%,rgba(234,245,244,0.90))] text-teal-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.90),0_4px_12px_-10px_rgba(13,148,136,0.20)]',
+  high: 'border-teal-300/78 bg-[linear-gradient(120deg,rgba(235,246,245,0.95),rgba(250,254,253,0.95)_52%,rgba(230,242,241,0.91))] text-teal-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.90),0_4px_13px_-10px_rgba(13,148,136,0.22)]',
 }
 
 const getSharpeBadgeToneClass = (sharpeValue) => {
   const sharpe = Number(sharpeValue)
   if (!Number.isFinite(sharpe)) return SHARPE_BADGE_TONE_CLASS.midLow
-  if (sharpe < 0.1) return SHARPE_BADGE_TONE_CLASS.low
-  if (sharpe < 0.25) return SHARPE_BADGE_TONE_CLASS.midLow
-  if (sharpe <= 0.3) return SHARPE_BADGE_TONE_CLASS.midHigh
+  if (sharpe < 0.15) return SHARPE_BADGE_TONE_CLASS.low
+  if (sharpe < 0.29) return SHARPE_BADGE_TONE_CLASS.midLow
+  if (sharpe <= 0.41) return SHARPE_BADGE_TONE_CLASS.midHigh
   return SHARPE_BADGE_TONE_CLASS.high
 }
 
@@ -5826,7 +5826,7 @@ export default function ComboPage({ openModal }) {
                                   </div>
                                   <div className="flex items-center gap-3">
                                     {sharpeText && (
-                                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${sharpeBadgeToneClass}`}>
+                                      <span className={`inline-flex items-center gap-0.5 rounded-full px-[7px] py-[1px] text-[9px] font-semibold border ${sharpeBadgeToneClass}`}>
                                         Sharpe {sharpeText}
                                       </span>
                                     )}
