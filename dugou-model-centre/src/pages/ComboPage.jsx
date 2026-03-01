@@ -1990,45 +1990,107 @@ const comboSatisfiesDirectedConstraint = (combo, constraint) => {
   return !comboHasConstraintKey(combo, constraint.fromKey)
 }
 
-const enforceDirectedDecouplingHard = (seedRanked, fallbackRanked, constraints, maxRows = 10) => {
+const enforceDirectedDecouplingHard = (seedRanked, fallbackRanked, constraints, maxRows = 10, options = null) => {
   if (!Array.isArray(seedRanked) || seedRanked.length === 0) return null
   if (!Array.isArray(constraints) || constraints.length === 0) return seedRanked.slice(0, maxRows)
 
   const rows = seedRanked.slice(0, maxRows)
   const usedSignatures = new Set(rows.map((row) => buildSubsetSignature(row.subset)).filter(Boolean))
   const candidates = Array.isArray(fallbackRanked) ? fallbackRanked : []
+  const resolvedOptions = options && typeof options === 'object' ? options : {}
+  const preserveBaseCoverage = Boolean(resolvedOptions.preserveBaseCoverage)
+  const referenceRows =
+    Array.isArray(resolvedOptions.referenceRows) && resolvedOptions.referenceRows.length > 0
+      ? resolvedOptions.referenceRows
+      : rows
+  const protectedMatchKeys = new Set()
+  if (preserveBaseCoverage) {
+    referenceRows.forEach((row) => {
+      getSubsetMatchKeys(row?.subset || []).forEach((key) => {
+        if (key) protectedMatchKeys.add(key)
+      })
+    })
+  }
+  const getRowKeys = (row) => getSubsetMatchKeys(row?.subset || [])
+  const buildUsageMap = () => {
+    const map = new Map()
+    rows.forEach((row) => {
+      getRowKeys(row).forEach((key) => {
+        map.set(key, (map.get(key) || 0) + 1)
+      })
+    })
+    return map
+  }
+  let usageMap = buildUsageMap()
+  const canSwapWithCoverageLock = (replaceIdx, replacement) => {
+    if (!preserveBaseCoverage || protectedMatchKeys.size === 0) return true
+    if (replaceIdx < 0 || !rows[replaceIdx] || !replacement) return false
+    const outgoingKeys = new Set(getRowKeys(rows[replaceIdx]))
+    const incomingKeys = new Set(getRowKeys(replacement))
+    for (const key of protectedMatchKeys) {
+      const current = usageMap.get(key) || 0
+      const next =
+        current -
+        (outgoingKeys.has(key) ? 1 : 0) +
+        (incomingKeys.has(key) ? 1 : 0)
+      if (next <= 0) return false
+    }
+    return true
+  }
 
   const isConstraintSatisfied = (constraint) => rows.some((row) => comboSatisfiesDirectedConstraint(row, constraint))
   const supportCountByConstraint = (constraint) =>
     rows.reduce((count, row) => count + (comboSatisfiesDirectedConstraint(row, constraint) ? 1 : 0), 0)
 
-  const chooseReplaceIndex = () => {
+  const chooseReplaceIndex = (targetConstraint, replacement) => {
     const supportMap = new Map(constraints.map((constraint) => [constraint.key, supportCountByConstraint(constraint)]))
+    const preferFromKey = String(targetConstraint?.fromKey || '').trim()
+    const preferToKey = String(targetConstraint?.toKey || '').trim()
     let bestIdx = -1
     let bestUtility = Number.POSITIVE_INFINITY
-
-    rows.forEach((row, idx) => {
+    const pick = (predicate) => {
+      rows.forEach((row, idx) => {
+        if (!predicate(row, idx)) return
+        const utility = Number(row.utility)
+        const score = Number.isFinite(utility) ? utility : Number.NEGATIVE_INFINITY
+        if (score < bestUtility) {
+          bestUtility = score
+          bestIdx = idx
+        }
+      })
+      return bestIdx
+    }
+    const isCritical = (row) => {
       const supports = constraints.filter((constraint) => comboSatisfiesDirectedConstraint(row, constraint))
-      const isCritical = supports.some((constraint) => (supportMap.get(constraint.key) || 0) <= 1)
-      if (isCritical) return
-      const utility = Number(row.utility)
-      const score = Number.isFinite(utility) ? utility : Number.NEGATIVE_INFINITY
-      if (score < bestUtility) {
-        bestUtility = score
-        bestIdx = idx
-      }
-    })
+      return supports.some((constraint) => (supportMap.get(constraint.key) || 0) <= 1)
+    }
 
-    if (bestIdx >= 0) return bestIdx
-
-    rows.forEach((row, idx) => {
-      const utility = Number(row.utility)
-      const score = Number.isFinite(utility) ? utility : Number.NEGATIVE_INFINITY
-      if (score < bestUtility) {
-        bestUtility = score
-        bestIdx = idx
-      }
-    })
+    if (preferFromKey) {
+      pick(
+        (row, idx) =>
+          !isCritical(row) &&
+          comboHasConstraintKey(row, preferFromKey) &&
+          (!preferToKey || !comboHasConstraintKey(row, preferToKey)) &&
+          canSwapWithCoverageLock(idx, replacement),
+      )
+    }
+    if (bestIdx < 0 && preferFromKey) {
+      pick(
+        (row, idx) =>
+          !isCritical(row) &&
+          comboHasConstraintKey(row, preferFromKey) &&
+          canSwapWithCoverageLock(idx, replacement),
+      )
+    }
+    if (bestIdx < 0) {
+      pick((row, idx) => !isCritical(row) && canSwapWithCoverageLock(idx, replacement))
+    }
+    if (bestIdx < 0 && preferFromKey) {
+      pick((row, idx) => comboHasConstraintKey(row, preferFromKey) && canSwapWithCoverageLock(idx, replacement))
+    }
+    if (bestIdx < 0) {
+      pick((_, idx) => canSwapWithCoverageLock(idx, replacement))
+    }
 
     return bestIdx
   }
@@ -2037,20 +2099,50 @@ const enforceDirectedDecouplingHard = (seedRanked, fallbackRanked, constraints, 
     const missing = constraints.find((constraint) => !isConstraintSatisfied(constraint))
     if (!missing) break
 
-    const replacement = candidates.find((row) => {
-      if (!comboSatisfiesDirectedConstraint(row, missing)) return false
-      const sig = buildSubsetSignature(row.subset)
-      return Boolean(sig) && !usedSignatures.has(sig)
-    })
+    const replacementCandidates = candidates
+      .filter((row) => {
+        if (!comboSatisfiesDirectedConstraint(row, missing)) return false
+        const sig = buildSubsetSignature(row.subset)
+        return Boolean(sig) && !usedSignatures.has(sig)
+      })
+      .map((row) => {
+        const keySet = new Set(getRowKeys(row))
+        let keepScore = 0
+        if (protectedMatchKeys.size > 0) {
+          protectedMatchKeys.forEach((key) => {
+            if (keySet.has(key)) keepScore += 1
+          })
+        }
+        const utility = Number(row.utility)
+        const utilScore = Number.isFinite(utility) ? utility : 0
+        return { row, score: keepScore * 10 + utilScore }
+      })
+      .sort((a, b) => b.score - a.score)
+    if (replacementCandidates.length === 0) return null
+
+    let replacement = null
+    let replaceIdx = -1
+    for (const cand of replacementCandidates) {
+      if (rows.length < maxRows) {
+        replacement = cand.row
+        replaceIdx = -1
+        break
+      }
+      const idx = chooseReplaceIndex(missing, cand.row)
+      if (idx >= 0) {
+        replacement = cand.row
+        replaceIdx = idx
+        break
+      }
+    }
     if (!replacement) return null
 
     if (rows.length < maxRows) {
       rows.push(replacement)
       usedSignatures.add(buildSubsetSignature(replacement.subset))
+      usageMap = buildUsageMap()
       continue
     }
-
-    const replaceIdx = chooseReplaceIndex()
     if (replaceIdx < 0) return null
 
     const nextSig = buildSubsetSignature(replacement.subset)
@@ -2059,6 +2151,7 @@ const enforceDirectedDecouplingHard = (seedRanked, fallbackRanked, constraints, 
     usedSignatures.delete(prevSig)
     rows[replaceIdx] = replacement
     usedSignatures.add(nextSig)
+    usageMap = buildUsageMap()
   }
 
   if (constraints.some((constraint) => !isConstraintSatisfied(constraint))) return null
@@ -3927,7 +4020,13 @@ export default function ComboPage({ openModal }) {
     const fallbackCandidates = dedupeRankedBySignature([...recommendations, ...baseCombos])
     const constrainedCombos =
       directedConstraints.length > 0
-        ? enforceDirectedDecouplingHard(baseCombos, fallbackCandidates, directedConstraints, baseCombos.length)
+        ? enforceDirectedDecouplingHard(
+          baseCombos,
+          fallbackCandidates,
+          directedConstraints,
+          baseCombos.length,
+          { preserveBaseCoverage: true, referenceRows: baseCombos },
+        )
         : baseCombos
 
     if (!constrainedCombos || constrainedCombos.length === 0) {
