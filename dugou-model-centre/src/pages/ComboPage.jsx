@@ -785,13 +785,18 @@ const buildPortfolioAllocationRowFromCombos = (
 
   const indices = selected.map((combo) => allRecommendations.findIndex((row) => row?.id === combo?.id))
   const validIndices = indices.filter((idx) => idx >= 0)
-  const label =
-    validIndices.length === selected.length
-      ? validIndices.map((idx) => idx + 1).join('+')
-      : selected.map((_, idx) => idx + 1).join('+')
+  const comboNumbers = selected.map((combo, idx) => {
+    const direct = getComboNumberFromRow(combo)
+    if (Number.isFinite(direct) && direct > 0) return direct
+    const fallbackIdx = indices[idx]
+    if (Number.isFinite(fallbackIdx) && fallbackIdx >= 0) return fallbackIdx + 1
+    return idx + 1
+  })
+  const label = comboNumbers.join('+')
 
   return {
     indices: validIndices,
+    comboNumbers,
     comboIds: selected.map((s) => s.id),
     label,
     combos: selected,
@@ -1234,14 +1239,14 @@ const ALLOCATION_MODE_OPTIONS = [
     label: 'Precision',
     sub: '1 rmb 精细分配',
     selectedTone:
-      'border-emerald-300/80 bg-gradient-to-br from-emerald-100/85 via-white to-teal-100/75 text-emerald-700 shadow-[0_8px_20px_rgba(16,185,129,0.18)]',
+      'border-indigo-300/80 bg-gradient-to-br from-indigo-100/85 via-white to-sky-100/75 text-indigo-700 shadow-[0_8px_20px_rgba(99,102,241,0.16)]',
   },
   {
     value: 'balanced',
     label: 'Balanced',
     sub: '10 rmb 平衡覆盖',
     selectedTone:
-      'border-indigo-300/80 bg-gradient-to-br from-indigo-100/85 via-white to-sky-100/75 text-indigo-700 shadow-[0_8px_20px_rgba(99,102,241,0.16)]',
+      'border-emerald-300/80 bg-gradient-to-br from-emerald-100/85 via-white to-teal-100/75 text-emerald-700 shadow-[0_8px_20px_rgba(16,185,129,0.18)]',
   },
 ]
 const normalizeAllocationMode = (value) => (value === 'precision' ? 'precision' : 'balanced')
@@ -2009,6 +2014,87 @@ const dedupeRankedBySignature = (rankedRows) => {
     next.push(row)
   })
   return next
+}
+
+const getComboNumberFromRow = (row) => {
+  const direct = Number.parseInt(row?.comboNo, 10)
+  if (Number.isFinite(direct) && direct > 0) return direct
+  const idText = String(row?.id || '').trim()
+  const idMatch = idText.match(/combo-(\d+)/i)
+  if (idMatch?.[1]) {
+    const parsed = Number.parseInt(idMatch[1], 10)
+    if (Number.isFinite(parsed) && parsed > 0) return parsed
+  }
+  const rank = Number.parseInt(row?.rank, 10)
+  if (Number.isFinite(rank) && rank > 0) return rank
+  return null
+}
+
+const withAssignedComboNumber = (row, comboNumber) => {
+  const safeNo = Math.max(1, Number.parseInt(comboNumber, 10) || 1)
+  const layer = String(row?.layer || getLayerByRank(safeNo)).trim() || getLayerByRank(safeNo)
+  const tier = `T${safeNo}`
+  return {
+    ...row,
+    id: `combo-${safeNo}`,
+    comboNo: safeNo,
+    rank: safeNo,
+    tier,
+    layer,
+    tierLabel: `${tier} ${layer}`,
+  }
+}
+
+const createStableComboNumberMapper = (seedRows = []) => {
+  const signatureToRow = new Map()
+  const usedNumbers = new Set()
+  let maxNumber = 0
+
+  const reserveNumber = () => {
+    let next = maxNumber + 1
+    while (usedNumbers.has(next)) next += 1
+    usedNumbers.add(next)
+    maxNumber = next
+    return next
+  }
+
+  const seedSeen = new Set()
+  ;(Array.isArray(seedRows) ? seedRows : []).forEach((row) => {
+    const sig = buildSubsetSignature(row?.subset || [])
+    if (!sig || seedSeen.has(sig)) return
+    seedSeen.add(sig)
+    let comboNo = getComboNumberFromRow(row)
+    if (!(Number.isFinite(comboNo) && comboNo > 0) || usedNumbers.has(comboNo)) {
+      comboNo = reserveNumber()
+    } else {
+      usedNumbers.add(comboNo)
+      if (comboNo > maxNumber) maxNumber = comboNo
+    }
+    signatureToRow.set(sig, withAssignedComboNumber(row, comboNo))
+  })
+
+  const mapRows = (rows = []) => {
+    const mapped = []
+    ;(Array.isArray(rows) ? rows : []).forEach((row) => {
+      const sig = buildSubsetSignature(row?.subset || [])
+      if (!sig) return
+      const existing = signatureToRow.get(sig)
+      if (existing) {
+        mapped.push(existing)
+        return
+      }
+      const comboNo = reserveNumber()
+      const normalized = withAssignedComboNumber(row, comboNo)
+      signatureToRow.set(sig, normalized)
+      mapped.push(normalized)
+    })
+    return mapped
+  }
+
+  return {
+    mapRows,
+    listAll: () => [...signatureToRow.values()],
+  }
 }
 
 const parseDirectedDecouplingConstraints = (decouplingPairs) => {
@@ -4420,18 +4506,23 @@ export default function ComboPage({ openModal }) {
       window.alert('当前容错矩阵在候选空间中无可行解。请减少翻转项后重试。')
       return
     }
-    const displayRecommendations = (displayGenerated.recommendations || []).slice(0, RECOMMENDATION_OUTPUT_COUNT)
-    const wideRows =
+    const displayRecommendationsRaw = (displayGenerated.recommendations || []).slice(0, RECOMMENDATION_OUTPUT_COUNT)
+    const wideRowsRaw =
       Array.isArray(wideGenerated?.candidateUniverse) && wideGenerated.candidateUniverse.length > 0
         ? wideGenerated.candidateUniverse
         : Array.isArray(displayGenerated.candidateUniverse) && displayGenerated.candidateUniverse.length > 0
           ? displayGenerated.candidateUniverse
-          : displayRecommendations
-
+          : displayRecommendationsRaw
+    const stableMapper = createStableComboNumberMapper(recommendations)
+    const displayRecommendations = dedupeRankedBySignature(stableMapper.mapRows(displayRecommendationsRaw))
+    const mergedRecommendations = dedupeRankedBySignature(stableMapper.listAll())
+    const wideRows = dedupeRankedBySignature(stableMapper.mapRows(wideRowsRaw))
+    const stableBaseCombos = dedupeRankedBySignature(stableMapper.mapRows(baseCombos))
     const candidatePool = dedupeRankedBySignature([
       ...wideRows,
       ...displayRecommendations,
-      ...baseCombos,
+      ...stableBaseCombos,
+      ...mergedRecommendations,
     ])
     let solved = solvePortfolioByDirectedMatrixRequirements(
       candidatePool,
@@ -4454,7 +4545,7 @@ export default function ComboPage({ openModal }) {
     const customRow =
       buildPortfolioAllocationRowFromCombos(
         solved.selected,
-        displayRecommendations,
+        mergedRecommendations,
         coverageTargetKeys,
         calibrationContext?.comboHyperparams || null,
         overlapTuning,
@@ -4465,8 +4556,8 @@ export default function ComboPage({ openModal }) {
       return
     }
 
-    setRecommendations(displayRecommendations)
-    setRankingRows(displayRecommendations)
+    setRecommendations(mergedRecommendations)
+    setRankingRows(mergedRecommendations)
     setLayerSummary(Array.isArray(displayGenerated.layerSummary) ? displayGenerated.layerSummary : [])
     setGenerationSummary({
       totalInvest: displayGenerated.totalInvest,
@@ -4485,11 +4576,11 @@ export default function ComboPage({ openModal }) {
     setShowRecommendationDetailCard(false)
     setSelectedRecommendationIds({})
 
-    const mc = runPortfolioMonteCarlo(displayRecommendations)
+    const mc = runPortfolioMonteCarlo(mergedRecommendations.slice(0, RECOMMENDATION_OUTPUT_COUNT))
     setMcSimResult(mc)
 
     const autoAllocations = optimizePortfolioAllocations(
-      displayRecommendations,
+      mergedRecommendations,
       10,
       calibrationContext?.comboHyperparams || null,
       coverageTargetKeys,
@@ -5576,11 +5667,17 @@ export default function ComboPage({ openModal }) {
                           {alloc.combos.map((combo, cIdx) => {
                             const cLayerTag = combo.explain?.ftLayerTag
                             const comboOrigIdx = alloc.indices?.[cIdx]
+                            const comboNo =
+                              (Array.isArray(alloc.comboNumbers) ? alloc.comboNumbers[cIdx] : null) ||
+                              getComboNumberFromRow(combo) ||
+                              (comboOrigIdx != null ? comboOrigIdx + 1 : cIdx + 1)
+                            const sharpeRaw = Number.parseFloat(combo?.sharpe)
+                            const sharpeText = Number.isFinite(sharpeRaw) ? sharpeRaw.toFixed(2) : null
                             return (
                               <div key={cIdx} className="combo-portfolio-card p-4">
                                 <div className="flex items-center justify-between mb-3">
                                   <div className="flex items-center gap-2.5">
-                                    <span className="text-[13px] font-bold text-indigo-600">组合 {comboOrigIdx != null ? comboOrigIdx + 1 : cIdx + 1}</span>
+                                    <span className="text-[13px] font-bold text-indigo-600">组合 {comboNo}</span>
                                     {cLayerTag && (
                                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide ${
                                         cLayerTag === 'core' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/60'
@@ -5593,6 +5690,11 @@ export default function ComboPage({ openModal }) {
                                     )}
                                   </div>
                                   <div className="flex items-center gap-3">
+                                    {sharpeText && (
+                                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border border-sky-200/80 bg-gradient-to-r from-sky-50 via-white to-cyan-50 text-sky-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_4px_14px_-10px_rgba(14,165,233,0.45)]">
+                                        Sharpe {sharpeText}
+                                      </span>
+                                    )}
                                     <span className="text-[13px] font-mono font-semibold text-stone-500">×{Number(combo.combinedOdds || combo.odds || 0).toFixed(1)}</span>
                                     <span className="text-[13px] font-bold text-stone-800">{combo.allocation}</span>
                                   </div>
@@ -5812,6 +5914,7 @@ export default function ComboPage({ openModal }) {
               {quickPreviewRecommendations.map((item, idx) => {
                 const selected = Boolean(selectedRecommendationIds[item.id])
                 const expanded = expandedComboIdxSet.has(idx)
+                const comboNo = getComboNumberFromRow(item) || idx + 1
                 const layerTag = item.explain?.ftLayerTag
                 const layerDot = layerTag === 'core' ? 'bg-emerald-400'
                   : layerTag === 'covering' ? 'bg-teal-400'
@@ -5824,7 +5927,7 @@ export default function ComboPage({ openModal }) {
                         selected ? 'bg-indigo-50/70 border border-indigo-200' : 'bg-stone-50/50 border border-transparent hover:bg-stone-50'
                       }`}
                     >
-                      <span className="text-[11px] text-stone-400 font-mono w-4 shrink-0">{idx + 1}.</span>
+                      <span className="text-[11px] text-stone-400 font-mono w-8 shrink-0">{comboNo}.</span>
                       <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${layerDot}`} />
                       <div className="flex-1 min-w-0" onClick={() => toggleQuickComboExpand(idx)}>
                         <p className="text-[13px] text-stone-700 truncate whitespace-nowrap">
