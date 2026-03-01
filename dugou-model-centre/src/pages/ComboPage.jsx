@@ -495,9 +495,11 @@ const optimizePortfolioAllocations = (
   hyperparams = null,
   coverageTargetKeysInput = null,
   overlapTuning = null,
+  decouplingPairs = null,
 ) => {
   if (!recommendations || recommendations.length < 2) return []
   const items = recommendations.slice(0, 12)
+  const directedConstraints = parseDirectedDecouplingConstraints(decouplingPairs)
 
   // Extract coverage target keys.
   // Prefer selected-match keys from caller so coverage displays true x / selectedCount.
@@ -582,6 +584,21 @@ const optimizePortfolioAllocations = (
       tierDiv * pw.tierDiv +
       diversityScore * pw.diversity
 
+    const constraintSatisfiedCount =
+      directedConstraints.length > 0
+        ? directedConstraints.reduce(
+          (count, constraint) => count + (selected.some((combo) => comboSatisfiesDirectedConstraint(combo, constraint)) ? 1 : 0),
+          0,
+        )
+        : 0
+    const constraintCoverage =
+      directedConstraints.length > 0
+        ? clamp(constraintSatisfiedCount / directedConstraints.length, 0, 1)
+        : 1
+    const constraintSatisfied =
+      directedConstraints.length === 0 || constraintSatisfiedCount >= directedConstraints.length
+    const scoredUtility = utility + (directedConstraints.length > 0 ? constraintCoverage * 0.08 : 0)
+
     // Run mini MC for this portfolio
     const mc = runPortfolioMonteCarlo(selected, 10000)
 
@@ -600,18 +617,33 @@ const optimizePortfolioAllocations = (
       layerDiv: Number(layerDiv.toFixed(2)),
       tierDiv: Number(tierDiv.toFixed(2)),
       diversityScore: Number(diversityScore.toFixed(2)),
-      utility: Number(utility.toFixed(4)),
+      utility: Number(scoredUtility.toFixed(4)),
+      constraintTotal: directedConstraints.length,
+      constraintSatisfiedCount,
+      constraintCoverage: Number(constraintCoverage.toFixed(3)),
+      constraintSatisfied,
       mc,
     }
   })
 
-  // Sort by utility descending and take top N
-  scored.sort((a, b) => b.utility - a.utility)
+  const fullyConstraintSatisfied =
+    directedConstraints.length > 0 ? scored.filter((row) => row.constraintSatisfied) : []
+  const rankedScored =
+    directedConstraints.length > 0
+      ? (fullyConstraintSatisfied.length > 0 ? fullyConstraintSatisfied : scored)
+      : scored
+
+  // Sort by constraint coverage first (when customization exists), then utility
+  rankedScored.sort((a, b) => {
+    const covDiff = (b.constraintCoverage || 0) - (a.constraintCoverage || 0)
+    if (Math.abs(covDiff) > 1e-9) return covDiff
+    return b.utility - a.utility
+  })
 
   // Deduplicate: don't return portfolios that are subsets of higher-ranked ones
   const result = []
   const usedSigs = new Set()
-  for (const p of scored) {
+  for (const p of rankedScored) {
     const sig = [...p.indices].sort().join(',')
     if (usedSigs.has(sig)) continue
     // Check if this is a subset of an already-selected portfolio
@@ -1817,10 +1849,29 @@ const parseDirectedDecouplingConstraints = (decouplingPairs) => {
   return parsed
 }
 
+const getConstraintAliasesForMatch = (item) => {
+  const aliases = new Set()
+  const directKey = String(item?.key || '').trim()
+  if (directKey) aliases.add(directKey)
+  const refKey = String(buildMatchRefKey(item) || '').trim()
+  if (refKey && !refKey.includes('undefined')) aliases.add(refKey)
+  const home = String(item?.homeTeam || '').trim()
+  const away = String(item?.awayTeam || '').trim()
+  if (home || away) aliases.add(`${home}-${away}`)
+  return aliases
+}
+
+const comboHasConstraintKey = (combo, targetKey) => {
+  const cleanTarget = String(targetKey || '').trim()
+  if (!combo || !cleanTarget) return false
+  return (combo.subset || []).some((item) => getConstraintAliasesForMatch(item).has(cleanTarget))
+}
+
 const comboSatisfiesDirectedConstraint = (combo, constraint) => {
   if (!combo || !constraint) return false
-  const matchKeys = getSubsetMatchKeys(combo.subset)
-  return matchKeys.includes(constraint.toKey) && !matchKeys.includes(constraint.fromKey)
+  const hasTo = comboHasConstraintKey(combo, constraint.toKey)
+  if (!hasTo) return false
+  return !comboHasConstraintKey(combo, constraint.fromKey)
 }
 
 const enforceDirectedDecouplingHard = (seedRanked, fallbackRanked, constraints, maxRows = 10) => {
@@ -3627,15 +3678,27 @@ export default function ComboPage({ openModal }) {
       calibrationContext?.comboHyperparams || null,
       selectedMatches.map((m) => getPortfolioCoverageKey(m)),
       overlapTuning,
+      decouple,
     )
     // Fault-tolerance customization should pin the NEW regenerated top package,
     // not the pre-regeneration snapshot. Otherwise the user sees a placebo "定制".
     const pinGeneratedTop = Boolean(overrides._pinGeneratedTop)
-    const nextAllocations = allocations.map((row, idx) => {
+    const hasDirectedConstraints = parseDirectedDecouplingConstraints(decouple).length > 0
+    let rankedAllocations = allocations
+    if (pinGeneratedTop && hasDirectedConstraints) {
+      const satisfiedIdx = allocations.findIndex((row) => row?.constraintSatisfied)
+      if (satisfiedIdx > 0) {
+        rankedAllocations = [allocations[satisfiedIdx], ...allocations.filter((_, idx) => idx !== satisfiedIdx)]
+      }
+    }
+    const nextAllocations = rankedAllocations.map((row, idx) => {
       const pinned = pinGeneratedTop && idx === 0
       return row?.pinned === pinned ? row : { ...row, pinned }
     })
     setPortfolioAllocations(nextAllocations)
+    if (pinGeneratedTop && hasDirectedConstraints && nextAllocations[0] && !nextAllocations[0].constraintSatisfied) {
+      window.alert('当前容错约束在现有候选下无法完全满足，已给出最接近解。可减少翻转项或放宽阈值后重试。')
+    }
     setExpandedComboIdxSet(new Set())
     setExpandedPortfolioIdxSet(new Set())
     setShowAllPortfolios(false)
