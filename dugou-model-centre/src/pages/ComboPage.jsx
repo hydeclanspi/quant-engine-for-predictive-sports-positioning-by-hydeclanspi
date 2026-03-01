@@ -2025,8 +2025,10 @@ const getOutcomeToneClass = (token) => {
   return ''
 }
 
+const COMBO_CN_FONT_STACK = "'PingFang SC','Hiragino Sans GB','Noto Sans SC','Microsoft YaHei UI','Source Han Sans SC',sans-serif"
+
 const ComboLegSeparatorIcon = () => (
-  <span className="mx-1.5 inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-sky-200/75 bg-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)] align-middle">
+  <span className="mx-1.5 inline-flex h-3 w-3 shrink-0 items-center justify-center rounded-full border border-sky-200/70 bg-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)] align-middle">
     <svg viewBox="0 0 12 12" className="h-2.5 w-2.5 text-sky-500/90" fill="none" aria-hidden="true">
       <path d="M3.1 6h5.8" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" />
       <circle cx="3.1" cy="6" r="0.7" fill="currentColor" />
@@ -2081,7 +2083,7 @@ const renderEntryOutcomeWithTone = (entry) => {
       return <span key={`entry-part-${idx}`} className="text-stone-500">{part}</span>
     }
     return (
-      <span key={`entry-part-${idx}`} className={`mx-[1px] inline-flex items-center rounded-md px-1 py-[0.5px] text-[11px] leading-none font-semibold ${toneClass}`}>
+      <span key={`entry-part-${idx}`} className={`mx-[1px] inline-flex items-center rounded-md px-1 py-[0.5px] text-[10.5px] leading-none font-semibold ${toneClass}`}>
         {part}
       </span>
     )
@@ -6106,8 +6108,8 @@ export default function ComboPage({ openModal }) {
               <p className="text-sm text-stone-400">点击左侧「生成最优组合」查看推荐组合包</p>
             </div>
           ) : (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-end gap-1.5 -mt-1 mb-1.5">
+            <div className="space-y-1">
+              <div className="flex items-center justify-end gap-1.5 -mt-1 mb-1">
                 <button
                   onClick={() => setShowRecommendationDetailCard((v) => !v)}
                   title={showRecommendationDetailCard ? '隐藏方案详情' : '显示方案详情'}
@@ -6142,25 +6144,25 @@ export default function ComboPage({ openModal }) {
                 return (
                   <div key={item.id}>
                     <div
-                      className={`motion-v2-row motion-v2-selectable relative flex items-start gap-2.5 pl-3 pr-3 py-2.5 rounded-xl cursor-pointer transition-all ${
-                        selected ? 'bg-indigo-50/70 border border-indigo-200 shadow-[0_8px_20px_-16px_rgba(79,70,229,0.45)]' : `border ${rowTone.card}`
+                      className={`motion-v2-row motion-v2-selectable relative flex items-center gap-2 pl-3 pr-2.5 py-1.5 rounded-xl cursor-pointer transition-all ${
+                        selected ? 'bg-indigo-50/70 border border-indigo-200 shadow-[0_7px_16px_-14px_rgba(79,70,229,0.40)]' : `border ${rowTone.card}`
                       }`}
                     >
-                      <span className={`absolute left-1.5 top-2.5 bottom-2.5 w-[3px] rounded-full bg-gradient-to-b ${rowTone.accent}`} />
-                      <span className="text-[11px] text-stone-400 font-mono w-8 shrink-0">{comboNo}.</span>
-                      <div className={`mt-2.5 w-1.5 h-1.5 rounded-full shrink-0 ${layerDot}`} />
-                      <div className="flex-1 min-w-0" onClick={() => toggleQuickComboExpand(idx)}>
-                        <div className="flex flex-wrap items-center gap-y-1.5">
+                      <span className={`absolute left-1.5 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b ${rowTone.accent}`} />
+                      <span className="text-[10.5px] text-stone-400 font-mono w-7 shrink-0">{comboNo}.</span>
+                      <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${layerDot}`} />
+                      <div className="flex-1 min-w-0" onClick={() => toggleQuickComboExpand(idx)} style={{ fontFamily: COMBO_CN_FONT_STACK }}>
+                        <div className="flex flex-wrap items-center gap-y-1">
                           {Array.isArray(item.subset) && item.subset.length > 0
                             ? item.subset.map((leg, legIdx) => {
                                 const legEntry = String(leg.entry || '').trim()
                                 return (
                                   <span key={leg.key || `${leg.homeTeam}-${leg.awayTeam}-${leg.entry}-${legIdx}`} className="inline-flex items-center">
                                     {legIdx > 0 && <ComboLegSeparatorIcon />}
-                                    <span className="inline-flex items-center rounded-lg border border-stone-200/80 bg-white/86 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
-                                      <span className="font-medium text-stone-800">{leg.homeTeam || '-'}</span>
+                                    <span className="inline-flex items-center rounded-lg border border-stone-200/80 bg-white/86 px-1.5 py-[1px] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                                      <span className="text-[12.5px] leading-tight font-medium text-stone-800">{leg.homeTeam || '-'}</span>
                                       {legEntry && (
-                                        <span className="ml-0.5 text-[11.5px] font-medium text-stone-500">
+                                        <span className="ml-0.5 text-[10.5px] font-medium text-stone-500 leading-tight">
                                           {renderEntryOutcomeWithTone(legEntry)}
                                         </span>
                                       )}
@@ -6170,7 +6172,7 @@ export default function ComboPage({ openModal }) {
                               })
                             : item.combo}
                         </div>
-                        <div className="flex items-center gap-2 mt-1 text-[10px] text-stone-400">
+                        <div className="flex items-center gap-2 mt-0.5 text-[9.5px] text-stone-400 leading-none">
                           <span>{item.legs || item.subset.length}关</span>
                           <span>×{(Number(item.combinedOdds || item.odds || 0)).toFixed(1)}</span>
                           {item.explain?.confTierSummary && item.explain.confTierSummary !== '--' && (
@@ -6191,9 +6193,9 @@ export default function ComboPage({ openModal }) {
                           </svg>
                         </div>
                       </div>
-                      <div className="text-right shrink-0 w-[108px]">
-                        <p className="text-[12px] font-semibold text-stone-700">{item.allocation}</p>
-                        <p className="text-[10px] text-emerald-600">{item.ev}</p>
+                      <div className="text-right shrink-0 w-[100px] leading-tight">
+                        <p className="text-[11.5px] font-semibold text-stone-700">{item.allocation}</p>
+                        <p className="text-[9.5px] text-emerald-600 mt-0.5">{item.ev}</p>
                       </div>
                       <div
                         onClick={(e) => { e.stopPropagation(); toggleRecommendation(item.id) }}
