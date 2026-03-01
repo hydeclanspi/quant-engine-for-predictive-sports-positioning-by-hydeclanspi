@@ -52,6 +52,15 @@ const toSigned = (value, digits = 1, suffix = '') => {
 const toPercent = (value, digits = 1) => `${Number(value || 0).toFixed(digits)}%`
 
 const toRmb = (value) => `¥${Number(value || 0).toFixed(0)}`
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
+
+const formatChartNumeric = (chartKey, value, digits = 1) => {
+  const safe = Number(value || 0)
+  if (chartKey === 'fund') return `¥${safe.toFixed(0)}`
+  if (chartKey === 'corr_rolling') return safe.toFixed(2)
+  if (chartKey === 'error_rolling') return safe.toFixed(3)
+  return `${safe.toFixed(digits)}%`
+}
 
 const getStatusLabel = (status) => {
   if (status === 'win') return '已中'
@@ -246,6 +255,7 @@ export default function DashboardPage({ openModal }) {
   const [showInjectModal, setShowInjectModal] = useState(false)
   const [injectAmount, setInjectAmount] = useState('')
   const [dataVersion, setDataVersion] = useState(0)
+  const [hoveredPoint, setHoveredPoint] = useState(null)
   const exportPickerRef = useRef(null)
 
   const systemConfig = useMemo(() => getSystemConfig(), [dataVersion])
@@ -295,29 +305,34 @@ export default function DashboardPage({ openModal }) {
     setShowSmartReminder(shouldShowEvidenceBriefThisVisit())
   }, [])
 
+  useEffect(() => {
+    setHoveredPoint(null)
+  }, [chartKey, timePeriod, snapshot.periodInvestments])
+
   const chartSeries = useMemo(() => {
-    const decorateLabels = (rows) => {
-      const counts = new Map()
-      rows.forEach((row) => {
-        const label = String(row.label || '--')
-        counts.set(label, (counts.get(label) || 0) + 1)
-      })
-      const seen = new Map()
-      return rows.map((row) => {
-        const label = String(row.label || '--')
-        const total = counts.get(label) || 0
-        if (total <= 1) return row
-        const idx = (seen.get(label) || 0) + 1
-        seen.set(label, idx)
-        return { ...row, label: `${label}·${idx}` }
-      })
-    }
+    const dateLabelOnly = (rows) =>
+      rows.map((row) => ({
+        ...row,
+        label: String(row.label || '--').split('·')[0],
+      }))
 
     if (chartKey === 'conf') {
-      return snapshot.confCalibration.map((item) => ({
-        label: item.label,
-        value: Number((item.actual * 100).toFixed(2)),
-      }))
+      const rows = [...(snapshot.ratingRows || [])].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      const windowSize = Math.max(5, Math.min(16, Math.floor(rows.length * 0.45)))
+      const rolling = rows.map((row, idx) => {
+        const start = Math.max(0, idx - windowSize + 1)
+        const slice = rows.slice(start, idx + 1)
+        const avgAbsDiff =
+          slice.reduce((sum, item) => sum + Math.abs(Number(item.actual_rating || 0) - Number(item.expected_rating || 0)), 0) /
+          Math.max(slice.length, 1)
+        const fit = Math.max(0, Math.min(1, 1 - avgAbsDiff))
+        return {
+          label: row.dateLabel || '--',
+          value: Number((fit * 100).toFixed(2)),
+          match: row.match || '-',
+        }
+      })
+      return dateLabelOnly(rolling)
     }
 
     if (chartKey === 'rating') {
@@ -332,9 +347,10 @@ export default function DashboardPage({ openModal }) {
           return {
             label: row.dateLabel,
             value: Number((Math.max(0, ajrAvg) * 100).toFixed(2)),
+            match: row.match || '-',
           }
         })
-      return decorateLabels(rolling)
+      return dateLabelOnly(rolling)
     }
 
     if (chartKey === 'single_roi') {
@@ -343,8 +359,9 @@ export default function DashboardPage({ openModal }) {
         .map((row) => ({
           label: row.dateLabel || '--',
           value: Number(row.roi || 0),
+          match: row.match || '-',
         }))
-      return decorateLabels(rows)
+      return dateLabelOnly(rows)
     }
 
     if (chartKey === 'ajr_delta') {
@@ -353,8 +370,9 @@ export default function DashboardPage({ openModal }) {
         .map((row) => ({
           label: row.dateLabel || '--',
           value: Number(((Number(row.actual_rating || 0) - Number(row.expected_rating || 0)) * 100).toFixed(2)),
+          match: row.match || '-',
         }))
-      return decorateLabels(rows)
+      return dateLabelOnly(rows)
     }
 
     if (chartKey === 'corr_rolling') {
@@ -371,9 +389,10 @@ export default function DashboardPage({ openModal }) {
         series.push({
           label: row.dateLabel || '--',
           value: Number(calcPearson(xs, ys).toFixed(3)),
+          match: row.match || '-',
         })
       })
-      return decorateLabels(series)
+      return dateLabelOnly(series)
     }
 
     if (chartKey === 'error_rolling') {
@@ -396,14 +415,16 @@ export default function DashboardPage({ openModal }) {
         series.push({
           label: row.dateLabel || '--',
           value: Number(brierAvg.toFixed(4)),
+          match: row.match || '-',
         })
       })
-      return decorateLabels(series)
+      return dateLabelOnly(series)
     }
 
     return snapshot.timeline.map((point) => ({
       label: point.label,
       value: point.balance,
+      match: point.match || '-',
     }))
   }, [chartKey, snapshot.confCalibration, snapshot.periodInvestmentRoiSeries, snapshot.periodMatchRows, snapshot.ratingRows, snapshot.timeline])
 
@@ -418,6 +439,7 @@ export default function DashboardPage({ openModal }) {
         return {
           label: point.label,
           value: Number(next.toFixed(3)),
+          match: point.match || '-',
         }
       })
     }
@@ -442,19 +464,21 @@ export default function DashboardPage({ openModal }) {
         series.push({
           label: row.dateLabel || '--',
           value: Number(logLossAvg.toFixed(4)),
+          match: row.match || '-',
         })
       })
       if (series.length !== chartSeries.length) return series
       return series.map((point, idx) => ({
         label: chartSeries[idx]?.label || point.label,
         value: point.value,
+        match: chartSeries[idx]?.match || point.match || '-',
       }))
     }
 
     return []
   }, [chartKey, chartSeries, snapshot.periodMatchRows])
 
-  const chartMaxPoints = chartKey === 'conf' ? 12 : timePeriod === 'all' ? 72 : 48
+  const chartMaxPoints = timePeriod === 'all' ? 72 : 48
   const chartSampleIndices = useMemo(() => buildSampleIndices(chartSeries.length, chartMaxPoints), [chartMaxPoints, chartSeries.length])
   const chartRange = useMemo(() => {
     const values = [...chartSeries, ...chartSecondarySeries]
@@ -541,6 +565,19 @@ export default function DashboardPage({ openModal }) {
     const rawY = TREND_PLOT_BOTTOM - ((chartReferenceValue - sparkline.min) / span) * (TREND_PLOT_BOTTOM - TREND_PLOT_TOP)
     return Math.max(TREND_PLOT_TOP, Math.min(TREND_BASELINE_Y, rawY))
   }, [chartRange.minSpan, chartReferenceValue, sparkline.max, sparkline.min, sparkline.points.length])
+  const chartYAxisTicks = useMemo(() => {
+    const axisPoints = [TREND_PLOT_TOP, (TREND_PLOT_TOP + TREND_PLOT_BOTTOM) / 2, TREND_PLOT_BOTTOM]
+    const span = Math.max(sparkline.max - sparkline.min, chartRange.minSpan)
+    return axisPoints.map((y) => {
+      const ratio = (TREND_PLOT_BOTTOM - y) / (TREND_PLOT_BOTTOM - TREND_PLOT_TOP)
+      const value = sparkline.min + ratio * span
+      return {
+        y,
+        value,
+        label: formatChartNumeric(chartKey, value, chartKey === 'error_rolling' ? 3 : 1),
+      }
+    })
+  }, [chartKey, chartRange.minSpan, sparkline.max, sparkline.min])
 
   const chartTheme = useMemo(() => {
     if (chartKey === 'single_roi') {
@@ -1777,8 +1814,8 @@ export default function DashboardPage({ openModal }) {
           </div>
           <span className="text-xs text-stone-400">{PERIOD_LABELS[timePeriod]} · {chartSeries.length} 个样本点</span>
         </div>
-        <div className={`h-44 rounded-xl border px-3 py-2 ${chartTheme.panelClass}`}>
-          <svg viewBox={`0 0 ${TREND_VIEWBOX_WIDTH} ${TREND_VIEWBOX_HEIGHT}`} className="w-full h-[126px]">
+        <div className={`relative h-44 rounded-xl border px-3 py-2 ${chartTheme.panelClass}`}>
+          <svg viewBox={`0 0 ${TREND_VIEWBOX_WIDTH} ${TREND_VIEWBOX_HEIGHT}`} className="w-full h-[126px]" onMouseLeave={() => setHoveredPoint(null)}>
             <defs>
               <linearGradient id={lineGradientId} x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" stopColor={chartTheme.lineFrom} />
@@ -1791,6 +1828,13 @@ export default function DashboardPage({ openModal }) {
                 </linearGradient>
               )}
             </defs>
+            <line x1={TREND_X_MIN} y1={TREND_PLOT_TOP} x2={TREND_X_MIN} y2={TREND_PLOT_BOTTOM} stroke="#d6d3d1" strokeWidth="0.45" />
+            {chartYAxisTicks.map((tick, idx) => (
+              <g key={`${chartKey}-y-${idx}`}>
+                <line x1={TREND_X_MIN - 1.8} y1={tick.y} x2={TREND_X_MIN} y2={tick.y} stroke="#a8a29e" strokeWidth="0.45" />
+                <text x={2} y={tick.y + 1.1} fontSize="2.75" fill="#78716c">{tick.label}</text>
+              </g>
+            ))}
             <line x1={TREND_X_MIN} y1={TREND_BASELINE_Y} x2={TREND_X_MAX} y2={TREND_BASELINE_Y} stroke={chartTheme.baseLine} strokeWidth="0.45" />
             <line x1={TREND_X_MIN} y1={TREND_MIDLINE_Y} x2={TREND_X_MAX} y2={TREND_MIDLINE_Y} stroke={chartTheme.midLine} strokeWidth="0.35" strokeDasharray="1.2 1.8" />
             {chartReferenceY != null && (
@@ -1819,7 +1863,35 @@ export default function DashboardPage({ openModal }) {
               points={sparkline.line}
             />
             {sparkline.points.map((p, idx) => (
-              <circle key={`${chartKey}-${idx}`} cx={p.x} cy={p.y} r={idx === sparkline.points.length - 1 ? '1.15' : '0.95'} fill={chartTheme.point(p.value)} />
+              <g key={`${chartKey}-${idx}`}>
+                <circle cx={p.x} cy={p.y} r={idx === sparkline.points.length - 1 ? '1.15' : '0.95'} fill={chartTheme.point(p.value)} />
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r="3.2"
+                  fill="transparent"
+                  className="cursor-crosshair"
+                  onMouseEnter={() => {
+                    const meta = sparkline.sampledSeries[idx] || {}
+                    const secondaryValue = secondarySparkline?.points?.[idx]?.value
+                    setHoveredPoint({
+                      chartKey,
+                      leftPct: clamp((p.x / TREND_VIEWBOX_WIDTH) * 100, 8, 92),
+                      topPct: clamp((p.y / TREND_VIEWBOX_HEIGHT) * 100, 14, 82),
+                      label: String(meta.label || '--').split('·')[0],
+                      match: meta.match || '聚合样本点',
+                      primaryName: chartKey === 'error_rolling' ? 'Brier' : chartKey === 'single_roi' ? 'ROI' : '值',
+                      primaryValue: formatChartNumeric(chartKey, p.value, chartKey === 'error_rolling' ? 3 : 2),
+                      secondaryName:
+                        secondaryValue == null ? null : chartKey === 'error_rolling' ? 'LogLoss' : 'EWMA',
+                      secondaryValue:
+                        secondaryValue == null
+                          ? null
+                          : formatChartNumeric(chartKey, secondaryValue, chartKey === 'error_rolling' ? 3 : 2),
+                    })
+                  }}
+                />
+              </g>
             ))}
             {sparkline.points.length > 0 && chartKey !== 'error_rolling' && (
               <text
@@ -1834,6 +1906,27 @@ export default function DashboardPage({ openModal }) {
               </text>
             )}
           </svg>
+          {hoveredPoint && hoveredPoint.chartKey === chartKey && (
+            <div
+              className="pointer-events-none absolute z-20 w-[210px] rounded-lg border border-stone-200/90 bg-white/95 px-2.5 py-2 shadow-[0_10px_24px_rgba(15,23,42,0.14)] backdrop-blur-sm"
+              style={{
+                left: `${hoveredPoint.leftPct}%`,
+                top: `${hoveredPoint.topPct}%`,
+                transform: 'translate(-50%, -110%)',
+              }}
+            >
+              <p className="text-[10px] font-semibold text-stone-700">{hoveredPoint.label}</p>
+              <p className="text-[10px] text-stone-600 mt-0.5">
+                {hoveredPoint.primaryName}: <span className="font-semibold text-stone-800">{hoveredPoint.primaryValue}</span>
+              </p>
+              {hoveredPoint.secondaryValue != null && (
+                <p className="text-[10px] text-stone-600 mt-0.5">
+                  {hoveredPoint.secondaryName}: <span className="font-semibold text-stone-800">{hoveredPoint.secondaryValue}</span>
+                </p>
+              )}
+              <p className="text-[10px] text-stone-500 mt-0.5 truncate">比赛: {hoveredPoint.match}</p>
+            </div>
+          )}
         </div>
         <div className="mt-2 px-2">
           <div className="relative h-6 border-t border-stone-200/80">

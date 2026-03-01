@@ -232,11 +232,18 @@ const buildBalanceSeries = (settledInvestments, initialCapital, periodKey) => {
   const points = []
   let balance = initialCapital
   sorted.forEach((item) => {
+    const firstMatch = item.matches?.[0]
+    const parlaySize = Number(item.parlay_size || item.matches?.length || 1)
+    const matchLabel =
+      parlaySize > 1
+        ? `${firstMatch?.home_team || '-'} vs ${firstMatch?.away_team || '-'} 等${parlaySize}场`
+        : `${firstMatch?.home_team || '-'} vs ${firstMatch?.away_team || '-'}`
     balance += toNumber(item.profit)
     points.push({
       date: item.created_at,
       label: formatDate(item.created_at),
       balance: Number(balance.toFixed(2)),
+      match: matchLabel,
     })
   })
 
@@ -258,6 +265,7 @@ const buildBalanceSeries = (settledInvestments, initialCapital, periodKey) => {
         date: new Date().toISOString(),
         label: formatDate(new Date().toISOString()),
         balance: Number(initialCapital.toFixed(2)),
+        match: '初始资金基线',
       },
     ]
   }
@@ -928,6 +936,10 @@ export const getDashboardSnapshot = (periodKey = '2w') => {
 
   const periodInvestmentRoiSeries = settledPeriod
     .map((item) => ({
+      match:
+        Number(item.parlay_size || item.matches?.length || 1) > 1
+          ? `${item.matches?.[0]?.home_team || '-'} vs ${item.matches?.[0]?.away_team || '-'} 等${item.parlay_size}场`
+          : `${item.matches?.[0]?.home_team || '-'} vs ${item.matches?.[0]?.away_team || '-'}`,
       id: item.id,
       date: item.created_at,
       dateLabel: formatDate(item.created_at),
