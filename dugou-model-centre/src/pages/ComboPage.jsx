@@ -2043,6 +2043,73 @@ const parseDirectedMatrixRequirements = (requirements) => {
   return parsed
 }
 
+const findSubsetInclusionPath = (graph, startKey, targetKey) => {
+  const start = String(startKey || '').trim()
+  const target = String(targetKey || '').trim()
+  if (!start || !target) return null
+  if (start === target) return [start]
+  const queue = [start]
+  const visited = new Set([start])
+  const parent = new Map()
+  while (queue.length > 0) {
+    const current = queue.shift()
+    const nextSet = graph.get(current)
+    if (!nextSet || nextSet.size === 0) continue
+    for (const next of nextSet) {
+      if (visited.has(next)) continue
+      visited.add(next)
+      parent.set(next, current)
+      if (next === target) {
+        const path = [target]
+        let cursor = target
+        while (parent.has(cursor)) {
+          cursor = parent.get(cursor)
+          path.push(cursor)
+          if (cursor === start) break
+        }
+        return path.reverse()
+      }
+      queue.push(next)
+    }
+  }
+  return null
+}
+
+const detectMatrixLogicalContradictions = (requirements) => {
+  const parsed = parseDirectedMatrixRequirements(requirements)
+  const inclusionGraph = new Map()
+  const ensureNode = (key) => {
+    const clean = String(key || '').trim()
+    if (!clean) return null
+    if (!inclusionGraph.has(clean)) inclusionGraph.set(clean, new Set())
+    return clean
+  }
+  parsed.forEach((req) => {
+    const fromKey = ensureNode(req.fromKey)
+    const toKey = ensureNode(req.toKey)
+    if (!fromKey || !toKey) return
+    if (!req.requiredSurvives) {
+      // row→col is red => no (col && !row) => col ⊆ row
+      inclusionGraph.get(toKey).add(fromKey)
+    }
+  })
+
+  const contradictions = []
+  parsed.forEach((req) => {
+    if (!req.requiredSurvives) return
+    const path = findSubsetInclusionPath(inclusionGraph, req.toKey, req.fromKey)
+    if (path && path.length >= 2) {
+      contradictions.push({
+        type: 'subset_chain_conflict',
+        fromKey: req.fromKey,
+        toKey: req.toKey,
+        path,
+      })
+    }
+  })
+  return contradictions
+}
+
 const buildDirectedMatrixRequirementsFromPortfolio = (baseCombos, overrides = null) => {
   const safeBaseCombos = Array.isArray(baseCombos) ? baseCombos.filter(Boolean) : []
   const overrideMap = overrides && typeof overrides === 'object' ? overrides : {}
@@ -3442,6 +3509,7 @@ export default function ComboPage({ openModal }) {
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false)
   const [ftCellOverrides, setFtCellOverrides] = useState({}) // { portfolioKey: { "rowKey|colKey": "decouple"|"release" } }
   const [ftDirtyPortfolios, setFtDirtyPortfolios] = useState(() => new Set()) // Set<portfolioKey>
+  const [ftConflictResolution, setFtConflictResolution] = useState(null)
   const [generationSummary, setGenerationSummary] = useState({
     totalInvest: 0,
     expectedReturnPercent: 0,
@@ -4204,6 +4272,7 @@ export default function ComboPage({ openModal }) {
       return { ...prev, [portfolioKey]: next }
     })
     setFtDirtyPortfolios((prev) => new Set([...prev, portfolioKey]))
+    setFtConflictResolution(null)
   }
 
   // Fault tolerance matrix: row-level "reduce dependency" — marks ALL red cells in this row as desired-green
@@ -4224,6 +4293,7 @@ export default function ComboPage({ openModal }) {
       return { ...prev, [portfolioKey]: next }
     })
     setFtDirtyPortfolios((prev) => new Set([...prev, portfolioKey]))
+    setFtConflictResolution(null)
   }
 
   // Fault tolerance matrix: confirm and regenerate with directed hard guarantees
@@ -4237,10 +4307,12 @@ export default function ComboPage({ openModal }) {
   // the actual effect of matrix customization instead of a stale pre-regeneration snapshot.
   // IMPORTANT: regeneration starts from selected-match candidate space (full model pipeline),
   // not from current recommendation rows.
-  const handleFtConfirmRegenerate = (portfolioKeyInput) => {
+  const handleFtConfirmRegenerate = (portfolioKeyInput, overrideInput = null) => {
     const portfolioKey = String(portfolioKeyInput || '').trim()
     if (!portfolioKey) return
-    const overrides = ftCellOverrides[portfolioKey] || {}
+    const overrides = overrideInput && typeof overrideInput === 'object'
+      ? overrideInput
+      : ftCellOverrides[portfolioKey] || {}
     const entries = Object.entries(overrides)
     if (entries.length === 0) return
     const baseAlloc = portfolioAllocations.find((row) => String(row?.portfolioKey || '').trim() === portfolioKey)
@@ -4250,6 +4322,56 @@ export default function ComboPage({ openModal }) {
       return
     }
     const matrixProfile = buildDirectedMatrixRequirementsFromPortfolio(baseCombos, overrides)
+    const keyLabelMap = new Map()
+    selectedMatches.forEach((match) => {
+      const key = String(buildMatchRefKey(match) || '').trim()
+      if (!key) return
+      keyLabelMap.set(key, String(match.homeTeam || key).trim() || key)
+    })
+    const prettyKey = (key) => keyLabelMap.get(String(key || '').trim()) || String(key || '').trim() || '未知'
+    const contradictions = detectMatrixLogicalContradictions(matrixProfile.requirements)
+    if (contradictions.length > 0) {
+      const first = contradictions[0]
+      const chainText = (first.path || []).map((key) => prettyKey(key)).join(' ⊆ ')
+      const options = []
+      const seen = new Set()
+      contradictions.slice(0, 3).forEach((conflict) => {
+        const path = Array.isArray(conflict.path) ? conflict.path : []
+        for (let edgeIdx = path.length - 2; edgeIdx >= 0; edgeIdx -= 1) {
+          const subsetKey = path[edgeIdx]
+          const supersetKey = path[edgeIdx + 1]
+          const pairKey = `${supersetKey}|${subsetKey}`
+          if (seen.has(pairKey) || overrides[pairKey] === 'decouple') continue
+          seen.add(pairKey)
+          options.push({
+            pairKey,
+            label: `${prettyKey(supersetKey)} → ${prettyKey(subsetKey)} 由 × 改为 √`,
+            detail: `解除约束链：${prettyKey(subsetKey)} ⊆ ${prettyKey(supersetKey)}`,
+          })
+        }
+      })
+
+      if (options.length > 0) {
+        setFtConflictResolution({
+          portfolioKey,
+          baseOverrides: overrides,
+          summary:
+            `你要求「${prettyKey(first.fromKey)}翻车时${prettyKey(first.toKey)}可存活」，` +
+            `但未翻转关系推出：${chainText}，导致 ${prettyKey(first.toKey)} ⊆ ${prettyKey(first.fromKey)}。`,
+          options: options.slice(0, 6),
+          selectedPairKeys: [options[0].pairKey],
+        })
+      } else {
+        window.alert(
+          `当前矩阵逻辑自相矛盾（不是候选空间问题）。\n` +
+          `你要求「${prettyKey(first.fromKey)}翻车时${prettyKey(first.toKey)}可存活」，` +
+          `但其它未翻转关系推出：${chainText}。\n` +
+          `这会强制得到「${prettyKey(first.toKey)} ⊆ ${prettyKey(first.fromKey)}」，与该要求冲突。`,
+        )
+      }
+      return
+    }
+    setFtConflictResolution(null)
     const coverageTargetKeys = selectedMatches.map((m) => getPortfolioCoverageKey(m))
     const relaxedQualityFilter = sanitizeQualityFilter({
       ...qualityFilter,
@@ -4385,6 +4507,41 @@ export default function ComboPage({ openModal }) {
     setShowAllPortfolios(false)
     setFtCellOverrides({})
     setFtDirtyPortfolios(new Set())
+    setFtConflictResolution(null)
+  }
+
+  const handleFtConflictOptionToggle = (pairKey) => {
+    setFtConflictResolution((prev) => {
+      if (!prev) return prev
+      const clean = String(pairKey || '').trim()
+      if (!clean) return prev
+      const selected = new Set(prev.selectedPairKeys || [])
+      if (selected.has(clean)) selected.delete(clean)
+      else selected.add(clean)
+      return {
+        ...prev,
+        selectedPairKeys: [...selected],
+      }
+    })
+  }
+
+  const handleFtConflictApplyAndRecompute = () => {
+    if (!ftConflictResolution) return
+    const portfolioKey = String(ftConflictResolution.portfolioKey || '').trim()
+    if (!portfolioKey) return
+    const merged = { ...(ftConflictResolution.baseOverrides || {}) }
+    const selectedPairKeys = Array.isArray(ftConflictResolution.selectedPairKeys)
+      ? ftConflictResolution.selectedPairKeys
+      : []
+    selectedPairKeys.forEach((pairKey) => {
+      const clean = String(pairKey || '').trim()
+      if (!clean) return
+      merged[clean] = 'decouple'
+    })
+    setFtCellOverrides((prev) => ({ ...prev, [portfolioKey]: merged }))
+    setFtDirtyPortfolios((prev) => new Set([...prev, portfolioKey]))
+    setFtConflictResolution(null)
+    handleFtConfirmRegenerate(portfolioKey, merged)
   }
 
   // Extract unique team names from current candidates
@@ -5473,6 +5630,10 @@ export default function ComboPage({ openModal }) {
                           })
                           const overridesForThis = ftCellOverrides[allocKey] || {}
                           const isDirty = ftDirtyPortfolios.has(allocKey) && Object.keys(overridesForThis).length > 0
+                          const activeConflictResolution =
+                            ftConflictResolution && ftConflictResolution.portfolioKey === allocKey
+                              ? ftConflictResolution
+                              : null
                           return (
                             <div className="px-4 pb-2">
                               <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-[0.1em] mb-2">容错依赖矩阵</p>
@@ -5552,6 +5713,54 @@ export default function ComboPage({ openModal }) {
                                 >
                                   基于容错偏好重新计算 ({Object.keys(overridesForThis).length} 项调整)
                                 </button>
+                              )}
+                              {activeConflictResolution && (
+                                <div className="mt-2 rounded-xl border border-amber-200/80 bg-amber-50/65 px-3 py-2.5 space-y-2">
+                                  <p className="text-[11px] font-semibold text-amber-700">检测到矩阵冲突链</p>
+                                  <p className="text-[10px] text-stone-600 leading-relaxed">{activeConflictResolution.summary}</p>
+                                  <div className="space-y-1.5">
+                                    {(activeConflictResolution.options || []).map((option) => {
+                                      const checked =
+                                        Array.isArray(activeConflictResolution.selectedPairKeys) &&
+                                        activeConflictResolution.selectedPairKeys.includes(option.pairKey)
+                                      return (
+                                        <label
+                                          key={option.pairKey}
+                                          className="flex items-start gap-2 rounded-lg border border-white/80 bg-white/80 px-2 py-1.5 cursor-pointer"
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={() => handleFtConflictOptionToggle(option.pairKey)}
+                                            className="mt-0.5 accent-emerald-600"
+                                          />
+                                          <span className="min-w-0">
+                                            <span className="block text-[11px] font-medium text-stone-700">{option.label}</span>
+                                            <span className="block text-[10px] text-stone-500">{option.detail}</span>
+                                          </span>
+                                        </label>
+                                      )
+                                    })}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={handleFtConflictApplyAndRecompute}
+                                      disabled={
+                                        !Array.isArray(activeConflictResolution.selectedPairKeys) ||
+                                        activeConflictResolution.selectedPairKeys.length === 0
+                                      }
+                                      className="px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                      应用所选翻转并重算
+                                    </button>
+                                    <button
+                                      onClick={() => setFtConflictResolution(null)}
+                                      className="px-2 py-1.5 rounded-lg text-[11px] font-medium text-stone-500 hover:text-stone-700"
+                                    >
+                                      取消
+                                    </button>
+                                  </div>
+                                </div>
                               )}
                             </div>
                           )
