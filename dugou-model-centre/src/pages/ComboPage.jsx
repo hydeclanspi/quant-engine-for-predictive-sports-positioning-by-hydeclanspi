@@ -841,6 +841,7 @@ const generateFaultTolerantCombos = (selectedMatches, systemConfig, calibrationC
   const addedSigs = new Set()
   const tryAdd = (subset, tag) => {
     if (subset.length === 0) return
+    if (hasDuplicateMatchFamily(subset)) return
     const sig = subset.map((m) => m.key).sort().join('|')
     if (addedSigs.has(sig)) return
     addedSigs.add(sig)
@@ -913,7 +914,23 @@ const generateFaultTolerantCombos = (selectedMatches, systemConfig, calibrationC
 }
 
 /* ── Entry family: identify match families for diversification (思路6) ── */
-const buildMatchFamilyKey = (item) => `${item.homeTeam}__${item.awayTeam}`
+const buildMatchFamilyKey = (item) => {
+  const home = String(item?.homeTeam || item?.home_team || '').trim().toLowerCase()
+  const away = String(item?.awayTeam || item?.away_team || '').trim().toLowerCase()
+  if (!home && !away) return ''
+  return `${home}__${away}`
+}
+
+const hasDuplicateMatchFamily = (subset) => {
+  const seen = new Set()
+  ;(Array.isArray(subset) ? subset : []).forEach((item) => {
+    const familyKey = buildMatchFamilyKey(item)
+    if (!familyKey) return
+    seen.add(familyKey)
+  })
+  const validCount = (Array.isArray(subset) ? subset : []).filter((item) => Boolean(buildMatchFamilyKey(item))).length
+  return seen.size < validCount
+}
 
 const calcEntryFamilyDiversity = (subset) => {
   // Measures how well a combo uses diverse entries within same-match families
@@ -1846,7 +1863,15 @@ const buildSubsets = (items, maxSubsetSize) => {
     }
     if (path.length === maxSubsetSize) return
     for (let i = start; i < n; i += 1) {
-      path.push(items[i])
+      const candidate = items[i]
+      const candidateFamily = buildMatchFamilyKey(candidate)
+      if (
+        candidateFamily &&
+        path.some((existing) => buildMatchFamilyKey(existing) === candidateFamily)
+      ) {
+        continue
+      }
+      path.push(candidate)
       dfs(i + 1)
       path.pop()
     }
@@ -2004,11 +2029,39 @@ const buildMatchRefKey = (item) => {
   return ''
 }
 
+const buildMatrixShortLabelMap = (rows) => {
+  const grouped = new Map()
+  ;(Array.isArray(rows) ? rows : []).forEach((row) => {
+    const nodeKey = String(buildMatchRefKey(row) || '').trim()
+    if (!nodeKey) return
+    const familyKey = buildMatchFamilyKey(row) || `node:${nodeKey}`
+    if (!grouped.has(familyKey)) grouped.set(familyKey, [])
+    grouped.get(familyKey).push({ nodeKey, row })
+  })
+  const labelMap = new Map()
+  grouped.forEach((groupRows) => {
+    if (!Array.isArray(groupRows) || groupRows.length === 0) return
+    if (groupRows.length === 1) {
+      const item = groupRows[0]
+      const base = String(item.row?.homeTeam || item.nodeKey).trim() || item.nodeKey
+      labelMap.set(item.nodeKey, base)
+      return
+    }
+    groupRows.forEach((item, idx) => {
+      const base = String(item.row?.homeTeam || item.nodeKey).trim() || item.nodeKey
+      labelMap.set(item.nodeKey, `${base}${idx + 1}`)
+    })
+  })
+  return labelMap
+}
+
 const dedupeRankedBySignature = (rankedRows) => {
   const next = []
   const signatures = new Set()
   rankedRows.forEach((row) => {
-    const sig = buildSubsetSignature(row.subset)
+    const subset = Array.isArray(row?.subset) ? row.subset : []
+    if (hasDuplicateMatchFamily(subset)) return
+    const sig = buildSubsetSignature(subset)
     if (!sig || signatures.has(sig)) return
     signatures.add(sig)
     next.push(row)
@@ -4456,12 +4509,7 @@ export default function ComboPage({ openModal }) {
       return
     }
     const matrixProfile = buildDirectedMatrixRequirementsFromPortfolio(baseCombos, overrides)
-    const keyLabelMap = new Map()
-    selectedMatches.forEach((match) => {
-      const key = String(buildMatchRefKey(match) || '').trim()
-      if (!key) return
-      keyLabelMap.set(key, String(match.homeTeam || key).trim() || key)
-    })
+    const keyLabelMap = buildMatrixShortLabelMap(selectedMatches)
     const prettyKey = (key) => keyLabelMap.get(String(key || '').trim()) || String(key || '').trim() || '未知'
     const contradictions = detectMatrixLogicalContradictions(matrixProfile.requirements)
     if (contradictions.length > 0) {
@@ -5787,17 +5835,27 @@ export default function ComboPage({ openModal }) {
 
                         {/* ─── Fault Tolerance Matrix (Interactive) ─── */}
                         {(() => {
-                          const ftMatches = []
+                          const ftMatchesRaw = []
                           const ftMatchSet = new Set()
                           alloc.combos.forEach((combo) => {
                             ;(combo.subset || []).forEach((leg) => {
                               const mk = leg.key || `${leg.homeTeam}-${leg.awayTeam}`
                               if (!ftMatchSet.has(mk)) {
                                 ftMatchSet.add(mk)
-                                ftMatches.push({ key: mk, label: `${leg.homeTeam || '?'} vs ${leg.awayTeam || '?'}`, shortLabel: leg.homeTeam || mk.split('-')[0] })
+                                ftMatchesRaw.push({
+                                  key: mk,
+                                  label: `${leg.homeTeam || '?'} vs ${leg.awayTeam || '?'}`,
+                                  homeTeam: leg.homeTeam || '?',
+                                  awayTeam: leg.awayTeam || '?',
+                                })
                               }
                             })
                           })
+                          const shortLabelMap = buildMatrixShortLabelMap(ftMatchesRaw)
+                          const ftMatches = ftMatchesRaw.map((item) => ({
+                            ...item,
+                            shortLabel: shortLabelMap.get(item.key) || item.homeTeam || item.key,
+                          }))
                           if (ftMatches.length < 2) return null
                           const comboMatchSets = alloc.combos.map((combo) => {
                             const s = new Set()
