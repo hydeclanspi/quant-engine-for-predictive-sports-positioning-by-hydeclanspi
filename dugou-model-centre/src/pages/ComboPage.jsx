@@ -6117,7 +6117,7 @@ export default function ComboPage({ openModal }) {
                                     {legIdx > 0 && <ComboLegSeparatorIcon />}
                                     <span className="font-medium text-stone-800">{leg.homeTeam || '-'}</span>
                                     {legEntry && (
-                                      <span className="ml-0.5 text-[11px] font-medium text-stone-500">
+                                      <span className="ml-0.5 text-[11.5px] font-medium text-stone-500">
                                         {renderEntryOutcomeWithTone(legEntry)}
                                       </span>
                                     )}
