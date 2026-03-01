@@ -2342,6 +2342,54 @@ const solvePortfolioByDirectedMatrixRequirements = (
   }
 }
 
+const suggestRelaxationsForCandidateInfeasibleMatrix = (candidateCombos, matrixRequirements, maxOptions = 6) => {
+  const rows = dedupeRankedBySignature(Array.isArray(candidateCombos) ? candidateCombos : [])
+  if (rows.length === 0) return []
+  const requirements = parseDirectedMatrixRequirements(matrixRequirements)
+  const hardTrue = requirements.filter((req) => req.requiredSurvives)
+  const hardFalse = requirements.filter((req) => !req.requiredSurvives)
+  if (hardTrue.length === 0 || hardFalse.length === 0) return []
+
+  const suggestionMap = new Map()
+
+  hardTrue.forEach((trueReq) => {
+    const supporters = rows.filter((row) => comboSatisfiesDirectedConstraint(row, trueReq))
+    if (supporters.length === 0) return
+
+    let bestSupporter = null
+    supporters.forEach((row) => {
+      const blockers = hardFalse.filter((falseReq) => comboSatisfiesDirectedConstraint(row, falseReq))
+      if (!bestSupporter) {
+        bestSupporter = { row, blockers }
+        return
+      }
+      if (blockers.length < bestSupporter.blockers.length) {
+        bestSupporter = { row, blockers }
+        return
+      }
+      if (blockers.length === bestSupporter.blockers.length) {
+        const currUtility = Number(row?.utility || 0)
+        const bestUtility = Number(bestSupporter.row?.utility || 0)
+        if (currUtility > bestUtility) bestSupporter = { row, blockers }
+      }
+    })
+
+    if (!bestSupporter || bestSupporter.blockers.length === 0) return
+    const weight = 1 / Math.max(1, bestSupporter.blockers.length)
+    bestSupporter.blockers.forEach((falseReq) => {
+      const item = suggestionMap.get(falseReq.key) || { req: falseReq, score: 0, hitCount: 0 }
+      item.score += weight
+      item.hitCount += 1
+      suggestionMap.set(falseReq.key, item)
+    })
+  })
+
+  return [...suggestionMap.values()]
+    .sort((a, b) => b.score - a.score || b.hitCount - a.hitCount)
+    .slice(0, Math.max(1, Number.parseInt(maxOptions, 10) || 6))
+    .map((item) => item.req)
+}
+
 const getConstraintAliasesForMatch = (item) => {
   const aliases = new Set()
   const directKey = String(item?.key || '').trim()
@@ -4537,6 +4585,22 @@ export default function ComboPage({ openModal }) {
       },
     )
     if (!solved || !Array.isArray(solved.selected) || solved.selected.length === 0) {
+      const relaxReqs = suggestRelaxationsForCandidateInfeasibleMatrix(candidatePool, matrixProfile.requirements, 6)
+      if (relaxReqs.length > 0) {
+        setFtConflictResolution({
+          portfolioKey,
+          baseOverrides: overrides,
+          summary: '当前约束在候选空间内无可行解。建议额外放开以下关系后再重算：',
+          options: relaxReqs.map((req) => ({
+            pairKey: `${req.fromKey}|${req.toKey}`,
+            fromLabel: prettyKey(req.fromKey),
+            toLabel: prettyKey(req.toKey),
+            detail: `候选空间建议放开：${prettyKey(req.fromKey)}翻车时${prettyKey(req.toKey)}可存活`,
+          })),
+          selectedPairKeys: [`${relaxReqs[0].fromKey}|${relaxReqs[0].toKey}`],
+        })
+        return
+      }
       window.alert('当前容错矩阵在候选空间中无可行解。请减少翻转项后重试。')
       return
     }
