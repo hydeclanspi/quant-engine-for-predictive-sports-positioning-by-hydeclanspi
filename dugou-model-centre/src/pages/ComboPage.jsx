@@ -2017,6 +2017,31 @@ const translateEntry = (entry) => {
   return entry.trim()
 }
 
+const getOutcomeToneClass = (token) => {
+  const t = String(token || '').trim().toLowerCase()
+  if (t === 'draw') return 'text-sky-600'
+  if (t === 'lose') return 'text-rose-400'
+  if (t === 'win') return 'text-emerald-700'
+  return ''
+}
+
+const renderEntryOutcomeWithTone = (entry) => {
+  const text = String(entry || '').trim()
+  if (!text) return null
+  const parts = text.split(/\b(win|draw|lose)\b/gi).filter((part) => part.length > 0)
+  return parts.map((part, idx) => {
+    const toneClass = getOutcomeToneClass(part)
+    if (!toneClass) {
+      return <span key={`entry-part-${idx}`}>{part}</span>
+    }
+    return (
+      <span key={`entry-part-${idx}`} className={toneClass}>
+        {part}
+      </span>
+    )
+  })
+}
+
 const buildComboTitle = (subset) =>
   subset
     .map((item) => {
@@ -6089,7 +6114,7 @@ export default function ComboPage({ openModal }) {
                                     <span className="font-medium text-stone-800">{leg.homeTeam || '-'}</span>
                                     {legEntry && (
                                       <span className="ml-0.5 text-[11px] font-medium text-stone-500">
-                                        {legEntry}
+                                        {renderEntryOutcomeWithTone(legEntry)}
                                       </span>
                                     )}
                                   </span>
