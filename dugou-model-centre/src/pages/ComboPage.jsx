@@ -2088,19 +2088,26 @@ const solvePortfolioByDirectedMatrixRequirements = (
 ) => {
   const requirements = parseDirectedMatrixRequirements(matrixRequirements)
   const resolvedOptions = options && typeof options === 'object' ? options : {}
-  const requiredSize = clamp(Number.parseInt(resolvedOptions.size || 0, 10) || 0, 2, 5)
-  const poolCap = clamp(Number.parseInt(resolvedOptions.poolCap || 30, 10) || 30, requiredSize, 40)
+  const fixedSize = clamp(Number.parseInt(resolvedOptions.size || 0, 10) || 0, 2, 5)
+  const minSize = clamp(Number.parseInt(resolvedOptions.minSize || fixedSize, 10) || fixedSize, 2, 5)
+  const maxSizeRaw = Number.parseInt(resolvedOptions.maxSize || fixedSize, 10) || fixedSize
+  const maxSize = clamp(maxSizeRaw, minSize, 5)
+  const poolCap = clamp(Number.parseInt(resolvedOptions.poolCap || 30, 10) || 30, minSize, 40)
   const coverageTargetKeys = Array.from(resolvedOptions.coverageTargetKeys || [])
     .map((key) => String(key || '').trim())
     .filter(Boolean)
   const hyperparams = resolvedOptions.hyperparams || null
   const overlapTuning = resolvedOptions.overlapTuning || null
 
-  const pool = dedupeRankedBySignature(Array.isArray(candidateCombos) ? candidateCombos : []).slice(0, poolCap)
-  if (pool.length < requiredSize) return null
+  const allRows = dedupeRankedBySignature(Array.isArray(candidateCombos) ? candidateCombos : [])
+  const hardRequirements = requirements.filter((req) => req.requiredSurvives)
+  const mandatorySupportRows = hardRequirements
+    .map((constraint) => allRows.find((row) => comboSatisfiesDirectedConstraint(row, constraint)))
+    .filter(Boolean)
+  const pool = dedupeRankedBySignature([...mandatorySupportRows, ...allRows]).slice(0, poolCap)
+  if (pool.length < minSize) return null
 
-  const positiveConstraints = requirements
-    .filter((req) => req.requiredSurvives)
+  const positiveConstraints = hardRequirements
     .map(({ fromKey, toKey }) => ({ fromKey, toKey }))
   const supportMatrix = requirements.map((req) =>
     pool.map((combo) => comboSatisfiesDirectedConstraint(combo, req)),
@@ -2112,7 +2119,7 @@ const solvePortfolioByDirectedMatrixRequirements = (
 
   const evaluate = () => {
     const selected = chosenIdx.map((idx) => pool[idx]).filter(Boolean)
-    if (selected.length !== requiredSize) return
+    if (selected.length < minSize || selected.length > maxSize) return
 
     for (let rIdx = 0; rIdx < requirements.length; rIdx += 1) {
       const required = requirements[rIdx]
@@ -2138,7 +2145,6 @@ const solvePortfolioByDirectedMatrixRequirements = (
       best = { selected, scoredRow, utility, coverageRatio, weightedEv }
       return
     }
-
     if (utility > best.utility + 1e-9) {
       best = { selected, scoredRow, utility, coverageRatio, weightedEv }
       return
@@ -2157,20 +2163,22 @@ const solvePortfolioByDirectedMatrixRequirements = (
     }
   }
 
-  const dfs = (startIdx) => {
-    if (chosenIdx.length === requiredSize) {
+  const dfs = (startIdx, targetSize) => {
+    if (chosenIdx.length === targetSize) {
       evaluate()
       return
     }
-    const remainNeed = requiredSize - chosenIdx.length
+    const remainNeed = targetSize - chosenIdx.length
     for (let i = startIdx; i <= pool.length - remainNeed; i += 1) {
       chosenIdx.push(i)
-      dfs(i + 1)
+      dfs(i + 1, targetSize)
       chosenIdx.pop()
     }
   }
 
-  dfs(0)
+  for (let targetSize = minSize; targetSize <= maxSize; targetSize += 1) {
+    dfs(0, targetSize)
+  }
   if (!best) return null
 
   return {
@@ -2840,9 +2848,19 @@ const generateRecommendations = (
   allocationMode = DEFAULT_ALLOCATION_MODE,
   solverMode = DEFAULT_SOLVER_MODE,
   decouplingPairs = null, // Set<"rowKey|colKey"> — directed hard guarantee: when row fails, col must still survive elsewhere
+  generationOptions = null,
 ) => {
   if (selectedMatches.length === 0) return null
-  const recommendationCount = RECOMMENDATION_OUTPUT_COUNT
+  const resolvedGenerationOptions =
+    generationOptions && typeof generationOptions === 'object' ? generationOptions : {}
+  const recommendationCount = clamp(
+    Number.parseInt(
+      resolvedGenerationOptions.recommendationCountOverride || RECOMMENDATION_OUTPUT_COUNT,
+      10,
+    ) || RECOMMENDATION_OUTPUT_COUNT,
+    2,
+    120,
+  )
   const stratifiedCap = Math.max(18, recommendationCount + 6)
   const mmrCap = Math.max(14, recommendationCount + 4)
   const universeCap = Math.max(14, recommendationCount + 2)
@@ -3372,6 +3390,7 @@ const generateRecommendations = (
   return {
     recommendations,
     rankingRows: recommendations,
+    candidateUniverse: rankedAllByUtility,
     layerSummary,
     totalInvest,
     expectedReturnPercent: weightedEv * 100,
@@ -4232,6 +4251,13 @@ export default function ComboPage({ openModal }) {
     }
     const matrixProfile = buildDirectedMatrixRequirementsFromPortfolio(baseCombos, overrides)
     const coverageTargetKeys = selectedMatches.map((m) => getPortfolioCoverageKey(m))
+    const relaxedQualityFilter = sanitizeQualityFilter({
+      ...qualityFilter,
+      minWinRate: 0,
+      maxCorr: 1,
+      minCoverageEnabled: false,
+      minCoveragePercent: 0,
+    })
     const generated = generateRecommendations(
       selectedMatches,
       riskPref,
@@ -4246,20 +4272,50 @@ export default function ComboPage({ openModal }) {
       comboRetrospective,
       allocationMode,
       solverMode,
-      matrixProfile.explicitDecouplePairs,
+      null,
     )
-    if (!generated) {
-      window.alert('当前容错矩阵与阈值参数组合下无可行解。请减少翻转项、放宽阈值或增加候选比赛后重试。')
+    const wideGenerated = generateRecommendations(
+      selectedMatches,
+      riskPref,
+      riskCap,
+      systemConfig,
+      calibrationContext,
+      relaxedQualityFilter,
+      'softPenalty',
+      comboStructure,
+      rolePreference,
+      null,
+      comboRetrospective,
+      allocationMode,
+      solverMode,
+      null,
+      { recommendationCountOverride: 120 },
+    )
+    const displayGenerated = generated || wideGenerated
+    if (!displayGenerated) {
+      window.alert('当前容错矩阵在候选空间中无可行解。请减少翻转项后重试。')
       return
     }
+    const displayRecommendations = (displayGenerated.recommendations || []).slice(0, RECOMMENDATION_OUTPUT_COUNT)
+    const wideRows =
+      Array.isArray(wideGenerated?.candidateUniverse) && wideGenerated.candidateUniverse.length > 0
+        ? wideGenerated.candidateUniverse
+        : Array.isArray(displayGenerated.candidateUniverse) && displayGenerated.candidateUniverse.length > 0
+          ? displayGenerated.candidateUniverse
+          : displayRecommendations
 
-    const candidatePool = dedupeRankedBySignature([...(generated.recommendations || []), ...baseCombos])
-    const solved = solvePortfolioByDirectedMatrixRequirements(
+    const candidatePool = dedupeRankedBySignature([
+      ...wideRows,
+      ...displayRecommendations,
+      ...baseCombos,
+    ])
+    let solved = solvePortfolioByDirectedMatrixRequirements(
       candidatePool,
       matrixProfile.requirements,
       {
-        size: baseCombos.length,
-        poolCap: 32,
+        minSize: 2,
+        maxSize: Math.min(5, selectedMatches.length),
+        poolCap: 40,
         coverageTargetKeys,
         hyperparams: calibrationContext?.comboHyperparams || null,
         overlapTuning,
@@ -4274,7 +4330,7 @@ export default function ComboPage({ openModal }) {
     const customRow =
       buildPortfolioAllocationRowFromCombos(
         solved.selected,
-        generated.recommendations,
+        displayRecommendations,
         coverageTargetKeys,
         calibrationContext?.comboHyperparams || null,
         overlapTuning,
@@ -4285,31 +4341,31 @@ export default function ComboPage({ openModal }) {
       return
     }
 
-    setRecommendations(generated.recommendations)
-    setRankingRows(generated.rankingRows)
-    setLayerSummary(generated.layerSummary)
+    setRecommendations(displayRecommendations)
+    setRankingRows(displayRecommendations)
+    setLayerSummary(Array.isArray(displayGenerated.layerSummary) ? displayGenerated.layerSummary : [])
     setGenerationSummary({
-      totalInvest: generated.totalInvest,
-      expectedReturnPercent: generated.expectedReturnPercent,
-      candidateCombos: generated.candidateCombos,
-      qualifiedCombos: generated.qualifiedCombos,
-      filteredOutCombos: generated.filteredOutCombos,
-      coverageInjectedCombos: generated.coverageInjectedCombos,
-      uncoveredMatches: generated.uncoveredMatches,
-      legsDistribution: generated.legsDistribution || {},
-      dynParams: generated.dynParams || null,
-      ftTiers: generated.ftTiers || null,
+      totalInvest: displayGenerated.totalInvest,
+      expectedReturnPercent: displayGenerated.expectedReturnPercent,
+      candidateCombos: displayGenerated.candidateCombos,
+      qualifiedCombos: displayGenerated.qualifiedCombos,
+      filteredOutCombos: displayGenerated.filteredOutCombos,
+      coverageInjectedCombos: displayGenerated.coverageInjectedCombos,
+      uncoveredMatches: displayGenerated.uncoveredMatches,
+      legsDistribution: displayGenerated.legsDistribution || {},
+      dynParams: displayGenerated.dynParams || null,
+      ftTiers: displayGenerated.ftTiers || null,
     })
     setShowAllRecommendations(false)
     setShowAllQuickRecommendations(false)
     setShowRecommendationDetailCard(false)
     setSelectedRecommendationIds({})
 
-    const mc = runPortfolioMonteCarlo(generated.recommendations.slice(0, RECOMMENDATION_OUTPUT_COUNT))
+    const mc = runPortfolioMonteCarlo(displayRecommendations)
     setMcSimResult(mc)
 
     const autoAllocations = optimizePortfolioAllocations(
-      generated.recommendations,
+      displayRecommendations,
       10,
       calibrationContext?.comboHyperparams || null,
       coverageTargetKeys,
