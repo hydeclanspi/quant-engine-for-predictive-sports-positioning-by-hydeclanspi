@@ -5739,6 +5739,10 @@ export default function ComboPage({ openModal }) {
                               (comboOrigIdx != null ? comboOrigIdx + 1 : cIdx + 1)
                             const sharpeRaw = Number.parseFloat(combo?.sharpe)
                             const sharpeText = Number.isFinite(sharpeRaw) ? sharpeRaw.toFixed(2) : null
+                            const allocationText = String(combo?.allocation || '').trim()
+                            const hasCashAllocation =
+                              (Number.isFinite(Number(combo?.amount)) && Number(combo?.amount) > 0) ||
+                              /rmb/i.test(allocationText)
                             return (
                               <div key={cIdx} className="combo-portfolio-card p-4">
                                 <div className="flex items-center justify-between mb-3">
@@ -5762,7 +5766,9 @@ export default function ComboPage({ openModal }) {
                                       </span>
                                     )}
                                     <span className="text-[13px] font-mono font-semibold text-stone-500">×{Number(combo.combinedOdds || combo.odds || 0).toFixed(1)}</span>
-                                    <span className="text-[13px] font-bold text-stone-800">{combo.allocation}</span>
+                                    {hasCashAllocation && (
+                                      <span className="text-[13px] font-bold text-stone-800">{allocationText}</span>
+                                    )}
                                   </div>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
