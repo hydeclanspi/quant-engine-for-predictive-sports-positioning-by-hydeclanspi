@@ -926,6 +926,17 @@ export const getDashboardSnapshot = (periodKey = '2w') => {
     }
   })
 
+  const periodInvestmentRoiSeries = settledPeriod
+    .map((item) => ({
+      id: item.id,
+      date: item.created_at,
+      dateLabel: formatDate(item.created_at),
+      roi: Number(calcRoi(toNumber(item.profit), Math.max(0, toNumber(item.inputs))).toFixed(2)),
+      inputs: Math.max(0, toNumber(item.inputs)),
+      profit: toNumber(item.profit),
+    }))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
   const periodMatchRows = settledPeriod
     .flatMap((item) =>
       splitInvestmentToMatches(item).map((match, idx) => {
@@ -1094,13 +1105,13 @@ export const getDashboardSnapshot = (periodKey = '2w') => {
     momentum,
     timeline: buildBalanceSeries(settledAll, toNumber(config.initialCapital, 0), periodKey),
     modeBreakdown: calcModeBreakdown(settledPeriod),
+    periodInvestmentRoiSeries,
     ratingRows: ratingRowsPeriod
       .map((row) => ({
         ...row,
         dateLabel: formatDate(row.date),
         diff: Number((row.actual_rating - row.expected_rating).toFixed(2)),
-      }))
-      .slice(0, 120),
+      })),
   }
 
   analyticsMemo.dashboard.set(cacheKey, snapshot)

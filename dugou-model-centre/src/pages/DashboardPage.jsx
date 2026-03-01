@@ -107,17 +107,61 @@ const buildSmartReminder = (snapshot) => {
   }
 }
 
-const buildTrendGeometry = (series, minSpan = 1) => {
-  if (!Array.isArray(series) || series.length === 0) {
-    return { points: [], line: '', labels: [], zeroY: TREND_BASELINE_Y, min: 0, max: 0 }
+const buildSampleIndices = (length, maxPoints = 36) => {
+  const safeLength = Math.max(0, Number(length) || 0)
+  const safeMaxPoints = Math.max(2, Number(maxPoints) || 36)
+  if (safeLength <= safeMaxPoints) {
+    return Array.from({ length: safeLength }, (_, idx) => idx)
   }
-  const safeSeries = series.slice(-24)
-  const values = safeSeries.map((item) => Number(item.value || 0))
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  const span = Math.max(max - min, minSpan)
-  const step = safeSeries.length > 1 ? (TREND_X_MAX - TREND_X_MIN) / (safeSeries.length - 1) : 0
-  const points = safeSeries.map((item, idx) => {
+  const step = (safeLength - 1) / (safeMaxPoints - 1)
+  const indices = []
+  let prev = -1
+  for (let i = 0; i < safeMaxPoints; i += 1) {
+    const idx = Math.min(safeLength - 1, Math.round(i * step))
+    if (idx !== prev) {
+      indices.push(idx)
+      prev = idx
+    }
+  }
+  if (indices[indices.length - 1] !== safeLength - 1) indices.push(safeLength - 1)
+  return indices
+}
+
+const sampleSeriesByIndices = (series, indices) => indices.map((idx) => series[idx]).filter(Boolean)
+
+const buildTrendGeometry = (series, options = {}) => {
+  if (!Array.isArray(series) || series.length === 0) {
+    return { points: [], line: '', labels: [], zeroY: TREND_BASELINE_Y, min: 0, max: 0, sampledSeries: [] }
+  }
+
+  const normalizedOptions =
+    typeof options === 'number'
+      ? { minSpan: options, maxPoints: 36 }
+      : {
+          minSpan: Number.isFinite(options.minSpan) ? options.minSpan : 1,
+          maxPoints: Number.isFinite(options.maxPoints) ? options.maxPoints : 36,
+          min: options.min,
+          max: options.max,
+          indices: Array.isArray(options.indices) ? options.indices : null,
+        }
+
+  const indices =
+    normalizedOptions.indices && normalizedOptions.indices.length > 0
+      ? normalizedOptions.indices
+      : buildSampleIndices(series.length, normalizedOptions.maxPoints)
+  const sampledSeries = sampleSeriesByIndices(series, indices)
+  if (sampledSeries.length === 0) {
+    return { points: [], line: '', labels: [], zeroY: TREND_BASELINE_Y, min: 0, max: 0, sampledSeries: [] }
+  }
+
+  const values = sampledSeries.map((item) => Number(item.value || 0))
+  const minCandidate = Number.isFinite(normalizedOptions.min) ? Number(normalizedOptions.min) : Math.min(...values)
+  const maxCandidate = Number.isFinite(normalizedOptions.max) ? Number(normalizedOptions.max) : Math.max(...values)
+  const min = Math.min(minCandidate, maxCandidate)
+  const max = Math.max(minCandidate, maxCandidate)
+  const span = Math.max(max - min, normalizedOptions.minSpan)
+  const step = sampledSeries.length > 1 ? (TREND_X_MAX - TREND_X_MIN) / (sampledSeries.length - 1) : 0
+  const points = sampledSeries.map((item, idx) => {
     const value = Number(item.value || 0)
     const x = TREND_X_MIN + idx * step
     const y = TREND_PLOT_BOTTOM - ((value - min) / span) * (TREND_PLOT_BOTTOM - TREND_PLOT_TOP)
@@ -129,11 +173,50 @@ const buildTrendGeometry = (series, minSpan = 1) => {
   return {
     points,
     line,
-    labels: safeSeries.map((item) => item.label || '--'),
+    labels: sampledSeries.map((item) => item.label || '--'),
     zeroY,
     min,
     max,
+    sampledSeries,
   }
+}
+
+const buildTrendAxisTicks = (labels, targetCount = 5) => {
+  if (!Array.isArray(labels) || labels.length === 0) return []
+  if (labels.length === 1) return [{ index: 0, ratio: 0, label: labels[0] || '--' }]
+  const count = Math.max(2, Math.min(labels.length, Number(targetCount) || 5))
+  const step = (labels.length - 1) / (count - 1)
+  const tickSet = new Set([0, labels.length - 1])
+  for (let i = 1; i < count - 1; i += 1) {
+    tickSet.add(Math.round(i * step))
+  }
+  return [...tickSet]
+    .sort((a, b) => a - b)
+    .map((idx) => ({
+      index: idx,
+      ratio: labels.length > 1 ? idx / (labels.length - 1) : 0,
+      label: labels[idx] || '--',
+    }))
+}
+
+const calcPearson = (xs, ys) => {
+  if (!Array.isArray(xs) || !Array.isArray(ys) || xs.length !== ys.length || xs.length < 2) return 0
+  const n = xs.length
+  const meanX = xs.reduce((sum, value) => sum + value, 0) / n
+  const meanY = ys.reduce((sum, value) => sum + value, 0) / n
+  let numerator = 0
+  let varX = 0
+  let varY = 0
+  for (let i = 0; i < n; i += 1) {
+    const dx = xs[i] - meanX
+    const dy = ys[i] - meanY
+    numerator += dx * dy
+    varX += dx * dx
+    varY += dy * dy
+  }
+  const denominator = Math.sqrt(varX * varY)
+  if (!Number.isFinite(denominator) || denominator <= 0) return 0
+  return numerator / denominator
 }
 
 const DASHBOARD_BRIEF_VIEW_KEY = 'dugou:dashboard-evidence-brief-view-count'
@@ -237,10 +320,12 @@ export default function DashboardPage({ openModal }) {
     }))
   }, [chartKey, snapshot.confCalibration, snapshot.ratingRows, snapshot.timeline])
 
-  const sparkline = useMemo(
-    () => buildTrendGeometry(chartSeries, chartKey === 'rating' ? 0.02 : chartKey === 'conf' ? 2 : 10),
-    [chartKey, chartSeries],
-  )
+  const chartMaxPoints = chartKey === 'conf' ? 12 : timePeriod === 'all' ? 72 : 48
+  const sparkline = useMemo(() => {
+    const minSpan = chartKey === 'fund' ? 20 : 2
+    return buildTrendGeometry(chartSeries, { minSpan, maxPoints: chartMaxPoints })
+  }, [chartKey, chartMaxPoints, chartSeries])
+  const chartAxisTicks = useMemo(() => buildTrendAxisTicks(sparkline.labels, 5), [sparkline.labels])
   const chartTheme = useMemo(() => {
     if (chartKey === 'rating') {
       return {
@@ -278,6 +363,24 @@ export default function DashboardPage({ openModal }) {
     }
   }, [chartKey])
   const lineGradientId = `dashboardLineLg-${chartKey}`
+  const chartNarrative = useMemo(() => {
+    if (chartKey === 'fund') {
+      return {
+        title: '资金路径采用累计净值时间序列，斜率代表净值增长速度，局部拐点对应收益结构切换。',
+        subtitle: 'Trend 上行意味着资金曲线处于扩张相位；若横盘或下行，通常需要回看仓位与噪音暴露。',
+      }
+    }
+    if (chartKey === 'conf') {
+      return {
+        title: 'Conf 相关性走势展示的是置信度校准后的真实命中表现曲线（以 AJR 校准结果为观测目标）。',
+        subtitle: 'Trend 趋近稳定高位，说明置信度分层有效；若下滑，表示当前参数对新样本解释力减弱。',
+      }
+    }
+    return {
+      title: 'AJR 走势基于赛后评分序列的滑动平均，过滤短噪声后观察模型真实输出质量轨迹。',
+      subtitle: 'Trend 持续上行说明近期执行质量改善；若出现下行拐点，建议同步检查 AJR-Conf 偏差与相关性衰减。',
+    }
+  }, [chartKey])
   const smartReminder = useMemo(() => buildSmartReminder(snapshot), [snapshot])
   const smartReminderLine = useMemo(() => {
     if (!smartReminder.meta) return smartReminder.message
@@ -368,6 +471,194 @@ export default function DashboardPage({ openModal }) {
         .sort((a, b) => b.absDiff - a.absDiff || b.samples - a.samples),
     [confDetailRows],
   )
+  const trendMaxPoints = timePeriod === 'all' ? 72 : 48
+  const ratingRowsAsc = useMemo(
+    () => [...(snapshot.ratingRows || [])].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [snapshot.ratingRows],
+  )
+  const singleRoiSeries = useMemo(
+    () =>
+      (snapshot.periodInvestmentRoiSeries || []).map((row) => ({
+        label: row.dateLabel || '--',
+        value: Number(row.roi || 0),
+      })),
+    [snapshot.periodInvestmentRoiSeries],
+  )
+  const singleRoiEwmaSeries = useMemo(() => {
+    const alpha = 0.28
+    let prev = null
+    return singleRoiSeries.map((point) => {
+      const current = Number(point.value || 0)
+      const next = prev == null ? current : prev * (1 - alpha) + current * alpha
+      prev = next
+      return {
+        label: point.label,
+        value: Number(next.toFixed(3)),
+      }
+    })
+  }, [singleRoiSeries])
+  const singleRoiRange = useMemo(() => {
+    const values = [...singleRoiSeries, ...singleRoiEwmaSeries]
+      .map((point) => Number(point.value))
+      .filter((value) => Number.isFinite(value))
+    if (values.length === 0) return { min: -10, max: 10 }
+    const min = Math.min(...values)
+    const max = Math.max(...values)
+    return { min, max }
+  }, [singleRoiSeries, singleRoiEwmaSeries])
+  const singleRoiSampleIndices = useMemo(
+    () => buildSampleIndices(singleRoiSeries.length, trendMaxPoints),
+    [singleRoiSeries.length, trendMaxPoints],
+  )
+  const singleRoiSparkline = useMemo(
+    () =>
+      buildTrendGeometry(singleRoiSeries, {
+        minSpan: 8,
+        maxPoints: trendMaxPoints,
+        indices: singleRoiSampleIndices,
+        min: singleRoiRange.min,
+        max: singleRoiRange.max,
+      }),
+    [singleRoiSeries, singleRoiSampleIndices, singleRoiRange.max, singleRoiRange.min, trendMaxPoints],
+  )
+  const singleRoiEwmaSparkline = useMemo(
+    () =>
+      buildTrendGeometry(singleRoiEwmaSeries, {
+        minSpan: 8,
+        maxPoints: trendMaxPoints,
+        indices: singleRoiSampleIndices,
+        min: singleRoiRange.min,
+        max: singleRoiRange.max,
+      }),
+    [singleRoiEwmaSeries, singleRoiSampleIndices, singleRoiRange.max, singleRoiRange.min, trendMaxPoints],
+  )
+  const singleRoiAxisTicks = useMemo(
+    () => buildTrendAxisTicks(singleRoiSparkline.labels, 5),
+    [singleRoiSparkline.labels],
+  )
+  const ajrDeltaSeries = useMemo(
+    () =>
+      ratingRowsAsc.map((row) => ({
+        label: row.dateLabel || '--',
+        value: Number(((Number(row.actual_rating || 0) - Number(row.expected_rating || 0)) * 100).toFixed(2)),
+      })),
+    [ratingRowsAsc],
+  )
+  const ajrDeltaSparkline = useMemo(
+    () =>
+      buildTrendGeometry(ajrDeltaSeries, {
+        minSpan: 6,
+        maxPoints: trendMaxPoints,
+      }),
+    [ajrDeltaSeries, trendMaxPoints],
+  )
+  const ajrDeltaAxisTicks = useMemo(() => buildTrendAxisTicks(ajrDeltaSparkline.labels, 5), [ajrDeltaSparkline.labels])
+  const rollingCorrSeries = useMemo(() => {
+    const windowSize = 20
+    const minWindow = 8
+    const rows = ratingRowsAsc
+    const series = []
+    rows.forEach((row, idx) => {
+      const start = Math.max(0, idx - windowSize + 1)
+      const slice = rows.slice(start, idx + 1)
+      if (slice.length < minWindow) return
+      const xs = slice.map((item) => Number(item.expected_rating || 0))
+      const ys = slice.map((item) => Number(item.actual_rating || 0))
+      const corr = calcPearson(xs, ys)
+      series.push({
+        label: row.dateLabel || '--',
+        value: Number(corr.toFixed(3)),
+      })
+    })
+    return series
+  }, [ratingRowsAsc])
+  const rollingCorrSparkline = useMemo(
+    () =>
+      buildTrendGeometry(rollingCorrSeries, {
+        min: -1,
+        max: 1,
+        minSpan: 0.4,
+        maxPoints: trendMaxPoints,
+      }),
+    [rollingCorrSeries, trendMaxPoints],
+  )
+  const rollingCorrAxisTicks = useMemo(
+    () => buildTrendAxisTicks(rollingCorrSparkline.labels, 5),
+    [rollingCorrSparkline.labels],
+  )
+  const rollingErrorSeries = useMemo(() => {
+    const rows = [...(snapshot.periodMatchRows || [])]
+      .filter((row) => Number.isFinite(Number(row.conf)) && (row.status === 'win' || row.status === 'lose'))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    const windowSize = 20
+    const minWindow = 8
+    const brier = []
+    const logloss = []
+    rows.forEach((row, idx) => {
+      const start = Math.max(0, idx - windowSize + 1)
+      const slice = rows.slice(start, idx + 1)
+      if (slice.length < minWindow) return
+      const brierAvg =
+        slice.reduce((sum, item) => {
+          const p = Math.max(0.02, Math.min(0.98, Number(item.conf)))
+          const y = item.status === 'win' ? 1 : 0
+          return sum + (p - y) ** 2
+        }, 0) / slice.length
+      const logLossAvg =
+        slice.reduce((sum, item) => {
+          const p = Math.max(0.02, Math.min(0.98, Number(item.conf)))
+          const y = item.status === 'win' ? 1 : 0
+          return sum - (y * Math.log(p) + (1 - y) * Math.log(1 - p))
+        }, 0) / slice.length
+      const label = row.dateLabel || '--'
+      brier.push({ label, value: Number(brierAvg.toFixed(4)) })
+      logloss.push({ label, value: Number(logLossAvg.toFixed(4)) })
+    })
+    return { brier, logloss }
+  }, [snapshot.periodMatchRows])
+  const rollingErrorRange = useMemo(() => {
+    const values = [...rollingErrorSeries.brier, ...rollingErrorSeries.logloss]
+      .map((point) => Number(point.value))
+      .filter((value) => Number.isFinite(value))
+    if (values.length === 0) return { min: 0, max: 1 }
+    return { min: Math.min(...values), max: Math.max(...values) }
+  }, [rollingErrorSeries.brier, rollingErrorSeries.logloss])
+  const rollingErrorSampleIndices = useMemo(
+    () => buildSampleIndices(rollingErrorSeries.brier.length, trendMaxPoints),
+    [rollingErrorSeries.brier.length, trendMaxPoints],
+  )
+  const rollingBrierSparkline = useMemo(
+    () =>
+      buildTrendGeometry(rollingErrorSeries.brier, {
+        minSpan: 0.08,
+        maxPoints: trendMaxPoints,
+        indices: rollingErrorSampleIndices,
+        min: rollingErrorRange.min,
+        max: rollingErrorRange.max,
+      }),
+    [rollingErrorRange.max, rollingErrorRange.min, rollingErrorSampleIndices, rollingErrorSeries.brier, trendMaxPoints],
+  )
+  const rollingLogLossSparkline = useMemo(
+    () =>
+      buildTrendGeometry(rollingErrorSeries.logloss, {
+        minSpan: 0.08,
+        maxPoints: trendMaxPoints,
+        indices: rollingErrorSampleIndices,
+        min: rollingErrorRange.min,
+        max: rollingErrorRange.max,
+      }),
+    [rollingErrorRange.max, rollingErrorRange.min, rollingErrorSampleIndices, rollingErrorSeries.logloss, trendMaxPoints],
+  )
+  const rollingErrorAxisTicks = useMemo(
+    () => buildTrendAxisTicks(rollingBrierSparkline.labels, 5),
+    [rollingBrierSparkline.labels],
+  )
+  const roiRawGradientId = 'dashboard-roi-raw-lg'
+  const roiEwmaGradientId = 'dashboard-roi-ewma-lg'
+  const ajrDeltaGradientId = 'dashboard-ajr-delta-lg'
+  const rollingCorrGradientId = 'dashboard-corr-lg'
+  const rollingBrierGradientId = 'dashboard-brier-lg'
+  const rollingLogLossGradientId = 'dashboard-logloss-lg'
 
   const downloadFile = (filename, content, mimeType) => {
     const blob = new Blob([content], { type: mimeType })
@@ -1430,10 +1721,83 @@ export default function DashboardPage({ openModal }) {
             )}
           </svg>
         </div>
-        <div className="flex justify-between mt-2 px-2 text-xs text-stone-400">
-          <span>{sparkline.labels[0] || '--'}</span>
-          <span>{sparkline.labels[Math.floor(sparkline.labels.length / 2)] || '--'}</span>
-          <span>{sparkline.labels[sparkline.labels.length - 1] || '--'}</span>
+        <div className="mt-2 px-2">
+          <div className="relative h-6 border-t border-stone-200/80">
+            {chartAxisTicks.map((tick) => (
+              <div
+                key={`${chartKey}-tick-${tick.index}`}
+                className="absolute -top-px"
+                style={{
+                  left: `${tick.ratio * 100}%`,
+                  transform: tick.ratio === 1 ? 'translateX(-100%)' : 'translateX(-50%)',
+                }}
+              >
+                <span className="block h-1.5 w-px bg-stone-300/90 mx-auto" />
+                <span className="mt-1 block whitespace-nowrap text-[11px] text-stone-500">{tick.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mt-5 px-2">
+          <p className="text-[11px] text-stone-600 leading-5">{chartNarrative.title}</p>
+          <p className="text-[10px] text-stone-400 leading-5 mt-1">{chartNarrative.subtitle}</p>
+        </div>
+      </div>
+
+      <div className="motion-v2-surface glow-card bg-white rounded-2xl p-6 border border-stone-100">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-medium text-stone-700">单次 ROI 走势</h3>
+            <p className="text-[10px] text-stone-400 mt-0.5">每笔已结算投资为一个数据点，叠加 EWMA 平滑线</p>
+          </div>
+          <span className="text-xs text-stone-400">{PERIOD_LABELS[timePeriod]} · {singleRoiSeries.length} 笔</span>
+        </div>
+        <div className="h-44 rounded-xl border border-emerald-100/80 bg-gradient-to-b from-emerald-50/55 to-white px-3 py-2">
+          <svg viewBox={`0 0 ${TREND_VIEWBOX_WIDTH} ${TREND_VIEWBOX_HEIGHT}`} className="w-full h-[126px]">
+            <defs>
+              <linearGradient id={roiRawGradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#34d399" />
+                <stop offset="100%" stopColor="#10b981" />
+              </linearGradient>
+              <linearGradient id={roiEwmaGradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#86efac" />
+                <stop offset="100%" stopColor="#22c55e" />
+              </linearGradient>
+            </defs>
+            <line x1={TREND_X_MIN} y1={TREND_BASELINE_Y} x2={TREND_X_MAX} y2={TREND_BASELINE_Y} stroke="#d1fae5" strokeWidth="0.45" />
+            <line x1={TREND_X_MIN} y1={TREND_MIDLINE_Y} x2={TREND_X_MAX} y2={TREND_MIDLINE_Y} stroke="#a7f3d0" strokeWidth="0.35" strokeDasharray="1.2 1.8" />
+            <line x1={TREND_X_MIN} y1={singleRoiSparkline.zeroY} x2={TREND_X_MAX} y2={singleRoiSparkline.zeroY} stroke="#6ee7b7" strokeWidth="0.5" strokeDasharray="1.4 1.8" />
+            <polyline fill="none" stroke={`url(#${roiRawGradientId})`} strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" points={singleRoiSparkline.line} />
+            <polyline fill="none" stroke={`url(#${roiEwmaGradientId})`} strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" points={singleRoiEwmaSparkline.line} />
+            {singleRoiSparkline.points.map((point, idx) => (
+              <circle key={`roi-point-${idx}`} cx={point.x} cy={point.y} r={idx === singleRoiSparkline.points.length - 1 ? '1.1' : '0.8'} fill="#10b981" />
+            ))}
+          </svg>
+        </div>
+        <div className="mt-2 px-2">
+          <div className="relative h-6 border-t border-stone-200/80">
+            {singleRoiAxisTicks.map((tick) => (
+              <div
+                key={`single-roi-tick-${tick.index}`}
+                className="absolute -top-px"
+                style={{
+                  left: `${tick.ratio * 100}%`,
+                  transform: tick.ratio === 1 ? 'translateX(-100%)' : 'translateX(-50%)',
+                }}
+              >
+                <span className="block h-1.5 w-px bg-stone-300/90 mx-auto" />
+                <span className="mt-1 block whitespace-nowrap text-[11px] text-stone-500">{tick.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mt-5 px-2">
+          <p className="text-[11px] text-stone-600 leading-5">
+            点序列反映每笔投资的离散收益，EWMA 线用于提取低频趋势并弱化偶发大波动。
+          </p>
+          <p className="text-[10px] text-stone-400 leading-5 mt-1">
+            若原始点与平滑线同时上移，说明策略在当前窗口存在稳定收益扩张；反之需关注回撤段与仓位控制。
+          </p>
         </div>
       </div>
 
@@ -1455,6 +1819,151 @@ export default function DashboardPage({ openModal }) {
               当前窗口样本不足，暂无法输出稳定优势领域。
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div className="motion-v2-surface glow-card bg-white rounded-2xl p-5 border border-stone-100">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-medium text-stone-700">AJR-Conf 偏差走势</h3>
+            <span className="text-[10px] text-stone-400">Δ = AJR - Conf</span>
+          </div>
+          <div className="h-40 rounded-xl border border-sky-100/80 bg-gradient-to-b from-sky-50/55 to-white px-3 py-2">
+            <svg viewBox={`0 0 ${TREND_VIEWBOX_WIDTH} ${TREND_VIEWBOX_HEIGHT}`} className="w-full h-[114px]">
+              <defs>
+                <linearGradient id={ajrDeltaGradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#38bdf8" />
+                  <stop offset="100%" stopColor="#2563eb" />
+                </linearGradient>
+              </defs>
+              <line x1={TREND_X_MIN} y1={TREND_BASELINE_Y} x2={TREND_X_MAX} y2={TREND_BASELINE_Y} stroke="#e0f2fe" strokeWidth="0.45" />
+              <line x1={TREND_X_MIN} y1={TREND_MIDLINE_Y} x2={TREND_X_MAX} y2={TREND_MIDLINE_Y} stroke="#bae6fd" strokeWidth="0.35" strokeDasharray="1.2 1.8" />
+              <line x1={TREND_X_MIN} y1={ajrDeltaSparkline.zeroY} x2={TREND_X_MAX} y2={ajrDeltaSparkline.zeroY} stroke="#7dd3fc" strokeWidth="0.5" strokeDasharray="1.4 1.8" />
+              <polyline fill="none" stroke={`url(#${ajrDeltaGradientId})`} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" points={ajrDeltaSparkline.line} />
+              {ajrDeltaSparkline.points.map((point, idx) => (
+                <circle key={`ajr-delta-${idx}`} cx={point.x} cy={point.y} r={idx === ajrDeltaSparkline.points.length - 1 ? '1.1' : '0.85'} fill="#0284c7" />
+              ))}
+            </svg>
+          </div>
+          <div className="mt-2 px-2">
+            <div className="relative h-6 border-t border-stone-200/80">
+              {ajrDeltaAxisTicks.map((tick) => (
+                <div
+                  key={`ajr-delta-tick-${tick.index}`}
+                  className="absolute -top-px"
+                  style={{
+                    left: `${tick.ratio * 100}%`,
+                    transform: tick.ratio === 1 ? 'translateX(-100%)' : 'translateX(-50%)',
+                  }}
+                >
+                  <span className="block h-1.5 w-px bg-stone-300/90 mx-auto" />
+                  <span className="mt-1 block whitespace-nowrap text-[10px] text-stone-500">{tick.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="mt-4 text-[10px] text-stone-400 leading-5">
+            偏差线高于 0 代表模型偏保守，低于 0 代表模型偏激进；持续单边偏移意味着校准参数需要再平衡。
+          </p>
+        </div>
+
+        <div className="motion-v2-surface glow-card bg-white rounded-2xl p-5 border border-stone-100">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-medium text-stone-700">Conf ↔ AJR 滚动相关</h3>
+            <span className="text-[10px] text-stone-400">Rolling Pearson r</span>
+          </div>
+          <div className="h-40 rounded-xl border border-violet-100/80 bg-gradient-to-b from-violet-50/55 to-white px-3 py-2">
+            <svg viewBox={`0 0 ${TREND_VIEWBOX_WIDTH} ${TREND_VIEWBOX_HEIGHT}`} className="w-full h-[114px]">
+              <defs>
+                <linearGradient id={rollingCorrGradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#a78bfa" />
+                  <stop offset="100%" stopColor="#6366f1" />
+                </linearGradient>
+              </defs>
+              <line x1={TREND_X_MIN} y1={TREND_BASELINE_Y} x2={TREND_X_MAX} y2={TREND_BASELINE_Y} stroke="#ede9fe" strokeWidth="0.45" />
+              <line x1={TREND_X_MIN} y1={TREND_MIDLINE_Y} x2={TREND_X_MAX} y2={TREND_MIDLINE_Y} stroke="#ddd6fe" strokeWidth="0.35" strokeDasharray="1.2 1.8" />
+              <line x1={TREND_X_MIN} y1={rollingCorrSparkline.zeroY} x2={TREND_X_MAX} y2={rollingCorrSparkline.zeroY} stroke="#c4b5fd" strokeWidth="0.5" strokeDasharray="1.4 1.8" />
+              <polyline fill="none" stroke={`url(#${rollingCorrGradientId})`} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" points={rollingCorrSparkline.line} />
+              {rollingCorrSparkline.points.map((point, idx) => (
+                <circle key={`rolling-corr-${idx}`} cx={point.x} cy={point.y} r={idx === rollingCorrSparkline.points.length - 1 ? '1.1' : '0.85'} fill="#7c3aed" />
+              ))}
+            </svg>
+          </div>
+          <div className="mt-2 px-2">
+            <div className="relative h-6 border-t border-stone-200/80">
+              {rollingCorrAxisTicks.map((tick) => (
+                <div
+                  key={`rolling-corr-tick-${tick.index}`}
+                  className="absolute -top-px"
+                  style={{
+                    left: `${tick.ratio * 100}%`,
+                    transform: tick.ratio === 1 ? 'translateX(-100%)' : 'translateX(-50%)',
+                  }}
+                >
+                  <span className="block h-1.5 w-px bg-stone-300/90 mx-auto" />
+                  <span className="mt-1 block whitespace-nowrap text-[10px] text-stone-500">{tick.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="mt-4 text-[10px] text-stone-400 leading-5">
+            滚动相关系数下降表示置信度与赛后评分耦合变弱；若长期贴近 0，说明当前 Conf 解释力不足。
+          </p>
+        </div>
+
+        <div className="motion-v2-surface glow-card bg-white rounded-2xl p-5 border border-stone-100">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-medium text-stone-700">滚动 Brier / LogLoss</h3>
+            <span className="text-[10px] text-stone-400">误差越低越好</span>
+          </div>
+          <div className="h-40 rounded-xl border border-amber-100/80 bg-gradient-to-b from-amber-50/55 to-white px-3 py-2">
+            <svg viewBox={`0 0 ${TREND_VIEWBOX_WIDTH} ${TREND_VIEWBOX_HEIGHT}`} className="w-full h-[114px]">
+              <defs>
+                <linearGradient id={rollingBrierGradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#fbbf24" />
+                  <stop offset="100%" stopColor="#f97316" />
+                </linearGradient>
+                <linearGradient id={rollingLogLossGradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#fb7185" />
+                  <stop offset="100%" stopColor="#e11d48" />
+                </linearGradient>
+              </defs>
+              <line x1={TREND_X_MIN} y1={TREND_BASELINE_Y} x2={TREND_X_MAX} y2={TREND_BASELINE_Y} stroke="#ffedd5" strokeWidth="0.45" />
+              <line x1={TREND_X_MIN} y1={TREND_MIDLINE_Y} x2={TREND_X_MAX} y2={TREND_MIDLINE_Y} stroke="#fed7aa" strokeWidth="0.35" strokeDasharray="1.2 1.8" />
+              <polyline fill="none" stroke={`url(#${rollingBrierGradientId})`} strokeWidth="1.12" strokeLinecap="round" strokeLinejoin="round" points={rollingBrierSparkline.line} />
+              <polyline fill="none" stroke={`url(#${rollingLogLossGradientId})`} strokeWidth="1.12" strokeLinecap="round" strokeLinejoin="round" points={rollingLogLossSparkline.line} />
+            </svg>
+          </div>
+          <div className="mt-2 px-2">
+            <div className="relative h-6 border-t border-stone-200/80">
+              {rollingErrorAxisTicks.map((tick) => (
+                <div
+                  key={`rolling-error-tick-${tick.index}`}
+                  className="absolute -top-px"
+                  style={{
+                    left: `${tick.ratio * 100}%`,
+                    transform: tick.ratio === 1 ? 'translateX(-100%)' : 'translateX(-50%)',
+                  }}
+                >
+                  <span className="block h-1.5 w-px bg-stone-300/90 mx-auto" />
+                  <span className="mt-1 block whitespace-nowrap text-[10px] text-stone-500">{tick.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-3 flex items-center gap-3 text-[10px] text-stone-500">
+            <span className="inline-flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              Brier
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+              LogLoss
+            </span>
+          </div>
+          <p className="mt-1.5 text-[10px] text-stone-400 leading-5">
+            两条误差线同时回落表示概率输出更稳定、校准更可靠；若同步上升通常对应模型失配阶段。
+          </p>
         </div>
       </div>
 
