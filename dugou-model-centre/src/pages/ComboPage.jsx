@@ -2025,6 +2025,16 @@ const getOutcomeToneClass = (token) => {
   return ''
 }
 
+const ComboLegSeparatorIcon = () => (
+  <span className="mx-1.5 inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-sky-200/75 bg-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)] align-middle">
+    <svg viewBox="0 0 12 12" className="h-2.5 w-2.5 text-sky-500/90" fill="none" aria-hidden="true">
+      <path d="M3.1 6h5.8" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" />
+      <circle cx="3.1" cy="6" r="0.7" fill="currentColor" />
+      <circle cx="8.9" cy="6" r="0.7" fill="currentColor" />
+    </svg>
+  </span>
+)
+
 const renderEntryOutcomeWithTone = (entry) => {
   const text = String(entry || '').trim()
   if (!text) return null
@@ -2034,11 +2044,7 @@ const renderEntryOutcomeWithTone = (entry) => {
     if (!toneClass) {
       return <span key={`entry-part-${idx}`}>{part}</span>
     }
-    return (
-      <span key={`entry-part-${idx}`} className={toneClass}>
-        {part}
-      </span>
-    )
+    return <span key={`entry-part-${idx}`} className={`${toneClass} font-semibold`}>{part}</span>
   })
 }
 
@@ -6108,9 +6114,7 @@ export default function ComboPage({ openModal }) {
                                 const legEntry = String(leg.entry || '').trim()
                                 return (
                                   <span key={leg.key || `${leg.homeTeam}-${leg.awayTeam}-${leg.entry}-${legIdx}`} className="inline-flex items-baseline">
-                                    {legIdx > 0 && (
-                                      <span className="mx-1 text-[13px] font-medium text-stone-800 align-middle">×</span>
-                                    )}
+                                    {legIdx > 0 && <ComboLegSeparatorIcon />}
                                     <span className="font-medium text-stone-800">{leg.homeTeam || '-'}</span>
                                     {legEntry && (
                                       <span className="ml-0.5 text-[11px] font-medium text-stone-500">
