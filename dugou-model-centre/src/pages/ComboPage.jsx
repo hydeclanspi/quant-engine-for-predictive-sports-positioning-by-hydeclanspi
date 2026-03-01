@@ -4345,7 +4345,8 @@ export default function ComboPage({ openModal }) {
           seen.add(pairKey)
           options.push({
             pairKey,
-            label: `${prettyKey(supersetKey)} → ${prettyKey(subsetKey)} 由 × 改为 √`,
+            fromLabel: prettyKey(supersetKey),
+            toLabel: prettyKey(subsetKey),
             detail: `解除约束链：${prettyKey(subsetKey)} ⊆ ${prettyKey(supersetKey)}`,
           })
         }
@@ -5630,10 +5631,6 @@ export default function ComboPage({ openModal }) {
                           })
                           const overridesForThis = ftCellOverrides[allocKey] || {}
                           const isDirty = ftDirtyPortfolios.has(allocKey) && Object.keys(overridesForThis).length > 0
-                          const activeConflictResolution =
-                            ftConflictResolution && ftConflictResolution.portfolioKey === allocKey
-                              ? ftConflictResolution
-                              : null
                           return (
                             <div className="px-4 pb-2">
                               <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-[0.1em] mb-2">容错依赖矩阵</p>
@@ -5713,54 +5710,6 @@ export default function ComboPage({ openModal }) {
                                 >
                                   基于容错偏好重新计算 ({Object.keys(overridesForThis).length} 项调整)
                                 </button>
-                              )}
-                              {activeConflictResolution && (
-                                <div className="mt-2 rounded-xl border border-amber-200/80 bg-amber-50/65 px-3 py-2.5 space-y-2">
-                                  <p className="text-[11px] font-semibold text-amber-700">检测到矩阵冲突链</p>
-                                  <p className="text-[10px] text-stone-600 leading-relaxed">{activeConflictResolution.summary}</p>
-                                  <div className="space-y-1.5">
-                                    {(activeConflictResolution.options || []).map((option) => {
-                                      const checked =
-                                        Array.isArray(activeConflictResolution.selectedPairKeys) &&
-                                        activeConflictResolution.selectedPairKeys.includes(option.pairKey)
-                                      return (
-                                        <label
-                                          key={option.pairKey}
-                                          className="flex items-start gap-2 rounded-lg border border-white/80 bg-white/80 px-2 py-1.5 cursor-pointer"
-                                        >
-                                          <input
-                                            type="checkbox"
-                                            checked={checked}
-                                            onChange={() => handleFtConflictOptionToggle(option.pairKey)}
-                                            className="mt-0.5 accent-emerald-600"
-                                          />
-                                          <span className="min-w-0">
-                                            <span className="block text-[11px] font-medium text-stone-700">{option.label}</span>
-                                            <span className="block text-[10px] text-stone-500">{option.detail}</span>
-                                          </span>
-                                        </label>
-                                      )
-                                    })}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={handleFtConflictApplyAndRecompute}
-                                      disabled={
-                                        !Array.isArray(activeConflictResolution.selectedPairKeys) ||
-                                        activeConflictResolution.selectedPairKeys.length === 0
-                                      }
-                                      className="px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                                    >
-                                      应用所选翻转并重算
-                                    </button>
-                                    <button
-                                      onClick={() => setFtConflictResolution(null)}
-                                      className="px-2 py-1.5 rounded-lg text-[11px] font-medium text-stone-500 hover:text-stone-700"
-                                    >
-                                      取消
-                                    </button>
-                                  </div>
-                                </div>
                               )}
                             </div>
                           )
@@ -6497,6 +6446,113 @@ export default function ComboPage({ openModal }) {
           )}
         </div>
       </div>
+
+      {ftConflictResolution && (
+        <div className="fixed inset-0 z-[120]">
+          <div
+            className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(186,230,253,0.36)_0%,rgba(148,163,184,0.14)_55%,rgba(15,23,42,0.35)_100%)] backdrop-blur-sm"
+            onClick={() => setFtConflictResolution(null)}
+          />
+          <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
+            <div className="w-full max-w-2xl rounded-[28px] border border-sky-200/70 bg-[linear-gradient(135deg,rgba(248,252,255,0.88)_0%,rgba(240,249,255,0.84)_52%,rgba(224,242,254,0.8)_100%)] shadow-[0_28px_90px_rgba(14,116,144,0.22),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-2xl overflow-hidden">
+              <div className="px-5 sm:px-6 py-4 border-b border-sky-100/80 bg-white/35">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-sky-500 font-semibold">Conflict Resolver</p>
+                    <h3 className="mt-1 text-[20px] leading-tight font-semibold text-slate-800">检测到依赖冲突链</h3>
+                    <p className="mt-2 text-[12px] text-slate-600 leading-relaxed">{ftConflictResolution.summary}</p>
+                  </div>
+                  <button
+                    onClick={() => setFtConflictResolution(null)}
+                    className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-sky-200/70 bg-white/80 text-sky-500 hover:text-sky-700 hover:border-sky-300 hover:shadow-[0_8px_20px_-14px_rgba(14,165,233,0.6)] transition-all"
+                    title="关闭"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
+                      <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="px-5 sm:px-6 py-4 space-y-2.5 max-h-[52vh] overflow-y-auto">
+                {(ftConflictResolution.options || []).map((option) => {
+                  const checked =
+                    Array.isArray(ftConflictResolution.selectedPairKeys) &&
+                    ftConflictResolution.selectedPairKeys.includes(option.pairKey)
+                  return (
+                    <label
+                      key={option.pairKey}
+                      className="group flex items-start gap-3 rounded-2xl border border-sky-100/80 bg-white/70 px-3.5 py-3 cursor-pointer transition-all duration-200 hover:-translate-y-[1px] hover:bg-white/85 hover:border-sky-200 hover:shadow-[0_14px_34px_-24px_rgba(2,132,199,0.75)]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => handleFtConflictOptionToggle(option.pairKey)}
+                        className="mt-0.5 h-4 w-4 rounded border-sky-300 accent-sky-600"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[13px] font-semibold text-slate-700">
+                          {option.fromLabel} → {option.toLabel}
+                        </span>
+                        <span className="mt-1.5 inline-flex items-center gap-2.5 text-[11px] text-slate-500">
+                          <span className="inline-flex items-center gap-1.5 rounded-lg bg-rose-50/90 border border-rose-100 px-2 py-1">
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-white border border-rose-100">
+                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-rose-400">
+                                <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                              </svg>
+                            </span>
+                            <span className="font-medium text-rose-500">原状态</span>
+                          </span>
+                          <svg width="14" height="14" viewBox="0 0 12 12" fill="none" className="text-sky-400">
+                            <path d="M2.5 6h7M7 3.5L9.5 6 7 8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50/90 border border-emerald-100 px-2 py-1">
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-white border border-emerald-100">
+                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-emerald-500">
+                                <path d="M3 6l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </span>
+                            <span className="font-medium text-emerald-600">建议翻转</span>
+                          </span>
+                        </span>
+                        <span className="mt-1.5 block text-[11px] text-slate-500">{option.detail}</span>
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+
+              <div className="px-5 sm:px-6 py-4 border-t border-sky-100/80 bg-white/35 flex items-center justify-between gap-3">
+                <p className="text-[11px] text-slate-500">
+                  已选择{' '}
+                  <span className="font-semibold text-sky-700">
+                    {Array.isArray(ftConflictResolution.selectedPairKeys) ? ftConflictResolution.selectedPairKeys.length : 0}
+                  </span>{' '}
+                  项建议
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setFtConflictResolution(null)}
+                    className="px-3 py-2 rounded-xl text-[12px] font-medium text-slate-500 border border-sky-200/70 bg-white/70 hover:text-slate-700 hover:border-sky-300 transition-all"
+                  >
+                    暂不处理
+                  </button>
+                  <button
+                    onClick={handleFtConflictApplyAndRecompute}
+                    disabled={
+                      !Array.isArray(ftConflictResolution.selectedPairKeys) ||
+                      ftConflictResolution.selectedPairKeys.length === 0
+                    }
+                    className="px-3.5 py-2 rounded-xl text-[12px] font-semibold text-white bg-[linear-gradient(120deg,rgba(2,132,199,0.94)_0%,rgba(14,116,144,0.95)_100%)] hover:translate-y-[-1px] hover:shadow-[0_16px_30px_-18px_rgba(2,132,199,0.85)] transition-all disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+                  >
+                    应用并重算
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
