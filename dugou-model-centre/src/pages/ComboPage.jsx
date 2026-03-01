@@ -1336,6 +1336,7 @@ const applyCoverageDynamicBoost = (scoredCombos, selectedMatches, baseDecay = 0.
 const CANDIDATE_DISMISSED_KEY = 'dugou.combo.dismissed_candidates.v1'
 const COMBO_PLAN_HISTORY_KEY = 'dugou.combo.plan_history.v1'
 const COMBO_ANALYSIS_FILTER_KEY = 'dugou.combo.analysis_filter.v1'
+const PLAN_HISTORY_RETENTION_LIMIT = 7
 const COMBO_STRATEGY_OPTIONS = [
   {
     value: 'manualCoverage',
@@ -1539,15 +1540,26 @@ const readComboPlanHistory = () => {
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    return parsed
+    return parsed.slice(0, PLAN_HISTORY_RETENTION_LIMIT)
   } catch {
     return []
   }
 }
 
 const writeComboPlanHistory = (history) => {
-  if (typeof window === 'undefined') return
-  window.localStorage.setItem(COMBO_PLAN_HISTORY_KEY, JSON.stringify(history))
+  const normalized = (Array.isArray(history) ? history : []).slice(0, PLAN_HISTORY_RETENTION_LIMIT)
+  if (typeof window === 'undefined') return normalized
+  let next = normalized
+  while (next.length >= 0) {
+    try {
+      window.localStorage.setItem(COMBO_PLAN_HISTORY_KEY, JSON.stringify(next))
+      return next
+    } catch {
+      if (next.length === 0) break
+      next = next.slice(0, next.length - 1)
+    }
+  }
+  return []
 }
 
 const normalizeMatchLabelKey = (value) =>
@@ -3783,9 +3795,8 @@ export default function ComboPage({ openModal }) {
         snapshot?.mcSimResult && typeof snapshot.mcSimResult === 'object' ? snapshot.mcSimResult : null,
     }
     setPlanHistory((prev) => {
-      const next = [entry, ...prev].slice(0, 12)
-      writeComboPlanHistory(next)
-      return next
+      const next = [entry, ...prev].slice(0, PLAN_HISTORY_RETENTION_LIMIT)
+      return writeComboPlanHistory(next)
     })
   }
 
@@ -6117,7 +6128,7 @@ export default function ComboPage({ openModal }) {
             </div>
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center rounded-full border border-cyan-200 bg-white/85 px-2.5 py-1 text-[10px] font-medium text-cyan-700">
-                最近 {Math.min(planHistory.length, 8)} 条
+                最近 {Math.min(planHistory.length, PLAN_HISTORY_RETENTION_LIMIT)} 条
               </span>
               <button
                 onClick={clearPlanHistory}
@@ -6133,7 +6144,7 @@ export default function ComboPage({ openModal }) {
             <p className="text-sm text-stone-400">还没有历史生成记录，生成一次组合后会自动存档。</p>
           ) : (
             <div className="space-y-2.5">
-              {planHistory.slice(0, 8).map((item, index) => (
+              {planHistory.slice(0, PLAN_HISTORY_RETENTION_LIMIT).map((item, index) => (
                 <div
                   key={item.id}
                   className="rounded-2xl border border-white/80 bg-white/72 backdrop-blur-sm px-3.5 py-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)]"
