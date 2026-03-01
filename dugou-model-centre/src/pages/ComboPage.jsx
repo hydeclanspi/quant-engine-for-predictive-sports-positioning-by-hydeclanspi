@@ -4490,7 +4490,7 @@ export default function ComboPage({ openModal }) {
           setFtConflictResolution({
             portfolioKey,
             baseOverrides: overrides,
-            title: '当前矩阵约束无解',
+            title: '当前矩阵约束无解 - 存在数学矛盾',
             summary:
               `你要求「${prettyKey(first.fromKey)}翻车时${prettyKey(first.toKey)}可存活」，` +
               `但未翻转关系推出：${chainText}，导致 ${prettyKey(first.toKey)} ⊆ ${prettyKey(first.fromKey)}。` +
@@ -4591,8 +4591,8 @@ export default function ComboPage({ openModal }) {
         setFtConflictResolution({
           portfolioKey,
           baseOverrides: overrides,
-          title: '当前矩阵约束无解',
-          summary: '你当前给定的关系约束在现有组合空间里无法同时满足。建议额外放开以下关系后再重算：',
+          title: '当前矩阵约束无解 - 存在数学矛盾',
+          summary: '你当前给定的数学关系约束在现有组合空间里无法同时满足。可以通过以下推荐方案解除：',
           options: relaxReqs.map((req) => ({
             pairKey: `${req.fromKey}|${req.toKey}`,
             fromLabel: prettyKey(req.fromKey),
@@ -6620,17 +6620,17 @@ export default function ComboPage({ openModal }) {
       {ftConflictResolution && (
         <div className="fixed inset-0 z-[120]">
           <div
-            className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(186,230,253,0.20)_0%,rgba(148,163,184,0.10)_56%,rgba(15,23,42,0.22)_100%)]"
+            className="ft-conflict-backdrop-enter absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(186,230,253,0.20)_0%,rgba(148,163,184,0.10)_56%,rgba(15,23,42,0.22)_100%)]"
             onClick={() => setFtConflictResolution(null)}
           />
           <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
-            <div className="w-full max-w-2xl rounded-[28px] border border-sky-200/75 bg-[linear-gradient(135deg,rgba(248,252,255,0.95)_0%,rgba(240,249,255,0.93)_52%,rgba(224,242,254,0.91)_100%)] shadow-[0_30px_86px_rgba(14,116,144,0.18),inset_0_1px_0_rgba(255,255,255,0.96)] backdrop-blur-md overflow-hidden">
+            <div className="ft-conflict-card-enter w-full max-w-2xl rounded-[28px] border border-sky-200/75 bg-[linear-gradient(135deg,rgba(248,252,255,0.95)_0%,rgba(240,249,255,0.93)_52%,rgba(224,242,254,0.91)_100%)] shadow-[0_30px_86px_rgba(14,116,144,0.18),inset_0_1px_0_rgba(255,255,255,0.96)] backdrop-blur-md overflow-hidden">
               <div className="px-5 sm:px-6 py-4 border-b border-sky-100/80 bg-white/35">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-[11px] uppercase tracking-[0.16em] text-sky-500 font-semibold">Conflict Resolver</p>
                     <h3 className="mt-1 text-[20px] leading-tight font-semibold text-slate-800">
-                      {ftConflictResolution.title || '当前矩阵约束无解'}
+                      {ftConflictResolution.title || '当前矩阵约束无解 - 存在数学矛盾'}
                     </h3>
                     <p className="mt-2 text-[12px] text-slate-600 leading-relaxed">{ftConflictResolution.summary}</p>
                   </div>
