@@ -4353,15 +4353,16 @@ export default function ComboPage({ openModal }) {
       })
 
       if (options.length > 0) {
-        setFtConflictResolution({
-          portfolioKey,
-          baseOverrides: overrides,
-          summary:
-            `你要求「${prettyKey(first.fromKey)}翻车时${prettyKey(first.toKey)}可存活」，` +
-            `但未翻转关系推出：${chainText}，导致 ${prettyKey(first.toKey)} ⊆ ${prettyKey(first.fromKey)}。`,
-          options: options.slice(0, 6),
-          selectedPairKeys: [options[0].pairKey],
-        })
+          setFtConflictResolution({
+            portfolioKey,
+            baseOverrides: overrides,
+            summary:
+              `你要求「${prettyKey(first.fromKey)}翻车时${prettyKey(first.toKey)}可存活」，` +
+              `但未翻转关系推出：${chainText}，导致 ${prettyKey(first.toKey)} ⊆ ${prettyKey(first.fromKey)}。` +
+              `可以通过以下推荐方案解除：`,
+            options: options.slice(0, 6),
+            selectedPairKeys: [options[0].pairKey],
+          })
       } else {
         window.alert(
           `当前矩阵逻辑自相矛盾（不是候选空间问题）。\n` +
@@ -6450,16 +6451,16 @@ export default function ComboPage({ openModal }) {
       {ftConflictResolution && (
         <div className="fixed inset-0 z-[120]">
           <div
-            className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(186,230,253,0.36)_0%,rgba(148,163,184,0.14)_55%,rgba(15,23,42,0.35)_100%)] backdrop-blur-sm"
+            className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(186,230,253,0.20)_0%,rgba(148,163,184,0.10)_56%,rgba(15,23,42,0.22)_100%)]"
             onClick={() => setFtConflictResolution(null)}
           />
           <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
-            <div className="w-full max-w-2xl rounded-[28px] border border-sky-200/70 bg-[linear-gradient(135deg,rgba(248,252,255,0.88)_0%,rgba(240,249,255,0.84)_52%,rgba(224,242,254,0.8)_100%)] shadow-[0_28px_90px_rgba(14,116,144,0.22),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-2xl overflow-hidden">
+            <div className="w-full max-w-2xl rounded-[28px] border border-sky-200/75 bg-[linear-gradient(135deg,rgba(248,252,255,0.95)_0%,rgba(240,249,255,0.93)_52%,rgba(224,242,254,0.91)_100%)] shadow-[0_30px_86px_rgba(14,116,144,0.18),inset_0_1px_0_rgba(255,255,255,0.96)] backdrop-blur-md overflow-hidden">
               <div className="px-5 sm:px-6 py-4 border-b border-sky-100/80 bg-white/35">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-[11px] uppercase tracking-[0.16em] text-sky-500 font-semibold">Conflict Resolver</p>
-                    <h3 className="mt-1 text-[20px] leading-tight font-semibold text-slate-800">检测到依赖冲突链</h3>
+                    <h3 className="mt-1 text-[20px] leading-tight font-semibold text-slate-800">存在矩阵数学矛盾 - 依赖链冲突</h3>
                     <p className="mt-2 text-[12px] text-slate-600 leading-relaxed">{ftConflictResolution.summary}</p>
                   </div>
                   <button
