@@ -5809,7 +5809,7 @@ export default function ComboPage({ openModal }) {
                                   </div>
                                   <div className="flex items-center gap-3">
                                     {sharpeText && (
-                                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border border-indigo-300/80 bg-[linear-gradient(120deg,rgba(238,242,255,0.92),rgba(255,255,255,0.94)_52%,rgba(224,231,255,0.88))] text-indigo-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.88),0_4px_14px_-10px_rgba(99,102,241,0.42)]">
+                                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border border-emerald-300/80 bg-[linear-gradient(120deg,rgba(236,253,245,0.92),rgba(255,255,255,0.94)_52%,rgba(209,250,229,0.88))] text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.88),0_4px_14px_-10px_rgba(16,185,129,0.42)]">
                                         Sharpe {sharpeText}
                                       </span>
                                     )}
