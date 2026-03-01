@@ -2028,11 +2028,10 @@ const getOutcomeToneClass = (token) => {
 const COMBO_CN_FONT_STACK = "'PingFang SC','Hiragino Sans GB','Noto Sans SC','Microsoft YaHei UI','Source Han Sans SC',sans-serif"
 
 const ComboLegSeparatorIcon = () => (
-  <span className="mx-1.5 inline-flex h-3 w-3 shrink-0 items-center justify-center rounded-full border border-sky-200/70 bg-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)] align-middle">
+  <span className="mx-1 inline-flex h-3 w-3 shrink-0 items-center justify-center rounded-full border border-sky-200/70 bg-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)] align-middle">
     <svg viewBox="0 0 12 12" className="h-2.5 w-2.5 text-sky-500/90" fill="none" aria-hidden="true">
-      <path d="M3.1 6h5.8" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" />
-      <circle cx="3.1" cy="6" r="0.7" fill="currentColor" />
-      <circle cx="8.9" cy="6" r="0.7" fill="currentColor" />
+      <path d="M3.5 3.5l5 5" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" />
+      <path d="M8.5 3.5l-5 5" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" />
     </svg>
   </span>
 )
@@ -2053,23 +2052,22 @@ const getQuickComboRowVisualTone = (evText, rank = 99) => {
         : ev >= 35
           ? 'from-sky-400 to-cyan-400'
           : ev >= 18
-            ? 'from-indigo-300 to-sky-300'
+          ? 'from-indigo-300 to-sky-300'
             : 'from-stone-300 to-stone-200'
-  if (rank === 0) {
-    return {
-      card: 'border-indigo-200/90 bg-gradient-to-r from-indigo-50/82 via-white to-sky-50/76 shadow-[0_10px_22px_-16px_rgba(79,70,229,0.42)]',
-      accent,
-    }
-  }
-  if (rank === 1) {
-    return {
-      card: 'border-sky-200/80 bg-gradient-to-r from-sky-50/74 via-white to-emerald-50/64 shadow-[0_10px_22px_-16px_rgba(14,165,233,0.32)]',
-      accent,
-    }
-  }
+  const glowColor =
+    ev >= 90
+      ? 'rgba(16,185,129,0.68)'
+      : ev >= 60
+        ? 'rgba(20,184,166,0.64)'
+        : ev >= 35
+          ? 'rgba(56,189,248,0.60)'
+          : ev >= 18
+            ? 'rgba(99,102,241,0.52)'
+            : 'rgba(148,163,184,0.36)'
   return {
-    card: 'border-transparent bg-stone-50/55 hover:bg-stone-50',
+    card: 'border-sky-100/70 bg-gradient-to-r from-sky-50/42 via-white to-indigo-50/32 hover:from-sky-50/55 hover:to-indigo-50/42',
     accent,
+    glowColor,
   }
 }
 
@@ -6151,7 +6149,22 @@ export default function ComboPage({ openModal }) {
                         selected ? 'bg-indigo-50/70 border border-indigo-200 shadow-[0_7px_16px_-14px_rgba(79,70,229,0.40)]' : `border ${rowTone.card}`
                       }`}
                     >
+                      <span
+                        className={`absolute left-[5px] top-1.5 bottom-1.5 w-[6px] rounded-full bg-gradient-to-b ${rowTone.accent}`}
+                        style={{
+                          opacity: selected ? 0.55 : idx < 2 ? 0.45 : 0.36,
+                          filter: 'blur(2.6px)',
+                        }}
+                      />
                       <span className={`absolute left-1.5 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b ${rowTone.accent}`} />
+                      <span
+                        className="absolute left-1.5 top-1.5 bottom-1.5 w-[3px] rounded-full"
+                        style={{
+                          boxShadow: selected
+                            ? `0 0 14px ${rowTone.glowColor}, 0 0 22px ${rowTone.glowColor}`
+                            : `0 0 10px ${rowTone.glowColor}`,
+                        }}
+                      />
                       <span className="text-[10.5px] text-stone-400 font-mono w-7 shrink-0">{comboNo}.</span>
                       <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${layerDot}`} />
                       <div className="flex-1 min-w-0" onClick={() => toggleQuickComboExpand(idx)} style={{ fontFamily: COMBO_CN_FONT_STACK }}>
@@ -6176,12 +6189,8 @@ export default function ComboPage({ openModal }) {
                             : item.combo}
                         </div>
                       </div>
-                      <div className="text-right shrink-0 w-[176px] leading-tight" style={{ fontFamily: COMBO_CN_FONT_STACK }}>
-                        <div className="flex items-baseline justify-end gap-2">
-                          <p className="text-[11.5px] font-semibold text-stone-700">{item.allocation}</p>
-                          <p className="text-[9.5px] text-emerald-600">{item.ev}</p>
-                        </div>
-                        <div className="mt-0.5 flex items-center justify-end gap-1.5 text-[9px] text-stone-400">
+                      <div className="text-right shrink-0 w-[236px] leading-tight" style={{ fontFamily: COMBO_CN_FONT_STACK }}>
+                        <div className="flex items-center justify-end gap-1.5 text-[9px] text-stone-400 whitespace-nowrap">
                           <span className="rounded-md border border-stone-200/75 bg-white/78 px-1 py-px">
                             {item.legs || item.subset.length}关
                           </span>
@@ -6201,6 +6210,8 @@ export default function ComboPage({ openModal }) {
                               {layerTag === 'core' ? '锚定' : layerTag === 'covering' ? '容错' : layerTag === 'satellite' ? '扩展' : '博冷'}
                             </span>
                           )}
+                          <span className="ml-0.5 text-[11.5px] font-semibold text-stone-700">{item.allocation}</span>
+                          <span className="text-[9.5px] text-emerald-600">{item.ev}</span>
                           <button
                             type="button"
                             onClick={(e) => {
