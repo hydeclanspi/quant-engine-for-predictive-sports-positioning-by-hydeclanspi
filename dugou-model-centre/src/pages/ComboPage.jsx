@@ -665,6 +665,118 @@ const optimizePortfolioAllocations = (
   return result
 }
 
+const buildPortfolioAllocationRowFromCombos = (
+  combos,
+  allRecommendations = [],
+  coverageTargetKeysInput = null,
+  hyperparams = null,
+  overlapTuning = null,
+  directedConstraints = [],
+) => {
+  const selected = Array.isArray(combos) ? combos.filter(Boolean) : []
+  if (selected.length < 2) return null
+
+  const allMatchKeys = new Set(
+    Array.from(coverageTargetKeysInput || [])
+      .map((k) => String(k || '').trim())
+      .filter(Boolean),
+  )
+  if (allMatchKeys.size === 0) {
+    selected.forEach((item) => {
+      ;(item.subset || []).forEach((m) => {
+        const mk = getPortfolioCoverageKey(m)
+        if (mk) allMatchKeys.add(mk)
+      })
+    })
+  }
+
+  const effectiveStakes = selected.map((item) => getEffectiveStakeForScoring(item))
+  const totalStake = effectiveStakes.reduce((sum, value) => sum + value, 0)
+  const totalInvest = selected.reduce((sum, item) => sum + Math.max(0, Number(item?.amount) || 0), 0)
+  const totalTheoreticalWeightPct = selected.reduce((sum, item) => sum + getTheoreticalWeightPctForScoring(item), 0)
+
+  const covered = new Set()
+  selected.forEach((item) => {
+    ;(item.subset || []).forEach((m) => {
+      const mk = getPortfolioCoverageKey(m)
+      if (mk) covered.add(mk)
+    })
+  })
+  const coverageRatio = allMatchKeys.size > 0 ? covered.size / allMatchKeys.size : 0
+  const weightedEv = selected.reduce(
+    (sum, item, idx) => sum + (item.expectedReturn || 0) * effectiveStakes[idx],
+    0,
+  ) / Math.max(totalStake, 1)
+
+  const layers = new Set(selected.map((item) => item.explain?.ftLayerTag).filter(Boolean))
+  const layerDiv = layers.size / 4
+  const tiers = new Set()
+  selected.forEach((item) => (item.confTiers || []).forEach((t) => tiers.add(t)))
+  const tierDiv = tiers.size / 4
+
+  let overlapPenaltySum = 0
+  let totalPairs = 0
+  for (let i = 0; i < selected.length; i += 1) {
+    for (let j = i + 1; j < selected.length; j += 1) {
+      totalPairs += 1
+      overlapPenaltySum += calcContinuousSubsetOverlap(selected[i].subset || [], selected[j].subset || [], overlapTuning)
+    }
+  }
+  const avgOverlapPenalty = totalPairs > 0 ? overlapPenaltySum / totalPairs : 0
+  const diversityScore = clamp(1 - avgOverlapPenalty, 0, 1)
+
+  const pw = hyperparams?.portfolioWeights || { ev: 0.35, coverage: 0.30, diversity: 0.20, layerDiv: 0.10, tierDiv: 0.05 }
+  const baseUtility =
+    weightedEv * pw.ev +
+    coverageRatio * pw.coverage +
+    layerDiv * pw.layerDiv +
+    tierDiv * pw.tierDiv +
+    diversityScore * pw.diversity
+
+  const constraintSatisfiedCount =
+    directedConstraints.length > 0
+      ? directedConstraints.reduce(
+        (count, constraint) => count + (selected.some((combo) => comboSatisfiesDirectedConstraint(combo, constraint)) ? 1 : 0),
+        0,
+      )
+      : 0
+  const constraintCoverage =
+    directedConstraints.length > 0
+      ? clamp(constraintSatisfiedCount / directedConstraints.length, 0, 1)
+      : 1
+  const utility = baseUtility + (directedConstraints.length > 0 ? constraintCoverage * 0.08 : 0)
+
+  const indices = selected.map((combo) => allRecommendations.findIndex((row) => row?.id === combo?.id))
+  const validIndices = indices.filter((idx) => idx >= 0)
+  const label =
+    validIndices.length === selected.length
+      ? validIndices.map((idx) => idx + 1).join('+')
+      : selected.map((_, idx) => idx + 1).join('+')
+
+  return {
+    indices: validIndices,
+    comboIds: selected.map((s) => s.id),
+    label,
+    combos: selected,
+    totalStake: Math.round(totalStake),
+    totalInvest: Math.round(totalInvest),
+    totalTheoreticalWeightPct: Number(totalTheoreticalWeightPct.toFixed(1)),
+    coverageRatio: Number(coverageRatio.toFixed(2)),
+    covered: covered.size,
+    totalMatches: allMatchKeys.size,
+    weightedEv: Number((weightedEv * 100).toFixed(1)),
+    layerDiv: Number(layerDiv.toFixed(2)),
+    tierDiv: Number(tierDiv.toFixed(2)),
+    diversityScore: Number(diversityScore.toFixed(2)),
+    utility: Number(utility.toFixed(4)),
+    constraintTotal: directedConstraints.length,
+    constraintSatisfiedCount,
+    constraintCoverage: Number(constraintCoverage.toFixed(3)),
+    constraintSatisfied: directedConstraints.length === 0 || constraintSatisfiedCount >= directedConstraints.length,
+    mc: runPortfolioMonteCarlo(selected, 10000),
+  }
+}
+
 /* ── 方案A+C+D+E: Fault-tolerant covering + layered hedging ────────── */
 const generateFaultTolerantCombos = (selectedMatches, systemConfig, calibrationContext, dynParams) => {
   const thresholds = dynParams?.confTierThresholds || DEFAULT_CONF_TIER_THRESHOLDS
@@ -3804,10 +3916,51 @@ export default function ComboPage({ openModal }) {
       if (!rk || !ck || rk === ck) return
       pairSet.add(`${rk}|${ck}`)
     })
-    // Regenerate with decoupling constraints, and pin the regenerated top package as 【定制】
-    const regenOverrides = { _pinGeneratedTop: true }
-    if (pairSet.size > 0) regenOverrides.decouplingPairs = pairSet
-    regenerateWithOverrides(regenOverrides)
+    const baseAlloc = portfolioAllocations[aIdx]
+    const baseCombos = Array.isArray(baseAlloc?.combos) ? baseAlloc.combos.filter(Boolean) : []
+    if (baseCombos.length < 2) {
+      window.alert('当前组合包规模过小，无法基于容错矩阵重算。')
+      return
+    }
+
+    const directedConstraints = parseDirectedDecouplingConstraints(pairSet)
+    const fallbackCandidates = dedupeRankedBySignature([...recommendations, ...baseCombos])
+    const constrainedCombos =
+      directedConstraints.length > 0
+        ? enforceDirectedDecouplingHard(baseCombos, fallbackCandidates, directedConstraints, baseCombos.length)
+        : baseCombos
+
+    if (!constrainedCombos || constrainedCombos.length === 0) {
+      window.alert('当前容错依赖约束在现有候选空间无可行解。已保留你的翻转设置，请减少翻转项后重试。')
+      return
+    }
+
+    const customRow = buildPortfolioAllocationRowFromCombos(
+      constrainedCombos,
+      recommendations,
+      selectedMatches.map((m) => getPortfolioCoverageKey(m)),
+      calibrationContext?.comboHyperparams || null,
+      overlapTuning,
+      directedConstraints,
+    )
+    if (!customRow) {
+      window.alert('定制组合包构建失败，请稍后重试。')
+      return
+    }
+
+    const preserved = portfolioAllocations
+      .filter((_, idx) => idx !== aIdx)
+      .map((row) => (row?.pinned ? { ...row, pinned: false } : row))
+    const nextAllocations = [{ ...customRow, pinned: true }, ...preserved].slice(0, 10)
+    setPortfolioAllocations(nextAllocations)
+    setExpandedPortfolioIdxSet(new Set([0]))
+    setExpandedComboIdxSet(new Set())
+    setShowAllPortfolios(false)
+    setFtCellOverrides({})
+    setFtDirtyPortfolios(new Set())
+    if (directedConstraints.length > 0 && !customRow.constraintSatisfied) {
+      window.alert('当前只找到部分满足约束的近似解。可继续减少翻转项提升可行性。')
+    }
   }
 
   // Extract unique team names from current candidates
