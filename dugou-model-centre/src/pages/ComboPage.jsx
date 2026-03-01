@@ -2074,9 +2074,12 @@ const getQuickComboRowVisualTone = (evText, rank = 99) => {
 }
 
 const renderEntryOutcomeWithTone = (entry) => {
-  const text = String(entry || '').trim()
-  if (!text) return null
-  const parts = text.split(/\b(win|draw|lose)\b/gi).filter((part) => part.length > 0)
+  const normalizedText = String(entry || '')
+    .trim()
+    .replace(/\s*,\s*/g, ' / ')
+    .replace(/\s*\/\s*/g, ' / ')
+  if (!normalizedText) return null
+  const parts = normalizedText.split(/\b(win|draw|lose)\b/gi).filter((part) => part.length > 0)
   return parts.map((part, idx) => {
     const toneClass = getOutcomeToneClass(part)
     if (!toneClass) {
@@ -6172,30 +6175,46 @@ export default function ComboPage({ openModal }) {
                               })
                             : item.combo}
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5 text-[9.5px] text-stone-400 leading-none">
-                          <span>{item.legs || item.subset.length}关</span>
-                          <span>×{(Number(item.combinedOdds || item.odds || 0)).toFixed(1)}</span>
+                      </div>
+                      <div className="text-right shrink-0 w-[176px] leading-tight" style={{ fontFamily: COMBO_CN_FONT_STACK }}>
+                        <div className="flex items-baseline justify-end gap-2">
+                          <p className="text-[11.5px] font-semibold text-stone-700">{item.allocation}</p>
+                          <p className="text-[9.5px] text-emerald-600">{item.ev}</p>
+                        </div>
+                        <div className="mt-0.5 flex items-center justify-end gap-1.5 text-[9px] text-stone-400">
+                          <span className="rounded-md border border-stone-200/75 bg-white/78 px-1 py-px">
+                            {item.legs || item.subset.length}关
+                          </span>
+                          <span className="rounded-md border border-stone-200/75 bg-white/78 px-1 py-px">
+                            ×{(Number(item.combinedOdds || item.odds || 0)).toFixed(1)}
+                          </span>
                           {item.explain?.confTierSummary && item.explain.confTierSummary !== '--' && (
-                            <span className="text-stone-500">{item.explain.confTierSummary}</span>
+                            <span className="rounded-md border border-stone-200/75 bg-white/78 px-1 py-px text-stone-500">{item.explain.confTierSummary}</span>
                           )}
                           {layerTag && (
-                            <span className={`px-1 py-px rounded text-[9px] font-medium ${
-                              layerTag === 'core' ? 'bg-emerald-100 text-emerald-600'
-                              : layerTag === 'covering' ? 'bg-teal-100 text-teal-600'
-                              : layerTag === 'satellite' ? 'bg-sky-100 text-sky-600'
-                              : 'bg-violet-100 text-violet-600'
+                            <span className={`px-1 py-px rounded-md border text-[9px] font-medium ${
+                              layerTag === 'core' ? 'bg-emerald-50 text-emerald-600 border-emerald-200/70'
+                              : layerTag === 'covering' ? 'bg-teal-50 text-teal-600 border-teal-200/70'
+                              : layerTag === 'satellite' ? 'bg-sky-50 text-sky-600 border-sky-200/70'
+                              : 'bg-violet-50 text-violet-600 border-violet-200/70'
                             }`}>
                               {layerTag === 'core' ? '锚定' : layerTag === 'covering' ? '容错' : layerTag === 'satellite' ? '扩展' : '博冷'}
                             </span>
                           )}
-                          <svg className={`w-2.5 h-2.5 text-stone-400 transition-transform ${expanded ? 'rotate-180' : ''}`} viewBox="0 0 12 12" fill="none">
-                            <path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              toggleQuickComboExpand(idx)
+                            }}
+                            className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-md border border-stone-200/75 bg-white/85 text-stone-400 transition-colors hover:text-stone-600"
+                            title={expanded ? '收起明细' : '展开明细'}
+                          >
+                            <svg className={`w-2.5 h-2.5 transition-transform ${expanded ? 'rotate-180' : ''}`} viewBox="0 0 12 12" fill="none">
+                              <path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </button>
                         </div>
-                      </div>
-                      <div className="text-right shrink-0 w-[100px] leading-tight">
-                        <p className="text-[11.5px] font-semibold text-stone-700">{item.allocation}</p>
-                        <p className="text-[9.5px] text-emerald-600 mt-0.5">{item.ev}</p>
                       </div>
                       <div
                         onClick={(e) => { e.stopPropagation(); toggleRecommendation(item.id) }}
