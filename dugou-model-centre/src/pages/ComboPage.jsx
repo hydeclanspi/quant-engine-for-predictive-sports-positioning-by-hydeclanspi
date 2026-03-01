@@ -498,8 +498,12 @@ const optimizePortfolioAllocations = (
   decouplingPairs = null,
 ) => {
   if (!recommendations || recommendations.length < 2) return []
-  const items = recommendations.slice(0, 12)
   const directedConstraints = parseDirectedDecouplingConstraints(decouplingPairs)
+  const mandatorySupportCombos = directedConstraints
+    .map((constraint) => recommendations.find((combo) => comboSatisfiesDirectedConstraint(combo, constraint)))
+    .filter(Boolean)
+  const mergedItems = [...mandatorySupportCombos, ...recommendations]
+  const items = dedupeRankedBySignature(mergedItems).slice(0, 12)
 
   // Extract coverage target keys.
   // Prefer selected-match keys from caller so coverage displays true x / selectedCount.
@@ -520,7 +524,7 @@ const optimizePortfolioAllocations = (
 
   // Generate candidate portfolios (subsets of 2-5 combos)
   const portfolios = []
-  const n = Math.min(items.length, 8)
+  const n = Math.min(items.length, directedConstraints.length > 0 ? 12 : 8)
   for (let mask = 3; mask < (1 << n); mask++) {
     const bits = []
     let count = 0
@@ -3638,7 +3642,7 @@ export default function ComboPage({ openModal }) {
 
   // Core re-generate with optional overrides
   const regenerateWithOverrides = (overrides = {}) => {
-    if (selectedMatches.length === 0) return
+    if (selectedMatches.length === 0) return false
     const jRisk = overrides.riskPref ?? riskPref
     const jStructure = overrides.comboStructure ?? comboStructure
     const jAllocationMode = normalizeAllocationMode(overrides.allocationMode ?? allocationMode)
@@ -3653,7 +3657,12 @@ export default function ComboPage({ openModal }) {
       jSolverMode,
       decouple,
     )
-    if (!generated) return
+    if (!generated) {
+      if (parseDirectedDecouplingConstraints(decouple).length > 0) {
+        window.alert('当前容错依赖约束在候选空间中无可行解。请减少翻转项、放宽阈值，或增加候选比赛后重试。')
+      }
+      return false
+    }
     setRecommendations(generated.recommendations)
     setRankingRows(generated.rankingRows)
     setLayerSummary(generated.layerSummary)
@@ -3704,6 +3713,7 @@ export default function ComboPage({ openModal }) {
     setShowAllPortfolios(false)
     setFtCellOverrides({})
     setFtDirtyPortfolios(new Set())
+    return true
   }
 
   // Soft refresh: jitter coefficients for a different but still sound output
@@ -3793,17 +3803,6 @@ export default function ComboPage({ openModal }) {
       const [rk, ck] = k.split('|')
       if (!rk || !ck || rk === ck) return
       pairSet.add(`${rk}|${ck}`)
-    })
-    // Clear overrides for this portfolio
-    setFtCellOverrides((prev) => {
-      const next = { ...prev }
-      delete next[aIdx]
-      return next
-    })
-    setFtDirtyPortfolios((prev) => {
-      const next = new Set(prev)
-      next.delete(aIdx)
-      return next
     })
     // Regenerate with decoupling constraints, and pin the regenerated top package as 【定制】
     const regenOverrides = { _pinGeneratedTop: true }
