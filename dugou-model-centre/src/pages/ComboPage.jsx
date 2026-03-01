@@ -5827,7 +5827,7 @@ export default function ComboPage({ openModal }) {
                                   <div className="flex items-center gap-3">
                                     {sharpeText && (
                                       <span className={`inline-flex items-center gap-0.5 rounded-full px-[7px] py-[1px] text-[9px] font-semibold border ${sharpeBadgeToneClass}`}>
-                                        Sharpe {sharpeText}
+                                        Sp {sharpeText}
                                       </span>
                                     )}
                                     <span className="text-[13px] font-mono font-semibold text-stone-500">×{Number(combo.combinedOdds || combo.odds || 0).toFixed(1)}</span>
