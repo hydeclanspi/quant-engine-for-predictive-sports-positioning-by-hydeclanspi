@@ -2019,9 +2019,9 @@ const translateEntry = (entry) => {
 
 const getOutcomeToneClass = (token) => {
   const t = String(token || '').trim().toLowerCase()
-  if (t === 'draw') return 'text-sky-600'
-  if (t === 'lose') return 'text-rose-400'
-  if (t === 'win') return 'text-emerald-700'
+  if (t === 'draw') return 'text-sky-700 bg-sky-50 border border-sky-200/70'
+  if (t === 'lose') return 'text-rose-500 bg-rose-50 border border-rose-200/70'
+  if (t === 'win') return 'text-emerald-700 bg-emerald-50 border border-emerald-200/70'
   return ''
 }
 
@@ -2035,6 +2035,42 @@ const ComboLegSeparatorIcon = () => (
   </span>
 )
 
+const parseComboRowEvValue = (evText) => {
+  const raw = String(evText || '').replace('%', '').replace('+', '').trim()
+  const value = Number(raw)
+  return Number.isFinite(value) ? value : 0
+}
+
+const getQuickComboRowVisualTone = (evText, rank = 99) => {
+  const ev = parseComboRowEvValue(evText)
+  const accent =
+    ev >= 90
+      ? 'from-emerald-400 to-emerald-500'
+      : ev >= 60
+        ? 'from-teal-400 to-emerald-400'
+        : ev >= 35
+          ? 'from-sky-400 to-cyan-400'
+          : ev >= 18
+            ? 'from-indigo-300 to-sky-300'
+            : 'from-stone-300 to-stone-200'
+  if (rank === 0) {
+    return {
+      card: 'border-indigo-200/90 bg-gradient-to-r from-indigo-50/82 via-white to-sky-50/76 shadow-[0_10px_22px_-16px_rgba(79,70,229,0.42)]',
+      accent,
+    }
+  }
+  if (rank === 1) {
+    return {
+      card: 'border-sky-200/80 bg-gradient-to-r from-sky-50/74 via-white to-emerald-50/64 shadow-[0_10px_22px_-16px_rgba(14,165,233,0.32)]',
+      accent,
+    }
+  }
+  return {
+    card: 'border-transparent bg-stone-50/55 hover:bg-stone-50',
+    accent,
+  }
+}
+
 const renderEntryOutcomeWithTone = (entry) => {
   const text = String(entry || '').trim()
   if (!text) return null
@@ -2042,9 +2078,13 @@ const renderEntryOutcomeWithTone = (entry) => {
   return parts.map((part, idx) => {
     const toneClass = getOutcomeToneClass(part)
     if (!toneClass) {
-      return <span key={`entry-part-${idx}`}>{part}</span>
+      return <span key={`entry-part-${idx}`} className="text-stone-500">{part}</span>
     }
-    return <span key={`entry-part-${idx}`} className={`${toneClass} font-semibold`}>{part}</span>
+    return (
+      <span key={`entry-part-${idx}`} className={`mx-[1px] inline-flex items-center rounded-md px-1 py-[0.5px] text-[11px] leading-none font-semibold ${toneClass}`}>
+        {part}
+      </span>
+    )
   })
 }
 
@@ -6094,6 +6134,7 @@ export default function ComboPage({ openModal }) {
                 const expanded = expandedComboIdxSet.has(idx)
                 const comboNo = getComboNumberFromRow(item) || idx + 1
                 const layerTag = item.explain?.ftLayerTag
+                const rowTone = getQuickComboRowVisualTone(item.ev, idx)
                 const layerDot = layerTag === 'core' ? 'bg-emerald-400'
                   : layerTag === 'covering' ? 'bg-teal-400'
                   : layerTag === 'satellite' ? 'bg-sky-400'
@@ -6101,32 +6142,35 @@ export default function ComboPage({ openModal }) {
                 return (
                   <div key={item.id}>
                     <div
-                      className={`motion-v2-row motion-v2-selectable flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer transition-all ${
-                        selected ? 'bg-indigo-50/70 border border-indigo-200' : 'bg-stone-50/50 border border-transparent hover:bg-stone-50'
+                      className={`motion-v2-row motion-v2-selectable relative flex items-start gap-2.5 pl-3 pr-3 py-2.5 rounded-xl cursor-pointer transition-all ${
+                        selected ? 'bg-indigo-50/70 border border-indigo-200 shadow-[0_8px_20px_-16px_rgba(79,70,229,0.45)]' : `border ${rowTone.card}`
                       }`}
                     >
+                      <span className={`absolute left-1.5 top-2.5 bottom-2.5 w-[3px] rounded-full bg-gradient-to-b ${rowTone.accent}`} />
                       <span className="text-[11px] text-stone-400 font-mono w-8 shrink-0">{comboNo}.</span>
-                      <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${layerDot}`} />
+                      <div className={`mt-2.5 w-1.5 h-1.5 rounded-full shrink-0 ${layerDot}`} />
                       <div className="flex-1 min-w-0" onClick={() => toggleQuickComboExpand(idx)}>
-                        <p className="text-[13px] text-stone-700 truncate whitespace-nowrap">
+                        <div className="flex flex-wrap items-center gap-y-1.5">
                           {Array.isArray(item.subset) && item.subset.length > 0
                             ? item.subset.map((leg, legIdx) => {
                                 const legEntry = String(leg.entry || '').trim()
                                 return (
-                                  <span key={leg.key || `${leg.homeTeam}-${leg.awayTeam}-${leg.entry}-${legIdx}`} className="inline-flex items-baseline">
+                                  <span key={leg.key || `${leg.homeTeam}-${leg.awayTeam}-${leg.entry}-${legIdx}`} className="inline-flex items-center">
                                     {legIdx > 0 && <ComboLegSeparatorIcon />}
-                                    <span className="font-medium text-stone-800">{leg.homeTeam || '-'}</span>
-                                    {legEntry && (
-                                      <span className="ml-0.5 text-[11.5px] font-medium text-stone-500">
-                                        {renderEntryOutcomeWithTone(legEntry)}
-                                      </span>
-                                    )}
+                                    <span className="inline-flex items-center rounded-lg border border-stone-200/80 bg-white/86 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                                      <span className="font-medium text-stone-800">{leg.homeTeam || '-'}</span>
+                                      {legEntry && (
+                                        <span className="ml-0.5 text-[11.5px] font-medium text-stone-500">
+                                          {renderEntryOutcomeWithTone(legEntry)}
+                                        </span>
+                                      )}
+                                    </span>
                                   </span>
                                 )
                               })
                             : item.combo}
-                        </p>
-                        <div className="flex items-center gap-2 mt-0.5 text-[10px] text-stone-400">
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-[10px] text-stone-400">
                           <span>{item.legs || item.subset.length}关</span>
                           <span>×{(Number(item.combinedOdds || item.odds || 0)).toFixed(1)}</span>
                           {item.explain?.confTierSummary && item.explain.confTierSummary !== '--' && (
@@ -6147,7 +6191,7 @@ export default function ComboPage({ openModal }) {
                           </svg>
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
+                      <div className="text-right shrink-0 w-[108px]">
                         <p className="text-[12px] font-semibold text-stone-700">{item.allocation}</p>
                         <p className="text-[10px] text-emerald-600">{item.ev}</p>
                       </div>
