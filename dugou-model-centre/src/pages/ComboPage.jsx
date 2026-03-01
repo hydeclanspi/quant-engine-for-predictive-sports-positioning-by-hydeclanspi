@@ -2044,26 +2044,17 @@ const parseComboRowEvValue = (evText) => {
 
 const getQuickComboRowVisualTone = (evText, rank = 99) => {
   const ev = parseComboRowEvValue(evText)
-  const accent =
-    ev >= 90
-      ? 'from-emerald-400 to-emerald-500'
-      : ev >= 60
-        ? 'from-teal-400 to-emerald-400'
-        : ev >= 35
-          ? 'from-sky-400 to-cyan-400'
-          : ev >= 18
-          ? 'from-indigo-300 to-sky-300'
-            : 'from-stone-300 to-stone-200'
+  const accent = 'from-sky-400 to-cyan-400'
   const glowColor =
     ev >= 90
-      ? 'rgba(16,185,129,0.68)'
+      ? 'rgba(56,189,248,0.70)'
       : ev >= 60
-        ? 'rgba(20,184,166,0.64)'
+        ? 'rgba(56,189,248,0.60)'
         : ev >= 35
-          ? 'rgba(56,189,248,0.60)'
+          ? 'rgba(59,130,246,0.56)'
           : ev >= 18
-            ? 'rgba(99,102,241,0.52)'
-            : 'rgba(148,163,184,0.36)'
+            ? 'rgba(99,102,241,0.48)'
+            : 'rgba(100,116,139,0.40)'
   return {
     card: 'border-sky-100/70 bg-gradient-to-r from-sky-50/42 via-white to-indigo-50/32 hover:from-sky-50/55 hover:to-indigo-50/42',
     accent,
@@ -6138,10 +6129,15 @@ export default function ComboPage({ openModal }) {
                 const comboNo = getComboNumberFromRow(item) || idx + 1
                 const layerTag = item.explain?.ftLayerTag
                 const rowTone = getQuickComboRowVisualTone(item.ev, idx)
-                const layerDot = layerTag === 'core' ? 'bg-emerald-400'
-                  : layerTag === 'covering' ? 'bg-teal-400'
-                  : layerTag === 'satellite' ? 'bg-sky-400'
-                  : layerTag === 'moonshot' ? 'bg-violet-400' : 'bg-stone-300'
+                const layerDot = layerTag === 'core'
+                  ? 'bg-emerald-400 shadow-[0_0_0_1px_rgba(16,185,129,0.16),0_0_8px_rgba(16,185,129,0.34)]'
+                  : layerTag === 'covering'
+                    ? 'bg-teal-400 shadow-[0_0_0_1px_rgba(20,184,166,0.16),0_0_8px_rgba(20,184,166,0.34)]'
+                    : layerTag === 'satellite'
+                      ? 'bg-sky-400 shadow-[0_0_0_1px_rgba(56,189,248,0.16),0_0_8px_rgba(56,189,248,0.34)]'
+                      : layerTag === 'moonshot'
+                        ? 'bg-violet-300 shadow-[0_0_0_1px_rgba(167,139,250,0.16),0_0_8px_rgba(167,139,250,0.32)]'
+                        : 'bg-slate-300 shadow-[0_0_0_1px_rgba(148,163,184,0.14),0_0_6px_rgba(148,163,184,0.28)]'
                 return (
                   <div key={item.id}>
                     <div
