@@ -489,6 +489,42 @@ const getEffectiveStakeForScoring = (item) => {
   return 10
 }
 
+const getPortfolioKeyFromCombos = (combos) => {
+  const signatures = (combos || [])
+    .map((combo) => buildSubsetSignature(combo?.subset || []))
+    .filter(Boolean)
+    .sort()
+  if (signatures.length === 0) return ''
+  return signatures.join('||')
+}
+
+const getPortfolioKeyFromAllocationRow = (row, fallback = '') => {
+  const direct = String(row?.portfolioKey || '').trim()
+  if (direct) return direct
+  const fromCombos = getPortfolioKeyFromCombos(row?.combos || [])
+  if (fromCombos) return fromCombos
+  const fromIds = (row?.comboIds || [])
+    .map((id) => String(id || '').trim())
+    .filter(Boolean)
+    .sort()
+    .join('||')
+  if (fromIds) return fromIds
+  const fromLabel = String(row?.label || '').trim()
+  if (fromLabel) return `label:${fromLabel}`
+  return fallback
+}
+
+const normalizePortfolioAllocations = (rows) =>
+  (Array.isArray(rows) ? rows : []).map((row, idx) => {
+    const fallbackKey = `portfolio-${idx + 1}`
+    const portfolioKey = getPortfolioKeyFromAllocationRow(row, fallbackKey) || fallbackKey
+    return {
+      ...row,
+      portfolioKey,
+      pinned: Boolean(row?.pinned),
+    }
+  })
+
 const optimizePortfolioAllocations = (
   recommendations,
   maxPackages = 3,
@@ -611,6 +647,7 @@ const optimizePortfolioAllocations = (
       comboIds: selected.map((s) => s.id),
       label: indices.map((i) => i + 1).join('+'),
       combos: selected,
+      portfolioKey: getPortfolioKeyFromCombos(selected),
       totalStake: Math.round(totalStake),
       totalInvest: Math.round(totalInvest),
       totalTheoreticalWeightPct: Number(totalTheoreticalWeightPct.toFixed(1)),
@@ -662,7 +699,7 @@ const optimizePortfolioAllocations = (
     if (result.length >= maxPackages) break
   }
 
-  return result
+  return normalizePortfolioAllocations(result)
 }
 
 const buildPortfolioAllocationRowFromCombos = (
@@ -758,6 +795,7 @@ const buildPortfolioAllocationRowFromCombos = (
     comboIds: selected.map((s) => s.id),
     label,
     combos: selected,
+    portfolioKey: getPortfolioKeyFromCombos(selected),
     totalStake: Math.round(totalStake),
     totalInvest: Math.round(totalInvest),
     totalTheoreticalWeightPct: Number(totalTheoreticalWeightPct.toFixed(1)),
@@ -775,6 +813,136 @@ const buildPortfolioAllocationRowFromCombos = (
     constraintSatisfied: directedConstraints.length === 0 || constraintSatisfiedCount >= directedConstraints.length,
     mc: runPortfolioMonteCarlo(selected, 10000),
   }
+}
+
+const solveConstrainedPortfolioFromBase = (
+  baseCombos,
+  candidateCombos,
+  directedConstraints = [],
+  options = null,
+) => {
+  const base = Array.isArray(baseCombos) ? baseCombos.filter(Boolean) : []
+  if (base.length < 2) return null
+
+  const resolvedOptions = options && typeof options === 'object' ? options : {}
+  const preserveBaseCoverage = Boolean(resolvedOptions.preserveBaseCoverage)
+  const requiredSize = Math.max(2, Number.parseInt(resolvedOptions.size || base.length, 10) || base.length)
+  const lockedPairs =
+    Array.isArray(resolvedOptions.lockedPairs) && resolvedOptions.lockedPairs.length > 0
+      ? resolvedOptions.lockedPairs
+      : []
+  const rawPool = dedupeRankedBySignature([...(base || []), ...(candidateCombos || [])])
+  const pool = rawPool.slice(0, 24)
+  if (pool.length < requiredSize) return null
+
+  const baseSigSet = new Set(base.map((combo) => buildSubsetSignature(combo?.subset || [])).filter(Boolean))
+  const protectedMatchKeys = new Set()
+  if (preserveBaseCoverage) {
+    base.forEach((combo) => {
+      getSubsetMatchKeys(combo?.subset || []).forEach((key) => {
+        if (key) protectedMatchKeys.add(key)
+      })
+    })
+  }
+
+  const poolKeys = pool.map((combo) => new Set(getSubsetMatchKeys(combo?.subset || [])))
+  const poolSigs = pool.map((combo) => buildSubsetSignature(combo?.subset || []))
+
+  let best = null
+  const chosenIdx = []
+
+  const evaluate = () => {
+    const selected = chosenIdx.map((idx) => pool[idx]).filter(Boolean)
+    if (selected.length !== requiredSize) return
+
+    if (preserveBaseCoverage && protectedMatchKeys.size > 0) {
+      const covered = new Set()
+      chosenIdx.forEach((idx) => {
+        poolKeys[idx].forEach((key) => covered.add(key))
+      })
+      for (const key of protectedMatchKeys) {
+        if (!covered.has(key)) return
+      }
+    }
+
+    const constraintSatisfiedCount =
+      directedConstraints.length > 0
+        ? directedConstraints.reduce(
+          (count, constraint) => count + (selected.some((combo) => comboSatisfiesDirectedConstraint(combo, constraint)) ? 1 : 0),
+          0,
+        )
+        : 0
+    let matrixDrift = 0
+    if (lockedPairs.length > 0) {
+      lockedPairs.forEach((pair) => {
+        const survives = selected.some((combo) =>
+          comboSatisfiesDirectedConstraint(combo, { fromKey: pair.fromKey, toKey: pair.toKey }),
+        )
+        if (Boolean(survives) !== Boolean(pair.survives)) matrixDrift += 1
+      })
+    }
+
+    let changedCount = 0
+    let utilitySum = 0
+    for (let i = 0; i < chosenIdx.length; i += 1) {
+      const idx = chosenIdx[i]
+      const sig = poolSigs[idx]
+      if (!baseSigSet.has(sig)) changedCount += 1
+      const utility = Number(pool[idx]?.utility)
+      utilitySum += Number.isFinite(utility) ? utility : 0
+    }
+    const preservedCount = requiredSize - changedCount
+
+    const candidate = {
+      selected,
+      constraintSatisfiedCount,
+      matrixDrift,
+      changedCount,
+      preservedCount,
+      utilitySum,
+      constraintSatisfied:
+        directedConstraints.length === 0 || constraintSatisfiedCount >= directedConstraints.length,
+    }
+
+    if (!best) {
+      best = candidate
+      return
+    }
+
+    if (candidate.constraintSatisfiedCount !== best.constraintSatisfiedCount) {
+      if (candidate.constraintSatisfiedCount > best.constraintSatisfiedCount) best = candidate
+      return
+    }
+    if (candidate.matrixDrift !== best.matrixDrift) {
+      if (candidate.matrixDrift < best.matrixDrift) best = candidate
+      return
+    }
+    if (candidate.changedCount !== best.changedCount) {
+      if (candidate.changedCount < best.changedCount) best = candidate
+      return
+    }
+    if (candidate.preservedCount !== best.preservedCount) {
+      if (candidate.preservedCount > best.preservedCount) best = candidate
+      return
+    }
+    if (candidate.utilitySum > best.utilitySum) best = candidate
+  }
+
+  const dfs = (start) => {
+    if (chosenIdx.length === requiredSize) {
+      evaluate()
+      return
+    }
+    const remainNeed = requiredSize - chosenIdx.length
+    for (let i = start; i <= pool.length - remainNeed; i += 1) {
+      chosenIdx.push(i)
+      dfs(i + 1)
+      chosenIdx.pop()
+    }
+  }
+
+  dfs(0)
+  return best
 }
 
 /* ── 方案A+C+D+E: Fault-tolerant covering + layered hedging ────────── */
@@ -1936,7 +2104,18 @@ const buildSubsetSignature = (subset) =>
     .sort()
     .join('|')
 
-const buildMatchRefKey = (item) => `${item.investmentId}-${item.matchIndex}`
+const buildMatchRefKey = (item) => {
+  const directKey = String(item?.key || '').trim()
+  if (directKey) return directKey
+  const investmentId = String(item?.investmentId || '').trim()
+  const matchIndexRaw = item?.matchIndex
+  const hasMatchIndex = matchIndexRaw !== undefined && matchIndexRaw !== null && String(matchIndexRaw).trim() !== ''
+  if (investmentId && hasMatchIndex) return `${investmentId}-${matchIndexRaw}`
+  const home = String(item?.homeTeam || '').trim()
+  const away = String(item?.awayTeam || '').trim()
+  if (home || away) return `${home}-${away}`
+  return ''
+}
 
 const dedupeRankedBySignature = (rankedRows) => {
   const next = []
@@ -3205,8 +3384,8 @@ export default function ComboPage({ openModal }) {
   const [expandedPortfolioIdxSet, setExpandedPortfolioIdxSet] = useState(() => new Set())
   const [showAllPortfolios, setShowAllPortfolios] = useState(false)
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false)
-  const [ftCellOverrides, setFtCellOverrides] = useState({}) // { portfolioIdx: { "rowKey|colKey": true/false } }
-  const [ftDirtyPortfolios, setFtDirtyPortfolios] = useState(() => new Set())
+  const [ftCellOverrides, setFtCellOverrides] = useState({}) // { portfolioKey: { "rowKey|colKey": "decouple"|"release" } }
+  const [ftDirtyPortfolios, setFtDirtyPortfolios] = useState(() => new Set()) // Set<portfolioKey>
   const [generationSummary, setGenerationSummary] = useState({
     totalInvest: 0,
     expectedReturnPercent: 0,
@@ -3707,7 +3886,7 @@ export default function ComboPage({ openModal }) {
           restoreCoverageTargetKeys,
           overlapTuning,
         )
-    setPortfolioAllocations(restoredAllocations)
+    setPortfolioAllocations(normalizePortfolioAllocations(restoredAllocations))
     const restoredMc =
       historyRow.mcSimResult && typeof historyRow.mcSimResult === 'object'
         ? historyRow.mcSimResult
@@ -3821,9 +4000,10 @@ export default function ComboPage({ openModal }) {
       selectedMatches.map((m) => getPortfolioCoverageKey(m)),
       overlapTuning,
     )
-    setPortfolioAllocations(allocations)
+    const normalizedAllocations = normalizePortfolioAllocations(allocations)
+    setPortfolioAllocations(normalizedAllocations)
     pushPlanHistory(generated, selectedMatches, riskPref, {
-      portfolioAllocations: allocations,
+      portfolioAllocations: normalizedAllocations,
       mcSimResult: mc,
     })
 
@@ -3905,10 +4085,10 @@ export default function ComboPage({ openModal }) {
         rankedAllocations = [allocations[satisfiedIdx], ...allocations.filter((_, idx) => idx !== satisfiedIdx)]
       }
     }
-    const nextAllocations = rankedAllocations.map((row, idx) => {
+    const nextAllocations = normalizePortfolioAllocations(rankedAllocations.map((row, idx) => {
       const pinned = pinGeneratedTop && idx === 0
       return row?.pinned === pinned ? row : { ...row, pinned }
-    })
+    }))
     setPortfolioAllocations(nextAllocations)
     if (pinGeneratedTop && hasDirectedConstraints && nextAllocations[0] && !nextAllocations[0].constraintSatisfied) {
       window.alert('当前容错约束在现有候选下无法完全满足，已给出最接近解。可减少翻转项或放宽阈值后重试。')
@@ -3952,10 +4132,12 @@ export default function ComboPage({ openModal }) {
   //               → generates a decoupling constraint for the algorithm
   //   'release'  = original ✓ flipped to ✗ = "I don't care about this dependency, free up room"
   //               → no constraint, just gives the algorithm more freedom
-  const handleFtCellToggle = (aIdx, rowKey, colKey, originalSurvives) => {
+  const handleFtCellToggle = (portfolioKeyInput, rowKey, colKey, originalSurvives) => {
+    const portfolioKey = String(portfolioKeyInput || '').trim()
+    if (!portfolioKey) return
     setFtCellOverrides((prev) => {
       const patchKey = `${rowKey}|${colKey}`
-      const existing = prev[aIdx] || {}
+      const existing = prev[portfolioKey] || {}
       const next = { ...existing }
       if (patchKey in next) {
         delete next[patchKey] // undo flip — restore to original
@@ -3964,15 +4146,17 @@ export default function ComboPage({ openModal }) {
         // originalSurvives=false (was ✗) → user flips to ✓ → 'decouple'
         next[patchKey] = originalSurvives ? 'release' : 'decouple'
       }
-      return { ...prev, [aIdx]: next }
+      return { ...prev, [portfolioKey]: next }
     })
-    setFtDirtyPortfolios((prev) => new Set([...prev, aIdx]))
+    setFtDirtyPortfolios((prev) => new Set([...prev, portfolioKey]))
   }
 
   // Fault tolerance matrix: row-level "reduce dependency" — marks ALL red cells in this row as desired-green
-  const handleFtRowReduce = (aIdx, rowKey, ftMatches, comboMatchSets) => {
+  const handleFtRowReduce = (portfolioKeyInput, rowKey, ftMatches, comboMatchSets) => {
+    const portfolioKey = String(portfolioKeyInput || '').trim()
+    if (!portfolioKey) return
     setFtCellOverrides((prev) => {
-      const existing = prev[aIdx] || {}
+      const existing = prev[portfolioKey] || {}
       const next = { ...existing }
       ftMatches.forEach((colMatch) => {
         if (colMatch.key === rowKey) return
@@ -3982,9 +4166,9 @@ export default function ComboPage({ openModal }) {
           next[patchKey] = 'decouple' // original ✗ → desired ✓
         }
       })
-      return { ...prev, [aIdx]: next }
+      return { ...prev, [portfolioKey]: next }
     })
-    setFtDirtyPortfolios((prev) => new Set([...prev, aIdx]))
+    setFtDirtyPortfolios((prev) => new Set([...prev, portfolioKey]))
   }
 
   // Fault tolerance matrix: confirm and regenerate with directed hard guarantees
@@ -3996,38 +4180,59 @@ export default function ComboPage({ openModal }) {
   //
   // The regenerated result should be surfaced as 【定制】 at position 0, so the user sees
   // the actual effect of matrix customization instead of a stale pre-regeneration snapshot.
-  const handleFtConfirmRegenerate = (aIdx) => {
-    const overrides = ftCellOverrides[aIdx] || {}
+  const handleFtConfirmRegenerate = (portfolioKeyInput) => {
+    const portfolioKey = String(portfolioKeyInput || '').trim()
+    if (!portfolioKey) return
+    const overrides = ftCellOverrides[portfolioKey] || {}
     const entries = Object.entries(overrides)
     if (entries.length === 0) return
-    // Only collect 'decouple' overrides (✗→✓) as actual constraints
-    // 'release' overrides (✓→✗) are intentional freedom grants — no constraint needed
-    const pairSet = new Set()
+    const decouplePairs = new Set()
+    const releasePairs = new Set()
     entries.forEach(([k, intent]) => {
-      if (intent !== 'decouple') return // skip 'release' — no constraint
       const [rk, ck] = k.split('|')
       if (!rk || !ck || rk === ck) return
-      pairSet.add(`${rk}|${ck}`)
+      if (intent === 'decouple') decouplePairs.add(`${rk}|${ck}`)
+      if (intent === 'release') releasePairs.add(`${rk}|${ck}`)
     })
-    const baseAlloc = portfolioAllocations[aIdx]
+    const baseAlloc = portfolioAllocations.find((row) => String(row?.portfolioKey || '').trim() === portfolioKey)
     const baseCombos = Array.isArray(baseAlloc?.combos) ? baseAlloc.combos.filter(Boolean) : []
     if (baseCombos.length < 2) {
       window.alert('当前组合包规模过小，无法基于容错矩阵重算。')
       return
     }
 
-    const directedConstraints = parseDirectedDecouplingConstraints(pairSet)
+    const directedConstraints = parseDirectedDecouplingConstraints(decouplePairs)
+    const baseMatchKeys = new Set()
+    baseCombos.forEach((combo) => {
+      getSubsetMatchKeys(combo?.subset || []).forEach((key) => {
+        if (key) baseMatchKeys.add(key)
+      })
+    })
+    const lockedPairs = []
+    const baseKeyList = [...baseMatchKeys]
+    for (let i = 0; i < baseKeyList.length; i += 1) {
+      for (let j = 0; j < baseKeyList.length; j += 1) {
+        if (i === j) continue
+        const fromKey = baseKeyList[i]
+        const toKey = baseKeyList[j]
+        const pairKey = `${fromKey}|${toKey}`
+        if (decouplePairs.has(pairKey) || releasePairs.has(pairKey)) continue
+        const survives = baseCombos.some((combo) => comboSatisfiesDirectedConstraint(combo, { fromKey, toKey }))
+        lockedPairs.push({ fromKey, toKey, survives })
+      }
+    }
     const fallbackCandidates = dedupeRankedBySignature([...recommendations, ...baseCombos])
-    const constrainedCombos =
-      directedConstraints.length > 0
-        ? enforceDirectedDecouplingHard(
-          baseCombos,
-          fallbackCandidates,
-          directedConstraints,
-          baseCombos.length,
-          { preserveBaseCoverage: true, referenceRows: baseCombos },
-        )
-        : baseCombos
+    const solved = solveConstrainedPortfolioFromBase(
+      baseCombos,
+      fallbackCandidates,
+      directedConstraints,
+      {
+        preserveBaseCoverage: true,
+        size: baseCombos.length,
+        lockedPairs,
+      },
+    )
+    const constrainedCombos = solved?.selected || null
 
     if (!constrainedCombos || constrainedCombos.length === 0) {
       window.alert('当前容错依赖约束在现有候选空间无可行解。已保留你的翻转设置，请减少翻转项后重试。')
@@ -4048,17 +4253,27 @@ export default function ComboPage({ openModal }) {
     }
 
     const preserved = portfolioAllocations
-      .filter((_, idx) => idx !== aIdx)
+      .filter((row) => String(row?.portfolioKey || '').trim() !== portfolioKey)
       .map((row) => (row?.pinned ? { ...row, pinned: false } : row))
-    const nextAllocations = [{ ...customRow, pinned: true }, ...preserved].slice(0, 10)
+    const nextAllocations = normalizePortfolioAllocations([{ ...customRow, pinned: true }, ...preserved].slice(0, 10))
     setPortfolioAllocations(nextAllocations)
     setExpandedPortfolioIdxSet(new Set([0]))
     setExpandedComboIdxSet(new Set())
     setShowAllPortfolios(false)
-    setFtCellOverrides({})
-    setFtDirtyPortfolios(new Set())
-    if (directedConstraints.length > 0 && !customRow.constraintSatisfied) {
-      window.alert('当前只找到部分满足约束的近似解。可继续减少翻转项提升可行性。')
+    setFtCellOverrides((prev) => {
+      const next = { ...prev }
+      delete next[portfolioKey]
+      return next
+    })
+    setFtDirtyPortfolios((prev) => {
+      const next = new Set(prev)
+      next.delete(portfolioKey)
+      return next
+    })
+    if (directedConstraints.length > 0 && solved && solved.constraintSatisfiedCount < directedConstraints.length) {
+      window.alert('当前只找到部分满足约束的近似解。你可以继续微调翻转。')
+    } else if (solved && solved.matrixDrift > 0) {
+      window.alert(`本次在满足约束前提下最小改动完成，未翻转关系有 ${solved.matrixDrift} 处发生变化。`)
     }
   }
 
@@ -4986,6 +5201,7 @@ export default function ComboPage({ openModal }) {
               </div>
               <div className="space-y-1.5">
                 {(showAllPortfolios ? portfolioAllocations : portfolioAllocations.slice(0, 6)).map((alloc, aIdx) => {
+                  const allocKey = String(alloc?.portfolioKey || `portfolio-${aIdx + 1}`)
                   const selectedCoverageTargetKeys = new Set(
                     selectedMatches
                       .map((m) => getPortfolioCoverageKey(m))
@@ -5012,7 +5228,7 @@ export default function ComboPage({ openModal }) {
                     : `理论${Number(alloc.totalTheoreticalWeightPct || 0).toFixed(1)}%`
 
                   return (
-                  <div key={aIdx}>
+                  <div key={allocKey}>
                     <div
                       onClick={() => togglePortfolioExpand(aIdx)}
                       className="motion-v2-row flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/70 border border-indigo-100/60 cursor-pointer hover:bg-white transition-all"
@@ -5145,8 +5361,8 @@ export default function ComboPage({ openModal }) {
                             ;(combo.subset || []).forEach((leg) => s.add(leg.key || `${leg.homeTeam}-${leg.awayTeam}`))
                             return s
                           })
-                          const overridesForThis = ftCellOverrides[aIdx] || {}
-                          const isDirty = ftDirtyPortfolios.has(aIdx) && Object.keys(overridesForThis).length > 0
+                          const overridesForThis = ftCellOverrides[allocKey] || {}
+                          const isDirty = ftDirtyPortfolios.has(allocKey) && Object.keys(overridesForThis).length > 0
                           return (
                             <div className="px-4 pb-2">
                               <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-[0.1em] mb-2">容错依赖矩阵</p>
@@ -5182,7 +5398,7 @@ export default function ComboPage({ openModal }) {
                                           return (
                                             <td key={colMatch.key} className="py-1.5 px-1.5 text-center">
                                               <button
-                                                onClick={() => handleFtCellToggle(aIdx, rowMatch.key, colMatch.key, survives)}
+                                                onClick={() => handleFtCellToggle(allocKey, rowMatch.key, colMatch.key, survives)}
                                                 className="ft-cell-btn inline-flex items-center justify-center w-5 h-5 rounded-md cursor-pointer transition-all duration-200 ease-out hover:scale-110 active:scale-95"
                                                 style={{ background: displayGreen ? 'rgba(236,253,245,1)' : isFlipped ? 'rgba(236,253,245,0.7)' : 'rgba(255,241,242,1)', border: isFlipped ? '1.5px solid rgba(99,102,241,0.35)' : '1px solid transparent' }}
                                                 title={displayGreen ? `${colMatch.shortLabel} 存活` : `${colMatch.shortLabel} 全军覆没 — 点击以要求容错`}
@@ -5199,7 +5415,7 @@ export default function ComboPage({ openModal }) {
                                         <td className="py-1.5 pl-1.5 pr-1">
                                           {redCount > 0 && (
                                             <button
-                                              onClick={() => handleFtRowReduce(aIdx, rowMatch.key, ftMatches, comboMatchSets)}
+                                              onClick={() => handleFtRowReduce(allocKey, rowMatch.key, ftMatches, comboMatchSets)}
                                               className="ft-dissolve-bar group flex items-center h-5 cursor-pointer"
                                               title={`降低 ${rowMatch.shortLabel} 的依赖性`}
                                             >
@@ -5216,7 +5432,7 @@ export default function ComboPage({ openModal }) {
                               </div>
                               {isDirty && (
                                 <button
-                                  onClick={() => handleFtConfirmRegenerate(aIdx)}
+                                  onClick={() => handleFtConfirmRegenerate(allocKey)}
                                   className="w-full mt-2 py-1.5 rounded-xl text-[11px] font-medium transition-all duration-200"
                                   style={{
                                     background: 'linear-gradient(90deg, rgba(16,185,129,0.08) 0%, rgba(20,184,166,0.08) 100%)',
