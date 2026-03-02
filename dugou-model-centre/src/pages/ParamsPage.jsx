@@ -4364,7 +4364,7 @@ export default function ParamsPage({ openModal }) {
         </div>
       </div>
 
-      <div className="console-interactive-surface glow-card mt-6 rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50/90 via-white/92 to-cyan-50/82 p-6 backdrop-blur-sm shadow-[0_18px_42px_rgba(56,189,248,0.16),inset_0_1px_0_rgba(255,255,255,0.88)]">
+      <div className="console-interactive-surface glow-card mt-6 mb-9 rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50/90 via-white/92 to-cyan-50/82 p-6 backdrop-blur-sm shadow-[0_18px_42px_rgba(56,189,248,0.16),inset_0_1px_0_rgba(255,255,255,0.88)]">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
