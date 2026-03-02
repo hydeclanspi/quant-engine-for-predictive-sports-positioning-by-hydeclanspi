@@ -37,7 +37,7 @@ export default function Modal({ data, onClose }) {
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-stone-800 text-lg">{data.title}</h3>
             {data.badge && (
-              <span className="inline-flex items-center rounded-full border border-cyan-200 bg-cyan-100/70 px-2 py-0.5 text-[10px] text-cyan-700 font-semibold">
+              <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-100/70 px-2 py-0.5 text-[10px] text-amber-800 font-semibold">
                 {data.badge}
               </span>
             )}
