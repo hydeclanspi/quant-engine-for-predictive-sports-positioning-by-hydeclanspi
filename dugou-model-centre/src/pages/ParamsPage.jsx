@@ -60,6 +60,7 @@ import {
   FUTURE_FEATURE_POINTS,
 } from '../data/futureFeaturesRoadmap'
 import { LogoGalleryExplorer, LogoGalleryPreview } from '../components/LogoGalleryExplorer'
+import TimeMachineModalContent from '../components/TimeMachineModalContent'
 import * as XLSX from 'xlsx'
 
 const TYS_BASE_FACTORS = {
@@ -3792,6 +3793,31 @@ export default function ParamsPage({ openModal }) {
     }
   }
 
+  const openTimeMachineModal = () => {
+    openModal({
+      title: '时光穿越机',
+      content: (
+        <TimeMachineModalContent
+          isInMode={tmIsInMode}
+          sessionInfo={tmSessionInfo}
+          snapshots={tmSnapshots}
+          page={tmPage}
+          totalPages={tmTotalPages}
+          loading={tmLoading}
+          error={tmError}
+          manualTitle={tmManualTitle}
+          saveStatus={tmSaveStatus}
+          onBeginSession={handleBeginTimeMachine}
+          onExitSession={handleExitTimeMachine}
+          onSaveSnapshot={handleSaveSnapshot}
+          onEnsureMonthly={handleEnsureMonthly}
+          onPageChange={setTmPage}
+          onTitleChange={setTmManualTitle}
+        />
+      ),
+    })
+  }
+
   const totalPreMatchWeight = useMemo(
     () => WEIGHT_FIELDS.reduce((sum, field) => sum + Number(config[field.key] || 0), 0),
     [config],
@@ -5353,10 +5379,9 @@ export default function ParamsPage({ openModal }) {
         </div>
       </div>
 
-      {/* Time Machine Card — Premium Design */}
+      {/* Time Machine Card — Entry Portal */}
       <div className="glow-card mt-6 rounded-2xl border border-blue-200/40 bg-[linear-gradient(135deg,rgba(240,249,255,0.5)_0%,rgba(255,255,255,0.7)_50%,rgba(225,242,251,0.4)_100%)] p-6 shadow-[0_24px_48px_-32px_rgba(59,130,246,0.28),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-[2px]">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-6">
+        <div className="flex items-start justify-between">
           <div className="flex items-start gap-3">
             <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-400/20 via-cyan-400/15 to-blue-300/10 border border-blue-300/30 flex items-center justify-center">
               <RotateCcw size={18} className="text-blue-600" strokeWidth={1.5} />
@@ -5366,122 +5391,22 @@ export default function ParamsPage({ openModal }) {
               <p className="text-[11px] text-stone-500 mt-1">浏览历史快照，查阅过往数据状态</p>
             </div>
           </div>
-          {tmIsInMode && tmSessionInfo && (
-            <button
-              onClick={handleExitTimeMachine}
-              disabled={tmLoading}
-              className="group relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-gradient-to-r from-red-50 to-red-50/50 text-red-700 border border-red-200/60 hover:border-red-300/80 hover:shadow-[0_4px_12px_rgba(239,68,68,0.15)] transition-all duration-200 disabled:opacity-50"
-            >
-              <X size={13} strokeWidth={2} /> 退出穿越
-            </button>
-          )}
+          <button
+            onClick={openTimeMachineModal}
+            className="px-4 py-2 rounded-lg text-[11px] font-semibold bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-[0_6px_16px_rgba(59,130,246,0.3)] transition-all duration-200 whitespace-nowrap"
+          >
+            打开
+          </button>
         </div>
 
-        {/* Current Session Info */}
+        {/* 如果已在穿越中，显示当前状态 */}
         {tmIsInMode && tmSessionInfo && (
-          <div className="mb-5 p-3.5 rounded-lg bg-gradient-to-r from-blue-100/50 to-cyan-100/40 border border-blue-200/50 backdrop-blur-sm">
+          <div className="mt-4 p-3.5 rounded-lg bg-gradient-to-r from-blue-100/50 to-cyan-100/40 border border-blue-200/50 backdrop-blur-sm">
             <p className="text-[11px] font-medium text-blue-900 mb-1">📍 当前快照</p>
             <p className="text-[12px] font-semibold text-blue-700">{tmSessionInfo.title}</p>
             <p className="text-[10px] text-blue-600/80 mt-1">{new Date(tmSessionInfo.snapshotAt).toLocaleString()}</p>
           </div>
         )}
-
-        {/* Content */}
-        <div className="space-y-4">
-          {!tmIsInMode && (
-            <>
-              {/* Snapshots List */}
-              <div>
-                <label className="text-[11px] font-semibold text-stone-700 block mb-3">历史快照库</label>
-                {tmError && <p className="text-[11px] text-red-600 mb-2 px-2.5 py-1.5 bg-red-50/80 rounded-lg border border-red-100">{tmError}</p>}
-                {tmLoading && tmSnapshots.length === 0 ? (
-                  <p className="text-xs text-stone-400 py-6 text-center">加载中...</p>
-                ) : tmSnapshots.length === 0 ? (
-                  <p className="text-xs text-stone-500 py-6 text-center bg-stone-50/50 rounded-lg border border-stone-100/80">暂无快照 · 手动保存或等待自动月度快照</p>
-                ) : (
-                  <div className="space-y-2">
-                    {tmSnapshots.map((snap) => (
-                      <div
-                        key={snap.id}
-                        className="group flex items-center justify-between p-3 rounded-lg border border-blue-100/60 bg-white/70 hover:bg-blue-50/60 hover:border-blue-200/80 transition-all duration-200 backdrop-blur-sm"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-semibold text-stone-800 truncate">{snap.meta?.title || 'Snapshot'}</p>
-                          <p className="text-[10px] text-stone-500 mt-0.5">
-                            {new Date(snap.updatedAt).toLocaleString()} · {snap.stats?.investmentCount || 0} investments · {snap.stats?.teamCount || 0} teams
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => handleBeginTimeMachine(snap.id)}
-                          disabled={tmLoading}
-                          className="ml-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-[0_6px_16px_rgba(59,130,246,0.3)] transition-all duration-200 disabled:opacity-50 whitespace-nowrap group-hover:scale-105 group-active:scale-95"
-                        >
-                          <RotateCcw size={10} strokeWidth={2} /> 穿越
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Pagination */}
-              {tmSnapshots.length > 0 && (
-                <div className="flex items-center justify-between gap-2 pt-2 border-t border-blue-100/50">
-                  <p className="text-[10px] text-stone-500">Page {tmPage} / {tmTotalPages}</p>
-                  <div className="flex gap-1">
-                    {[
-                      { disabled: tmPage <= 1, label: 'Prev', onClick: () => setTmPage(Math.max(1, tmPage - 1)) },
-                      { disabled: tmPage >= tmTotalPages, label: 'Next', onClick: () => setTmPage(Math.min(tmTotalPages, tmPage + 1)) },
-                    ].map((btn, idx) => (
-                      <button
-                        key={idx}
-                        onClick={btn.onClick}
-                        disabled={btn.disabled || tmLoading}
-                        className="px-2.5 py-1 rounded-lg text-[10px] font-medium border border-blue-200/60 bg-white/80 text-stone-600 hover:bg-blue-50/80 hover:border-blue-300/60 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        {btn.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Save Section */}
-              <div className="space-y-2.5 border-t border-blue-100/50 pt-4">
-                <label className="text-[11px] font-semibold text-stone-700 block">保存当前快照</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="可选：自定义标题"
-                    value={tmManualTitle}
-                    onChange={(e) => setTmManualTitle(e.target.value)}
-                    disabled={tmLoading}
-                    className="flex-1 px-3 py-2 rounded-lg border border-blue-200/50 bg-white/80 text-[11px] text-stone-700 placeholder-stone-400 outline-none focus:border-blue-400/80 focus:bg-white transition-all disabled:opacity-50 backdrop-blur-sm"
-                  />
-                  <button
-                    onClick={handleSaveSnapshot}
-                    disabled={tmLoading}
-                    className="px-3 py-2 rounded-lg text-[10px] font-semibold bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:shadow-[0_6px_16px_rgba(16,185,129,0.3)] transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
-                  >
-                    <Plus size={11} className="inline mr-1" strokeWidth={2} />手动保存
-                  </button>
-                  <button
-                    onClick={handleEnsureMonthly}
-                    disabled={tmLoading}
-                    className="px-3 py-2 rounded-lg text-[10px] font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:shadow-[0_6px_16px_rgba(168,85,247,0.3)] transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
-                  >
-                    📅 封存本月
-                  </button>
-                </div>
-                {tmSaveStatus && (
-                  <p className={`text-[10px] mt-2 px-2.5 py-1.5 rounded-lg ${tmSaveStatus.includes('Failed') || tmSaveStatus.includes('Error') ? 'bg-red-50/80 text-red-700 border border-red-100' : 'bg-emerald-50/80 text-emerald-700 border border-emerald-100'}`}>
-                    {tmSaveStatus}
-                  </p>
-                )}
-              </div>
-            </>
-          )}
-        </div>
       </div>
 
       <div className="glow-card mt-12 rounded-2xl border border-sky-100/85 bg-[linear-gradient(160deg,rgba(248,252,255,0.94),rgba(255,255,255,0.94)_50%,rgba(241,249,255,0.88))] p-4 sm:p-5 shadow-[0_18px_34px_-30px_rgba(56,189,248,0.38),inset_0_1px_0_rgba(255,255,255,0.9)]">
