@@ -341,17 +341,17 @@ export default function MetricsPage({ openModal }) {
     },
     {
       id: 'maxWin',
-      label: '最大单笔盈利',
+      label: '最大单场盈利',
       value: signed(snapshot.headline.maxWin, 0),
-      description: '历史最高单笔收益',
+      description: '历史最高单场收益',
       IconComp: TrendingUp,
       tone: 'sky',
     },
     {
       id: 'maxLoss',
-      label: '最大单笔亏损',
+      label: '最大单场亏损',
       value: signed(snapshot.headline.maxLoss, 0),
-      description: '历史最大单笔亏损',
+      description: '历史最大单场亏损',
       IconComp: TrendingDown,
       tone: 'rose',
     },
@@ -447,13 +447,13 @@ export default function MetricsPage({ openModal }) {
         ]
       case 'maxWin':
         return [
-          { label: '最大单笔盈利', value: signed(snapshot.headline.maxWin, 0), tone: 'positive' },
+          { label: '最大单场盈利', value: signed(snapshot.headline.maxWin, 0), tone: 'positive' },
           { label: '连胜最高', value: `${snapshot.headline.maxWinStreak} 场` },
           { label: '命中率', value: `${snapshot.headline.hitRate.toFixed(1)}%`, tone: snapshot.headline.hitRate >= 50 ? 'positive' : 'negative' },
         ]
       case 'maxLoss':
         return [
-          { label: '最大单笔亏损', value: signed(snapshot.headline.maxLoss, 0), tone: 'negative' },
+          { label: '最大单场亏损', value: signed(snapshot.headline.maxLoss, 0), tone: 'negative' },
           { label: '连败最高', value: `${snapshot.headline.maxLoseStreak} 场` },
           { label: '最大回撤', value: `-${snapshot.risk.maxDrawdown.toFixed(2)}%`, tone: 'negative' },
         ]

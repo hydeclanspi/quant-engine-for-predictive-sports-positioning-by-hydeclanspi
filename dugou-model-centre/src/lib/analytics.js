@@ -3008,6 +3008,35 @@ const calcStreaks = (settledInvestments) => {
   return { maxWin, maxLose }
 }
 
+const calcMatchStreaks = (splitMatches) => {
+  const sorted = [...splitMatches].sort((a, b) => {
+    const ta = new Date(a?.created_at || 0).getTime()
+    const tb = new Date(b?.created_at || 0).getTime()
+    if (ta !== tb) return ta - tb
+    return Number(a?.match_index || 0) - Number(b?.match_index || 0)
+  })
+  let maxWin = 0
+  let maxLose = 0
+  let curWin = 0
+  let curLose = 0
+
+  sorted.forEach((match) => {
+    if (match?.is_correct === true) {
+      curWin += 1
+      curLose = 0
+    } else if (match?.is_correct === false) {
+      curLose += 1
+      curWin = 0
+    } else {
+      return
+    }
+    if (curWin > maxWin) maxWin = curWin
+    if (curLose > maxLose) maxLose = curLose
+  })
+
+  return { maxWin, maxLose }
+}
+
 export const getAnalysisSnapshot = (periodKey = 'all') => {
   const cacheKey = getRevisionCacheKey('analysis', periodKey)
   const cached = analyticsMemo.analysis.get(cacheKey)
@@ -3212,16 +3241,17 @@ export const getMetricsSnapshot = (periodKey = 'all') => {
   const totalInputs = settled.reduce((sum, item) => sum + Math.max(0, toNumber(item.inputs)), 0)
   const totalProfit = settled.reduce((sum, item) => sum + toNumber(item.profit), 0)
   const roi = calcRoi(totalProfit, totalInputs)
-  const wins = settled.filter((item) => item.status === 'win').length
-  const hitRate = settled.length > 0 ? (wins / settled.length) * 100 : 0
+  const settledMatchRows = splitMatches.filter((match) => typeof match?.is_correct === 'boolean')
+  const matchWins = settledMatchRows.filter((match) => match.is_correct === true).length
+  const hitRate = settledMatchRows.length > 0 ? (matchWins / settledMatchRows.length) * 100 : 0
   const avgExpectedEdge =
     splitMatches.length > 0
       ? splitMatches.reduce((sum, match) => sum + (toNumber(match.conf) * toNumber(match.odds) - 1), 0) / splitMatches.length
       : 0
 
-  const maxWin = settled.reduce((max, item) => Math.max(max, toNumber(item.profit)), 0)
-  const maxLoss = settled.reduce((min, item) => Math.min(min, toNumber(item.profit)), 0)
-  const streaks = calcStreaks(settled)
+  const maxWin = splitMatches.reduce((max, match) => Math.max(max, toNumber(match.allocated_profit)), 0)
+  const maxLoss = splitMatches.reduce((min, match) => Math.min(min, toNumber(match.allocated_profit)), 0)
+  const streaks = calcMatchStreaks(splitMatches)
 
   const volatility = calcStdDev(returns) * 100
   const meanReturn = returns.length > 0 ? returns.reduce((sum, value) => sum + value, 0) / returns.length : 0
