@@ -102,6 +102,17 @@ const formatProfit = (profit) => {
   return String(profit)
 }
 
+const formatRoi = (profit, inputs) => {
+  const p = Number.parseFloat(profit)
+  const i = Number.parseFloat(inputs)
+  if (!Number.isFinite(p) || !Number.isFinite(i) || i <= 0) return '-'
+  const roiPercent = (p / i) * 100
+  if (roiPercent <= -99.95) return '--'
+  const rounded = Number(roiPercent.toFixed(1))
+  const sign = rounded > 0 ? '+' : ''
+  return `${sign}${rounded.toFixed(1)}%`
+}
+
 const getDisplayStatus = (item) => {
   const rawStatus = item.status || 'pending'
   if (rawStatus === 'pending') return 'pending'
@@ -342,6 +353,7 @@ const buildRow = (item) => {
     status,
     isArchived: Boolean(item.is_archived),
     profit: formatProfit(item.profit),
+    roi: formatRoi(item.profit, item.inputs),
     preNote: parlaySize > 1 ? (preNote === '-' ? '-' : '见分场赛前备注') : preNote,
     postNote: item.remarks || '-',
     leagues: [...new Set(matchRows.map((entry) => entry.league).filter(Boolean))],
@@ -391,6 +403,7 @@ const buildDataRows = (investments) => {
           ? (totalRevenues * odds) / oddsSum
           : Number.NaN
       const allocatedProfit = Number.isFinite(weightedRevenue) ? weightedRevenue - perInput : fallbackPerProfit
+      const normalizedProfit = Number.isFinite(allocatedProfit) ? Number(allocatedProfit.toFixed(2)) : Number.NaN
       const matchStatus = getMatchStatus(match)
       const status =
         investmentStatus === 'pending'
@@ -425,7 +438,8 @@ const buildDataRows = (investments) => {
         profit:
           investmentStatus === 'pending'
             ? '-'
-            : formatProfit(Number.isFinite(allocatedProfit) ? Number(allocatedProfit.toFixed(2)) : Number.NaN),
+            : formatProfit(normalizedProfit),
+        roi: investmentStatus === 'pending' ? '-' : formatRoi(normalizedProfit, perInput),
         preNote: match.note || '-',
         postNote: match.post_note || '-',
       }
@@ -725,6 +739,7 @@ export default function HistoryPage() {
                 <th className="px-3 py-3 text-left font-medium">Results</th>
                 <th className="px-3 py-3 text-left font-medium">AJR</th>
                 <th className="px-3 py-3 text-left font-medium">盈亏</th>
+                <th className="px-3 py-3 text-left font-medium">ROI</th>
                 <th className="px-3 py-3 text-right font-medium">
                   <div className="inline-flex items-center gap-2">
                     <span>操作</span>
@@ -815,6 +830,13 @@ export default function HistoryPage() {
                     >
                       {row.profit}
                     </td>
+                    <td
+                      className={`px-3 py-2.5 font-semibold ${
+                        row.roi === '-' || row.roi === '--' ? 'text-stone-400' : row.roi.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'
+                      }`}
+                    >
+                      {row.roi === '-' ? '—' : row.roi}
+                    </td>
                     <td className="px-3 py-2.5 text-right">
                       <button
                         onClick={(event) => handleToggleArchive(row.id, row.isArchived, event)}
@@ -837,7 +859,7 @@ export default function HistoryPage() {
 
                   {isSolo && isExpanded && (
                     <tr className="history-expand-row border-t border-stone-100 bg-white text-[11px]">
-                      <td colSpan={7} className="px-3 py-2.5">
+                      <td colSpan={8} className="px-3 py-2.5">
                         <div className="history-expand-content flex flex-wrap items-center gap-x-4 gap-y-2" style={{ '--history-expand-delay': expandDelay }}>
                           <div className="flex items-center gap-1.5">
                             <span className="text-stone-400">状态</span>
@@ -868,7 +890,7 @@ export default function HistoryPage() {
 
                   {!isSolo && isExpanded && (
                     <tr className="history-expand-row border-t border-stone-100 bg-stone-50/60 text-[11px]">
-                      <td colSpan={7} className="px-4 py-4">
+                      <td colSpan={8} className="px-4 py-4">
                         <div className="history-expand-content rounded-xl border border-stone-200 bg-white p-4" style={{ '--history-expand-delay': expandDelay }}>
                           <div className="space-y-2">
                             {row.matchRows.map((matchRow, matchIndex) => (
@@ -959,7 +981,7 @@ export default function HistoryPage() {
 
               {filteredRows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-16 text-center">
+                  <td colSpan={8} className="px-6 py-16 text-center">
                     <p className="text-sm text-stone-500">还没有匹配的数据，先去「新建投资」录入一条吧。</p>
                   </td>
                 </tr>
@@ -982,6 +1004,7 @@ export default function HistoryPage() {
                   <th className="px-2 py-3 text-left font-medium">Inputs</th>
                   <th className="px-2 py-3 text-left font-medium">状态</th>
                   <th className="px-2 py-3 text-left font-medium">盈亏</th>
+                  <th className="px-2 py-3 text-left font-medium">ROI</th>
                   <th className="px-2 py-3 text-left font-medium">赛前备注</th>
                   <th className="px-2 py-3 text-left font-medium">赛后备注</th>
                   <th className="px-2 py-3 text-right font-medium">操作</th>
@@ -1015,6 +1038,13 @@ export default function HistoryPage() {
                       }`}
                     >
                       {row.profit}
+                    </td>
+                    <td
+                      className={`px-2 py-2.5 font-semibold ${
+                        row.roi === '-' || row.roi === '--' ? 'text-stone-400' : row.roi.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'
+                      }`}
+                    >
+                      {row.roi === '-' ? '—' : row.roi}
                     </td>
                     <td className="px-2 py-2.5 max-w-32">
                       {hasNoteContent(row.preNote) ? (
