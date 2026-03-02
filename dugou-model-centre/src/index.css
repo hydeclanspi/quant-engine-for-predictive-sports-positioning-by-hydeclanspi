@@ -6087,3 +6087,19 @@
 }
 
 /* Time Machine Icon - Removed spinReverse, using static design with SVG shadows */
+
+/* Time Machine Icon Pulse Animation — Subtle space-time distortion effect */
+@keyframes tmIconPulse {
+  0%, 100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.3));
+  }
+  50% {
+    opacity: 0.75;
+    filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.5)) drop-shadow(0 0 20px rgba(6, 182, 212, 0.2));
+  }
+}
+
+.tm-icon-pulse {
+  animation: tmIconPulse 8s ease-in-out infinite;
+}

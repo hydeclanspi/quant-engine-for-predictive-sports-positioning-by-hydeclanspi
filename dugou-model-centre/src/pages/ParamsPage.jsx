@@ -5389,7 +5389,7 @@ export default function ParamsPage({ openModal }) {
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
               <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-cyan-200 bg-white/80">
-                <TimeMachineIcon size={16} />
+                <TimeMachineIcon size={16} className="tm-icon-pulse" />
               </span>
               <span className="text-xs text-cyan-700 font-medium uppercase tracking-[0.1em]">时光穿越机</span>
             </div>
