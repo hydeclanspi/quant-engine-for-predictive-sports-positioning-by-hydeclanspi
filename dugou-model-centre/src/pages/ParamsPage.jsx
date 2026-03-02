@@ -7,15 +7,19 @@ import {
   Clock3,
   Cloud,
   Database,
+  Download,
   FileSpreadsheet,
+  Hourglass,
   LayoutDashboard,
   LineChart,
   Palette,
+  Plus,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
   TrendingUp,
   Wallet,
+  X,
 } from 'lucide-react'
 import {
   computeAdaptiveWeightSuggestions,
@@ -39,6 +43,13 @@ import {
   runCloudSyncNow,
   saveSystemConfig,
   setCloudSyncEnabled,
+  isInTimeMachineMode,
+  getTimeMachineSessionInfo,
+  beginTimeMachineSession,
+  endTimeMachineSession,
+  listHistoricalSnapshots,
+  saveSnapshot,
+  ensureCurrentMonthSnapshot,
 } from '../lib/localData'
 import { getPrimaryEntryMarket, normalizeEntryRecord } from '../lib/entryParsing'
 import {
@@ -2378,6 +2389,16 @@ export default function ParamsPage({ openModal }) {
   const excelInputRef = useRef(null)
   const jsonInputRef = useRef(null)
   const [jsonStatus, setJsonStatus] = useState('')
+  // Time Machine
+  const [tmLoading, setTmLoading] = useState(false)
+  const [tmError, setTmError] = useState('')
+  const [tmSnapshots, setTmSnapshots] = useState([])
+  const [tmPage, setTmPage] = useState(1)
+  const [tmTotalPages, setTmTotalPages] = useState(1)
+  const [tmManualTitle, setTmManualTitle] = useState('')
+  const [tmSaveStatus, setTmSaveStatus] = useState('')
+  const [tmIsInMode, setTmIsInMode] = useState(isInTimeMachineMode())
+  const [tmSessionInfo, setTmSessionInfo] = useState(() => getTimeMachineSessionInfo())
   const [accessLogPage, setAccessLogPage] = useState(1)
   const [selectedAccessMonth, setSelectedAccessMonth] = useState(() => getAccessMonthKey(Date.now()))
   const [fitTrajectoryMode, setFitTrajectoryMode] = useState('9')
@@ -2387,15 +2408,39 @@ export default function ParamsPage({ openModal }) {
     const refresh = () => {
       setSyncStatus(getCloudSyncStatus())
       setDataVersion((prev) => prev + 1)
+      setTmIsInMode(isInTimeMachineMode())
+      setTmSessionInfo(getTimeMachineSessionInfo())
     }
     window.addEventListener('dugou:data-changed', refresh)
-    return () => window.removeEventListener('dugou:data-changed', refresh)
+    window.addEventListener('dugou:time-machine-changed', refresh)
+    return () => {
+      window.removeEventListener('dugou:data-changed', refresh)
+      window.removeEventListener('dugou:time-machine-changed', refresh)
+    }
   }, [])
 
   useEffect(() => {
     const timer = window.setInterval(() => setNowTick(Date.now()), 60 * 1000)
     return () => window.clearInterval(timer)
   }, [])
+
+  // Load time machine snapshots
+  useEffect(() => {
+    const loadSnapshots = async () => {
+      setTmLoading(true)
+      setTmError('')
+      const result = await listHistoricalSnapshots(tmPage, 6)
+      if (result.ok) {
+        setTmSnapshots(result.rows || [])
+        const totalPages = Math.ceil((result.total || 0) / 6)
+        setTmTotalPages(totalPages)
+      } else {
+        setTmError(result.reason || 'Failed to load snapshots')
+      }
+      setTmLoading(false)
+    }
+    loadSnapshots()
+  }, [tmPage])
 
   useEffect(() => {
     let cancelled = false
@@ -3669,6 +3714,80 @@ export default function ParamsPage({ openModal }) {
     } finally {
       setPullingCloud(false)
       window.setTimeout(() => setCloudPullStatus(''), 2200)
+    }
+  }
+
+  // Time Machine handlers
+  const handleBeginTimeMachine = async (snapshotId) => {
+    setTmLoading(true)
+    setTmError('')
+    try {
+      const result = await beginTimeMachineSession(snapshotId)
+      if (result.ok) {
+        setTmIsInMode(true)
+        setTmSessionInfo(result.session)
+        setDataVersion((prev) => prev + 1)
+      } else {
+        setTmError(result.reason || 'Failed to enter time machine')
+      }
+    } catch (err) {
+      setTmError('Error entering time machine')
+    } finally {
+      setTmLoading(false)
+    }
+  }
+
+  const handleExitTimeMachine = async () => {
+    setTmLoading(true)
+    try {
+      const result = await endTimeMachineSession()
+      if (result.ok) {
+        setTmIsInMode(false)
+        setTmSessionInfo(null)
+        setDataVersion((prev) => prev + 1)
+      }
+    } finally {
+      setTmLoading(false)
+    }
+  }
+
+  const handleSaveSnapshot = async () => {
+    const title = String(tmManualTitle || '').trim() || `Manual Snapshot ${new Date().toLocaleString()}`
+    setTmLoading(true)
+    setTmSaveStatus('')
+    try {
+      const result = await saveSnapshot(title, 'manual')
+      if (result.ok) {
+        setTmSaveStatus('Snapshot saved successfully')
+        setTmManualTitle('')
+        setTmPage(1) // Reload first page
+      } else {
+        setTmSaveStatus(`Failed to save: ${result.reason}`)
+      }
+    } catch (err) {
+      setTmSaveStatus('Error saving snapshot')
+    } finally {
+      setTmLoading(false)
+      setTimeout(() => setTmSaveStatus(''), 2200)
+    }
+  }
+
+  const handleEnsureMonthly = async () => {
+    setTmLoading(true)
+    setTmSaveStatus('')
+    try {
+      const result = await ensureCurrentMonthSnapshot()
+      if (result.ok) {
+        setTmSaveStatus(result.created ? 'Monthly snapshot created' : 'Monthly snapshot already exists')
+        setTmPage(1) // Reload first page
+      } else {
+        setTmSaveStatus(`Failed: ${result.reason}`)
+      }
+    } catch (err) {
+      setTmSaveStatus('Error')
+    } finally {
+      setTmLoading(false)
+      setTimeout(() => setTmSaveStatus(''), 2200)
     }
   }
 
@@ -5230,6 +5349,127 @@ export default function ParamsPage({ openModal }) {
           <button onClick={() => jsonInputRef.current?.click()} className="btn-primary btn-hover">
             导入 JSON
           </button>
+        </div>
+      </div>
+
+      {/* Time Machine Card */}
+      <div className="glow-card mt-6 rounded-2xl border border-blue-100/80 bg-gradient-to-br from-blue-50/92 via-white/95 to-cyan-50/88 p-6 shadow-[0_20px_40px_-28px_rgba(59,130,246,0.35),inset_0_1px_0_rgba(255,255,255,0.92)]">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-medium text-stone-700 flex items-center gap-2">
+            <ConsoleCardIcon IconComp={Hourglass} /> 时光穿越机
+          </h3>
+          {tmIsInMode && tmSessionInfo && (
+            <button
+              onClick={handleExitTimeMachine}
+              disabled={tmLoading}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-red-100 text-red-700 border border-red-200 hover:border-red-300 hover:bg-red-150 transition-colors disabled:opacity-50"
+            >
+              <X size={12} /> 退出穿越
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-stone-400 mb-4">
+          浏览历史快照中的应用数据。快照包含所有投资记录、系统配置与球队数据。当前session级只读模式，刷新页面自动退出。
+        </p>
+
+        {tmIsInMode && tmSessionInfo && (
+          <div className="mb-4 p-3 rounded-lg bg-blue-100/40 border border-blue-200/60">
+            <p className="text-[11px] font-medium text-blue-700 mb-1">当前快照：{tmSessionInfo.title}</p>
+            <p className="text-[10px] text-blue-600">{new Date(tmSessionInfo.snapshotAt).toLocaleString()}</p>
+          </div>
+        )}
+
+        <div className="space-y-4">
+          {!tmIsInMode && (
+            <>
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <label className="text-[11px] font-semibold text-stone-600 block mb-1.5">快照列表（按时间倒序）</label>
+                  {tmError && <p className="text-[11px] text-red-600 mb-2">{tmError}</p>}
+                  {tmLoading && tmSnapshots.length === 0 ? (
+                    <p className="text-xs text-stone-400 py-4 text-center">加载中...</p>
+                  ) : tmSnapshots.length === 0 ? (
+                    <p className="text-xs text-stone-400 py-4 text-center">暂无快照，手动保存或等待自动月度快照</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {tmSnapshots.map((snap) => (
+                        <div key={snap.id} className="flex items-center justify-between p-2.5 rounded-lg border border-blue-200/70 bg-white/60 hover:bg-blue-50/50 transition-colors">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-medium text-stone-700 truncate">{snap.meta?.title || 'Snapshot'}</p>
+                            <p className="text-[10px] text-stone-400">
+                              {new Date(snap.updatedAt).toLocaleString()} · {snap.stats?.investmentCount || 0} inv · {snap.stats?.teamCount || 0} teams
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleBeginTimeMachine(snap.id)}
+                            disabled={tmLoading}
+                            className="ml-2 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50 whitespace-nowrap"
+                          >
+                            <Download size={11} className="inline mr-1" /> 穿越
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {tmSnapshots.length > 0 && (
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-blue-200/50">
+                  <p className="text-[10px] text-stone-400">Page {tmPage} / {tmTotalPages}</p>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setTmPage(Math.max(1, tmPage - 1))}
+                      disabled={tmPage <= 1 || tmLoading}
+                      className="px-2 py-1 rounded text-[10px] border border-blue-200 bg-white hover:bg-blue-50 disabled:opacity-50"
+                    >
+                      Prev
+                    </button>
+                    <button
+                      onClick={() => setTmPage(Math.min(tmTotalPages, tmPage + 1))}
+                      disabled={tmPage >= tmTotalPages || tmLoading}
+                      className="px-2 py-1 rounded text-[10px] border border-blue-200 bg-white hover:bg-blue-50 disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="border-t border-blue-200/50 pt-4">
+                <label className="text-[11px] font-semibold text-stone-600 block mb-2">保存当前数据快照</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="可选：自定义快照标题"
+                    value={tmManualTitle}
+                    onChange={(e) => setTmManualTitle(e.target.value)}
+                    disabled={tmLoading}
+                    className="flex-1 px-2.5 py-1.5 rounded-lg border border-blue-200/70 bg-white text-[11px] outline-none focus:border-blue-400 disabled:opacity-50"
+                  />
+                  <button
+                    onClick={handleSaveSnapshot}
+                    disabled={tmLoading}
+                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 whitespace-nowrap"
+                  >
+                    <Plus size={12} className="inline mr-1" /> 手动保存
+                  </button>
+                  <button
+                    onClick={handleEnsureMonthly}
+                    disabled={tmLoading}
+                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-purple-500 text-white hover:bg-purple-600 transition-colors disabled:opacity-50 whitespace-nowrap"
+                  >
+                    封存本月
+                  </button>
+                </div>
+                {tmSaveStatus && (
+                  <p className={`text-[10px] mt-1.5 ${tmSaveStatus.includes('Failed') || tmSaveStatus.includes('Error') ? 'text-red-600' : 'text-emerald-600'}`}>
+                    {tmSaveStatus}
+                  </p>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 

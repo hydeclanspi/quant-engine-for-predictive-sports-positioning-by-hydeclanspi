@@ -1,4 +1,19 @@
-import { fetchLatestSnapshot, getCloudSyncState, saveCloudSyncState, scheduleSnapshotSync, syncSnapshotNow } from './cloudSync'
+import {
+  fetchLatestSnapshot,
+  getCloudSyncState,
+  saveCloudSyncState,
+  scheduleSnapshotSync,
+  syncSnapshotNow,
+  getTimeMachineSession,
+  startTimeMachineSession,
+  exitTimeMachineSession,
+  isInTimeMachineSession,
+  getTimeMachineMonthKey,
+  listTimeMachineSnapshots,
+  fetchTimeMachineSnapshotById,
+  saveTimeMachineSnapshot,
+  ensureMonthlyTimeMachineSnapshot,
+} from './cloudSync'
 import { getPrimaryEntryMarket, normalizeEntries } from './entryParsing'
 import { calcAtomicEquivalentOdds } from './atomicParlay'
 import genesisBundle from '../data/genesisBundle.json'
@@ -279,6 +294,41 @@ const writeJSON = (key, value) => {
   }
 }
 
+// ── Time Machine data override layer ──
+const getTimeMachineDataOverride = (key) => {
+  if (!isBrowser) return null
+  const session = getTimeMachineSession()
+  if (!session || !session.bundle) return null
+
+  switch (key) {
+    case STORAGE_KEYS.investments:
+      return Array.isArray(session.bundle.investments) ? session.bundle.investments : null
+    case STORAGE_KEYS.teamProfiles:
+      return Array.isArray(session.bundle.team_profiles) ? session.bundle.team_profiles : null
+    case STORAGE_KEYS.systemConfig:
+      return session.bundle.system_config && typeof session.bundle.system_config === 'object'
+        ? session.bundle.system_config
+        : null
+    default:
+      return null
+  }
+}
+
+// 只读检查
+export const isInTimeMachineMode = () => isInTimeMachineSession()
+
+export const getTimeMachineSessionInfo = () => {
+  const session = getTimeMachineSession()
+  if (!session) return null
+  return {
+    snapshotId: session.snapshotId,
+    title: session.title,
+    monthKey: session.monthKey,
+    snapshotAt: session.snapshotAt,
+    startedAt: session.startedAt,
+  }
+}
+
 const withTeamDefaults = (profile) => ({
   teamId: profile.teamId,
   teamName: profile.teamName,
@@ -316,6 +366,20 @@ const normalizeAccessLogRecord = (record) => {
 }
 
 export const getSystemConfig = () => {
+  // 时光穿越模式优先 - 但保留UI偏好（pageAmbientThemes）
+  const tmOverride = getTimeMachineDataOverride(STORAGE_KEYS.systemConfig)
+  if (tmOverride !== null) {
+    const merged = { ...DEFAULT_SYSTEM_CONFIG, ...tmOverride }
+    // 时光穿越中不覆写UI偏好，使用当前的页面主题
+    const currentConfig = readJSON(STORAGE_KEYS.systemConfig, null)
+    if (currentConfig?.pageAmbientThemes) {
+      merged.pageAmbientThemes = normalizePageAmbientThemes(currentConfig.pageAmbientThemes)
+    } else {
+      merged.pageAmbientThemes = normalizePageAmbientThemes(tmOverride?.pageAmbientThemes)
+    }
+    return merged
+  }
+
   ensureGenesisApplied()
   const saved = readJSON(STORAGE_KEYS.systemConfig, null)
   const merged = { ...DEFAULT_SYSTEM_CONFIG, ...(saved || {}) }
@@ -324,18 +388,33 @@ export const getSystemConfig = () => {
 }
 
 export const saveSystemConfig = (configPatch) => {
+  // 允许保存UI相关配置即使在时光穿越模式中
+  if (!configPatch) return getSystemConfig()
+
   const current = getSystemConfig()
   const next = {
     ...current,
     ...(configPatch || {}),
   }
+
+  // 如果只是改变pageAmbientThemes（UI偏好），即使在时光穿越中也允许
+  const isOnlyUIConfig = Object.keys(configPatch).every(key => key === 'pageAmbientThemes')
+  if (!isOnlyUIConfig && !checkReadOnlyMode('Update System Config')) {
+    // 返回当前配置但不保存
+    return next
+  }
+
   if (Object.prototype.hasOwnProperty.call(configPatch || {}, 'pageAmbientThemes')) {
     next.pageAmbientThemes = normalizePageAmbientThemes({
       ...current.pageAmbientThemes,
       ...((configPatch && configPatch.pageAmbientThemes) || {}),
     })
   }
-  writeJSON(STORAGE_KEYS.systemConfig, next)
+
+  if (isOnlyUIConfig || isInTimeMachineMode() === false) {
+    writeJSON(STORAGE_KEYS.systemConfig, next)
+  }
+
   return next
 }
 
@@ -359,6 +438,13 @@ export const addCapitalInjection = (amount, note = '') => {
 }
 
 export const getTeamProfiles = () => {
+  // 时光穿越模式优先
+  const tmOverride = getTimeMachineDataOverride(STORAGE_KEYS.teamProfiles)
+  if (tmOverride !== null) {
+    const data = Array.isArray(tmOverride) ? tmOverride : []
+    return data.map(withTeamDefaults)
+  }
+
   ensureGenesisApplied()
   applyManualDataPatchV20260206()
   const saved = readJSON(STORAGE_KEYS.teamProfiles, null)
@@ -899,6 +985,15 @@ const ensureGenesisApplied = () => {
 }
 
 export const getInvestments = () => {
+  // 时光穿越模式优先
+  const tmOverride = getTimeMachineDataOverride(STORAGE_KEYS.investments)
+  if (tmOverride !== null) {
+    const data = Array.isArray(tmOverride) ? tmOverride : []
+    return data
+      .map((item) => normalizeInvestmentRecord(item))
+      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+  }
+
   ensureGenesisApplied()
   applyManualDataPatchV20260205()
   applyManualDataPatchV20260206()
@@ -946,7 +1041,16 @@ export const appendAccessLog = (record, options = {}) => {
   return normalized
 }
 
+const checkReadOnlyMode = (operationName = 'Operation') => {
+  if (isInTimeMachineMode()) {
+    console.warn(`[DuGou] 时光穿越中：${operationName}已禁用，仅浏览历史快照。`)
+    return false
+  }
+  return true
+}
+
 export const saveInvestment = (investment) => {
+  if (!checkReadOnlyMode('New Investment')) return null
   const existing = getInvestments()
   const normalized = normalizeInvestmentRecord(investment)
   const next = [normalized, ...existing]
@@ -955,6 +1059,7 @@ export const saveInvestment = (investment) => {
 }
 
 export const updateInvestment = (investmentId, updater) => {
+  if (!checkReadOnlyMode('Update Investment')) return null
   const existing = getInvestments()
   let changed = false
 
@@ -971,6 +1076,7 @@ export const updateInvestment = (investmentId, updater) => {
 }
 
 export const deleteInvestment = (investmentId) => {
+  if (!checkReadOnlyMode('Delete Investment')) return false
   const existing = getInvestments()
   const next = existing.filter((item) => item.id !== investmentId)
   if (next.length === existing.length) return false
@@ -979,6 +1085,7 @@ export const deleteInvestment = (investmentId) => {
 }
 
 export const setInvestmentArchived = (investmentId, archived = true) => {
+  if (!checkReadOnlyMode('Archive Investment')) return false
   const updated = updateInvestment(investmentId, (previous) => ({
     ...previous,
     is_archived: Boolean(archived),
@@ -1057,4 +1164,50 @@ export const pullCloudSnapshotNow = async (mode = 'merge') => {
     applied: true,
     mode: normalizedMode,
   }
+}
+
+// ── Time Machine Public API ──
+
+export const beginTimeMachineSession = async (snapshotId) => {
+  const result = await fetchTimeMachineSnapshotById(snapshotId)
+  if (!result.ok) return result
+
+  const sessionResult = startTimeMachineSession({
+    snapshotId: result.snapshotId,
+    bundle: result.bundle,
+    meta: result.meta,
+    updatedAt: result.updatedAt,
+  })
+
+  if (sessionResult.ok) {
+    window.dispatchEvent(new CustomEvent('dugou:data-changed', { detail: { key: 'all' } }))
+  }
+
+  return sessionResult
+}
+
+export const endTimeMachineSession = () => {
+  const result = exitTimeMachineSession()
+  if (result.ok) {
+    window.dispatchEvent(new CustomEvent('dugou:data-changed', { detail: { key: 'all' } }))
+  }
+  return result
+}
+
+export const listHistoricalSnapshots = (page = 1, pageSize = 6) => {
+  return listTimeMachineSnapshots({ page, pageSize })
+}
+
+export const saveSnapshot = async (title = '', mode = 'manual') => {
+  const snapshot = exportDataBundle()
+  return saveTimeMachineSnapshot({
+    snapshot,
+    title,
+    mode,
+  })
+}
+
+export const ensureCurrentMonthSnapshot = async () => {
+  const snapshot = exportDataBundle()
+  return ensureMonthlyTimeMachineSnapshot({ snapshot })
 }
