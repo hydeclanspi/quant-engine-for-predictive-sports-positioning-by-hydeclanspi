@@ -179,14 +179,14 @@ export default function TimeMachineModalContent({
                 disabled={loading}
                 className="btn-tm-save"
               >
-                保存
+                保存快照
               </button>
               <button
                 onClick={onEnsureMonthly}
                 disabled={loading}
                 className="btn-tm-monthly"
               >
-                本月
+                本月封存
               </button>
             </div>
 
