@@ -51,6 +51,7 @@ import {
   listHistoricalSnapshots,
   saveSnapshot,
   ensureCurrentMonthSnapshot,
+  deleteTimeMachineSnapshot,
 } from '../lib/localData'
 import { getPrimaryEntryMarket, normalizeEntryRecord } from '../lib/entryParsing'
 import {
@@ -3795,6 +3796,29 @@ export default function ParamsPage({ openModal }) {
     }
   }
 
+  const handleDeleteSnapshot = async (snapshotId) => {
+    if (!confirm('确定要删除这个快照吗？此操作不可恢复。')) {
+      return
+    }
+    setTmLoading(true)
+    try {
+      // Call the delete function from localData
+      const result = await deleteTimeMachineSnapshot(snapshotId)
+      if (result.ok) {
+        setTmSaveStatus('Snapshot deleted successfully')
+        // Reload snapshots list
+        await loadTimeMachineSnapshots(tmPage)
+      } else {
+        setTmSaveStatus(`Failed to delete: ${result.reason}`)
+      }
+    } catch (err) {
+      setTmSaveStatus('Error deleting snapshot')
+    } finally {
+      setTmLoading(false)
+      setTimeout(() => setTmSaveStatus(''), 2200)
+    }
+  }
+
   const openTimeMachineModal = () => {
     openModal({
       title: '时光穿越机',
@@ -3815,6 +3839,7 @@ export default function ParamsPage({ openModal }) {
           onEnsureMonthly={handleEnsureMonthly}
           onPageChange={setTmPage}
           onTitleChange={setTmManualTitle}
+          onDeleteSnapshot={handleDeleteSnapshot}
         />
       ),
     })

@@ -1,4 +1,4 @@
-import { Plus, X, RotateCcw, Archive, Database } from 'lucide-react'
+import { Plus, X, RotateCcw, Archive, Database, Trash2 } from 'lucide-react'
 
 /**
  * 高端时光穿越机弹窗内容组件
@@ -45,6 +45,7 @@ export default function TimeMachineModalContent({
   onEnsureMonthly,
   onPageChange,
   onTitleChange,
+  onDeleteSnapshot,
 }) {
   return (
     <div className="space-y-6 py-2">
@@ -121,13 +122,23 @@ export default function TimeMachineModalContent({
                         </p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => onBeginSession(snap.id)}
-                      disabled={loading}
-                      className="ml-4 btn-tm-travel group-hover:scale-105 group-active:scale-95"
-                    >
-                      <RotateCcw size={12} strokeWidth={2.5} /> 穿越
-                    </button>
+                    <div className="ml-4 flex items-center gap-2">
+                      <button
+                        onClick={() => onDeleteSnapshot && onDeleteSnapshot(snap.id)}
+                        disabled={loading}
+                        title="删除快照"
+                        className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-rose-200/50 bg-white/85 text-rose-500 hover:border-rose-300/70 hover:bg-rose-50/80 transition-all disabled:opacity-50"
+                      >
+                        <Trash2 size={12} strokeWidth={2.5} />
+                      </button>
+                      <button
+                        onClick={() => onBeginSession(snap.id)}
+                        disabled={loading}
+                        className="btn-tm-travel group-hover:scale-105 group-active:scale-95"
+                      >
+                        <RotateCcw size={12} strokeWidth={2.5} /> 穿越
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

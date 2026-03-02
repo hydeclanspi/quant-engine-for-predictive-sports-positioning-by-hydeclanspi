@@ -306,6 +306,30 @@ export const saveTimeMachineSnapshot = async ({ snapshot, title = '', mode = 'ma
   }
 }
 
+export const deleteTimeMachineSnapshotById = async (snapshotId) => {
+  const client = getSupabaseClient()
+  if (!client) {
+    return { ok: false, reason: 'missing_env' }
+  }
+
+  try {
+    const { error } = await client.from('dugou_sync_snapshots').delete().eq('id', snapshotId)
+    
+    if (error) {
+      console.error('[deleteTimeMachineSnapshotById] Supabase error:', {
+        code: error.code,
+        message: error.message,
+      })
+      return { ok: false, reason: 'delete_failed', error }
+    }
+    
+    return { ok: true, snapshotId }
+  } catch (err) {
+    console.error('[deleteTimeMachineSnapshotById] Exception:', err)
+    return { ok: false, reason: 'exception', error: err }
+  }
+}
+
 export const ensureMonthlyTimeMachineSnapshot = async ({ snapshot, now = Date.now() } = {}) => {
   const client = getSupabaseClient()
   if (!client) {

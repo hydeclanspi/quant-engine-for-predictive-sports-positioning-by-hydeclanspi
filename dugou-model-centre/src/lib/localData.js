@@ -1226,3 +1226,12 @@ export const ensureCurrentMonthSnapshot = async () => {
   const snapshot = exportDataBundle()
   return ensureMonthlyTimeMachineSnapshot({ snapshot })
 }
+
+export const deleteTimeMachineSnapshot = async (snapshotId) => {
+  try {
+    const result = await deleteTimeMachineSnapshotById(snapshotId)
+    return result
+  } catch (err) {
+    return { ok: false, reason: err.message || 'Unknown error' }
+  }
+}
