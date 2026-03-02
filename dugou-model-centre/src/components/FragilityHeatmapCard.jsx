@@ -16,80 +16,61 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
   const historicalData = useMemo(() => {
     const investments = getInvestments()
     
-    // 尝试多种方式识别已结算的投资
-    // 支持：revenues > 0（有收益=已结算）、is_settled标记、status标记等
+    // 筛选已结算的组合投注（至少2场比赛且有结果数据）
     const settledInvestments = investments
       .filter(inv => {
-        // 检查是否有 revenues 字段（表示已结算）
-        const hasRevenues = inv.revenues !== undefined && inv.revenues !== null && Number(inv.revenues) !== 0
-        // 或者检查是否标记为 settled
-        const isSettled = inv.is_settled === true || inv.status === 'settled' || inv.status === 'settled_win' || inv.status === 'settled_loss'
-        // 或者检查是否有比赛结果
-        const hasResults = Array.isArray(inv.matches) && inv.matches.some(m => m.result !== undefined && m.result !== null)
-        
-        return hasRevenues || isSettled || hasResults
+        const matches = Array.isArray(inv.matches) ? inv.matches : []
+        // 必须至少有2场比赛才能做依赖性分析
+        if (matches.length < 2) return false
+        // 必须有比赛结果（is_correct 是主要字段）
+        const hasMatchResults = matches.some(m => typeof m.is_correct === 'boolean')
+        // 必须是已结算的（有收益数据或状态标记）
+        const hasRevenues = inv.revenues !== undefined && inv.revenues !== null
+        const isSettled = inv.status === 'win' || inv.status === 'lose' || inv.status === 'settled' || inv.status === 'settled_win' || inv.status === 'settled_loss'
+        return hasMatchResults && (hasRevenues || isSettled)
       })
-      .slice(0, 150) // 限制前150个已结算投资以保持性能
+      .slice(0, 150)
       .map(inv => {
         const matches = Array.isArray(inv.matches) ? inv.matches : []
-        
         return {
-          matches: matches.map(m => {
-            // 判断是否有明确的结果数据
-            const hasResult = typeof m.is_correct === 'boolean'
-              || typeof m.result === 'boolean'
-              || m.result === 'won' || m.result === 'lost' || m.result === 'loss'
-              || m.status === 'won' || m.status === 'lost'
-            // 判断是否赢了
-            const isWin = m.is_correct === true || m.result === true || m.result === 'won' || m.status === 'won' || m.won === true
-            return {
-              odds: Number(m.odds) || 1,
-              // result: true=赢, false=输, undefined=无结果
-              result: hasResult ? isWin : undefined,
-            }
-          }),
-          // 投注结果：检查 revenues > 0 或 status 字段
-          succeeded: Number(inv.revenues || 0) > 0 || inv.status === 'settled_win' || inv.status === 'won',
+          matches: matches.map(m => ({
+            odds: Number(m.odds) || 1,
+            // is_correct 是我们数据中的主要结果字段
+            result: typeof m.is_correct === 'boolean' ? m.is_correct : undefined,
+          })),
+          succeeded: Number(inv.revenues || 0) > 0 || inv.status === 'settled_win' || inv.status === 'win',
           createdAt: inv.created_at || inv.createdAt || new Date().toISOString(),
         }
       })
-      .filter(d => d.matches.length > 0 && d.matches.some(m => m.result !== undefined))
+      .filter(d => d.matches.length >= 2 && d.matches.some(m => m.result !== undefined))
     
     // 调试输出
-    if (settledInvestments.length > 0) {
-      const debugSample = settledInvestments[0]
-      const totalMatches = settledInvestments.reduce((sum, inv) => sum + inv.matches.length, 0)
-      const matchesWithResults = settledInvestments.reduce((sum, inv) => sum + inv.matches.filter(m => m.result !== undefined).length, 0)
-      const failedMatches = settledInvestments.reduce((sum, inv) => sum + inv.matches.filter(m => m.result === false).length, 0)
-      const wonMatches = settledInvestments.reduce((sum, inv) => sum + inv.matches.filter(m => m.result === true).length, 0)
+    const allCombos = investments.filter(inv => (Array.isArray(inv.matches) ? inv.matches : []).length >= 2)
+    const settledCombos = allCombos.filter(inv => {
+      const hasMatchResults = (inv.matches || []).some(m => typeof m.is_correct === 'boolean')
+      const hasRevenues = inv.revenues !== undefined && inv.revenues !== null
+      const isSettled = inv.status === 'win' || inv.status === 'lose' || inv.status === 'settled' || inv.status === 'settled_win' || inv.status === 'settled_loss'
+      return hasMatchResults && (hasRevenues || isSettled)
+    })
 
-      // 深度调试：看原始 is_correct 字段
-      const rawInvestments = investments.filter(inv => {
-        const hasRevenues = inv.revenues !== undefined && inv.revenues !== null && Number(inv.revenues) !== 0
-        const isSettled = inv.is_settled === true || inv.status === 'settled' || inv.status === 'settled_win' || inv.status === 'settled_loss'
-        const hasResults = Array.isArray(inv.matches) && inv.matches.some(m => m.result !== undefined && m.result !== null)
-        return hasRevenues || isSettled || hasResults
-      }).slice(0, 5)
+    const totalMatches = settledInvestments.reduce((sum, inv) => sum + inv.matches.length, 0)
+    const failedMatches = settledInvestments.reduce((sum, inv) => sum + inv.matches.filter(m => m.result === false).length, 0)
+    const wonMatches = settledInvestments.reduce((sum, inv) => sum + inv.matches.filter(m => m.result === true).length, 0)
 
-      console.log('🔍 FragilityHeatmap Debug:', {
-        totalSettled: settledInvestments.length,
-        totalMatches,
-        matchesWithResults,
-        wonMatches,
-        failedMatches,
-        sampleResults: debugSample.matches.map(m => ({ odds: m.odds, result: m.result })),
-      })
-      console.log('🔍 Raw data sample (first 5):', rawInvestments.map(inv => ({
-        id: inv.id,
-        status: inv.status,
-        revenues: inv.revenues,
-        matches: (inv.matches || []).map(m => ({
-          is_correct: m.is_correct,
-          is_correct_type: typeof m.is_correct,
-          result: m.result,
-          result_type: typeof m.result,
-          odds: m.odds,
-        }))
+    console.log('🔍 FragilityHeatmap Debug:', {
+      totalInvestments: investments.length,
+      combosWithMultipleMatches: allCombos.length,
+      settledCombosUsed: settledInvestments.length,
+      totalMatches,
+      wonMatches,
+      failedMatches,
+      sampleCombo: settledInvestments[0] || 'none',
+    })
+    if (settledCombos.length > 0 && settledInvestments.length === 0) {
+      console.warn('⚠️ Found settled combos but none passed filter! Sample:', settledCombos.slice(0, 2).map(inv => ({
+        id: inv.id, status: inv.status, revenues: inv.revenues,
+        matchCount: inv.matches?.length,
+        is_correct_values: (inv.matches || []).map(m => m.is_correct),
       })))
     }
     return settledInvestments
