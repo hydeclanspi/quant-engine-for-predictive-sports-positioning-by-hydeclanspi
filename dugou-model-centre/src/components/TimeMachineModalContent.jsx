@@ -90,7 +90,7 @@ export default function TimeMachineModalContent({
             {/* 快照列表 */}
             {loading && snapshots.length === 0 ? (
               <div className="py-8 text-center">
-                <div className="inline-block animate-spin mb-2 text-stone-400">⏳</div>
+                <div className="inline-block animate-spin mb-2 w-5 h-5 border-2 border-stone-300 border-t-stone-500 rounded-full"></div>
                 <p className="text-[12px] text-stone-500 font-medium">加载快照中...</p>
               </div>
             ) : snapshots.length === 0 ? (
@@ -208,7 +208,7 @@ export default function TimeMachineModalContent({
         /* In Time Machine Mode */
         <div className="py-8 text-center">
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-b from-blue-100/80 to-cyan-100/60 border border-blue-200/60 mb-4">
-            <span className="animate-pulse text-blue-600 text-xl">⏰</span>
+            <div className="animate-pulse w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full"></div>
           </div>
           <p className="text-[13px] text-stone-700 font-bold mb-2">时光穿越中...</p>
           <p className="text-[11px] text-stone-600 mb-3">
