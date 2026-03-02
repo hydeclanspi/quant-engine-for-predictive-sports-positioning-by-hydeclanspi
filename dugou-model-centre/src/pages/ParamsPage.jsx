@@ -5269,14 +5269,15 @@ export default function ParamsPage({ openModal }) {
         </div>
       </div>
 
-      {/* Time Machine Card — Future Iteration Style */}
+      {/* Time Machine Card — Premium Edition */}
       <div
         onClick={openTimeMachineModal}
         className="console-interactive-surface glow-card mb-9 rounded-2xl border border-cyan-200/70 bg-gradient-to-br from-cyan-50/90 via-white/92 to-blue-50/78 p-6 cursor-pointer backdrop-blur-sm shadow-[0_20px_45px_rgba(34,211,238,0.18),inset_0_1px_0_rgba(255,255,255,0.86)]"
       >
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
+            {/* Header */}
+            <div className="flex items-center gap-2 mb-3">
               <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-cyan-200 bg-white/80">
                 <TimeMachineIcon size={16} className="tm-icon-pulse" />
               </span>
@@ -5285,13 +5286,60 @@ export default function ParamsPage({ openModal }) {
                 VIP
               </span>
             </div>
-            <h3 className="text-lg font-semibold text-stone-800">数据时光穿梭 Time Machine</h3>
-            <p className="text-sm text-stone-500 mt-2 max-w-3xl">
+
+            {/* Title */}
+            <h3 className="text-lg font-semibold text-stone-800 mb-3">数据时光穿梭 Time Machine</h3>
+
+            {/* Subtitle */}
+            <p className="text-sm text-stone-500 mb-4">
               {tmIsInMode
                 ? `正在回溯: ${tmSessionInfo?.title} · 所有修改已冻结 · 安全浏览历史版本`
-                : `已保存 ${tmSnapshots.length} 份快照 · 秒级穿梭到任意历史时刻 · 完整恢复您的每一次决策`}
+                : `秒级穿梭到任意历史时刻 · 完整恢复您的每一次决策`}
             </p>
+
+            {/* Core Capabilities + Snapshot Count */}
+            <div className="mb-4 space-y-3">
+              {/* Capabilities */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded border border-cyan-200/60 bg-white/60">
+                    <RotateCcw size={12} className="text-cyan-600" />
+                  </span>
+                  <span className="text-xs text-stone-700">完整历史回溯</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded border border-cyan-200/60 bg-white/60">
+                    <ShieldCheck size={12} className="text-cyan-600" />
+                  </span>
+                  <span className="text-xs text-stone-700">修改冻结保护</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded border border-cyan-200/60 bg-white/60">
+                    <TrendingUp size={12} className="text-cyan-600" />
+                  </span>
+                  <span className="text-xs text-stone-700">秒级加载</span>
+                </div>
+              </div>
+
+              {/* Recent Snapshots */}
+              {!tmIsInMode && tmSnapshots.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs text-stone-400 font-medium">最近快照</p>
+                  <div className="flex items-center gap-2 text-xs text-stone-600">
+                    {tmSnapshots.slice(0, 2).map((snap, idx) => (
+                      <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/50 border border-cyan-100/60">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-500"></span>
+                        {new Date(snap.createdAt).toLocaleDateString()}
+                      </span>
+                    ))}
+                    <span className="text-cyan-700 font-medium">现存 {tmSnapshots.length} 份快照</span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Right Button */}
           <button
             type="button"
             onClick={(event) => {
