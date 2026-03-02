@@ -46,6 +46,21 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
       })
       .filter(d => d.matches.length > 0)
     
+    // 调试输出
+    if (settledInvestments.length > 0) {
+      const debugSample = settledInvestments[0]
+      console.log('🔍 FragilityHeatmap Debug:', {
+        totalSettled: settledInvestments.length,
+        sampleInvestment: debugSample,
+        sampleMatches: debugSample.matches,
+        sampleResults: debugSample.matches.map(m => ({ 
+          odds: m.odds, 
+          result: m.result,
+          // 原始字段示例
+          m_keys: Object.keys(m).slice(0, 5)
+        }))
+      })
+    }
     return settledInvestments
   }, [])
 
