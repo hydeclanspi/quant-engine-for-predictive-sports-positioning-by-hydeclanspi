@@ -2042,23 +2042,65 @@ const parseComboRowEvValue = (evText) => {
   return Number.isFinite(value) ? value : 0
 }
 
-const getQuickComboRowVisualTone = (evText, rank = 99) => {
+const STRIP_THEME_VARIANTS = {
+  core: [
+    { accent: 'from-sky-400 to-cyan-400', rgb: '56,189,248' },
+    { accent: 'from-sky-500 to-blue-400', rgb: '59,130,246' },
+  ],
+  covering: [
+    { accent: 'from-cyan-400 to-sky-300', rgb: '34,211,238' },
+    { accent: 'from-cyan-300 to-blue-300', rgb: '56,189,248' },
+  ],
+  satellite: [
+    { accent: 'from-indigo-300 to-violet-300', rgb: '165,180,252' },
+    { accent: 'from-indigo-200 to-violet-300', rgb: '196,181,253' },
+  ],
+  moonshot: [
+    { accent: 'from-violet-300 to-purple-300', rgb: '167,139,250' },
+    { accent: 'from-violet-200 to-indigo-300', rgb: '196,181,253' },
+  ],
+  default: [
+    { accent: 'from-slate-300 to-sky-300', rgb: '148,163,184' },
+    { accent: 'from-slate-300 to-indigo-300', rgb: '148,163,184' },
+  ],
+  neutral: [
+    { accent: 'from-slate-300 to-slate-400', rgb: '148,163,184' },
+    { accent: 'from-zinc-300 to-slate-400', rgb: '161,161,170' },
+  ],
+}
+
+const resolveStripThemeKey = (layerTag, evValue) => {
+  const normalized = String(layerTag || '').trim().toLowerCase()
+  if (normalized === 'core' || normalized === 'covering' || normalized === 'satellite' || normalized === 'moonshot') {
+    return normalized
+  }
+  return evValue >= 30 ? 'default' : 'neutral'
+}
+
+const getQuickComboRowVisualTone = ({ evText, layerTag, rank = 99, prevState = null }) => {
   const ev = parseComboRowEvValue(evText)
-  const accent = 'from-sky-400 to-cyan-400'
-  const glowColor =
-    ev >= 90
-      ? 'rgba(56,189,248,0.70)'
-      : ev >= 60
-        ? 'rgba(56,189,248,0.60)'
-        : ev >= 35
-          ? 'rgba(59,130,246,0.56)'
-          : ev >= 18
-            ? 'rgba(99,102,241,0.48)'
-            : 'rgba(100,116,139,0.40)'
+  const key = resolveStripThemeKey(layerTag, ev)
+  const variants = STRIP_THEME_VARIANTS[key] || STRIP_THEME_VARIANTS.default
+  const variant = prevState?.key === key ? ((Number(prevState?.variant) + 1) % variants.length) : 0
+  const selectedVariant = variants[variant]
+
+  const evIntensity = ev >= 70 ? 1 : ev >= 45 ? 0.84 : ev >= 25 ? 0.68 : 0.54
+  const rankBoost = rank === 0 ? 0.08 : rank === 1 ? 0.04 : 0
+  const intensity = clamp(evIntensity + rankBoost, 0.45, 1.08)
+  const hazeOpacity = clamp(0.26 + intensity * 0.34, 0.34, 0.72)
+  const lineOpacity = clamp(0.58 + intensity * 0.28, 0.62, 0.96)
+  const softGlow = clamp(0.22 + intensity * 0.34, 0.28, 0.82)
+  const strongGlow = clamp(0.30 + intensity * 0.42, 0.36, 0.92)
+
   return {
     card: 'border-sky-100/70 bg-gradient-to-r from-sky-50/42 via-white to-indigo-50/32 hover:from-sky-50/55 hover:to-indigo-50/42',
-    accent,
-    glowColor,
+    key,
+    variant,
+    accent: selectedVariant.accent,
+    hazeOpacity,
+    lineOpacity,
+    softGlowColor: `rgba(${selectedVariant.rgb}, ${softGlow.toFixed(3)})`,
+    strongGlowColor: `rgba(${selectedVariant.rgb}, ${strongGlow.toFixed(3)})`,
   }
 }
 
@@ -6123,22 +6165,30 @@ export default function ComboPage({ openModal }) {
                     : '一键展开明细'}
                 </button>
               </div>
-              {quickPreviewRecommendations.map((item, idx) => {
-                const selected = Boolean(selectedRecommendationIds[item.id])
-                const expanded = expandedComboIdxSet.has(idx)
-                const comboNo = getComboNumberFromRow(item) || idx + 1
-                const layerTag = item.explain?.ftLayerTag
-                const rowTone = getQuickComboRowVisualTone(item.ev, idx)
-                const layerDot = layerTag === 'core'
-                  ? 'bg-emerald-400 shadow-[0_0_0_1px_rgba(16,185,129,0.16),0_0_8px_rgba(16,185,129,0.34)]'
-                  : layerTag === 'covering'
-                    ? 'bg-teal-400 shadow-[0_0_0_1px_rgba(20,184,166,0.16),0_0_8px_rgba(20,184,166,0.34)]'
-                    : layerTag === 'satellite'
-                      ? 'bg-sky-400 shadow-[0_0_0_1px_rgba(56,189,248,0.16),0_0_8px_rgba(56,189,248,0.34)]'
-                      : layerTag === 'moonshot'
-                        ? 'bg-violet-300 shadow-[0_0_0_1px_rgba(167,139,250,0.16),0_0_8px_rgba(167,139,250,0.32)]'
-                        : 'bg-slate-300 shadow-[0_0_0_1px_rgba(148,163,184,0.14),0_0_6px_rgba(148,163,184,0.28)]'
-                return (
+              {(() => {
+                let prevStripState = null
+                return quickPreviewRecommendations.map((item, idx) => {
+                  const selected = Boolean(selectedRecommendationIds[item.id])
+                  const expanded = expandedComboIdxSet.has(idx)
+                  const comboNo = getComboNumberFromRow(item) || idx + 1
+                  const layerTag = item.explain?.ftLayerTag
+                  const rowTone = getQuickComboRowVisualTone({
+                    evText: item.ev,
+                    layerTag,
+                    rank: idx,
+                    prevState: prevStripState,
+                  })
+                  prevStripState = { key: rowTone.key, variant: rowTone.variant }
+                  const layerDot = layerTag === 'core'
+                    ? 'bg-emerald-400 shadow-[0_0_0_1px_rgba(16,185,129,0.16),0_0_8px_rgba(16,185,129,0.34)]'
+                    : layerTag === 'covering'
+                      ? 'bg-teal-400 shadow-[0_0_0_1px_rgba(20,184,166,0.16),0_0_8px_rgba(20,184,166,0.34)]'
+                      : layerTag === 'satellite'
+                        ? 'bg-sky-400 shadow-[0_0_0_1px_rgba(56,189,248,0.16),0_0_8px_rgba(56,189,248,0.34)]'
+                        : layerTag === 'moonshot'
+                          ? 'bg-violet-300 shadow-[0_0_0_1px_rgba(167,139,250,0.16),0_0_8px_rgba(167,139,250,0.32)]'
+                          : 'bg-slate-300 shadow-[0_0_0_1px_rgba(148,163,184,0.14),0_0_6px_rgba(148,163,184,0.28)]'
+                  return (
                   <div key={item.id}>
                     <div
                       className={`motion-v2-row motion-v2-selectable relative flex items-center gap-2 pl-3 pr-2.5 py-1.5 rounded-xl cursor-pointer transition-all ${
@@ -6148,17 +6198,20 @@ export default function ComboPage({ openModal }) {
                       <span
                         className={`absolute left-[5px] top-1.5 bottom-1.5 w-[6px] rounded-full bg-gradient-to-b ${rowTone.accent}`}
                         style={{
-                          opacity: selected ? 0.55 : idx < 2 ? 0.45 : 0.36,
+                          opacity: selected ? clamp(rowTone.hazeOpacity + 0.12, 0, 0.9) : rowTone.hazeOpacity,
                           filter: 'blur(2.6px)',
                         }}
                       />
-                      <span className={`absolute left-1.5 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b ${rowTone.accent}`} />
+                      <span
+                        className={`absolute left-1.5 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gradient-to-b ${rowTone.accent}`}
+                        style={{ opacity: rowTone.lineOpacity }}
+                      />
                       <span
                         className="absolute left-1.5 top-1.5 bottom-1.5 w-[3px] rounded-full"
                         style={{
                           boxShadow: selected
-                            ? `0 0 14px ${rowTone.glowColor}, 0 0 22px ${rowTone.glowColor}`
-                            : `0 0 10px ${rowTone.glowColor}`,
+                            ? `0 0 14px ${rowTone.strongGlowColor}, 0 0 22px ${rowTone.strongGlowColor}`
+                            : `0 0 10px ${rowTone.softGlowColor}`,
                         }}
                       />
                       <span className="text-[10.5px] text-stone-400 font-mono w-7 shrink-0">{comboNo}.</span>
@@ -6293,8 +6346,9 @@ export default function ComboPage({ openModal }) {
                       </div>
                     )}
                   </div>
-                )
-              })}
+                  )
+                })
+              })()}
               {recommendations.length > QUICK_PREVIEW_RECOMMENDATION_COUNT && (
                 <button
                   onClick={() => {
