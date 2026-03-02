@@ -314,7 +314,7 @@ export const deleteTimeMachineSnapshotById = async (snapshotId) => {
 
   try {
     console.log('[deleteTimeMachineSnapshotById] Starting delete for:', snapshotId)
-    const { error, data } = await client.from('dugou_sync_snapshots').delete().eq('id', snapshotId).select()
+    const { error, data } = await client.from('dugou_sync_snapshots').delete().eq('id', snapshotId)
     
     console.log('[deleteTimeMachineSnapshotById] Delete response:', { error, data })
     
