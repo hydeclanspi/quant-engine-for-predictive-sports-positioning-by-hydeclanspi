@@ -28,14 +28,14 @@ export default function Modal({ data, onClose }) {
       className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in"
       onClick={onClose}
     >
-      <div 
-        className="bg-white rounded-2xl p-6 max-w-4xl w-full mx-4 shadow-2xl max-h-[85vh] overflow-auto animate-slide-up custom-scrollbar"
+      <div
+        className="bg-gradient-to-b from-stone-50 via-white to-white rounded-2xl p-6 max-w-4xl w-full mx-4 shadow-2xl max-h-[85vh] overflow-auto animate-slide-up custom-scrollbar border border-stone-100"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        {/* Header with gradient separation */}
+        <div className="flex items-center justify-between mb-4 pb-4 border-b border-stone-100">
           <h3 className="font-semibold text-stone-800 text-lg">{data.title}</h3>
-          <button 
+          <button
             onClick={onClose}
             className="text-stone-400 hover:text-stone-600 transition-colors p-1 rounded-lg hover:bg-stone-100"
           >
