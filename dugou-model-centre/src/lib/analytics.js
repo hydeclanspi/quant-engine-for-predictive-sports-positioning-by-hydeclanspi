@@ -506,6 +506,7 @@ const toKellySimulationRowsFromInvestments = (investments, config) =>
       const odds = estimateInvestmentOdds(item, toNumber(config.defaultOdds, 2.5))
       if (!Number.isFinite(expected) || !Number.isFinite(odds) || odds <= 1) return null
       return {
+        createdAt: item.created_at,
         expected,
         odds,
         inputs,
@@ -692,6 +693,147 @@ const simulateKellyDivisorFromRows = (rows, divisor, config) => {
   }
 }
 
+const buildKellyWalkForwardWindows = (rows, checkpoints = [0.55, 0.7, 0.82]) => {
+  if (!Array.isArray(rows) || rows.length < 24) return []
+  const ordered = [...rows].sort(
+    (a, b) => new Date(a?.createdAt || 0).getTime() - new Date(b?.createdAt || 0).getTime(),
+  )
+  const datedSamples = ordered.filter((row) => row?.createdAt).length
+  if (datedSamples < Math.max(12, Math.floor(ordered.length * 0.6))) return []
+  const windows = []
+  checkpoints.forEach((ratio) => {
+    const split = Math.floor(ordered.length * ratio)
+    const testSize = Math.max(8, Math.floor(ordered.length * 0.12))
+    const trainRows = ordered.slice(0, split)
+    const testRows = ordered.slice(split, Math.min(ordered.length, split + testSize))
+    if (trainRows.length < 16 || testRows.length < 8) return
+    windows.push({ trainRows, testRows })
+  })
+  return windows
+}
+
+const simulateKellyDivisorDeterministic = (rows, divisor, config) => {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return {
+      runs: 1,
+      samples: 0,
+      totalInvest: 0,
+      totalProfit: 0,
+      roi: 0,
+      hitRate: 0,
+      maxDrawdown: 0,
+      sharpe: 0,
+    }
+  }
+
+  const ordered = [...rows].sort(
+    (a, b) => new Date(a?.createdAt || 0).getTime() - new Date(b?.createdAt || 0).getTime(),
+  )
+  const initialCapital = toNumber(config.initialCapital, 0)
+  let balance = initialCapital
+  let peak = balance
+  let maxDrawdown = 0
+  let totalInvest = 0
+  let totalProfit = 0
+  let wins = 0
+  let samples = 0
+  let meanReturn = 0
+  let m2 = 0
+
+  ordered.forEach((row) => {
+    const inputs = Math.max(0, toNumber(row.inputs, 0))
+    const profit = toNumber(row.profit, 0)
+    if (inputs <= 0) return
+    const expected = clamp(toNumber(row.expected, 0.5), 0.05, 0.95)
+    const odds = Math.max(1.01, toNumber(row.odds, toNumber(config.defaultOdds, 2.5)))
+    const stake = Math.round(calcKellyStake(expected, odds, divisor, config))
+    if (stake <= 0) return
+
+    const unitReturn = clamp(profit / inputs, -1, Math.max(odds - 1, -1))
+    const simProfit = stake * unitReturn
+    totalInvest += stake
+    totalProfit += simProfit
+    samples += 1
+    if (simProfit > 0) wins += 1
+
+    const delta = unitReturn - meanReturn
+    meanReturn += delta / samples
+    m2 += delta * (unitReturn - meanReturn)
+
+    balance += simProfit
+    if (balance > peak) peak = balance
+    const drawdown = peak > 0 ? ((peak - balance) / peak) * 100 : 0
+    if (drawdown > maxDrawdown) maxDrawdown = drawdown
+  })
+
+  const roi = calcRoi(totalProfit, totalInvest)
+  const hitRate = samples > 0 ? (wins / samples) * 100 : 0
+  const volatility = samples > 1 ? Math.sqrt(Math.max(m2 / samples, 0)) : 0
+  const sharpe = volatility > 0 ? meanReturn / volatility : meanReturn > 0 ? 1 : 0
+
+  return {
+    runs: 1,
+    samples,
+    totalInvest,
+    totalProfit,
+    roi,
+    hitRate,
+    maxDrawdown,
+    sharpe,
+  }
+}
+
+const evaluateKellyDivisorWalkForward = (rows, divisor, config) => {
+  const windows = buildKellyWalkForwardWindows(rows)
+  if (windows.length === 0) return null
+
+  let totalWeight = 0
+  let samples = 0
+  let totalInvest = 0
+  let totalProfit = 0
+  let roiWeighted = 0
+  let hitRateWeighted = 0
+  let maxDrawdownWeighted = 0
+  let sharpeWeighted = 0
+
+  windows.forEach((window) => {
+    const sim = simulateKellyDivisorDeterministic(window.testRows, divisor, config)
+    if (sim.samples <= 0) return
+    const w = sim.samples
+    totalWeight += w
+    samples += sim.samples
+    totalInvest += sim.totalInvest
+    totalProfit += sim.totalProfit
+    roiWeighted += sim.roi * w
+    hitRateWeighted += sim.hitRate * w
+    maxDrawdownWeighted += sim.maxDrawdown * w
+    sharpeWeighted += sim.sharpe * w
+  })
+
+  if (totalWeight <= 0) return null
+
+  const roi = roiWeighted / totalWeight
+  const hitRate = hitRateWeighted / totalWeight
+  const maxDrawdown = maxDrawdownWeighted / totalWeight
+  const sharpe = sharpeWeighted / totalWeight
+  const samplePenalty = clamp(10 / Math.max(1, samples), 0, 8)
+  const score = roi - maxDrawdown * 0.72 + sharpe * 8 - samplePenalty
+
+  return {
+    runs: windows.length,
+    walkForwardWindows: windows.length,
+    samples,
+    totalInvest,
+    totalProfit,
+    roi: Number(roi.toFixed(3)),
+    hitRate: Number(hitRate.toFixed(3)),
+    maxDrawdown: Number(maxDrawdown.toFixed(3)),
+    sharpe: Number(sharpe.toFixed(4)),
+    score: Number(score.toFixed(3)),
+    evaluationMethod: 'walk_forward',
+  }
+}
+
 const sweepKellyDivisors = (rows, config, divisors = KELLY_DIVISOR_CANDIDATES) =>
   divisors.map((divisor) => simulateKellyDivisorFromRows(rows, divisor, config))
 
@@ -701,7 +843,20 @@ const pickClosestDivisor = (divisors, target, fallback) => {
 }
 
 const pickKellyDivisor = (rows, config, fallbackDivisor = 4, divisors = KELLY_DIVISOR_CANDIDATES) => {
-  const results = sweepKellyDivisors(rows, config, divisors)
+  const results = divisors.map((divisor) => {
+    const wf = evaluateKellyDivisorWalkForward(rows, divisor, config)
+    if (wf) {
+      return {
+        divisor,
+        ...wf,
+      }
+    }
+    return {
+      ...simulateKellyDivisorFromRows(rows, divisor, config),
+      evaluationMethod: 'bootstrap',
+      walkForwardWindows: 0,
+    }
+  })
   const validRows = results.filter((row) => row.samples > 0)
   const safeFallback = pickClosestDivisor(divisors, fallbackDivisor, divisors[0])
 
@@ -717,7 +872,8 @@ const pickKellyDivisor = (rows, config, fallbackDivisor = 4, divisors = KELLY_DI
   }
 
   const rawBest = [...validRows].sort((a, b) => b.score - a.score || b.samples - a.samples || a.divisor - b.divisor)[0]
-  const reliability = clamp((rawBest.samples - 6) / 22, 0, 1)
+  const wfFactor = (rawBest.walkForwardWindows || 0) > 0 ? 1 : 0.82
+  const reliability = clamp((rawBest.samples - 6) / 22, 0, 1) * wfFactor
   const blendedDivisor = rawBest.divisor * reliability + safeFallback * (1 - reliability)
   const recommendedDivisor = pickClosestDivisor(divisors, blendedDivisor, rawBest.divisor)
   const best = validRows.find((row) => row.divisor === recommendedDivisor) || rawBest
@@ -1170,6 +1326,17 @@ const pickTeamAbbr = (teamName, profile) => {
   return String(teamName || '').trim()
 }
 
+const calcMedian = (values, fallback = 0) => {
+  const sorted = (Array.isArray(values) ? values : [])
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => a - b)
+  if (sorted.length === 0) return fallback
+  const mid = Math.floor(sorted.length / 2)
+  if (sorted.length % 2 === 1) return sorted[mid]
+  return (sorted[mid - 1] + sorted[mid]) / 2
+}
+
 export const getTeamsSnapshot = (query = '', periodKey = 'all') => {
   const profiles = getTeamProfiles()
   const range = getPeriodRange(periodKey)
@@ -1187,6 +1354,7 @@ export const getTeamsSnapshot = (query = '', periodKey = 'all') => {
         totalInputs: 0,
         totalProfit: 0,
         repValues: [],
+        ajrValues: [],
         ratingDiffValues: [],
         roiHistoryRaw: [],
         ratingHistoryRaw: [],
@@ -1213,6 +1381,7 @@ export const getTeamsSnapshot = (query = '', periodKey = 'all') => {
         team.totalInputs += match.allocated_input
         team.totalProfit += match.allocated_profit
         if (Number.isFinite(rep)) team.repValues.push(rep)
+        if (Number.isFinite(matchRating)) team.ajrValues.push(matchRating)
         if (Number.isFinite(conf) && Number.isFinite(matchRating)) {
           const diff = matchRating - conf
           team.ratingDiffValues.push(diff)
@@ -1233,6 +1402,7 @@ export const getTeamsSnapshot = (query = '', periodKey = 'all') => {
       const roi = calcRoi(team.totalProfit, team.totalInputs)
       const avgRep =
         team.repValues.length > 0 ? team.repValues.reduce((sum, value) => sum + value, 0) / team.repValues.length : 0.5
+      const medianAjr = calcMedian(team.ajrValues, 0)
       const ratingDiff =
         team.ratingDiffValues.length > 0
           ? team.ratingDiffValues.reduce((sum, value) => sum + value, 0) / team.ratingDiffValues.length
@@ -1268,6 +1438,7 @@ export const getTeamsSnapshot = (query = '', periodKey = 'all') => {
         ...team,
         roi,
         avgRep,
+        medianAjr,
         ratingDiff,
         roiHistory,
         ratingHistory,
@@ -4238,17 +4409,70 @@ export const getPerMatchEjrSnapshot = () => {
 // portfolio optimizer params, and meta-hyperparameters.
 // ═══════════════════════════════════════════════════════════════
 
+const evaluateComboTemporalHoldoutQuality = (rows, surplusThresholds, vigOverround) => {
+  if (!Array.isArray(rows) || rows.length < 8) {
+    return { quality: 1, strongHitRate: null, negativeHitRate: null, samples: 0 }
+  }
+
+  const groups = {
+    strong: { hits: 0, total: 0 },
+    moderate: { hits: 0, total: 0 },
+    neutral: { hits: 0, total: 0 },
+    negative: { hits: 0, total: 0 },
+  }
+
+  rows.forEach((row) => {
+    if (!Number.isFinite(row?.odds) || row.odds <= 1) return
+    const implied = clamp((1 / row.odds) * (1 - vigOverround), 0.02, 0.98)
+    const surplus = row.conf - implied
+    let bucket = 'negative'
+    if (surplus >= surplusThresholds.strongEdge) bucket = 'strong'
+    else if (surplus >= surplusThresholds.moderateEdge) bucket = 'moderate'
+    else if (surplus >= surplusThresholds.neutral) bucket = 'neutral'
+
+    groups[bucket].total += 1
+    if (row.actual === 1) groups[bucket].hits += 1
+  })
+
+  const hitRate = (name) => {
+    const g = groups[name]
+    return g.total > 0 ? g.hits / g.total : null
+  }
+  const strongHitRate = hitRate('strong')
+  const negativeHitRate = hitRate('negative')
+  const moderateHitRate = hitRate('moderate')
+  const neutralHitRate = hitRate('neutral')
+  const overallHits = Object.values(groups).reduce((sum, g) => sum + g.hits, 0)
+  const overallTotal = Object.values(groups).reduce((sum, g) => sum + g.total, 0)
+  const overallHitRate = overallTotal > 0 ? overallHits / overallTotal : 0.5
+
+  const strongDelta = strongHitRate != null ? strongHitRate - overallHitRate : 0
+  const negDelta = negativeHitRate != null ? overallHitRate - negativeHitRate : 0
+  const modDelta = moderateHitRate != null && neutralHitRate != null ? moderateHitRate - neutralHitRate : 0
+  const separation = strongDelta + negDelta + modDelta * 0.45
+  const quality = clamp(0.72 + separation * 1.55, 0.58, 1.08)
+
+  return {
+    quality: Number(quality.toFixed(4)),
+    strongHitRate: strongHitRate != null ? Number(strongHitRate.toFixed(4)) : null,
+    negativeHitRate: negativeHitRate != null ? Number(negativeHitRate.toFixed(4)) : null,
+    samples: overallTotal,
+  }
+}
+
 export const backtestComboHyperparams = () => {
-  const settled = getSettledInvestments(getActiveInvestments())
+  const settled = getSettledInvestments(getActiveInvestments()).sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  )
   const config = getSystemConfig()
   const matchRows = settled.flatMap((item) => splitInvestmentToMatches(item))
   const binaryRows = getBinaryOutcomeRows()
-  const n = binaryRows.length
+  const totalSampleCount = binaryRows.length
 
   const fallback = {
     ready: false,
     reliability: 0,
-    sampleCount: n,
+    sampleCount: totalSampleCount,
     // All defaults — consumed when insufficient data
     portfolioWeights: { ev: 0.35, coverage: 0.30, diversity: 0.20, layerDiv: 0.10, tierDiv: 0.05 },
     stratifiedQuotas: { 1: 0.0, 2: 0.2, 3: 0.35, 4: 0.3, 5: 0.15 },
@@ -4275,21 +4499,42 @@ export const backtestComboHyperparams = () => {
     matchConcentrationCap: 0.60,
     entryCorrelationScale: 0.04,
   }
+  if (totalSampleCount < 25) return fallback
+
+  // Strict temporal split: calibrate on past, validate on future holdout.
+  // This prevents full-history leakage while keeping a graceful fallback.
+  let calibrationBinaryRows = binaryRows
+  let calibrationSettled = settled
+  let calibrationMatchRows = matchRows
+  let holdoutBinaryRows = []
+  if (totalSampleCount >= 35) {
+    const holdoutSize = Math.max(8, Math.floor(totalSampleCount * 0.12))
+    const trainRows = binaryRows.slice(0, totalSampleCount - holdoutSize)
+    const testRows = binaryRows.slice(totalSampleCount - holdoutSize)
+    if (trainRows.length >= 25 && testRows.length >= 8) {
+      const cutoffTs = new Date(trainRows[trainRows.length - 1].created_at).getTime()
+      calibrationBinaryRows = trainRows
+      holdoutBinaryRows = testRows
+      calibrationSettled = settled.filter((item) => new Date(item.created_at).getTime() <= cutoffTs)
+      calibrationMatchRows = calibrationSettled.flatMap((item) => splitInvestmentToMatches(item))
+    }
+  }
+  const n = calibrationBinaryRows.length
   if (n < 25) return fallback
 
   // ── Reliability ramp: 25 → 120 samples for full trust ──
-  const reliability = clamp((n - 25) / 95, 0, 1)
+  const baseReliability = clamp((n - 25) / 95, 0, 1)
 
   // ═══ 1. Vig Estimation from historical odds distribution ═══
   // Estimate bookmaker overround from average (1/odds) sum across co-occurring matches
-  const oddsValues = binaryRows.map((r) => r.odds).filter((o) => Number.isFinite(o) && o > 1)
+  const oddsValues = calibrationBinaryRows.map((r) => r.odds).filter((o) => Number.isFinite(o) && o > 1)
   const avgImplied = oddsValues.length > 3
     ? oddsValues.reduce((s, o) => s + 1 / o, 0) / oddsValues.length
     : 0.5
   // Single-market implied averages around 0.5 for fair odds; overround pushes it up
   // Estimate: if avg(1/odds) = 0.52, vig ≈ 2*(0.52 - 0.5) = 0.04
   const estimatedVig = clamp(2 * (avgImplied - 0.48), 0.02, 0.12)
-  const vigOverround = reliability > 0.3 ? estimatedVig : 0.05
+  const vigOverround = baseReliability > 0.3 ? estimatedVig : 0.05
 
   // ═══ 2. Conf-Surplus Thresholds from hit-rate by surplus bucket ═══
   const surplusBuckets = [
@@ -4298,7 +4543,7 @@ export const backtestComboHyperparams = () => {
     { min: -0.04, hits: 0, total: 0 },  // neutral
     { min: -Infinity, hits: 0, total: 0 },  // negative edge
   ]
-  binaryRows.forEach((r) => {
+  calibrationBinaryRows.forEach((r) => {
     if (!Number.isFinite(r.odds) || r.odds <= 1) return
     const implied = clamp((1 / r.odds) * (1 - vigOverround), 0.02, 0.98)
     const surplus = r.conf - implied
@@ -4317,7 +4562,7 @@ export const backtestComboHyperparams = () => {
     ? clamp(surplusBuckets[2].min + 0.01, -0.08, 0.0) : -0.03
 
   // ═══ 3. Surplus bonus scaling from correlation of surplus vs outcome ═══
-  const surplusOutcomes = binaryRows
+  const surplusOutcomes = calibrationBinaryRows
     .filter((r) => Number.isFinite(r.odds) && r.odds > 1)
     .map((r) => ({
       surplus: r.conf - clamp((1 / r.odds) * (1 - vigOverround), 0.02, 0.98),
@@ -4339,7 +4584,7 @@ export const backtestComboHyperparams = () => {
 
   // ═══ 4. Stratified quotas from historical performance by leg count ═══
   const legPerformance = new Map()
-  settled.forEach((inv) => {
+  calibrationSettled.forEach((inv) => {
     const legs = (inv.matches || []).length
     if (legs < 1 || legs > 5) return
     if (!legPerformance.has(legs)) legPerformance.set(legs, { hits: 0, total: 0, profit: 0, input: 0 })
@@ -4366,7 +4611,7 @@ export const backtestComboHyperparams = () => {
       legScores.forEach((score, legs) => {
         // Blend: 50% data-driven + 50% prior (avoids wild swings with small samples)
         const dataDriven = score / totalScore
-        const blended = dataDriven * reliability * 0.5 + (defaultQuotas[legs] || 0.1) * (1 - reliability * 0.5)
+        const blended = dataDriven * baseReliability * 0.5 + (defaultQuotas[legs] || 0.1) * (1 - baseReliability * 0.5)
         stratifiedQuotas[legs] = Number(clamp(blended, 0.02, 0.60).toFixed(3))
       })
     }
@@ -4376,7 +4621,7 @@ export const backtestComboHyperparams = () => {
   // Analyze historical: did concentrated combos (same anchor) underperform?
   // We can't do this perfectly without combo-level tracking, so use match-level proxy
   const matchFrequency = new Map()
-  matchRows.forEach((m) => {
+  calibrationMatchRows.forEach((m) => {
     const key = `${m.home_team}-${m.away_team}`
     if (!matchFrequency.has(key)) matchFrequency.set(key, { total: 0, hits: 0 })
     const row = matchFrequency.get(key)
@@ -4395,7 +4640,7 @@ export const backtestComboHyperparams = () => {
   // ═══ 6. Role structure coefficients from role vs outcome ═══
   // Analyze: do matches with different implied "roles" have different hit rates?
   const roleAnalysis = { highP: { hits: 0, total: 0 }, highOdds: { hits: 0, total: 0 }, mid: { hits: 0, total: 0 } }
-  binaryRows.forEach((r) => {
+  calibrationBinaryRows.forEach((r) => {
     if (r.conf >= 0.58) { roleAnalysis.highP.total++; if (r.actual === 1) roleAnalysis.highP.hits++ }
     else if (Number.isFinite(r.odds) && r.odds >= 2.55) { roleAnalysis.highOdds.total++; if (r.actual === 1) roleAnalysis.highOdds.hits++ }
     else { roleAnalysis.mid.total++; if (r.actual === 1) roleAnalysis.mid.hits++ }
@@ -4416,7 +4661,7 @@ export const backtestComboHyperparams = () => {
   const portfolioWeights = { ev: 0.35, coverage: 0.30, diversity: 0.20, layerDiv: 0.10, tierDiv: 0.05 }
   if (n >= 40) {
     // High-conf hit rate => EV is informative => increase EV weight
-    const highConfHR = binaryRows.filter((r) => r.conf >= 0.6)
+    const highConfHR = calibrationBinaryRows.filter((r) => r.conf >= 0.6)
     const hrMetric = highConfHR.length >= 10
       ? highConfHR.filter((r) => r.actual === 1).length / highConfHR.length
       : 0.5
@@ -4433,15 +4678,16 @@ export const backtestComboHyperparams = () => {
 
   // ═══ 8. Recency weights from time-decay analysis ═══
   // Compare prediction quality in recent vs old data to calibrate recency emphasis
+  let calibratedRecencyWeights = { ...fallback.recencyWeights }
   if (n >= 40) {
     const cutoff = Math.floor(n * 0.3)
-    const recentBrier = binaryRows.slice(-cutoff)
+    const recentBrier = calibrationBinaryRows.slice(-cutoff)
       .reduce((s, r) => s + (r.conf - r.actual) ** 2, 0) / cutoff
-    const oldBrier = binaryRows.slice(0, cutoff)
+    const oldBrier = calibrationBinaryRows.slice(0, cutoff)
       .reduce((s, r) => s + (r.conf - r.actual) ** 2, 0) / cutoff
     // If recent data is more accurate (lower Brier), increase recency weight
     const brierRatio = oldBrier > 0.001 ? recentBrier / oldBrier : 1
-    fallback.recencyWeights = {
+    calibratedRecencyWeights = {
       recent: clamp(1.4 + (1 - brierRatio) * 0.4, 1.1, 1.8),
       mid: clamp(1.15 + (1 - brierRatio) * 0.15, 1.0, 1.35),
       base: 1.0,
@@ -4450,7 +4696,7 @@ export const backtestComboHyperparams = () => {
 
   // ═══ 9. REP weights from REP-stratified performance ═══
   const repBucketPerf = { low: { hits: 0, total: 0 }, mid: { hits: 0, total: 0 }, high: { hits: 0, total: 0 } }
-  binaryRows.forEach((r) => {
+  calibrationBinaryRows.forEach((r) => {
     const rep = Number.isFinite(r.rep) ? r.rep : 0.5
     const bucket = rep <= 0.4 ? 'low' : rep <= 0.8 ? 'mid' : 'high'
     repBucketPerf[bucket].total += 1
@@ -4469,7 +4715,7 @@ export const backtestComboHyperparams = () => {
   }
 
   // ═══ 10. Coverage decay and soft penalty from overall model quality ═══
-  const overallBrier = n > 0 ? binaryRows.reduce((s, r) => s + (r.conf - r.actual) ** 2, 0) / n : 0.25
+  const overallBrier = n > 0 ? calibrationBinaryRows.reduce((s, r) => s + (r.conf - r.actual) ** 2, 0) / n : 0.25
   // If model is well-calibrated (low Brier), soft penalties can be gentle
   // If model is noisy (high Brier), soft penalties should be aggressive
   const softPenaltyScales = {
@@ -4511,16 +4757,20 @@ export const backtestComboHyperparams = () => {
   const familyBonusScale = clamp(0.04 + (0.22 - overallBrier) * 0.03, 0.02, 0.08)
 
   // ═══ Blend all with reliability ═══
+  const holdoutQuality = evaluateComboTemporalHoldoutQuality(
+    holdoutBinaryRows,
+    { strongEdge, moderateEdge, neutral: neutralEdge },
+    vigOverround,
+  )
+  const reliability = clamp(baseReliability * holdoutQuality.quality, 0, 1)
+
   const blend = (calibrated, defaultVal) =>
     Number((calibrated * reliability + defaultVal * (1 - reliability)).toFixed(4))
 
   const blendObj = (calibratedObj, defaultObj) => {
     const result = {}
     for (const key of Object.keys(defaultObj)) {
-      result[key] = Number((
-        (calibratedObj[key] ?? defaultObj[key]) * reliability +
-        defaultObj[key] * (1 - reliability)
-      ).toFixed(4))
+      result[key] = Number(((calibratedObj[key] ?? defaultObj[key]) * reliability + defaultObj[key] * (1 - reliability)).toFixed(4))
     }
     return result
   }
@@ -4529,7 +4779,18 @@ export const backtestComboHyperparams = () => {
     ready: true,
     reliability: Number(reliability.toFixed(3)),
     sampleCount: n,
+    fullSampleCount: totalSampleCount,
     overallBrier: Number(overallBrier.toFixed(4)),
+    temporalSplit: holdoutBinaryRows.length > 0
+      ? {
+          enabled: true,
+          trainSamples: n,
+          holdoutSamples: holdoutBinaryRows.length,
+          holdoutQuality: holdoutQuality.quality,
+          holdoutStrongHitRate: holdoutQuality.strongHitRate,
+          holdoutNegativeHitRate: holdoutQuality.negativeHitRate,
+        }
+      : { enabled: false, trainSamples: n, holdoutSamples: 0, holdoutQuality: 1 },
     portfolioWeights: blendObj(portfolioWeights, fallback.portfolioWeights),
     stratifiedQuotas: blendObj(stratifiedQuotas, fallback.stratifiedQuotas),
     surplusThresholds: {
@@ -4557,7 +4818,7 @@ export const backtestComboHyperparams = () => {
       fallback.correlationFormula,
     ),
     portfolioOptimizer: blendObj(portfolioOptimizer, fallback.portfolioOptimizer),
-    recencyWeights: blendObj(fallback.recencyWeights, fallback.recencyWeights),
+    recencyWeights: blendObj(calibratedRecencyWeights, fallback.recencyWeights),
     repWeights: blendObj(repWeights, fallback.repWeights),
     matchConcentrationCap: blend(matchConcentrationCap, 0.60),
     entryCorrelationScale: blend(entryCorrelationScale, 0.04),
