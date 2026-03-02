@@ -2403,6 +2403,7 @@ export default function ParamsPage({ openModal }) {
   const [tmIsInMode, setTmIsInMode] = useState(isInTimeMachineMode())
   const [tmSessionInfo, setTmSessionInfo] = useState(() => getTimeMachineSessionInfo())
   const [accessLogPage, setAccessLogPage] = useState(1)
+  const [walkForwardPage, setWalkForwardPage] = useState(1)
   const [selectedAccessMonth, setSelectedAccessMonth] = useState(() => getAccessMonthKey(Date.now()))
   const [fitTrajectoryMode, setFitTrajectoryMode] = useState('9')
   const [fitTrajectoryWindow, setFitTrajectoryWindow] = useState(120)
@@ -4872,20 +4873,47 @@ export default function ParamsPage({ openModal }) {
               {modelValidation.walkForward.length === 0 ? (
                 <p className="text-xs text-stone-400 mt-2">样本不足，暂无法构建 walk-forward 窗口。</p>
               ) : (
-                <div className="mt-2 space-y-1.5">
-                  {modelValidation.walkForward.map((row) => (
-                    <div key={row.label} className="flex items-center justify-between text-xs">
-                      <span className="text-stone-500">
-                        {row.label} · Train {row.trainSamples} / Test {row.testSamples}
+                <>
+                  <div className="mt-2 space-y-1.5">
+                    {modelValidation.walkForward
+                      .slice((walkForwardPage - 1) * 8, walkForwardPage * 8)
+                      .map((row) => (
+                        <div key={row.label} className="flex items-center justify-between text-xs">
+                          <span className="text-stone-500">
+                            {row.label} · Train {row.trainSamples} / Test {row.testSamples}
+                          </span>
+                          <ExplainHover card={modelValidationGlossary.walkForwardGainCard(row)} align="right">
+                            <span className={`cursor-help decoration-dotted underline decoration-stone-300/80 underline-offset-[2px] ${row.gainPct >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                              Brier 改善 {toSigned(row.gainPct, 2, '%')}
+                            </span>
+                          </ExplainHover>
+                        </div>
+                      ))}
+                  </div>
+                  {Math.ceil(modelValidation.walkForward.length / 8) > 1 && (
+                    <div className="mt-3 flex items-center justify-between text-xs">
+                      <span className="text-stone-400">
+                        第 {walkForwardPage} / {Math.ceil(modelValidation.walkForward.length / 8)} 页
                       </span>
-                      <ExplainHover card={modelValidationGlossary.walkForwardGainCard(row)} align="right">
-                        <span className={`cursor-help decoration-dotted underline decoration-stone-300/80 underline-offset-[2px] ${row.gainPct >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                          Brier 改善 {toSigned(row.gainPct, 2, '%')}
-                        </span>
-                      </ExplainHover>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setWalkForwardPage(Math.max(1, walkForwardPage - 1))}
+                          disabled={walkForwardPage <= 1}
+                          className="px-2 py-1 rounded border border-stone-200 text-stone-600 hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          上一页
+                        </button>
+                        <button
+                          onClick={() => setWalkForwardPage(Math.min(Math.ceil(modelValidation.walkForward.length / 8), walkForwardPage + 1))}
+                          disabled={walkForwardPage >= Math.ceil(modelValidation.walkForward.length / 8)}
+                          className="px-2 py-1 rounded border border-stone-200 text-stone-600 hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          下一页
+                        </button>
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </div>
             <ExplainHover card={modelValidationGlossary.bootstrap} align="right">
