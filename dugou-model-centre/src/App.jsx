@@ -19,7 +19,7 @@ import TeamsPage from './pages/TeamsPage'
 import AnalysisPage from './pages/AnalysisPage'
 import MetricsPage from './pages/MetricsPage'
 
-import { getSystemConfig, PAGE_AMBIENT_THEME_DEFAULTS } from './lib/localData'
+import { getSystemConfig, PAGE_AMBIENT_THEME_DEFAULTS, isInTimeMachineMode } from './lib/localData'
 import { trackRouteAccess } from './lib/accessTracking'
 
 const LAYOUT_KEY = 'dugou:layout-mode'
@@ -49,6 +49,7 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [modalData, setModalData] = useState(null)
   const [systemConfigSnapshot, setSystemConfigSnapshot] = useState(() => getSystemConfig())
+  const [readOnlyWarning, setReadOnlyWarning] = useState(() => isInTimeMachineMode() ? '时光穿越中，仅浏览历史快照' : '')
   const mainScrollRef = useRef(null)
   const location = useLocation()
 
@@ -72,8 +73,16 @@ function App() {
         setSystemConfigSnapshot(getSystemConfig())
       }
     }
+    const onTmChanged = (event) => {
+      const isActive = event?.detail?.active
+      setReadOnlyWarning(isActive ? '时光穿越中，仅浏览历史快照' : '')
+    }
     window.addEventListener('dugou:data-changed', onDataChanged)
-    return () => window.removeEventListener('dugou:data-changed', onDataChanged)
+    window.addEventListener('dugou:time-machine-changed', onTmChanged)
+    return () => {
+      window.removeEventListener('dugou:data-changed', onDataChanged)
+      window.removeEventListener('dugou:time-machine-changed', onTmChanged)
+    }
   }, [])
 
   // Glow card mouse tracking effect
@@ -136,6 +145,13 @@ function App() {
           className="app-main-scroll flex-1 overflow-auto custom-scrollbar min-w-0"
         >
           <div className="app-main-flow">
+            {readOnlyWarning && (
+              <div className="sticky top-0 z-50 mx-4 mt-4 mb-2 p-3 rounded-lg bg-blue-100/90 border border-blue-300/70 shadow-md">
+                <p className="text-[13px] font-semibold text-blue-700">
+                  📸 {readOnlyWarning} — 所有写入操作已禁用，点击Console的"退出穿越"恢复正常。
+                </p>
+              </div>
+            )}
             <div key={location.pathname} className={`page-enter app-main-content ${ambientClassName}`}>
               {pageRoutes}
             </div>

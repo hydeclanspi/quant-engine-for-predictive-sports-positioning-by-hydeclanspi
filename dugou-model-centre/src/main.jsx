@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
-import { bootstrapCloudSnapshotOnLoad } from './lib/localData'
+import { bootstrapCloudSnapshotOnLoad, ensureCurrentMonthSnapshot } from './lib/localData'
 import './index.css'
 
 const renderApp = () => {
@@ -24,6 +24,11 @@ const bootstrapBeforeRender = async () => {
   } catch {
     // Fall back to local snapshot when cloud bootstrap fails.
   }
+
+  // Ensure monthly snapshot (fire and forget)
+  ensureCurrentMonthSnapshot().catch(() => {
+    // Silently ignore errors for monthly snapshot
+  })
 }
 
 bootstrapBeforeRender().finally(renderApp)

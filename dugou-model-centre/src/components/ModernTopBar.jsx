@@ -11,7 +11,7 @@ import {
   FileText,
   Flag,
 } from 'lucide-react'
-import { getInvestments } from '../lib/localData'
+import { getInvestments, getTimeMachineSessionInfo, isInTimeMachineMode } from '../lib/localData'
 import C15DiamondCutV1Logo from './C15DiamondCutV1Logo'
 
 /* ──────────────────────────────────────────────────
@@ -73,6 +73,8 @@ export default function ModernTopBar() {
   const [openDropdown, setOpenDropdown] = useState(null)
   const [dataVersion, setDataVersion] = useState(0)
   const [brandNameOffset, setBrandNameOffset] = useState(0)
+  const [tmActive, setTmActive] = useState(isInTimeMachineMode())
+  const [tmInfo, setTmInfo] = useState(getTimeMachineSessionInfo())
   const dropdownRef = useRef(null)
   const brandLogoRef = useRef(null)
   const brandNameRef = useRef(null)
@@ -82,8 +84,16 @@ export default function ModernTopBar() {
 
   useEffect(() => {
     const onDataChanged = () => setDataVersion((prev) => prev + 1)
+    const onTmChanged = () => {
+      setTmActive(isInTimeMachineMode())
+      setTmInfo(getTimeMachineSessionInfo())
+    }
     window.addEventListener('dugou:data-changed', onDataChanged)
-    return () => window.removeEventListener('dugou:data-changed', onDataChanged)
+    window.addEventListener('dugou:time-machine-changed', onTmChanged)
+    return () => {
+      window.removeEventListener('dugou:data-changed', onDataChanged)
+      window.removeEventListener('dugou:time-machine-changed', onTmChanged)
+    }
   }, [])
 
   useEffect(() => {
@@ -240,6 +250,14 @@ export default function ModernTopBar() {
 
       {/* ── Right ── */}
       <div className="mn-right">
+        {/* Time Machine indicator */}
+        {tmActive && tmInfo && (
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-gradient-to-r from-blue-100 to-cyan-100 border border-blue-200/70 shadow-[0_2px_8px_rgba(59,130,246,0.15)]">
+            <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+            <span className="text-[11px] font-semibold text-blue-700">时光穿越中</span>
+          </div>
+        )}
+
         {/* Status indicator dot — alive pulse */}
         <div className="mn-status-dot" title="System active">
           <div className="mn-status-dot-ping" />
