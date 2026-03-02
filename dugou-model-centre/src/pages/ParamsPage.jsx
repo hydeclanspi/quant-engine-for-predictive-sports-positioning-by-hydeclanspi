@@ -5380,64 +5380,42 @@ export default function ParamsPage({ openModal }) {
         </div>
       </div>
 
-      {/* Time Machine Card — Premium Entry Portal */}
-      <div className="glow-card mt-6 rounded-2xl border border-blue-200/40 bg-[linear-gradient(135deg,rgba(240,249,255,0.5)_0%,rgba(255,255,255,0.7)_50%,rgba(225,242,251,0.4)_100%)] p-6 shadow-[0_24px_48px_-32px_rgba(59,130,246,0.28),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-[2px]">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-start gap-3.5 flex-1">
-            <div className="h-11 w-11 rounded-lg bg-gradient-to-br from-blue-400/30 via-cyan-400/20 to-blue-300/15 border border-blue-300/40 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <TimeMachineIcon size={22} />
+      {/* Time Machine Card — Future Iteration Style */}
+      <div
+        onClick={openTimeMachineModal}
+        className="console-interactive-surface glow-card mt-6 rounded-2xl border border-cyan-200/70 bg-gradient-to-br from-cyan-50/90 via-white/92 to-blue-50/78 p-6 cursor-pointer backdrop-blur-sm shadow-[0_20px_45px_rgba(34,211,238,0.18),inset_0_1px_0_rgba(255,255,255,0.86)]"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-cyan-200 bg-white/80">
+                <TimeMachineIcon size={16} />
+              </span>
+              <span className="text-xs text-cyan-700 font-medium uppercase tracking-[0.1em]">时光穿越机</span>
             </div>
-            <div className="flex-1">
-              <h3 className="text-[13px] font-bold text-stone-800">时光穿越机</h3>
-              <p className="text-[11px] text-stone-600 mt-1.5">浏览历史快照，一键回溯到任意时刻</p>
-            </div>
-          </div>
-          <button
-            onClick={openTimeMachineModal}
-            className="px-4 py-2.5 rounded-lg text-[11px] font-bold bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 whitespace-nowrap flex-shrink-0 ml-3"
-          >
-            打开
-          </button>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="px-3.5 py-2.5 rounded-lg bg-white/60 border border-blue-100/60 backdrop-blur-sm">
-            <p className="text-[10px] text-stone-500 font-medium mb-1">快照总数</p>
-            <p className="text-[13px] font-bold text-stone-800">{tmSnapshots.length}</p>
-          </div>
-          <div className="px-3.5 py-2.5 rounded-lg bg-white/60 border border-blue-100/60 backdrop-blur-sm">
-            <p className="text-[10px] text-stone-500 font-medium mb-1">最新更新</p>
-            <p className="text-[13px] font-bold text-stone-800">
-              {tmSnapshots.length > 0
-                ? new Date(tmSnapshots[0].updatedAt).toLocaleDateString()
-                : '—'}
+            <h3 className="text-lg font-semibold text-stone-800">快照时光机</h3>
+            <p className="text-sm text-stone-500 mt-2 max-w-3xl">
+              {tmIsInMode
+                ? `当前查阅: ${tmSessionInfo?.title} · 所有写操作已禁用`
+                : `${tmSnapshots.length} 个快照 · 浏览历史数据，一键穿梭时空`}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              if (tmIsInMode) {
+                handleExitTimeMachine()
+              } else {
+                openTimeMachineModal()
+              }
+            }}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-white/85 px-3 py-2 text-xs font-medium text-cyan-700 hover:bg-cyan-50 transition-colors"
+          >
+            {tmIsInMode ? '退出穿越' : '进入'}
+            <ChevronRight size={14} />
+          </button>
         </div>
-
-        {/* 如果已在穿越中，显示当前状态 */}
-        {tmIsInMode && tmSessionInfo && (
-          <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-blue-100/80 to-cyan-100/70 border border-blue-200/70 backdrop-blur-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1">
-                <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-blue-700/70 mb-1">
-                  当前查阅
-                </p>
-                <p className="text-[12px] font-bold text-blue-900">{tmSessionInfo.title}</p>
-                <p className="text-[10px] text-blue-700 mt-1">{new Date(tmSessionInfo.snapshotAt).toLocaleString()}</p>
-              </div>
-              <button
-                onClick={handleExitTimeMachine}
-                disabled={tmLoading}
-                className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-red-600 text-white hover:bg-red-700 transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
-              >
-                退出
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="glow-card mt-12 rounded-2xl border border-sky-100/85 bg-[linear-gradient(160deg,rgba(248,252,255,0.94),rgba(255,255,255,0.94)_50%,rgba(241,249,255,0.88))] p-4 sm:p-5 shadow-[0_18px_34px_-30px_rgba(56,189,248,0.38),inset_0_1px_0_rgba(255,255,255,0.9)]">

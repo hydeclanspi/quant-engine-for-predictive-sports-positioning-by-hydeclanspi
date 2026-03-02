@@ -1,12 +1,11 @@
-import { Plus, X, Archive, Database } from 'lucide-react'
+import { Plus, X, RotateCcw, Archive, Database } from 'lucide-react'
 
 /**
  * 高端时光穿越机弹窗内容组件
  * 设计风格：Google Gemini + 硅谷科技感 + 精英香槟叙事
- * 修复版本：
- * - 修复所有按钮颜色 BUG（高对比度）
- * - 删除所有廉价 emoji
- * - 高端 GlassCardIcon 设计
+ * - GlassCardIcon 高端 icon 设计
+ * - 梯度渐变 + 多层阴影
+ * - 大气、有张力的排版和间距
  */
 
 // GlassCardIcon 组件 - 高端 icon 容器
@@ -63,7 +62,7 @@ export default function TimeMachineModalContent({
             <button
               onClick={onExitSession}
               disabled={loading}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[11px] font-bold bg-red-600 text-white hover:bg-red-700 transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[11px] font-bold bg-gradient-to-r from-red-500 to-red-600 text-white hover:shadow-[0_6px_16px_rgba(239,68,68,0.35)] transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
             >
               <X size={14} strokeWidth={2.5} /> 退出穿越
             </button>
@@ -125,9 +124,9 @@ export default function TimeMachineModalContent({
                     <button
                       onClick={() => onBeginSession(snap.id)}
                       disabled={loading}
-                      className="ml-4 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[11px] font-bold bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 disabled:opacity-50 whitespace-nowrap group-hover:scale-105 group-active:scale-95"
+                      className="ml-4 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[11px] font-bold bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-[0_8px_20px_rgba(59,130,246,0.4)] transition-all duration-200 disabled:opacity-50 whitespace-nowrap group-hover:scale-105 group-active:scale-95"
                     >
-                      穿越
+                      <RotateCcw size={12} strokeWidth={2.5} /> 穿越
                     </button>
                   </div>
                 ))}
@@ -178,14 +177,14 @@ export default function TimeMachineModalContent({
               <button
                 onClick={onSaveSnapshot}
                 disabled={loading}
-                className="px-4 py-2.5 rounded-lg text-[11px] font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
+                className="px-4 py-2.5 rounded-lg text-[11px] font-bold bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:shadow-[0_8px_20px_rgba(16,185,129,0.4)] transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
               >
                 保存
               </button>
               <button
                 onClick={onEnsureMonthly}
                 disabled={loading}
-                className="px-4 py-2.5 rounded-lg text-[11px] font-bold bg-violet-600 text-white hover:bg-violet-700 transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
+                className="px-4 py-2.5 rounded-lg text-[11px] font-bold bg-gradient-to-r from-violet-500 to-purple-500 text-white hover:shadow-[0_8px_20px_rgba(139,92,246,0.4)] transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
               >
                 本月
               </button>
