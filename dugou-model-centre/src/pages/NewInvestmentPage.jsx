@@ -323,7 +323,9 @@ export default function NewInvestmentPage() {
     () => Math.round(systemConfig.initialCapital * systemConfig.riskCapRatio),
     [systemConfig.initialCapital, systemConfig.riskCapRatio],
   )
-  const calibrationContext = useMemo(() => getPredictionCalibrationContext(), [dataVersion])
+  const [calibrationContext, setCalibrationContext] = useState(() =>
+    getPredictionCalibrationContext({ detail: 'lite' }),
+  )
 
   // S4: 根据历史数据计算每个 Mode 的最优 Kelly 分母
   const modeKellyMap = useMemo(() => {
@@ -349,6 +351,36 @@ export default function NewInvestmentPage() {
     window.addEventListener('dugou:data-changed', onDataChanged)
     return () => window.removeEventListener('dugou:data-changed', onDataChanged)
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    let idleId = null
+    let timeoutId = null
+
+    setCalibrationContext(getPredictionCalibrationContext({ detail: 'lite' }))
+
+    const hydrateFull = () => {
+      if (cancelled) return
+      const fullContext = getPredictionCalibrationContext({ detail: 'full' })
+      if (!cancelled) setCalibrationContext(fullContext)
+    }
+
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+      idleId = window.requestIdleCallback(hydrateFull, { timeout: 1200 })
+    } else {
+      timeoutId = window.setTimeout(hydrateFull, 0)
+    }
+
+    return () => {
+      cancelled = true
+      if (idleId !== null && typeof window !== 'undefined' && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(idleId)
+      }
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId)
+      }
+    }
+  }, [dataVersion])
 
   useEffect(
     () => () => {
