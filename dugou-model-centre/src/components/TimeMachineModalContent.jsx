@@ -1,4 +1,5 @@
-import { Plus, X, RotateCcw, Archive, Database, Trash2 } from 'lucide-react'
+import { Plus, X, RotateCcw, Archive, Database } from 'lucide-react'
+import SimpleBinIcon from './SimpleBinIcon'
 
 /**
  * 高端时光穿越机弹窗内容组件
@@ -129,7 +130,7 @@ export default function TimeMachineModalContent({
                         title="删除快照"
                         className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-rose-200/50 bg-white/85 text-rose-500 hover:border-rose-300/70 hover:bg-rose-50/80 transition-all disabled:opacity-50"
                       >
-                        <Trash2 size={12} strokeWidth={2.5} />
+                        <SimpleBinIcon size={10} />
                       </button>
                       <button
                         onClick={() => onBeginSession(snap.id)}
