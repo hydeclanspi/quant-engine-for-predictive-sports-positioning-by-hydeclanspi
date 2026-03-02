@@ -37,7 +37,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
           matches: matches.map(m => ({
             odds: Number(m.odds) || 1,
             // 比赛结果：result字段、status字段或revenues计算
-            result: m.result === true || m.result === 'won' || m.status === 'won' || m.won === true,
+            result: m.is_correct === true || m.result === true || m.result === 'won' || m.status === 'won' || m.won === true,
           })),
           // 投注结果：检查 revenues > 0 或 status 字段
           succeeded: Number(inv.revenues || 0) > 0 || inv.status === 'settled_win' || inv.status === 'won',
