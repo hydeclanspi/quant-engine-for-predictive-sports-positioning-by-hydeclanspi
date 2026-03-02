@@ -115,6 +115,21 @@ const toAjrOrNull = (value) => {
   return Number(clamp(parsed, AJR_MIN, AJR_MAX).toFixed(2))
 }
 
+const sanitizeDecimalInputText = (value, { maxDecimals = null } = {}) => {
+  let text = String(value ?? '')
+    .replace(/[。．，]/g, '.')
+    .replace(/[^\d.]/g, '')
+
+  const firstDotIdx = text.indexOf('.')
+  if (firstDotIdx >= 0) {
+    const head = text.slice(0, firstDotIdx + 1)
+    const tailRaw = text.slice(firstDotIdx + 1).replace(/\./g, '')
+    const tail = Number.isFinite(maxDecimals) ? tailRaw.slice(0, maxDecimals) : tailRaw
+    text = `${head}${tail}`
+  }
+  return text
+}
+
 export default function SettlePage() {
   const [pendingCombos, setPendingCombos] = useState(() => createPendingCombos())
   // 默认展开第一条待结算记录
@@ -294,21 +309,26 @@ export default function SettlePage() {
   )
 
   const updateMatchField = (comboId, matchIdx, field, value) => {
+    const normalizedValue =
+      field === 'matchRating' || field === 'matchRep'
+        ? sanitizeDecimalInputText(value, { maxDecimals: 2 })
+        : value
     setForms((prev) => ({
       ...prev,
       [comboId]: {
         ...prev[comboId],
-        matches: prev[comboId].matches.map((match, idx) => (idx === matchIdx ? { ...match, [field]: value } : match)),
+        matches: prev[comboId].matches.map((match, idx) => (idx === matchIdx ? { ...match, [field]: normalizedValue } : match)),
       },
     }))
   }
 
   const updateRevenue = (comboId, value) => {
+    const normalizedRevenue = sanitizeDecimalInputText(value, { maxDecimals: 2 })
     setForms((prev) => ({
       ...prev,
       [comboId]: {
         ...prev[comboId],
-        revenues: value,
+        revenues: normalizedRevenue,
       },
     }))
   }
@@ -563,21 +583,19 @@ export default function SettlePage() {
           <div className="text-xs text-stone-500">已勾选 {selectedCount}/{pendingCombos.length}</div>
           <div className="flex flex-wrap items-center gap-2">
             <input
-              type="number"
-              step="0.01"
-              min={AJR_MIN}
-              max={AJR_MAX}
+              type="text"
+              inputMode="decimal"
               placeholder="批量 AJR"
               value={batchRating}
-              onChange={(event) => setBatchRating(event.target.value)}
+              onChange={(event) => setBatchRating(sanitizeDecimalInputText(event.target.value, { maxDecimals: 2 }))}
               className="w-24 sm:w-28 px-2 py-1.5 rounded-lg border border-stone-200 text-xs text-right"
             />
             <input
-              type="number"
-              step="0.1"
+              type="text"
+              inputMode="decimal"
               placeholder="批量 REP"
               value={batchRep}
-              onChange={(event) => setBatchRep(event.target.value)}
+              onChange={(event) => setBatchRep(sanitizeDecimalInputText(event.target.value, { maxDecimals: 2 }))}
               className="w-24 sm:w-28 px-2 py-1.5 rounded-lg border border-stone-200 text-xs text-right"
             />
             <button onClick={applyBatchFill} className="motion-v2-ghost-btn px-3 py-1.5 text-xs rounded-lg bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors">
@@ -732,10 +750,8 @@ export default function SettlePage() {
                           <span className="ml-1 text-stone-300 cursor-help" title="赛后复盘评分">?</span>
                         </label>
                         <input
-                          type="number"
-                          step="0.01"
-                          min={AJR_MIN}
-                          max={AJR_MAX}
+                          type="text"
+                          inputMode="decimal"
                           placeholder="0~0.8"
                           value={forms[combo.id]?.matches[matchIdx]?.matchRating ?? ''}
                           onChange={(event) => updateMatchField(combo.id, matchIdx, 'matchRating', event.target.value)}
@@ -756,8 +772,8 @@ export default function SettlePage() {
                           <span className="ml-1 text-stone-300 cursor-help" title="Random Events Parameter">?</span>
                         </label>
                         <input
-                          type="number"
-                          step="0.1"
+                          type="text"
+                          inputMode="decimal"
                           placeholder="0~1.8"
                           value={forms[combo.id]?.matches[matchIdx]?.matchRep ?? ''}
                           onChange={(event) => updateMatchField(combo.id, matchIdx, 'matchRep', event.target.value)}
@@ -800,7 +816,8 @@ export default function SettlePage() {
                       <label className="text-xs text-stone-400 mb-1.5 block">Revenue 实际收益</label>
                       <div className="flex items-center gap-2">
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
                           value={forms[combo.id]?.revenues ?? '0'}
                           onChange={(event) => updateRevenue(combo.id, event.target.value)}
                           className="input-glow w-32 px-3 py-2.5 rounded-xl border border-stone-200 text-sm font-medium"

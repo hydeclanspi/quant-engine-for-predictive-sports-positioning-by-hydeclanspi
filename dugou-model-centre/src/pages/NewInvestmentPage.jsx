@@ -159,6 +159,24 @@ const normalizeSliderPercent = (value, fallback = 50) => {
   return clamp(Math.round(num), 0, 100)
 }
 
+const sanitizeDecimalInputText = (value, { maxDecimals = null } = {}) => {
+  let text = String(value ?? '')
+    .replace(/[。．，]/g, '.')
+    .replace(/[^\d.]/g, '')
+
+  const firstDotIdx = text.indexOf('.')
+  if (firstDotIdx >= 0) {
+    const head = text.slice(0, firstDotIdx + 1)
+    const tailRaw = text.slice(firstDotIdx + 1).replace(/\./g, '')
+    const tail = Number.isFinite(maxDecimals) ? tailRaw.slice(0, maxDecimals) : tailRaw
+    text = `${head}${tail}`
+  }
+  return text
+}
+
+const sanitizeIntegerInputText = (value) =>
+  String(value ?? '').replace(/[^\d]/g, '')
+
 const normalizeTeamKey = (value) => normalizeTeamNameInput(value).toLowerCase()
 
 const normalizeMatchupKey = (homeTeam, awayTeam) => {
@@ -416,7 +434,8 @@ export default function NewInvestmentPage() {
       const match = next[idx]
       const entries = [...match.entries]
       const oldEntry = entries[entryIdx]
-      const normalizedValue = field === 'name' ? normalizeEntryName(value) : value
+      const normalizedValue =
+        field === 'name' ? normalizeEntryName(value) : sanitizeDecimalInputText(value, { maxDecimals: 2 })
       entries[entryIdx] = { ...oldEntry, [field]: normalizedValue }
       next[idx] = { ...match, entries }
       return next
@@ -1239,8 +1258,8 @@ export default function NewInvestmentPage() {
                         <div className="col-span-1" />
                         <div className="col-span-4">
                           <input
-                            type="number"
-                            step="0.01"
+                            type="text"
+                            inputMode="decimal"
                             placeholder="Odds"
                             value={entry.odds}
                             onChange={(event) => updateEntry(idx, entryIdx, 'odds', event.target.value)}
@@ -1548,9 +1567,10 @@ export default function NewInvestmentPage() {
               <div>
                 <label className="text-xs text-stone-400 mb-1 block">Inputs 实际投资</label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={actualInput}
-                  onChange={(event) => setActualInput(event.target.value)}
+                  onChange={(event) => setActualInput(sanitizeIntegerInputText(event.target.value))}
                   className="input-glow w-28 px-3 py-2 rounded-xl border border-stone-200 text-sm font-medium focus:outline-none focus:border-amber-400"
                 />
               </div>
