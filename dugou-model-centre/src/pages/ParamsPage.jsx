@@ -5081,7 +5081,7 @@ export default function ParamsPage({ openModal }) {
       </div>
 
       {/* Layout Mode Toggle */}
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mt-6">
+      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={LayoutDashboard} /> 界面布局
@@ -5176,7 +5176,7 @@ export default function ParamsPage({ openModal }) {
 
       <div
         onClick={openFutureFeaturesModal}
-        className="console-interactive-surface glow-card mt-6 rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50/90 via-white/92 to-cyan-50/78 p-6 cursor-pointer backdrop-blur-sm shadow-[0_20px_45px_rgba(56,189,248,0.18),inset_0_1px_0_rgba(255,255,255,0.86)]"
+        className="console-interactive-surface glow-card rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50/90 via-white/92 to-cyan-50/78 p-6 mb-9 cursor-pointer backdrop-blur-sm shadow-[0_20px_45px_rgba(56,189,248,0.18),inset_0_1px_0_rgba(255,255,255,0.86)]"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -5207,7 +5207,7 @@ export default function ParamsPage({ openModal }) {
         </div>
       </div>
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mt-12 mb-9">
+      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={Cloud} /> 云端同步（Supabase）
@@ -5272,7 +5272,7 @@ export default function ParamsPage({ openModal }) {
       {/* Time Machine Card — Future Iteration Style */}
       <div
         onClick={openTimeMachineModal}
-        className="console-interactive-surface glow-card mt-24 mb-24 rounded-2xl border border-cyan-200/70 bg-gradient-to-br from-cyan-50/90 via-white/92 to-blue-50/78 p-6 cursor-pointer backdrop-blur-sm shadow-[0_20px_45px_rgba(34,211,238,0.18),inset_0_1px_0_rgba(255,255,255,0.86)]"
+        className="console-interactive-surface glow-card mb-24 rounded-2xl border border-cyan-200/70 bg-gradient-to-br from-cyan-50/90 via-white/92 to-blue-50/78 p-6 cursor-pointer backdrop-blur-sm shadow-[0_20px_45px_rgba(34,211,238,0.18),inset_0_1px_0_rgba(255,255,255,0.86)]"
       >
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
@@ -5441,7 +5441,7 @@ export default function ParamsPage({ openModal }) {
         )}
       </div>
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
+      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={Database} /> JSON 数据备份
@@ -5460,7 +5460,7 @@ export default function ParamsPage({ openModal }) {
         </div>
       </div>
 
-      <div className="glow-card mt-12 rounded-2xl border border-sky-100/85 bg-[linear-gradient(160deg,rgba(248,252,255,0.94),rgba(255,255,255,0.94)_50%,rgba(241,249,255,0.88))] p-4 sm:p-5 shadow-[0_18px_34px_-30px_rgba(56,189,248,0.38),inset_0_1px_0_rgba(255,255,255,0.9)]">
+      <div className="glow-card rounded-2xl border border-sky-100/85 bg-[linear-gradient(160deg,rgba(248,252,255,0.94),rgba(255,255,255,0.94)_50%,rgba(241,249,255,0.88))] p-4 mb-9 sm:p-5 shadow-[0_18px_34px_-30px_rgba(56,189,248,0.38),inset_0_1px_0_rgba(255,255,255,0.9)]">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="font-medium text-stone-700 flex items-center gap-2">
