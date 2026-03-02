@@ -6628,9 +6628,9 @@ export default function ComboPage({ openModal }) {
       {/* ═══ 依赖风险矩阵（脆弱性热力图）═══ */}
       <div className="mb-6">
         <FragilityHeatmapCard
-          matches={checkedMatches.map((m) => ({
-            odds: Number(m.odds) || 1,
-            teamName: m.teamName || '',
+          matches={selectedMatches.map((m) => ({
+            odds: Number(m.odds) || 2.5,
+            teamName: m.homeTeam && m.awayTeam ? `${m.homeTeam} vs ${m.awayTeam}` : m.teamName || '',
             matchDate: m.matchDate || '',
           }))}
           expandedPair={expandedFragilityPair}
