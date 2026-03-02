@@ -34,31 +34,41 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
         const matches = Array.isArray(inv.matches) ? inv.matches : []
         
         return {
-          matches: matches.map(m => ({
-            odds: Number(m.odds) || 1,
-            // 比赛结果：result字段、status字段或revenues计算
-            result: m.is_correct === true || m.result === true || m.result === 'won' || m.status === 'won' || m.won === true,
-          })),
+          matches: matches.map(m => {
+            // 判断是否有明确的结果数据
+            const hasResult = typeof m.is_correct === 'boolean'
+              || typeof m.result === 'boolean'
+              || m.result === 'won' || m.result === 'lost' || m.result === 'loss'
+              || m.status === 'won' || m.status === 'lost'
+            // 判断是否赢了
+            const isWin = m.is_correct === true || m.result === true || m.result === 'won' || m.status === 'won' || m.won === true
+            return {
+              odds: Number(m.odds) || 1,
+              // result: true=赢, false=输, undefined=无结果
+              result: hasResult ? isWin : undefined,
+            }
+          }),
           // 投注结果：检查 revenues > 0 或 status 字段
           succeeded: Number(inv.revenues || 0) > 0 || inv.status === 'settled_win' || inv.status === 'won',
           createdAt: inv.created_at || inv.createdAt || new Date().toISOString(),
         }
       })
-      .filter(d => d.matches.length > 0)
+      .filter(d => d.matches.length > 0 && d.matches.some(m => m.result !== undefined))
     
     // 调试输出
     if (settledInvestments.length > 0) {
       const debugSample = settledInvestments[0]
+      const totalMatches = settledInvestments.reduce((sum, inv) => sum + inv.matches.length, 0)
+      const matchesWithResults = settledInvestments.reduce((sum, inv) => sum + inv.matches.filter(m => m.result !== undefined).length, 0)
+      const failedMatches = settledInvestments.reduce((sum, inv) => sum + inv.matches.filter(m => m.result === false).length, 0)
+      const wonMatches = settledInvestments.reduce((sum, inv) => sum + inv.matches.filter(m => m.result === true).length, 0)
       console.log('🔍 FragilityHeatmap Debug:', {
         totalSettled: settledInvestments.length,
-        sampleInvestment: debugSample,
-        sampleMatches: debugSample.matches,
-        sampleResults: debugSample.matches.map(m => ({ 
-          odds: m.odds, 
-          result: m.result,
-          // 原始字段示例
-          m_keys: Object.keys(m).slice(0, 5)
-        }))
+        totalMatches,
+        matchesWithResults,
+        wonMatches,
+        failedMatches,
+        sampleResults: debugSample.matches.map(m => ({ odds: m.odds, result: m.result })),
       })
     }
     return settledInvestments
