@@ -1200,6 +1200,21 @@ export const listHistoricalSnapshots = (page = 1, pageSize = 6) => {
 
 export const saveSnapshot = async (title = '', mode = 'manual') => {
   const snapshot = exportDataBundle()
+
+  // Debug: 检查数据结构
+  if (!snapshot.system_config || typeof snapshot.system_config !== 'object') {
+    console.error('[saveSnapshot] Invalid system_config:', snapshot.system_config)
+    return { ok: false, reason: 'invalid_system_config' }
+  }
+  if (!Array.isArray(snapshot.team_profiles)) {
+    console.error('[saveSnapshot] Invalid team_profiles:', snapshot.team_profiles)
+    return { ok: false, reason: 'invalid_team_profiles' }
+  }
+  if (!Array.isArray(snapshot.investments)) {
+    console.error('[saveSnapshot] Invalid investments:', snapshot.investments)
+    return { ok: false, reason: 'invalid_investments' }
+  }
+
   return saveTimeMachineSnapshot({
     snapshot,
     title,
