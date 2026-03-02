@@ -5464,11 +5464,11 @@ export default function ParamsPage({ openModal }) {
                 VIP
               </span>
             </div>
-            <h3 className="text-lg font-semibold text-stone-800">快照时光机</h3>
+            <h3 className="text-lg font-semibold text-stone-800">数据时光穿梭</h3>
             <p className="text-sm text-stone-500 mt-2 max-w-3xl">
               {tmIsInMode
-                ? `当前查阅: ${tmSessionInfo?.title} · 所有写操作已禁用`
-                : `${tmSnapshots.length} 个快照 · 浏览历史数据，一键穿梭时空`}
+                ? `正在回溯: ${tmSessionInfo?.title} · 所有修改已冻结 · 安全浏览历史版本`
+                : `已保存 ${tmSnapshots.length} 份快照 · 秒级穿梭到任意历史时刻 · 完整恢复您的每一次决策`}
             </p>
           </div>
           <button
