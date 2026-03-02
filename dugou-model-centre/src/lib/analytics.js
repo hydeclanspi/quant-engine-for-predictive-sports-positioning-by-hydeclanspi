@@ -1402,6 +1402,8 @@ export const getTeamsSnapshot = (query = '', periodKey = 'all') => {
       const roi = calcRoi(team.totalProfit, team.totalInputs)
       const avgRep =
         team.repValues.length > 0 ? team.repValues.reduce((sum, value) => sum + value, 0) / team.repValues.length : 0.5
+      const avgAjr =
+        team.ajrValues.length > 0 ? team.ajrValues.reduce((sum, value) => sum + value, 0) / team.ajrValues.length : 0
       const medianAjr = calcMedian(team.ajrValues, 0)
       const ratingDiff =
         team.ratingDiffValues.length > 0
@@ -1438,6 +1440,7 @@ export const getTeamsSnapshot = (query = '', periodKey = 'all') => {
         ...team,
         roi,
         avgRep,
+        avgAjr,
         medianAjr,
         ratingDiff,
         roiHistory,

@@ -306,8 +306,8 @@ export default function TeamsPage() {
                 </span>
               </div>
               <div>
-                <span className="text-xs text-stone-400 block">Med AJR</span>
-                <span className="text-sm font-medium text-stone-700">{Number(team.medianAjr || 0).toFixed(2)}</span>
+                <span className="text-xs text-stone-400 block">Avg AJR</span>
+                <span className="text-sm font-medium text-stone-700">{Number(team.avgAjr || 0).toFixed(2)}</span>
               </div>
               <div>
                 <span className="text-xs text-stone-400 block">AJR-Conf</span>
