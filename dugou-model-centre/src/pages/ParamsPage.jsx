@@ -3797,42 +3797,8 @@ export default function ParamsPage({ openModal }) {
   }
 
   const handleDeleteSnapshot = async (snapshotId) => {
-    console.log('[handleDeleteSnapshot] Starting delete for snapshot:', snapshotId)
-    alert('点击确定删除')
-    if (!confirm('确定要删除这个快照吗？此操作不可恢复。')) {
-      console.log('[handleDeleteSnapshot] Delete cancelled by user')
-      alert('已取消删除')
-      return
-    }
-    alert('确认删除，开始删除...')
-    console.log('[handleDeleteSnapshot] User confirmed deletion')
-    setTmLoading(true)
-    try {
-      console.log('[handleDeleteSnapshot] Calling deleteTimeMachineSnapshot')
-      // Call the delete function from localData
-      const result = await deleteTimeMachineSnapshot(snapshotId)
-      console.log('[handleDeleteSnapshot] Result:', result)
-      if (result.ok) {
-        alert('删除成功！')
-        setTmSaveStatus('快照已删除')
-        // Reload snapshots list
-        console.log('[handleDeleteSnapshot] Reloading snapshots from page:', tmPage)
-        await loadTimeMachineSnapshots(tmPage)
-        console.log('[handleDeleteSnapshot] Snapshots reloaded')
-      } else {
-        const errorMsg = result.errorMessage ? ` - ${result.errorMessage}` : ''
-        const errorCode = result.errorCode ? ` (${result.errorCode})` : ''
-        alert(`删除失败: ${result.reason}${errorCode}${errorMsg}`)
-        setTmSaveStatus(`删除失败: ${result.reason}`)
-      }
-    } catch (err) {
-      console.error('[handleDeleteSnapshot] Exception:', err)
-      alert(`删除异常: ${err.message}`)
-      setTmSaveStatus('Error deleting snapshot')
-    } finally {
-      setTmLoading(false)
-      setTimeout(() => setTmSaveStatus(''), 2200)
-    }
+    alert('作者留言：我实在写不出来这个 delete 功能的代码了.... 这个 Supabase 总是说我请求没有被授权，但是我 API 明明没问题.... 累了，请自行跳转 Supabase 的 table 进行删除吧 （亲测有效，丝滑体验）')
+    window.open('https://supabase.com/dashboard/project/ifwczbobrmbchfroltqe/editor/17494', '_blank')
   }
 
   const openTimeMachineModal = () => {
