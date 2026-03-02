@@ -3798,10 +3798,14 @@ export default function ParamsPage({ openModal }) {
 
   const handleDeleteSnapshot = async (snapshotId) => {
     console.log('[handleDeleteSnapshot] Starting delete for snapshot:', snapshotId)
+    alert('点击确定删除')
     if (!confirm('确定要删除这个快照吗？此操作不可恢复。')) {
       console.log('[handleDeleteSnapshot] Delete cancelled by user')
+      alert('已取消删除')
       return
     }
+    alert('确认删除，开始删除...')
+    console.log('[handleDeleteSnapshot] User confirmed deletion')
     setTmLoading(true)
     try {
       console.log('[handleDeleteSnapshot] Calling deleteTimeMachineSnapshot')
@@ -3809,16 +3813,19 @@ export default function ParamsPage({ openModal }) {
       const result = await deleteTimeMachineSnapshot(snapshotId)
       console.log('[handleDeleteSnapshot] Result:', result)
       if (result.ok) {
-        setTmSaveStatus('Snapshot deleted successfully')
+        alert('删除成功！')
+        setTmSaveStatus('快照已删除')
         // Reload snapshots list
         console.log('[handleDeleteSnapshot] Reloading snapshots from page:', tmPage)
         await loadTimeMachineSnapshots(tmPage)
         console.log('[handleDeleteSnapshot] Snapshots reloaded')
       } else {
+        alert(`删除失败: ${result.reason}`)
         setTmSaveStatus(`Failed to delete: ${result.reason}`)
       }
     } catch (err) {
       console.error('[handleDeleteSnapshot] Exception:', err)
+      alert(`删除异常: ${err.message}`)
       setTmSaveStatus('Error deleting snapshot')
     } finally {
       setTmLoading(false)
