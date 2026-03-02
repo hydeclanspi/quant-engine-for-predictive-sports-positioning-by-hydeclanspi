@@ -4392,250 +4392,6 @@ export default function ParamsPage({ openModal }) {
 
         <LogoGalleryPreview onOpen={openLogoGalleryModal} />
       </div>
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium text-stone-700 flex items-center gap-2">
-            <ConsoleCardIcon IconComp={LayoutDashboard} /> 界面布局
-          </h3>
-          <button
-            type="button"
-            onClick={openThemeSettingsModal}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white/85 px-3 py-2 text-xs font-medium text-sky-700 hover:bg-sky-50 transition-colors"
-          >
-            themes settings <ChevronRight size={14} />
-          </button>
-        </div>
-        <div className="grid grid-cols-3 gap-4">
-          {/* Modern */}
-          <button
-            onClick={() => {
-              saveSystemConfig({ layoutMode: 'modern' })
-              localStorage.setItem('dugou:layout-mode', 'modern')
-              window.dispatchEvent(new CustomEvent('dugou:layout-changed', { detail: { mode: 'modern' } }))
-            }}
-            className={`p-4 rounded-xl border-2 transition-all text-left ${
-              currentLayoutMode === 'modern'
-                ? 'border-neutral-900 bg-neutral-50'
-                : 'border-stone-200 hover:border-stone-300 bg-stone-50'
-            }`}
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-8 h-8 rounded-md bg-white border border-neutral-200 flex flex-col overflow-hidden">
-                <div className="h-[5px] bg-neutral-900 w-full" />
-                <div className="flex-1 bg-neutral-50" />
-              </div>
-              <span className="text-sm font-medium text-stone-700">Modern</span>
-              {currentLayoutMode === 'modern' && (
-                <span className="text-[10px] px-2 py-0.5 bg-neutral-900 text-white rounded-full ml-auto">Active</span>
-              )}
-            </div>
-            <p className="text-xs text-stone-400">Vercel-inspired. Clean monochrome, sharp typography, system-native feel.</p>
-          </button>
-          {/* Topbar */}
-          <button
-            onClick={() => {
-              saveSystemConfig({ layoutMode: 'topbar' })
-              localStorage.setItem('dugou:layout-mode', 'topbar')
-              window.dispatchEvent(new CustomEvent('dugou:layout-changed', { detail: { mode: 'topbar' } }))
-            }}
-            className={`p-4 rounded-xl border-2 transition-all text-left ${
-              currentLayoutMode === 'topbar'
-                ? 'border-amber-400 bg-amber-50/50'
-                : 'border-stone-200 hover:border-stone-300 bg-stone-50'
-            }`}
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-stone-200 flex flex-col overflow-hidden">
-                <div className="h-2 bg-amber-400 w-full" />
-                <div className="flex-1 bg-stone-100" />
-              </div>
-              <span className="text-sm font-medium text-stone-700">Topbar</span>
-              {currentLayoutMode === 'topbar' && (
-                <span className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full ml-auto">Active</span>
-              )}
-            </div>
-            <p className="text-xs text-stone-400">Glassmorphism topbar with warm amber accents and brand logo.</p>
-          </button>
-          {/* Sidebar */}
-          <button
-            onClick={() => {
-              saveSystemConfig({ layoutMode: 'sidebar' })
-              localStorage.setItem('dugou:layout-mode', 'sidebar')
-              window.dispatchEvent(new CustomEvent('dugou:layout-changed', { detail: { mode: 'sidebar' } }))
-            }}
-            className={`p-4 rounded-xl border-2 transition-all text-left ${
-              currentLayoutMode === 'sidebar'
-                ? 'border-amber-400 bg-amber-50/50'
-                : 'border-stone-200 hover:border-stone-300 bg-stone-50'
-            }`}
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-stone-200 flex overflow-hidden">
-                <div className="w-2 bg-amber-400 h-full" />
-                <div className="flex-1 bg-stone-100" />
-              </div>
-              <span className="text-sm font-medium text-stone-700">Sidebar</span>
-              {currentLayoutMode === 'sidebar' && (
-                <span className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full ml-auto">Active</span>
-              )}
-            </div>
-            <p className="text-xs text-stone-400">Collapsible sidebar with vertical navigation. Classic layout.</p>
-          </button>
-        </div>
-        <p className="text-[11px] text-stone-400 mt-3 text-center">Layout changes take effect immediately.</p>
-      </div>
-
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium text-stone-700 flex items-center gap-2">
-            <ConsoleCardIcon IconComp={Cloud} /> 云端同步（Supabase）
-          </h3>
-          <span className="text-xs text-stone-400">{syncStatus.enabled ? '已启用' : '未启用'}</span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-3 bg-stone-50 rounded-xl">
-            <p className="text-xs text-stone-400">环境变量</p>
-            <p className={`text-sm font-medium mt-1 ${syncStatus.hasEnv ? 'text-emerald-600' : 'text-rose-500'}`}>
-              {syncStatus.hasEnv ? '已配置' : '未配置'}
-            </p>
-            <p className="text-[11px] text-stone-400 mt-1">需要 `VITE_SUPABASE_URL` 和 `VITE_SUPABASE_ANON_KEY`</p>
-          </div>
-          <div className="p-3 bg-stone-50 rounded-xl">
-            <p className="text-xs text-stone-400">最近同步</p>
-            <p className="text-sm font-medium mt-1 text-stone-700">{syncStatus.lastSyncAt ? new Date(syncStatus.lastSyncAt).toLocaleString() : '--'}</p>
-            {syncStatus.lastError ? <p className="text-[11px] text-rose-500 mt-1">{syncStatus.lastError}</p> : <p className="text-[11px] text-emerald-600 mt-1">状态正常</p>}
-          </div>
-        </div>
-
-        <div className="mt-4 space-y-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={handleToggleCloudSync}
-              className={`px-3 py-2 rounded-xl text-sm transition-colors ${
-                syncStatus.enabled ? 'bg-rose-100 text-rose-600 hover:bg-rose-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-              }`}
-            >
-              {syncStatus.enabled ? '暂停同步' : '开启同步'}
-            </button>
-            <button
-              onClick={handleCloudSyncNow}
-              disabled={!syncStatus.enabled || syncingNow}
-              className="px-3 py-2 rounded-xl text-sm bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {syncingNow ? '同步中...' : '立即同步'}
-            </button>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => handleCloudPull('merge')}
-              disabled={!syncStatus.hasEnv || pullingCloud}
-              className="px-3 py-2 rounded-xl text-sm bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {pullingCloud ? '拉取中...' : '从云端合并拉取'}
-            </button>
-            <button
-              onClick={() => handleCloudPull('replace')}
-              disabled={!syncStatus.hasEnv || pullingCloud}
-              className="px-3 py-2 rounded-xl text-sm bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              从云端覆盖拉取
-            </button>
-            {cloudPullStatus && <span className="text-xs text-stone-500">{cloudPullStatus}</span>}
-          </div>
-        </div>
-      </div>
-
-      {/* Time Machine Card — Premium Edition */}
-      <div
-        onClick={openTimeMachineModal}
-        className="console-interactive-surface glow-card mb-9 rounded-2xl border border-cyan-200/70 bg-gradient-to-br from-cyan-50/90 via-white/92 to-blue-50/78 p-6 cursor-pointer backdrop-blur-sm shadow-[0_20px_45px_rgba(34,211,238,0.18),inset_0_1px_0_rgba(255,255,255,0.86)]"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
-            {/* Header */}
-            <div className="flex items-center gap-2 mb-3">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-cyan-200 bg-white/80">
-                <TimeMachineIcon size={16} className="tm-icon-pulse" />
-              </span>
-              <span className="text-xs text-cyan-700 font-medium uppercase tracking-[0.1em]">时光穿越机</span>
-              <span className="inline-flex items-center justify-center rounded-full border border-amber-300 bg-gradient-to-b from-amber-100 to-amber-50 px-2 py-0.5 text-[10px] text-amber-800 font-semibold shadow-sm translate-x-0.7">
-                VIP
-              </span>
-            </div>
-
-            {/* Title */}
-            <h3 className="text-lg font-semibold text-stone-800 mb-3">数据时光穿梭 Time Machine</h3>
-
-            {/* Subtitle */}
-            <p className="text-sm text-stone-500 mb-4">
-              {tmIsInMode
-                ? `正在回溯: ${tmSessionInfo?.title} · 所有修改已冻结 · 安全浏览历史版本`
-                : `秒级穿梭到任意历史时刻 · 完整恢复您的每一次决策`}
-            </p>
-
-            {/* Core Capabilities + Snapshot Count */}
-            <div className="mb-4 space-y-3">
-              {/* Capabilities */}
-              <div className="flex items-center gap-3 flex-wrap">
-                <div className="flex items-center gap-1.5">
-                  <span className="inline-flex h-5 w-5 items-center justify-center rounded border border-cyan-200/60 bg-white/60">
-                    <RotateCcw size={12} className="text-cyan-600" />
-                  </span>
-                  <span className="text-xs text-stone-700">完整历史回溯</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="inline-flex h-5 w-5 items-center justify-center rounded border border-cyan-200/60 bg-white/60">
-                    <ShieldCheck size={12} className="text-cyan-600" />
-                  </span>
-                  <span className="text-xs text-stone-700">修改冻结保护</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="inline-flex h-5 w-5 items-center justify-center rounded border border-cyan-200/60 bg-white/60">
-                    <TrendingUp size={12} className="text-cyan-600" />
-                  </span>
-                  <span className="text-xs text-stone-700">秒级加载</span>
-                </div>
-              </div>
-
-              {/* Recent Snapshots */}
-              {!tmIsInMode && tmSnapshots.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs text-stone-400 font-medium">最近快照</p>
-                  <div className="flex items-center gap-2 text-xs text-stone-600">
-                    {tmSnapshots.slice(0, 2).map((snap, idx) => (
-                      <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/50 border border-cyan-100/60">
-                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-500"></span>
-                        {snap.updatedAt ? new Date(snap.updatedAt).toLocaleDateString() : '--'}
-                      </span>
-                    ))}
-                    <span className="text-cyan-700 font-medium">现存 {tmSnapshots.length} 份快照</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right Button */}
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation()
-              if (tmIsInMode) {
-                handleExitTimeMachine()
-              } else {
-                openTimeMachineModal()
-              }
-            }}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-white/85 px-3 py-2 text-xs font-medium text-cyan-700 hover:bg-cyan-50 transition-colors"
-          >
-            {tmIsInMode ? '退出穿越' : '进入'}
-            <ChevronRight size={14} />
-          </button>
-        </div>
-      </div>
-
 
       <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mt-6 mb-6">
         <div className="flex items-center justify-between mb-4">
@@ -5325,6 +5081,99 @@ export default function ParamsPage({ openModal }) {
       </div>
 
       {/* Layout Mode Toggle */}
+      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-medium text-stone-700 flex items-center gap-2">
+            <ConsoleCardIcon IconComp={LayoutDashboard} /> 界面布局
+          </h3>
+          <button
+            type="button"
+            onClick={openThemeSettingsModal}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white/85 px-3 py-2 text-xs font-medium text-sky-700 hover:bg-sky-50 transition-colors"
+          >
+            themes settings <ChevronRight size={14} />
+          </button>
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          {/* Modern */}
+          <button
+            onClick={() => {
+              saveSystemConfig({ layoutMode: 'modern' })
+              localStorage.setItem('dugou:layout-mode', 'modern')
+              window.dispatchEvent(new CustomEvent('dugou:layout-changed', { detail: { mode: 'modern' } }))
+            }}
+            className={`p-4 rounded-xl border-2 transition-all text-left ${
+              currentLayoutMode === 'modern'
+                ? 'border-neutral-900 bg-neutral-50'
+                : 'border-stone-200 hover:border-stone-300 bg-stone-50'
+            }`}
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-md bg-white border border-neutral-200 flex flex-col overflow-hidden">
+                <div className="h-[5px] bg-neutral-900 w-full" />
+                <div className="flex-1 bg-neutral-50" />
+              </div>
+              <span className="text-sm font-medium text-stone-700">Modern</span>
+              {currentLayoutMode === 'modern' && (
+                <span className="text-[10px] px-2 py-0.5 bg-neutral-900 text-white rounded-full ml-auto">Active</span>
+              )}
+            </div>
+            <p className="text-xs text-stone-400">Vercel-inspired. Clean monochrome, sharp typography, system-native feel.</p>
+          </button>
+          {/* Topbar */}
+          <button
+            onClick={() => {
+              saveSystemConfig({ layoutMode: 'topbar' })
+              localStorage.setItem('dugou:layout-mode', 'topbar')
+              window.dispatchEvent(new CustomEvent('dugou:layout-changed', { detail: { mode: 'topbar' } }))
+            }}
+            className={`p-4 rounded-xl border-2 transition-all text-left ${
+              currentLayoutMode === 'topbar'
+                ? 'border-amber-400 bg-amber-50/50'
+                : 'border-stone-200 hover:border-stone-300 bg-stone-50'
+            }`}
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-stone-200 flex flex-col overflow-hidden">
+                <div className="h-2 bg-amber-400 w-full" />
+                <div className="flex-1 bg-stone-100" />
+              </div>
+              <span className="text-sm font-medium text-stone-700">Topbar</span>
+              {currentLayoutMode === 'topbar' && (
+                <span className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full ml-auto">Active</span>
+              )}
+            </div>
+            <p className="text-xs text-stone-400">Glassmorphism topbar with warm amber accents and brand logo.</p>
+          </button>
+          {/* Sidebar */}
+          <button
+            onClick={() => {
+              saveSystemConfig({ layoutMode: 'sidebar' })
+              localStorage.setItem('dugou:layout-mode', 'sidebar')
+              window.dispatchEvent(new CustomEvent('dugou:layout-changed', { detail: { mode: 'sidebar' } }))
+            }}
+            className={`p-4 rounded-xl border-2 transition-all text-left ${
+              currentLayoutMode === 'sidebar'
+                ? 'border-amber-400 bg-amber-50/50'
+                : 'border-stone-200 hover:border-stone-300 bg-stone-50'
+            }`}
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-stone-200 flex overflow-hidden">
+                <div className="w-2 bg-amber-400 h-full" />
+                <div className="flex-1 bg-stone-100" />
+              </div>
+              <span className="text-sm font-medium text-stone-700">Sidebar</span>
+              {currentLayoutMode === 'sidebar' && (
+                <span className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full ml-auto">Active</span>
+              )}
+            </div>
+            <p className="text-xs text-stone-400">Collapsible sidebar with vertical navigation. Classic layout.</p>
+          </button>
+        </div>
+        <p className="text-[11px] text-stone-400 mt-3 text-center">Layout changes take effect immediately.</p>
+      </div>
+
       <div
         onClick={openFutureFeaturesModal}
         className="console-interactive-surface glow-card rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50/90 via-white/92 to-cyan-50/78 p-6 mb-9 cursor-pointer backdrop-blur-sm shadow-[0_20px_45px_rgba(56,189,248,0.18),inset_0_1px_0_rgba(255,255,255,0.86)]"
@@ -5354,6 +5203,157 @@ export default function ParamsPage({ openModal }) {
             className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white/85 px-3 py-2 text-xs font-medium text-sky-700 hover:bg-sky-50 transition-colors"
           >
             查看详情 <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+
+      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-medium text-stone-700 flex items-center gap-2">
+            <ConsoleCardIcon IconComp={Cloud} /> 云端同步（Supabase）
+          </h3>
+          <span className="text-xs text-stone-400">{syncStatus.enabled ? '已启用' : '未启用'}</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-3 bg-stone-50 rounded-xl">
+            <p className="text-xs text-stone-400">环境变量</p>
+            <p className={`text-sm font-medium mt-1 ${syncStatus.hasEnv ? 'text-emerald-600' : 'text-rose-500'}`}>
+              {syncStatus.hasEnv ? '已配置' : '未配置'}
+            </p>
+            <p className="text-[11px] text-stone-400 mt-1">需要 `VITE_SUPABASE_URL` 和 `VITE_SUPABASE_ANON_KEY`</p>
+          </div>
+          <div className="p-3 bg-stone-50 rounded-xl">
+            <p className="text-xs text-stone-400">最近同步</p>
+            <p className="text-sm font-medium mt-1 text-stone-700">{syncStatus.lastSyncAt ? new Date(syncStatus.lastSyncAt).toLocaleString() : '--'}</p>
+            {syncStatus.lastError ? <p className="text-[11px] text-rose-500 mt-1">{syncStatus.lastError}</p> : <p className="text-[11px] text-emerald-600 mt-1">状态正常</p>}
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleToggleCloudSync}
+              className={`px-3 py-2 rounded-xl text-sm transition-colors ${
+                syncStatus.enabled ? 'bg-rose-100 text-rose-600 hover:bg-rose-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+              }`}
+            >
+              {syncStatus.enabled ? '暂停同步' : '开启同步'}
+            </button>
+            <button
+              onClick={handleCloudSyncNow}
+              disabled={!syncStatus.enabled || syncingNow}
+              className="px-3 py-2 rounded-xl text-sm bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {syncingNow ? '同步中...' : '立即同步'}
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => handleCloudPull('merge')}
+              disabled={!syncStatus.hasEnv || pullingCloud}
+              className="px-3 py-2 rounded-xl text-sm bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {pullingCloud ? '拉取中...' : '从云端合并拉取'}
+            </button>
+            <button
+              onClick={() => handleCloudPull('replace')}
+              disabled={!syncStatus.hasEnv || pullingCloud}
+              className="px-3 py-2 rounded-xl text-sm bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              从云端覆盖拉取
+            </button>
+            {cloudPullStatus && <span className="text-xs text-stone-500">{cloudPullStatus}</span>}
+          </div>
+        </div>
+      </div>
+
+      {/* Time Machine Card — Premium Edition */}
+      <div
+        onClick={openTimeMachineModal}
+        className="console-interactive-surface glow-card mb-9 rounded-2xl border border-cyan-200/70 bg-gradient-to-br from-cyan-50/90 via-white/92 to-blue-50/78 p-6 cursor-pointer backdrop-blur-sm shadow-[0_20px_45px_rgba(34,211,238,0.18),inset_0_1px_0_rgba(255,255,255,0.86)]"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            {/* Header */}
+            <div className="flex items-center gap-2 mb-3">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-cyan-200 bg-white/80">
+                <TimeMachineIcon size={16} className="tm-icon-pulse" />
+              </span>
+              <span className="text-xs text-cyan-700 font-medium uppercase tracking-[0.1em]">时光穿越机</span>
+              <span className="inline-flex items-center justify-center rounded-full border border-amber-300 bg-gradient-to-b from-amber-100 to-amber-50 px-2 py-0.5 text-[10px] text-amber-800 font-semibold shadow-sm translate-x-0.7">
+                VIP
+              </span>
+            </div>
+
+            {/* Title */}
+            <h3 className="text-lg font-semibold text-stone-800 mb-3">数据时光穿梭 Time Machine</h3>
+
+            {/* Subtitle */}
+            <p className="text-sm text-stone-500 mb-4">
+              {tmIsInMode
+                ? `正在回溯: ${tmSessionInfo?.title} · 所有修改已冻结 · 安全浏览历史版本`
+                : `秒级穿梭到任意历史时刻 · 完整恢复您的每一次决策`}
+            </p>
+
+            {/* Core Capabilities + Snapshot Count */}
+            <div className="mb-4 space-y-3">
+              {/* Capabilities */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded border border-cyan-200/60 bg-white/60">
+                    <RotateCcw size={12} className="text-cyan-600" />
+                  </span>
+                  <span className="text-xs text-stone-700">完整历史回溯</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded border border-cyan-200/60 bg-white/60">
+                    <ShieldCheck size={12} className="text-cyan-600" />
+                  </span>
+                  <span className="text-xs text-stone-700">修改冻结保护</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded border border-cyan-200/60 bg-white/60">
+                    <TrendingUp size={12} className="text-cyan-600" />
+                  </span>
+                  <span className="text-xs text-stone-700">秒级加载</span>
+                </div>
+              </div>
+
+              {/* Recent Snapshots */}
+              {!tmIsInMode && tmSnapshots.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs text-stone-400 font-medium">最近快照</p>
+                  <div className="flex items-center gap-2 text-xs text-stone-600">
+                    {tmSnapshots.slice(0, 2).map((snap, idx) => (
+                      <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/50 border border-cyan-100/60">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-500"></span>
+                        {snap.updatedAt ? new Date(snap.updatedAt).toLocaleDateString() : '--'}
+                      </span>
+                    ))}
+                    <span className="text-cyan-700 font-medium">现存 {tmSnapshots.length} 份快照</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Button */}
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              if (tmIsInMode) {
+                handleExitTimeMachine()
+              } else {
+                openTimeMachineModal()
+              }
+            }}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-white/85 px-3 py-2 text-xs font-medium text-cyan-700 hover:bg-cyan-50 transition-colors"
+          >
+            {tmIsInMode ? '退出穿越' : '进入'}
+            <ChevronRight size={14} />
           </button>
         </div>
       </div>
