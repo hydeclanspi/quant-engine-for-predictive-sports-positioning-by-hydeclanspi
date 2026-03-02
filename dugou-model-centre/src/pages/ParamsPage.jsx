@@ -3822,7 +3822,6 @@ export default function ParamsPage({ openModal }) {
   const openTimeMachineModal = () => {
     openModal({
       title: '时光穿越机',
-      badge: 'BETA',
       content: (
         <TimeMachineModalContent
           isInMode={tmIsInMode}
