@@ -83,6 +83,47 @@
     @apply px-4 py-2 border border-stone-200 text-stone-600 rounded-xl text-sm font-medium hover:bg-stone-50 hover:border-amber-300;
   }
 
+  /* Time Machine Modal Buttons */
+  .btn-tm-travel {
+    @apply px-3.5 py-2 rounded-lg text-[11px] font-bold text-white inline-flex items-center gap-1.5 whitespace-nowrap transition-all duration-200 disabled:opacity-50;
+    background: linear-gradient(to right, #3b82f6 0%, #06b6d4 100%);
+  }
+
+  .btn-tm-travel:hover:not(:disabled) {
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+  }
+
+  .btn-tm-travel:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+
+  .btn-tm-save {
+    @apply px-4 py-2.5 rounded-lg text-[11px] font-bold text-white transition-all duration-200 disabled:opacity-50 whitespace-nowrap;
+    background: linear-gradient(to right, #10b981 0%, #14b8a6 100%);
+  }
+
+  .btn-tm-save:hover:not(:disabled) {
+    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+  }
+
+  .btn-tm-monthly {
+    @apply px-4 py-2.5 rounded-lg text-[11px] font-bold text-white transition-all duration-200 disabled:opacity-50 whitespace-nowrap;
+    background: linear-gradient(to right, #a855f7 0%, #a855f7 100%);
+  }
+
+  .btn-tm-monthly:hover:not(:disabled) {
+    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+  }
+
+  .btn-tm-exit {
+    @apply px-3.5 py-2 rounded-lg text-[11px] font-bold text-white inline-flex items-center gap-1.5 whitespace-nowrap transition-all duration-200 disabled:opacity-50;
+    background: linear-gradient(to right, #ef4444 0%, #dc2626 100%);
+  }
+
+  .btn-tm-exit:hover:not(:disabled) {
+    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.35);
+  }
+
   /* Input Focus Glow */
   .input-glow {
     @apply transition-all duration-200;

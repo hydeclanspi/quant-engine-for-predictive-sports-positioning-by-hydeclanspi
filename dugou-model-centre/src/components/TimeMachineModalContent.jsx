@@ -62,7 +62,7 @@ export default function TimeMachineModalContent({
             <button
               onClick={onExitSession}
               disabled={loading}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[11px] font-bold bg-gradient-to-r from-red-500 to-red-600 text-white hover:shadow-[0_6px_16px_rgba(239,68,68,0.35)] transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
+              className="btn-tm-exit"
             >
               <X size={14} strokeWidth={2.5} /> 退出穿越
             </button>
@@ -124,7 +124,7 @@ export default function TimeMachineModalContent({
                     <button
                       onClick={() => onBeginSession(snap.id)}
                       disabled={loading}
-                      className="ml-4 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[11px] font-bold bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-[0_8px_20px_rgba(59,130,246,0.4)] transition-all duration-200 disabled:opacity-50 whitespace-nowrap group-hover:scale-105 group-active:scale-95"
+                      className="ml-4 btn-tm-travel group-hover:scale-105 group-active:scale-95"
                     >
                       <RotateCcw size={12} strokeWidth={2.5} /> 穿越
                     </button>
@@ -177,14 +177,14 @@ export default function TimeMachineModalContent({
               <button
                 onClick={onSaveSnapshot}
                 disabled={loading}
-                className="px-4 py-2.5 rounded-lg text-[11px] font-bold bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:shadow-[0_8px_20px_rgba(16,185,129,0.4)] transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
+                className="btn-tm-save"
               >
                 保存
               </button>
               <button
                 onClick={onEnsureMonthly}
                 disabled={loading}
-                className="px-4 py-2.5 rounded-lg text-[11px] font-bold bg-gradient-to-r from-violet-500 to-purple-500 text-white hover:shadow-[0_8px_20px_rgba(139,92,246,0.4)] transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
+                className="btn-tm-monthly"
               >
                 本月
               </button>
