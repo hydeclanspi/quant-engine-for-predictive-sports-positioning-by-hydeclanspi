@@ -5460,7 +5460,7 @@ export default function ParamsPage({ openModal }) {
                 <TimeMachineIcon size={16} className="tm-icon-pulse" />
               </span>
               <span className="text-xs text-cyan-700 font-medium uppercase tracking-[0.1em]">时光穿越机</span>
-              <span className="inline-flex items-center justify-center rounded-full border border-amber-300 bg-gradient-to-b from-amber-100 to-amber-50 px-2 py-0.5 text-[10px] text-amber-800 font-semibold shadow-sm translate-y-0.75 translate-x-0.7">
+              <span className="inline-flex items-center justify-center rounded-full border border-amber-300 bg-gradient-to-b from-amber-100 to-amber-50 px-2 py-0.5 text-[10px] text-amber-800 font-semibold shadow-sm translate-x-0.7">
                 VIP
               </span>
             </div>
