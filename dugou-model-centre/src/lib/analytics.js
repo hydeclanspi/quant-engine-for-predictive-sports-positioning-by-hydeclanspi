@@ -5154,13 +5154,19 @@ export const autoApplyAdaptiveWeights = () => {
 
 /**
  * 获取市场隐含的失败率（基于赔率）
- * Market-Implied Failure Rate = 1 / odds
+ * 赔率 odds 表示：投注1元赢则获得 odds 元。
+ * 市场隐含胜率 = 1/odds，因此失败率 = 1 - 1/odds。
+ * 例如：odds=2.0 → P(win)=50% → P(fail)=50%
+ *       odds=1.5 → P(win)=67% → P(fail)=33%
+ *       odds=4.0 → P(win)=25% → P(fail)=75%
  *
- * @param {number} odds - 比赛赔率
- * @returns {number} 失败概率（0.01 - 0.98）
+ * @param {number} odds - 比赛赔率（>1）
+ * @returns {number} 失败概率（0.02 - 0.98）
  */
 export const getMarketImpliedFailureRate = (odds) => {
-  return toImpliedProbability(odds, 0.01, 0.98)
+  const parsed = toNumber(odds, Number.NaN)
+  if (!Number.isFinite(parsed) || parsed <= 1) return Number.NaN
+  return clamp(1 - 1 / parsed, 0.02, 0.98)
 }
 
 /**
@@ -5200,41 +5206,113 @@ export const getTemporalWeight = (date, baseDate = new Date()) => {
 }
 
 /**
+ * 将赔率归入一个 band 用于匹配相似赔率的比赛
+ * @param {number} odds
+ * @returns {number} band 中心值
+ */
+const getOddsBand = (odds) => {
+  if (odds < 1.3) return 1.2
+  if (odds < 1.6) return 1.45
+  if (odds < 2.0) return 1.8
+  if (odds < 2.5) return 2.25
+  if (odds < 3.5) return 3.0
+  if (odds < 5.0) return 4.0
+  if (odds < 8.0) return 6.0
+  return 10.0
+}
+
+/**
+ * 判断两个赔率是否属于同一个 band（即"相似"）
+ */
+const isSameOddsBand = (oddsA, oddsB) => {
+  return getOddsBand(oddsA) === getOddsBand(oddsB)
+}
+
+/**
  * 计算观察到的两个比赛共同失败的加权失败率
+ * 基于赔率相似性匹配（odds-band matching），而非位置索引
  *
- * @param {Array} historicalData - 历史组合数据，每个元素为 { matches: [{odds}, ...], succeeded: boolean, createdAt: ... }
- * @param {number} raceAIndex - 比赛A在组合中的索引
- * @param {number} raceBIndex - 比赛B在组合中的索引
+ * 核心逻辑：在历史组合中，找到所有 "赔率A相似 且 赔率B相似" 的比赛对，
+ * 统计它们共同失败的频率。
+ *
+ * @param {Array} historicalData - 历史组合数据，每个元素为 { matches: [{odds, result}, ...], succeeded: boolean, createdAt: ... }
+ * @param {number} oddsA - 比赛A的赔率
+ * @param {number} oddsB - 比赛B的赔率
  * @returns {object} { failedTogether: number, totalCount: number, weightedCount: number }
  */
-export const getWeightedObservedFailure = (historicalData = [], raceAIndex, raceBIndex) => {
+export const getWeightedObservedFailure = (historicalData = [], oddsAOrIndex, oddsBOrIndex) => {
   if (!Array.isArray(historicalData)) return { failedTogether: 0, totalCount: 0, weightedCount: 0 }
+
+  // 支持两种调用方式：
+  // 1) getWeightedObservedFailure(data, oddsA, oddsB) — 新方式（赔率匹配）
+  // 2) getWeightedObservedFailure(data, indexA, indexB) — 旧方式（兼容）
+  // 判断方式：如果参数 > 1.0 认为是赔率，否则认为是索引
+  const isOddsBased = oddsAOrIndex > 1.0 && oddsBOrIndex > 1.0
+  const targetOddsA = isOddsBased ? oddsAOrIndex : null
+  const targetOddsB = isOddsBased ? oddsBOrIndex : null
 
   let failedTogetherCount = 0
   let totalWeightedCount = 0
+  let pairCount = 0
 
   historicalData.forEach((combo) => {
     const matches = Array.isArray(combo.matches) ? combo.matches : []
-    if (raceAIndex >= matches.length || raceBIndex >= matches.length) return
+    if (matches.length < 2) return
 
-    const succeeded = Boolean(combo.succeeded)
-    const matchAResult = matches[raceAIndex]?.result
-    const matchBResult = matches[raceBIndex]?.result
+    const weight = getTemporalWeight(combo.createdAt)
 
-    const matchAFailed = matchAResult === false || matchAResult === 'loss'
-    const matchBFailed = matchBResult === false || matchBResult === 'loss'
+    if (isOddsBased) {
+      // 赔率匹配模式：在每个历史组合中，找到赔率与 A 和 B 相似的比赛对
+      for (let i = 0; i < matches.length; i++) {
+        const mOddsI = toNumber(matches[i]?.odds, 0)
+        if (!isSameOddsBand(mOddsI, targetOddsA)) continue
 
-    if (matchAFailed && matchBFailed) {
-      const weight = getTemporalWeight(combo.createdAt)
-      failedTogetherCount += weight
+        for (let j = 0; j < matches.length; j++) {
+          if (j === i) continue
+          const mOddsJ = toNumber(matches[j]?.odds, 0)
+          if (!isSameOddsBand(mOddsJ, targetOddsB)) continue
+
+          // 找到了一对匹配的比赛
+          pairCount += 1
+          totalWeightedCount += weight
+
+          // 检查是否都失败了
+          const resultI = matches[i]?.result
+          const resultJ = matches[j]?.result
+          const failedI = resultI === false
+          const failedJ = resultJ === false
+
+          if (failedI && failedJ) {
+            failedTogetherCount += weight
+          }
+          // 只计算第一对匹配（避免同一组合中多次计数同类赔率）
+          break
+        }
+        break
+      }
+    } else {
+      // 旧索引模式（保留向后兼容）
+      const raceAIndex = oddsAOrIndex
+      const raceBIndex = oddsBOrIndex
+      if (raceAIndex >= matches.length || raceBIndex >= matches.length) return
+
+      const matchAResult = matches[raceAIndex]?.result
+      const matchBResult = matches[raceBIndex]?.result
+      const matchAFailed = matchAResult === false || matchAResult === 'loss'
+      const matchBFailed = matchBResult === false || matchBResult === 'loss'
+
+      pairCount += 1
+      totalWeightedCount += weight
+
+      if (matchAFailed && matchBFailed) {
+        failedTogetherCount += weight
+      }
     }
-
-    totalWeightedCount += getTemporalWeight(combo.createdAt)
   })
 
   return {
     failedTogether: failedTogetherCount,
-    totalCount: historicalData.length,
+    totalCount: pairCount,
     weightedCount: totalWeightedCount,
   }
 }
@@ -5280,8 +5358,8 @@ export const calculateDependencyPremium = (
   const pFailA = getMarketImpliedFailureRate(oddsA)
   const pFailB = getMarketImpliedFailureRate(oddsB)
 
-  // 步骤2：获取加权观察到的共同失败率
-  const observed = getWeightedObservedFailure(historicalData, raceAIndex, raceBIndex)
+  // 步骤2：获取加权观察到的共同失败率（使用赔率匹配）
+  const observed = getWeightedObservedFailure(historicalData, oddsA, oddsB)
   const pFailBothObserved = observed.weightedCount > 0 ? observed.failedTogether / observed.weightedCount : 0
 
   // 步骤3：计算独立假设下的共同失败率
@@ -5371,12 +5449,13 @@ const erfc = (x) => {
 /**
  * 检查幸存者偏差（倾向评分匹配方法 - Method B）
  * 比较特征相似的比赛对，检查某个组合是否被过度选择或过度避免
+ * 使用赔率 band 进行相似性匹配
  *
  * @param {object} raceA - 比赛A信息
  * @param {object} raceB - 比赛B信息
  * @param {Array} historicalData - 历史组合数据
- * @param {number} raceAIndex - 比赛A的索引
- * @param {number} raceBIndex - 比赛B的索引
+ * @param {number} raceAIndex - (unused, kept for API compat)
+ * @param {number} raceBIndex - (unused, kept for API compat)
  * @param {number} toleranceFactor - 特征相似性容差（默认0.15）
  * @returns {object} 幸存者偏差分析结果
  */
@@ -5402,60 +5481,64 @@ export const checkSurvivingBias = (
     }
   }
 
-  // 找到特征相似的比赛对（容差范围内）
+  // 在历史数据中找含有相似赔率对的组合
   let matchedPairs = 0
-  let investedInTarget = 0
-  let investedInSimilar = 0
+  let exactBandMatch = 0
+  let neighborBandMatch = 0
+
+  const targetBandA = getOddsBand(oddsA)
+  const targetBandB = getOddsBand(oddsB)
 
   historicalData.forEach((combo) => {
     const matches = Array.isArray(combo.matches) ? combo.matches : []
-    if (raceAIndex >= matches.length || raceBIndex >= matches.length) return
+    if (matches.length < 2) return
 
-    const matchA = matches[raceAIndex]
-    const matchB = matches[raceBIndex]
-    const targetOdds = [oddsA, oddsB].sort((a, b) => a - b)
+    let foundExact = false
+    let foundNeighbor = false
 
-    matches.forEach((otherA, idxA) => {
-      if (idxA === raceAIndex) return
-      matches.forEach((otherB, idxB) => {
-        if (idxB === raceBIndex || idxB === raceAIndex) return
+    for (let i = 0; i < matches.length && !foundExact; i++) {
+      const mOddsI = toNumber(matches[i]?.odds, 0)
+      if (!isSameOddsBand(mOddsI, oddsA)) continue
 
-        const otherOdds = [toNumber(otherA?.odds), toNumber(otherB?.odds)].sort((a, b) => a - b)
-
-        // 计算赔率向量的欧氏距离
-        const distance =
-          Math.sqrt(
-            Math.pow((targetOdds[0] - otherOdds[0]) / targetOdds[0], 2) +
-              Math.pow((targetOdds[1] - otherOdds[1]) / targetOdds[1], 2),
-          ) / Math.sqrt(2)
-
-        if (distance <= toleranceFactor) {
-          matchedPairs += 1
-
-          // 如果这对组合被投资过（included in combo），计数
-          const targetIncluded = combo.matches.includes(matchA) && combo.matches.includes(matchB)
-          const otherIncluded = combo.matches.includes(otherA) && combo.matches.includes(otherB)
-
-          if (targetIncluded) investedInTarget += 1
-          if (otherIncluded) investedInSimilar += 1
+      for (let j = 0; j < matches.length; j++) {
+        if (j === i) continue
+        const mOddsJ = toNumber(matches[j]?.odds, 0)
+        if (isSameOddsBand(mOddsJ, oddsB)) {
+          foundExact = true
+          break
         }
-      })
-    })
+        // 相邻 band 检查（容差因子内）
+        const relDist = Math.abs(getOddsBand(mOddsJ) - targetBandB) / Math.max(targetBandB, 1)
+        if (relDist <= toleranceFactor) {
+          foundNeighbor = true
+        }
+      }
+    }
+
+    if (foundExact) {
+      matchedPairs += 1
+      exactBandMatch += 1
+    } else if (foundNeighbor) {
+      matchedPairs += 1
+      neighborBandMatch += 1
+    }
   })
 
-  // 分析偏差
-  const biasRatio = matchedPairs > 0 ? investedInTarget / matchedPairs : 0
-  const hasBias = Math.abs(biasRatio - 0.5) > 0.15
-  const biasDirection = biasRatio > 0.5 ? 'overselected' : 'underselected'
-  const biasStrength = Math.abs(biasRatio - 0.5)
+  // 偏差分析：如果这个赔率对在历史中出现频率异常
+  const totalCombos = historicalData.length
+  const expectedRate = totalCombos > 0 ? matchedPairs / totalCombos : 0
+  // 如果有大量历史中都包含此类赔率对，不存在幸存者偏差
+  // 如果很少出现，可能存在选择偏差
+  const hasBias = matchedPairs < 3 && totalCombos > 10
+  const biasStrength = totalCombos > 0 ? clamp(1 - matchedPairs / Math.max(totalCombos * 0.1, 1), 0, 0.5) : 0
 
   return {
     hasBias,
-    biasDirection,
-    biasStrength: clamp(biasStrength, 0, 1),
+    biasDirection: hasBias ? 'undersampled' : 'normal',
+    biasStrength,
     matchedPairs,
-    investedInTarget,
-    investedInSimilar,
+    investedInTarget: exactBandMatch,
+    investedInSimilar: neighborBandMatch,
   }
 }
 
