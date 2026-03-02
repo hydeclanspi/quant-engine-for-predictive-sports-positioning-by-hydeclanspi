@@ -34,7 +34,14 @@ export default function Modal({ data, onClose }) {
       >
         {/* Header with gradient separation */}
         <div className="flex items-center justify-between mb-4 pb-4 border-b border-stone-100">
-          <h3 className="font-semibold text-stone-800 text-lg">{data.title}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-stone-800 text-lg">{data.title}</h3>
+            {data.badge && (
+              <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-100/70 px-2 py-0.5 text-[10px] text-sky-700 font-semibold">
+                {data.badge}
+              </span>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="text-stone-400 hover:text-stone-600 transition-colors p-1 rounded-lg hover:bg-stone-100"
