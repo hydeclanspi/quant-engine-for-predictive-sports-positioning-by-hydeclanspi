@@ -186,7 +186,7 @@ export default function TimeMachineModalContent({
                 disabled={loading}
                 className="btn-tm-monthly"
               >
-                本月封存
+                生成本月快照
               </button>
             </div>
 
