@@ -13,6 +13,7 @@ import {
   fetchTimeMachineSnapshotById,
   saveTimeMachineSnapshot,
   ensureMonthlyTimeMachineSnapshot,
+  deleteTimeMachineSnapshotById,
 } from './cloudSync'
 import { getPrimaryEntryMarket, normalizeEntries } from './entryParsing'
 import { calcAtomicEquivalentOdds } from './atomicParlay'
