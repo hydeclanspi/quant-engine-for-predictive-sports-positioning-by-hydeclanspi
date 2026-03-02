@@ -20,6 +20,7 @@ import {
   TrendingUp,
   Wallet,
   X,
+  RotateCcw,
 } from 'lucide-react'
 import {
   computeAdaptiveWeightSuggestions,
@@ -5352,118 +5353,128 @@ export default function ParamsPage({ openModal }) {
         </div>
       </div>
 
-      {/* Time Machine Card */}
-      <div className="glow-card mt-6 rounded-2xl border border-blue-100/80 bg-gradient-to-br from-blue-50/92 via-white/95 to-cyan-50/88 p-6 shadow-[0_20px_40px_-28px_rgba(59,130,246,0.35),inset_0_1px_0_rgba(255,255,255,0.92)]">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium text-stone-700 flex items-center gap-2">
-            <ConsoleCardIcon IconComp={Hourglass} /> 时光穿越机
-          </h3>
+      {/* Time Machine Card — Premium Design */}
+      <div className="glow-card mt-6 rounded-2xl border border-blue-200/40 bg-[linear-gradient(135deg,rgba(240,249,255,0.5)_0%,rgba(255,255,255,0.7)_50%,rgba(225,242,251,0.4)_100%)] p-6 shadow-[0_24px_48px_-32px_rgba(59,130,246,0.28),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-[2px]">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-6">
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-400/20 via-cyan-400/15 to-blue-300/10 border border-blue-300/30 flex items-center justify-center">
+              <RotateCcw size={18} className="text-blue-600" strokeWidth={1.5} />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-stone-800">时光穿越机</h3>
+              <p className="text-[11px] text-stone-500 mt-1">浏览历史快照，查阅过往数据状态</p>
+            </div>
+          </div>
           {tmIsInMode && tmSessionInfo && (
             <button
               onClick={handleExitTimeMachine}
               disabled={tmLoading}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-red-100 text-red-700 border border-red-200 hover:border-red-300 hover:bg-red-150 transition-colors disabled:opacity-50"
+              className="group relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-gradient-to-r from-red-50 to-red-50/50 text-red-700 border border-red-200/60 hover:border-red-300/80 hover:shadow-[0_4px_12px_rgba(239,68,68,0.15)] transition-all duration-200 disabled:opacity-50"
             >
-              <X size={12} /> 退出穿越
+              <X size={13} strokeWidth={2} /> 退出穿越
             </button>
           )}
         </div>
-        <p className="text-xs text-stone-400 mb-4">
-          浏览历史快照中的应用数据。快照包含所有投资记录、系统配置与球队数据。当前session级只读模式，刷新页面自动退出。
-        </p>
 
+        {/* Current Session Info */}
         {tmIsInMode && tmSessionInfo && (
-          <div className="mb-4 p-3 rounded-lg bg-blue-100/40 border border-blue-200/60">
-            <p className="text-[11px] font-medium text-blue-700 mb-1">当前快照：{tmSessionInfo.title}</p>
-            <p className="text-[10px] text-blue-600">{new Date(tmSessionInfo.snapshotAt).toLocaleString()}</p>
+          <div className="mb-5 p-3.5 rounded-lg bg-gradient-to-r from-blue-100/50 to-cyan-100/40 border border-blue-200/50 backdrop-blur-sm">
+            <p className="text-[11px] font-medium text-blue-900 mb-1">📍 当前快照</p>
+            <p className="text-[12px] font-semibold text-blue-700">{tmSessionInfo.title}</p>
+            <p className="text-[10px] text-blue-600/80 mt-1">{new Date(tmSessionInfo.snapshotAt).toLocaleString()}</p>
           </div>
         )}
 
+        {/* Content */}
         <div className="space-y-4">
           {!tmIsInMode && (
             <>
-              <div className="flex gap-2 items-end">
-                <div className="flex-1">
-                  <label className="text-[11px] font-semibold text-stone-600 block mb-1.5">快照列表（按时间倒序）</label>
-                  {tmError && <p className="text-[11px] text-red-600 mb-2">{tmError}</p>}
-                  {tmLoading && tmSnapshots.length === 0 ? (
-                    <p className="text-xs text-stone-400 py-4 text-center">加载中...</p>
-                  ) : tmSnapshots.length === 0 ? (
-                    <p className="text-xs text-stone-400 py-4 text-center">暂无快照，手动保存或等待自动月度快照</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {tmSnapshots.map((snap) => (
-                        <div key={snap.id} className="flex items-center justify-between p-2.5 rounded-lg border border-blue-200/70 bg-white/60 hover:bg-blue-50/50 transition-colors">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-medium text-stone-700 truncate">{snap.meta?.title || 'Snapshot'}</p>
-                            <p className="text-[10px] text-stone-400">
-                              {new Date(snap.updatedAt).toLocaleString()} · {snap.stats?.investmentCount || 0} inv · {snap.stats?.teamCount || 0} teams
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => handleBeginTimeMachine(snap.id)}
-                            disabled={tmLoading}
-                            className="ml-2 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50 whitespace-nowrap"
-                          >
-                            <Download size={11} className="inline mr-1" /> 穿越
-                          </button>
+              {/* Snapshots List */}
+              <div>
+                <label className="text-[11px] font-semibold text-stone-700 block mb-3">历史快照库</label>
+                {tmError && <p className="text-[11px] text-red-600 mb-2 px-2.5 py-1.5 bg-red-50/80 rounded-lg border border-red-100">{tmError}</p>}
+                {tmLoading && tmSnapshots.length === 0 ? (
+                  <p className="text-xs text-stone-400 py-6 text-center">加载中...</p>
+                ) : tmSnapshots.length === 0 ? (
+                  <p className="text-xs text-stone-500 py-6 text-center bg-stone-50/50 rounded-lg border border-stone-100/80">暂无快照 · 手动保存或等待自动月度快照</p>
+                ) : (
+                  <div className="space-y-2">
+                    {tmSnapshots.map((snap) => (
+                      <div
+                        key={snap.id}
+                        className="group flex items-center justify-between p-3 rounded-lg border border-blue-100/60 bg-white/70 hover:bg-blue-50/60 hover:border-blue-200/80 transition-all duration-200 backdrop-blur-sm"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-semibold text-stone-800 truncate">{snap.meta?.title || 'Snapshot'}</p>
+                          <p className="text-[10px] text-stone-500 mt-0.5">
+                            {new Date(snap.updatedAt).toLocaleString()} · {snap.stats?.investmentCount || 0} investments · {snap.stats?.teamCount || 0} teams
+                          </p>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                        <button
+                          onClick={() => handleBeginTimeMachine(snap.id)}
+                          disabled={tmLoading}
+                          className="ml-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-[0_6px_16px_rgba(59,130,246,0.3)] transition-all duration-200 disabled:opacity-50 whitespace-nowrap group-hover:scale-105 group-active:scale-95"
+                        >
+                          <RotateCcw size={10} strokeWidth={2} /> 穿越
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
+              {/* Pagination */}
               {tmSnapshots.length > 0 && (
-                <div className="flex items-center justify-between gap-2 pt-2 border-t border-blue-200/50">
-                  <p className="text-[10px] text-stone-400">Page {tmPage} / {tmTotalPages}</p>
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-blue-100/50">
+                  <p className="text-[10px] text-stone-500">Page {tmPage} / {tmTotalPages}</p>
                   <div className="flex gap-1">
-                    <button
-                      onClick={() => setTmPage(Math.max(1, tmPage - 1))}
-                      disabled={tmPage <= 1 || tmLoading}
-                      className="px-2 py-1 rounded text-[10px] border border-blue-200 bg-white hover:bg-blue-50 disabled:opacity-50"
-                    >
-                      Prev
-                    </button>
-                    <button
-                      onClick={() => setTmPage(Math.min(tmTotalPages, tmPage + 1))}
-                      disabled={tmPage >= tmTotalPages || tmLoading}
-                      className="px-2 py-1 rounded text-[10px] border border-blue-200 bg-white hover:bg-blue-50 disabled:opacity-50"
-                    >
-                      Next
-                    </button>
+                    {[
+                      { disabled: tmPage <= 1, label: 'Prev', onClick: () => setTmPage(Math.max(1, tmPage - 1)) },
+                      { disabled: tmPage >= tmTotalPages, label: 'Next', onClick: () => setTmPage(Math.min(tmTotalPages, tmPage + 1)) },
+                    ].map((btn, idx) => (
+                      <button
+                        key={idx}
+                        onClick={btn.onClick}
+                        disabled={btn.disabled || tmLoading}
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-medium border border-blue-200/60 bg-white/80 text-stone-600 hover:bg-blue-50/80 hover:border-blue-300/60 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {btn.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
 
-              <div className="border-t border-blue-200/50 pt-4">
-                <label className="text-[11px] font-semibold text-stone-600 block mb-2">保存当前数据快照</label>
+              {/* Save Section */}
+              <div className="space-y-2.5 border-t border-blue-100/50 pt-4">
+                <label className="text-[11px] font-semibold text-stone-700 block">保存当前快照</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="可选：自定义快照标题"
+                    placeholder="可选：自定义标题"
                     value={tmManualTitle}
                     onChange={(e) => setTmManualTitle(e.target.value)}
                     disabled={tmLoading}
-                    className="flex-1 px-2.5 py-1.5 rounded-lg border border-blue-200/70 bg-white text-[11px] outline-none focus:border-blue-400 disabled:opacity-50"
+                    className="flex-1 px-3 py-2 rounded-lg border border-blue-200/50 bg-white/80 text-[11px] text-stone-700 placeholder-stone-400 outline-none focus:border-blue-400/80 focus:bg-white transition-all disabled:opacity-50 backdrop-blur-sm"
                   />
                   <button
                     onClick={handleSaveSnapshot}
                     disabled={tmLoading}
-                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 whitespace-nowrap"
+                    className="px-3 py-2 rounded-lg text-[10px] font-semibold bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:shadow-[0_6px_16px_rgba(16,185,129,0.3)] transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
                   >
-                    <Plus size={12} className="inline mr-1" /> 手动保存
+                    <Plus size={11} className="inline mr-1" strokeWidth={2} />手动保存
                   </button>
                   <button
                     onClick={handleEnsureMonthly}
                     disabled={tmLoading}
-                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-purple-500 text-white hover:bg-purple-600 transition-colors disabled:opacity-50 whitespace-nowrap"
+                    className="px-3 py-2 rounded-lg text-[10px] font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:shadow-[0_6px_16px_rgba(168,85,247,0.3)] transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
                   >
-                    封存本月
+                    📅 封存本月
                   </button>
                 </div>
                 {tmSaveStatus && (
-                  <p className={`text-[10px] mt-1.5 ${tmSaveStatus.includes('Failed') || tmSaveStatus.includes('Error') ? 'text-red-600' : 'text-emerald-600'}`}>
+                  <p className={`text-[10px] mt-2 px-2.5 py-1.5 rounded-lg ${tmSaveStatus.includes('Failed') || tmSaveStatus.includes('Error') ? 'bg-red-50/80 text-red-700 border border-red-100' : 'bg-emerald-50/80 text-emerald-700 border border-emerald-100'}`}>
                     {tmSaveStatus}
                   </p>
                 )}

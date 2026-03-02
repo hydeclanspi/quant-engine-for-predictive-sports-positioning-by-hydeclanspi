@@ -145,13 +145,6 @@ function App() {
           className="app-main-scroll flex-1 overflow-auto custom-scrollbar min-w-0"
         >
           <div className="app-main-flow">
-            {readOnlyWarning && (
-              <div className="sticky top-0 z-50 mx-4 mt-4 mb-2 p-3 rounded-lg bg-blue-100/90 border border-blue-300/70 shadow-md">
-                <p className="text-[13px] font-semibold text-blue-700">
-                  📸 {readOnlyWarning} — 所有写入操作已禁用，点击Console的"退出穿越"恢复正常。
-                </p>
-              </div>
-            )}
             <div key={location.pathname} className={`page-enter app-main-content ${ambientClassName}`}>
               {pageRoutes}
             </div>
