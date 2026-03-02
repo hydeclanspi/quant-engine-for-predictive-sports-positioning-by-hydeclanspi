@@ -4547,7 +4547,7 @@ export default function ParamsPage({ openModal }) {
         </div>
       </div>
 
-      <div className="order-6 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
+      <div className="order-6 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={Clock3} /> 时间近因机制
@@ -4600,7 +4600,7 @@ export default function ParamsPage({ openModal }) {
         )}
       </div>
 
-      <div className="order-1 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
+      <div className="order-1 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={LineChart} /> 回归分析校准
@@ -4774,7 +4774,7 @@ export default function ParamsPage({ openModal }) {
         </p>
       </div>
 
-      <div className="order-3 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
+      <div className="order-3 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={ShieldCheck} /> 模型收口验证
@@ -4941,7 +4941,7 @@ export default function ParamsPage({ openModal }) {
         <AdaptiveWeightCard config={config} setConfig={setConfig} saveSystemConfig={saveSystemConfig} dataVersion={dataVersion} />
       </div>
 
-      <div className="order-4 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
+      <div className="order-4 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={SlidersHorizontal} /> 动态校准系数
@@ -5207,7 +5207,7 @@ export default function ParamsPage({ openModal }) {
         </div>
       </div>
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mt-12 mb-6">
+      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mt-12 mb-9">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={Cloud} /> 云端同步（Supabase）
@@ -5310,7 +5310,7 @@ export default function ParamsPage({ openModal }) {
         </div>
       </div>
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
+      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={FileSpreadsheet} /> Excel 数据进出

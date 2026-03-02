@@ -3797,31 +3797,17 @@ export default function ParamsPage({ openModal }) {
   }
 
   const handleDeleteSnapshot = async (snapshotId) => {
-    if (!confirm('确定要删除这个快照吗？此操作不可恢复。')) {
-      return
-    }
-    setTmLoading(true)
-    try {
-      // Call the delete function from localData
-      const result = await deleteTimeMachineSnapshot(snapshotId)
-      if (result.ok) {
-        setTmSaveStatus('Snapshot deleted successfully')
-        // Reload snapshots list
-        await loadTimeMachineSnapshots(tmPage)
-      } else {
-        setTmSaveStatus(`Failed to delete: ${result.reason}`)
-      }
-    } catch (err) {
-      setTmSaveStatus('Error deleting snapshot')
-    } finally {
-      setTmLoading(false)
-      setTimeout(() => setTmSaveStatus(''), 2200)
+    const confirmed = confirm(`😔 作者留言：我实在是写不出来这个 delete 功能的代码了.... 这个 Supabase 总是说我对应请求没有被授权，但是我 API 明明没问题、RLS什么的也反复调来调去试过了.... 累了，请自行跳转 Supabase 的 table 进行删除吧 （亲测有效, 丝滑体验, 一键勾选想删几个删几个）
+谨破防于 on Mar 02, 2026. 😔`)
+    if (confirmed) {
+      window.open('https://supabase.com/dashboard/project/ifwczbobrmbchfroltqe/editor/17494', '_blank')
     }
   }
 
   const openTimeMachineModal = () => {
     openModal({
       title: '时光穿越机',
+      badge: 'VIP',
       content: (
         <TimeMachineModalContent
           isInMode={tmIsInMode}
@@ -5283,6 +5269,47 @@ export default function ParamsPage({ openModal }) {
         </div>
       </div>
 
+      {/* Time Machine Card — Future Iteration Style */}
+      <div
+        onClick={openTimeMachineModal}
+        className="console-interactive-surface glow-card mt-24 mb-24 rounded-2xl border border-cyan-200/70 bg-gradient-to-br from-cyan-50/90 via-white/92 to-blue-50/78 p-6 cursor-pointer backdrop-blur-sm shadow-[0_20px_45px_rgba(34,211,238,0.18),inset_0_1px_0_rgba(255,255,255,0.86)]"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-cyan-200 bg-white/80">
+                <TimeMachineIcon size={16} className="tm-icon-pulse" />
+              </span>
+              <span className="text-xs text-cyan-700 font-medium uppercase tracking-[0.1em]">时光穿越机</span>
+              <span className="inline-flex items-center justify-center rounded-full border border-amber-300 bg-gradient-to-b from-amber-100 to-amber-50 px-2 py-0.5 text-[10px] text-amber-800 font-semibold shadow-sm translate-x-0.7">
+                VIP
+              </span>
+            </div>
+            <h3 className="text-lg font-semibold text-stone-800">数据时光穿梭 Time Machine</h3>
+            <p className="text-sm text-stone-500 mt-2 max-w-3xl">
+              {tmIsInMode
+                ? `正在回溯: ${tmSessionInfo?.title} · 所有修改已冻结 · 安全浏览历史版本`
+                : `已保存 ${tmSnapshots.length} 份快照 · 秒级穿梭到任意历史时刻 · 完整恢复您的每一次决策`}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              if (tmIsInMode) {
+                handleExitTimeMachine()
+              } else {
+                openTimeMachineModal()
+              }
+            }}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-white/85 px-3 py-2 text-xs font-medium text-cyan-700 hover:bg-cyan-50 transition-colors"
+          >
+            {tmIsInMode ? '退出穿越' : '进入'}
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+
       <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
@@ -5429,44 +5456,6 @@ export default function ParamsPage({ openModal }) {
           <input ref={jsonInputRef} type="file" accept=".json" onChange={handleJsonImportFile} className="hidden" />
           <button onClick={() => jsonInputRef.current?.click()} className="btn-primary btn-hover">
             导入 JSON
-          </button>
-        </div>
-      </div>
-
-      {/* Time Machine Card — Future Iteration Style */}
-      <div
-        onClick={openTimeMachineModal}
-        className="console-interactive-surface glow-card mt-6 rounded-2xl border border-cyan-200/70 bg-gradient-to-br from-cyan-50/90 via-white/92 to-blue-50/78 p-6 cursor-pointer backdrop-blur-sm shadow-[0_20px_45px_rgba(34,211,238,0.18),inset_0_1px_0_rgba(255,255,255,0.86)]"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-cyan-200 bg-white/80">
-                <TimeMachineIcon size={16} className="tm-icon-pulse" />
-              </span>
-              <span className="text-xs text-cyan-700 font-medium uppercase tracking-[0.1em]">时光穿越机</span>
-            </div>
-            <h3 className="text-lg font-semibold text-stone-800">快照时光机</h3>
-            <p className="text-sm text-stone-500 mt-2 max-w-3xl">
-              {tmIsInMode
-                ? `当前查阅: ${tmSessionInfo?.title} · 所有写操作已禁用`
-                : `${tmSnapshots.length} 个快照 · 浏览历史数据，一键穿梭时空`}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation()
-              if (tmIsInMode) {
-                handleExitTimeMachine()
-              } else {
-                openTimeMachineModal()
-              }
-            }}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-white/85 px-3 py-2 text-xs font-medium text-cyan-700 hover:bg-cyan-50 transition-colors"
-          >
-            {tmIsInMode ? '退出穿越' : '进入'}
-            <ChevronRight size={14} />
           </button>
         </div>
       </div>
