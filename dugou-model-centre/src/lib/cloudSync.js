@@ -313,7 +313,10 @@ export const deleteTimeMachineSnapshotById = async (snapshotId) => {
   }
 
   try {
-    const { error } = await client.from('dugou_sync_snapshots').delete().eq('id', snapshotId)
+    console.log('[deleteTimeMachineSnapshotById] Starting delete for:', snapshotId)
+    const { error, data } = await client.from('dugou_sync_snapshots').delete().eq('id', snapshotId).select()
+    
+    console.log('[deleteTimeMachineSnapshotById] Delete response:', { error, data })
     
     if (error) {
       console.error('[deleteTimeMachineSnapshotById] Supabase error:', {
@@ -323,6 +326,7 @@ export const deleteTimeMachineSnapshotById = async (snapshotId) => {
       return { ok: false, reason: 'delete_failed', error }
     }
     
+    console.log('[deleteTimeMachineSnapshotById] Delete successful')
     return { ok: true, snapshotId }
   } catch (err) {
     console.error('[deleteTimeMachineSnapshotById] Exception:', err)
