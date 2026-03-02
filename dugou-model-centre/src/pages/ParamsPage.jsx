@@ -5386,7 +5386,7 @@ export default function ParamsPage({ openModal }) {
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-start gap-3.5 flex-1">
             <div className="h-11 w-11 rounded-lg bg-gradient-to-br from-blue-400/30 via-cyan-400/20 to-blue-300/15 border border-blue-300/40 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <TimeMachineIcon size={22} className="text-blue-600" />
+              <TimeMachineIcon size={22} />
             </div>
             <div className="flex-1">
               <h3 className="text-[13px] font-bold text-stone-800">时光穿越机</h3>
@@ -5395,7 +5395,7 @@ export default function ParamsPage({ openModal }) {
           </div>
           <button
             onClick={openTimeMachineModal}
-            className="px-4 py-2.5 rounded-lg text-[11px] font-bold bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-[0_8px_20px_rgba(59,130,246,0.4)] transition-all duration-200 whitespace-nowrap flex-shrink-0 ml-3"
+            className="px-4 py-2.5 rounded-lg text-[11px] font-bold bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 whitespace-nowrap flex-shrink-0 ml-3"
           >
             打开
           </button>
@@ -5431,7 +5431,7 @@ export default function ParamsPage({ openModal }) {
               <button
                 onClick={handleExitTimeMachine}
                 disabled={tmLoading}
-                className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-gradient-to-r from-red-500 to-red-600 text-white hover:shadow-[0_4px_12px_rgba(239,68,68,0.25)] transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
+                className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-red-600 text-white hover:bg-red-700 transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
               >
                 退出
               </button>
