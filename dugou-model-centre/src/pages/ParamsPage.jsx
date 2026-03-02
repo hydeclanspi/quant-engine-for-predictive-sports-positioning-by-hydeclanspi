@@ -4637,213 +4637,6 @@ export default function ParamsPage({ openModal }) {
       </div>
 
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mt-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="font-medium text-stone-700 flex items-center gap-2">
-              <span className="text-amber-500">▣</span> Kelly 分母回测台
-            </h3>
-            <p className="text-xs text-stone-400 mt-1">基于历史已结算样本的分母表现对比（ROI / 回撤 / 胜率，Bootstrap Monte Carlo）</p>
-          </div>
-          <button
-            onClick={() => applyKellyDivisor(kellyBacktest.globalBest?.divisor)}
-            disabled={!kellyBacktest.globalBest}
-            className="px-3 py-2 rounded-xl text-sm bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            一键应用全局建议
-          </button>
-        </div>
-
-        {!analyticsProgress.kelly ? (
-          <p className="text-sm text-stone-500">Kelly 回测计算中，请稍候...</p>
-        ) : !hasKellyBacktest ? (
-          <p className="text-sm text-stone-500">暂无可回测样本，请先完成至少 1 笔结算。</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-stone-200 text-left text-stone-500">
-                  <th className="py-2">Kelly 分母</th>
-                  <th className="py-2">样本</th>
-                  <th className="py-2">模拟次数</th>
-                  <th className="py-2">ROI</th>
-                  <th className="py-2">胜率</th>
-                  <th className="py-2">最大回撤</th>
-                  <th className="py-2">综合评分</th>
-                  <th className="py-2">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {kellyVisibleRows.map((row) => {
-                  const isBest = kellyBacktest.globalBest?.divisor === row.divisor
-                  return (
-                    <tr key={`kelly-${row.divisor}`} className={`border-b border-stone-100 ${isBest ? 'bg-amber-50/50' : ''}`}>
-                      <td className="py-2 font-medium text-stone-700">{row.divisor}</td>
-                      <td className="py-2 text-stone-600">{row.samples}</td>
-                      <td className="py-2 text-stone-500">{row.runs || 0}</td>
-                      <td className={`py-2 font-medium ${row.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                        {toSigned(row.roi, 1, '%')}
-                      </td>
-                      <td className="py-2 text-stone-600">{row.hitRate.toFixed(1)}%</td>
-                      <td className="py-2 text-rose-500">-{row.maxDrawdown.toFixed(1)}%</td>
-                      <td className={`py-2 font-medium ${row.score >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                        {toSigned(row.score, 1)}
-                      </td>
-                      <td className="py-2">
-                        <button
-                          onClick={() => applyKellyDivisor(row.divisor)}
-                          className="px-2 py-1 rounded-lg text-xs border border-stone-200 text-stone-600 hover:text-amber-700 hover:border-amber-300"
-                        >
-                          应用
-                        </button>
-                        {isBest && <span className="ml-2 text-[10px] text-amber-600">推荐</span>}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-            {hasMoreKellyRows && (
-              <div className="mt-2 flex justify-center">
-                <button
-                  onClick={() => setShowAllKellyRows((prev) => !prev)}
-                  className="h-7 px-3 rounded-full text-[11px] border border-amber-200 bg-amber-50/80 text-amber-700 hover:bg-amber-100 transition-colors"
-                >
-                  {showAllKellyRows ? '收起回测行' : `展开更多（+${kellyBacktest.globalRows.length - 6}）`}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="mt-4 grid grid-cols-3 gap-3">
-          {kellyBacktest.modeRecommendations.map((row) => (
-            <div key={`mode-kelly-${row.mode}`} className="p-3 rounded-xl bg-stone-50 border border-stone-100">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-stone-700">{row.mode}</span>
-                <button
-                  onClick={() => applyKellyDivisor(row.best?.divisor)}
-                  disabled={!row.best}
-                  className="text-[10px] px-2 py-1 rounded-md bg-white border border-stone-200 text-stone-500 hover:text-amber-600 disabled:opacity-40"
-                >
-                  应用
-                </button>
-              </div>
-              <p className="text-xs text-stone-400 mt-1">建议分母 {row.best?.divisor || '--'}</p>
-              <p className={`text-xs mt-1 ${row.best?.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                ROI {row.best ? toSigned(row.best.roi, 1, '%') : '--'} · 回撤 {row.best ? `-${row.best.maxDrawdown.toFixed(1)}%` : '--'} · MC {row.best?.runs || 0}
-              </p>
-            </div>
-          ))}
-        </div>
-        <p className="text-[11px] text-stone-400 mt-3">Mode 建议用于参考，可点击“应用”将该分母设为全局。</p>
-      </div>
-
-      <div className="flex flex-col">
-      <div className="order-5 glow-card relative overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/30 to-cyan-50/30 p-6 mb-6">
-        <div className="pointer-events-none absolute -top-14 -right-8 h-36 w-36 rounded-full bg-indigo-200/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-12 -left-10 h-36 w-36 rounded-full bg-cyan-200/20 blur-3xl" />
-        <div className="relative">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-medium text-stone-700 flex items-center gap-2">
-                <ConsoleCardIcon IconComp={SlidersHorizontal} /> 赛前评分权重
-              </h3>
-              <p className="text-[11px] text-stone-400 mt-1">用于新建投资与智能组合的评分计算链路</p>
-            </div>
-            <div className="text-right">
-              <p className="text-[11px] text-stone-400">总权重</p>
-              <p className="text-sm font-semibold text-indigo-700">{totalPreMatchWeight.toFixed(2)}</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
-            {WEIGHT_FIELDS.map((field, index) => {
-              const toneSet = [
-                'from-indigo-50/85 to-white border-indigo-100',
-                'from-cyan-50/85 to-white border-cyan-100',
-                'from-sky-50/85 to-white border-sky-100',
-                'from-violet-50/85 to-white border-violet-100',
-                'from-emerald-50/85 to-white border-emerald-100',
-                'from-amber-50/85 to-white border-amber-100',
-              ]
-              const tone = toneSet[index % toneSet.length]
-              return (
-                <div key={field.key} className={`p-3 rounded-xl border bg-gradient-to-br ${tone}`}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs text-stone-500 block">{field.label}</label>
-                    <span className="text-[10px] text-stone-400">{field.hint}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      max="1.5"
-                      value={config[field.key]}
-                      onChange={(event) => handleConfigChange(field.key, event.target.value)}
-                      className="input-glow w-full px-3 py-2 rounded-lg text-sm text-right border border-white/90 bg-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]"
-                    />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div className="order-6 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium text-stone-700 flex items-center gap-2">
-            <ConsoleCardIcon IconComp={Clock3} /> 时间近因机制
-          </h3>
-          <span className="text-xs text-stone-400">
-            {analyticsProgress.calibration ? `样本 ${calibrationContext.sampleCount} · n=${calibrationContext.n}` : '计算中...'}
-          </span>
-        </div>
-        {!analyticsProgress.calibration ? (
-          <p className="text-sm text-stone-500">时间近因与球队校准计算中，请稍候...</p>
-        ) : (
-          <>
-            <div className="grid grid-cols-3 gap-3">
-              {calibrationContext.bands.map((band) => (
-                <div key={band.key} className="p-3 bg-stone-50 rounded-xl border border-stone-200/70">
-                  <p className="text-xs text-stone-400">{band.label}</p>
-                  <p className="mt-1 text-sm font-semibold text-stone-700">
-                    权重 ×{band.weight.toFixed(2)} <span className="text-xs font-normal text-stone-400">· {band.samples} 场</span>
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mt-3">
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200">
-                <p className="text-xs text-amber-700">Conf 近因校准</p>
-                <p className="mt-1 text-lg font-semibold text-amber-700">×{calibrationContext.multipliers.conf.toFixed(2)}</p>
-              </div>
-              <div className="p-3 bg-sky-50 rounded-xl border border-sky-200">
-                <p className="text-xs text-sky-700">FSE 近因校准</p>
-                <p className="mt-1 text-lg font-semibold text-sky-700">×{calibrationContext.multipliers.fse.toFixed(2)}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3 mt-3">
-              {calibrationContext.repBuckets.map((bucket) => (
-                <div key={bucket.key} className="p-2.5 rounded-lg border border-stone-200 text-xs text-stone-500 bg-white">
-                  <p>{bucket.label}</p>
-                  <p className="mt-1 text-stone-700">
-                    ×{bucket.weight.toFixed(2)} · {bucket.samples} 场
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <p className="text-[11px] text-stone-400 mt-3">
-              已启用 REP 方向性降噪：低随机性样本上调权重，高随机性样本降权，避免“运气样本”放大误导。
-            </p>
-          </>
-        )}
-      </div>
-
       <div className="order-1 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
@@ -5017,6 +4810,213 @@ export default function ParamsPage({ openModal }) {
           回归校准乘数已自动应用于新建投资的建议金额计算。散点在 y=x 线上方表示实际表现优于预期。
         </p>
       </div>
+      <div className="flex flex-col">
+      <div className="order-5 glow-card relative overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/30 to-cyan-50/30 p-6 mb-6">
+        <div className="pointer-events-none absolute -top-14 -right-8 h-36 w-36 rounded-full bg-indigo-200/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-12 -left-10 h-36 w-36 rounded-full bg-cyan-200/20 blur-3xl" />
+        <div className="relative">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-medium text-stone-700 flex items-center gap-2">
+                <ConsoleCardIcon IconComp={SlidersHorizontal} /> 赛前评分权重
+              </h3>
+              <p className="text-[11px] text-stone-400 mt-1">用于新建投资与智能组合的评分计算链路</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] text-stone-400">总权重</p>
+              <p className="text-sm font-semibold text-indigo-700">{totalPreMatchWeight.toFixed(2)}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
+            {WEIGHT_FIELDS.map((field, index) => {
+              const toneSet = [
+                'from-indigo-50/85 to-white border-indigo-100',
+                'from-cyan-50/85 to-white border-cyan-100',
+                'from-sky-50/85 to-white border-sky-100',
+                'from-violet-50/85 to-white border-violet-100',
+                'from-emerald-50/85 to-white border-emerald-100',
+                'from-amber-50/85 to-white border-amber-100',
+              ]
+              const tone = toneSet[index % toneSet.length]
+              return (
+                <div key={field.key} className={`p-3 rounded-xl border bg-gradient-to-br ${tone}`}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs text-stone-500 block">{field.label}</label>
+                    <span className="text-[10px] text-stone-400">{field.hint}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      max="1.5"
+                      value={config[field.key]}
+                      onChange={(event) => handleConfigChange(field.key, event.target.value)}
+                      className="input-glow w-full px-3 py-2 rounded-lg text-sm text-right border border-white/90 bg-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]"
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="order-6 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-medium text-stone-700 flex items-center gap-2">
+            <ConsoleCardIcon IconComp={Clock3} /> 时间近因机制
+          </h3>
+          <span className="text-xs text-stone-400">
+            {analyticsProgress.calibration ? `样本 ${calibrationContext.sampleCount} · n=${calibrationContext.n}` : '计算中...'}
+          </span>
+        </div>
+        {!analyticsProgress.calibration ? (
+          <p className="text-sm text-stone-500">时间近因与球队校准计算中，请稍候...</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-3">
+              {calibrationContext.bands.map((band) => (
+                <div key={band.key} className="p-3 bg-stone-50 rounded-xl border border-stone-200/70">
+                  <p className="text-xs text-stone-400">{band.label}</p>
+                  <p className="mt-1 text-sm font-semibold text-stone-700">
+                    权重 ×{band.weight.toFixed(2)} <span className="text-xs font-normal text-stone-400">· {band.samples} 场</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200">
+                <p className="text-xs text-amber-700">Conf 近因校准</p>
+                <p className="mt-1 text-lg font-semibold text-amber-700">×{calibrationContext.multipliers.conf.toFixed(2)}</p>
+              </div>
+              <div className="p-3 bg-sky-50 rounded-xl border border-sky-200">
+                <p className="text-xs text-sky-700">FSE 近因校准</p>
+                <p className="mt-1 text-lg font-semibold text-sky-700">×{calibrationContext.multipliers.fse.toFixed(2)}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 mt-3">
+              {calibrationContext.repBuckets.map((bucket) => (
+                <div key={bucket.key} className="p-2.5 rounded-lg border border-stone-200 text-xs text-stone-500 bg-white">
+                  <p>{bucket.label}</p>
+                  <p className="mt-1 text-stone-700">
+                    ×{bucket.weight.toFixed(2)} · {bucket.samples} 场
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-[11px] text-stone-400 mt-3">
+              已启用 REP 方向性降噪：低随机性样本上调权重，高随机性样本降权，避免“运气样本”放大误导。
+            </p>
+          </>
+        )}
+      </div>
+
+      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mt-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-medium text-stone-700 flex items-center gap-2">
+              <span className="text-amber-500">▣</span> Kelly 分母回测台
+            </h3>
+            <p className="text-xs text-stone-400 mt-1">基于历史已结算样本的分母表现对比（ROI / 回撤 / 胜率，Bootstrap Monte Carlo）</p>
+          </div>
+          <button
+            onClick={() => applyKellyDivisor(kellyBacktest.globalBest?.divisor)}
+            disabled={!kellyBacktest.globalBest}
+            className="px-3 py-2 rounded-xl text-sm bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            一键应用全局建议
+          </button>
+        </div>
+
+        {!analyticsProgress.kelly ? (
+          <p className="text-sm text-stone-500">Kelly 回测计算中，请稍候...</p>
+        ) : !hasKellyBacktest ? (
+          <p className="text-sm text-stone-500">暂无可回测样本，请先完成至少 1 笔结算。</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-stone-200 text-left text-stone-500">
+                  <th className="py-2">Kelly 分母</th>
+                  <th className="py-2">样本</th>
+                  <th className="py-2">模拟次数</th>
+                  <th className="py-2">ROI</th>
+                  <th className="py-2">胜率</th>
+                  <th className="py-2">最大回撤</th>
+                  <th className="py-2">综合评分</th>
+                  <th className="py-2">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {kellyVisibleRows.map((row) => {
+                  const isBest = kellyBacktest.globalBest?.divisor === row.divisor
+                  return (
+                    <tr key={`kelly-${row.divisor}`} className={`border-b border-stone-100 ${isBest ? 'bg-amber-50/50' : ''}`}>
+                      <td className="py-2 font-medium text-stone-700">{row.divisor}</td>
+                      <td className="py-2 text-stone-600">{row.samples}</td>
+                      <td className="py-2 text-stone-500">{row.runs || 0}</td>
+                      <td className={`py-2 font-medium ${row.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                        {toSigned(row.roi, 1, '%')}
+                      </td>
+                      <td className="py-2 text-stone-600">{row.hitRate.toFixed(1)}%</td>
+                      <td className="py-2 text-rose-500">-{row.maxDrawdown.toFixed(1)}%</td>
+                      <td className={`py-2 font-medium ${row.score >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                        {toSigned(row.score, 1)}
+                      </td>
+                      <td className="py-2">
+                        <button
+                          onClick={() => applyKellyDivisor(row.divisor)}
+                          className="px-2 py-1 rounded-lg text-xs border border-stone-200 text-stone-600 hover:text-amber-700 hover:border-amber-300"
+                        >
+                          应用
+                        </button>
+                        {isBest && <span className="ml-2 text-[10px] text-amber-600">推荐</span>}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+            {hasMoreKellyRows && (
+              <div className="mt-2 flex justify-center">
+                <button
+                  onClick={() => setShowAllKellyRows((prev) => !prev)}
+                  className="h-7 px-3 rounded-full text-[11px] border border-amber-200 bg-amber-50/80 text-amber-700 hover:bg-amber-100 transition-colors"
+                >
+                  {showAllKellyRows ? '收起回测行' : `展开更多（+${kellyBacktest.globalRows.length - 6}）`}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          {kellyBacktest.modeRecommendations.map((row) => (
+            <div key={`mode-kelly-${row.mode}`} className="p-3 rounded-xl bg-stone-50 border border-stone-100">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-stone-700">{row.mode}</span>
+                <button
+                  onClick={() => applyKellyDivisor(row.best?.divisor)}
+                  disabled={!row.best}
+                  className="text-[10px] px-2 py-1 rounded-md bg-white border border-stone-200 text-stone-500 hover:text-amber-600 disabled:opacity-40"
+                >
+                  应用
+                </button>
+              </div>
+              <p className="text-xs text-stone-400 mt-1">建议分母 {row.best?.divisor || '--'}</p>
+              <p className={`text-xs mt-1 ${row.best?.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                ROI {row.best ? toSigned(row.best.roi, 1, '%') : '--'} · 回撤 {row.best ? `-${row.best.maxDrawdown.toFixed(1)}%` : '--'} · MC {row.best?.runs || 0}
+              </p>
+            </div>
+          ))}
+        </div>
+        <p className="text-[11px] text-stone-400 mt-3">Mode 建议用于参考，可点击“应用”将该分母设为全局。</p>
+      </div>
+
 
       <div className="order-3 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
         <div className="flex items-center justify-between mb-4">
