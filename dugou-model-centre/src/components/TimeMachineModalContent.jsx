@@ -1,11 +1,12 @@
-import { Plus, X, RotateCcw, Archive, Database } from 'lucide-react'
+import { Plus, X, Archive, Database } from 'lucide-react'
 
 /**
  * 高端时光穿越机弹窗内容组件
  * 设计风格：Google Gemini + 硅谷科技感 + 精英香槟叙事
- * - GlassCardIcon 高端 icon 设计
- * - 梯度渐变 + 多层阴影
- * - 大气、有张力的排版和间距
+ * 修复版本：
+ * - 修复所有按钮颜色 BUG（高对比度）
+ * - 删除所有廉价 emoji
+ * - 高端 GlassCardIcon 设计
  */
 
 // GlassCardIcon 组件 - 高端 icon 容器
@@ -48,7 +49,7 @@ export default function TimeMachineModalContent({
 }) {
   return (
     <div className="space-y-6 py-2">
-      {/* Current Session Info - 高端展示 */}
+      {/* Current Session Info */}
       {isInMode && sessionInfo && (
         <div className="p-5 rounded-xl bg-gradient-to-br from-blue-100/70 to-cyan-100/60 border border-blue-200/70 backdrop-blur-sm">
           <div className="flex items-start justify-between gap-4">
@@ -62,7 +63,7 @@ export default function TimeMachineModalContent({
             <button
               onClick={onExitSession}
               disabled={loading}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[11px] font-bold bg-gradient-to-r from-red-500 to-red-600 text-white hover:shadow-[0_6px_16px_rgba(239,68,68,0.35)] transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[11px] font-bold bg-red-600 text-white hover:bg-red-700 transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
             >
               <X size={14} strokeWidth={2.5} /> 退出穿越
             </button>
@@ -73,7 +74,7 @@ export default function TimeMachineModalContent({
       {/* Snapshots List Section */}
       {!isInMode ? (
         <>
-          {/* 标题区 - 用高端 icon 替换 emoji */}
+          {/* 标题区 */}
           <div className="mb-4">
             <div className="flex items-center gap-2.5 mb-4">
               <GlassCardIcon icon={Database} tone="sky" iconSize={15} />
@@ -112,21 +113,21 @@ export default function TimeMachineModalContent({
                           {snap.meta?.title || 'Snapshot'}
                         </p>
                         <p className="text-[10px] text-stone-500 mt-2 flex items-center gap-2">
-                          <span>📅 {new Date(snap.updatedAt).toLocaleString()}</span>
+                          <span>{new Date(snap.updatedAt).toLocaleString()}</span>
                         </p>
                         <p className="text-[10px] text-stone-500 mt-1 flex items-center gap-2">
-                          <span>📊 {snap.stats?.investmentCount || 0} 投资</span>
+                          <span>{snap.stats?.investmentCount || 0} 投资</span>
                           <span>•</span>
-                          <span>👥 {snap.stats?.teamCount || 0} 团队</span>
+                          <span>{snap.stats?.teamCount || 0} 团队</span>
                         </p>
                       </div>
                     </div>
                     <button
                       onClick={() => onBeginSession(snap.id)}
                       disabled={loading}
-                      className="ml-4 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[11px] font-bold bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-[0_8px_20px_rgba(59,130,246,0.4)] transition-all duration-200 disabled:opacity-50 whitespace-nowrap group-hover:scale-105 group-active:scale-95"
+                      className="ml-4 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[11px] font-bold bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 disabled:opacity-50 whitespace-nowrap group-hover:scale-105 group-active:scale-95"
                     >
-                      <RotateCcw size={12} strokeWidth={2.5} /> 穿越
+                      穿越
                     </button>
                   </div>
                 ))}
@@ -134,7 +135,7 @@ export default function TimeMachineModalContent({
             )}
           </div>
 
-          {/* Pagination - 高端设计 */}
+          {/* Pagination */}
           {snapshots.length > 0 && (
             <div className="flex items-center justify-between gap-3 pt-4 border-t border-blue-150/50">
               <p className="text-[10px] text-stone-600 font-medium">
@@ -158,7 +159,7 @@ export default function TimeMachineModalContent({
             </div>
           )}
 
-          {/* Save Section - 高端设计 */}
+          {/* Save Section */}
           <div className="space-y-4 border-t border-blue-150/50 pt-5">
             <div className="flex items-center gap-2.5">
               <GlassCardIcon icon={Plus} tone="emerald" iconSize={15} />
@@ -177,20 +178,20 @@ export default function TimeMachineModalContent({
               <button
                 onClick={onSaveSnapshot}
                 disabled={loading}
-                className="px-4 py-2.5 rounded-lg text-[11px] font-bold bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:shadow-[0_8px_20px_rgba(16,185,129,0.4)] transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
+                className="px-4 py-2.5 rounded-lg text-[11px] font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
               >
-                💾 保存
+                保存
               </button>
               <button
                 onClick={onEnsureMonthly}
                 disabled={loading}
-                className="px-4 py-2.5 rounded-lg text-[11px] font-bold bg-gradient-to-r from-violet-500 to-purple-500 text-white hover:shadow-[0_8px_20px_rgba(139,92,246,0.4)] transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
+                className="px-4 py-2.5 rounded-lg text-[11px] font-bold bg-violet-600 text-white hover:bg-violet-700 transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
               >
-                📅 本月
+                本月
               </button>
             </div>
 
-            {/* Status Message - 高端样式 */}
+            {/* Status Message */}
             {saveStatus && (
               <div
                 className={`text-[11px] px-3.5 py-2.5 rounded-lg font-medium transition-all ${
@@ -205,20 +206,16 @@ export default function TimeMachineModalContent({
           </div>
         </>
       ) : (
-        /* In Time Machine Mode - 高端呈现 */
+        /* In Time Machine Mode */
         <div className="py-8 text-center">
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-b from-blue-100/80 to-cyan-100/60 border border-blue-200/60 mb-4">
-            <RotateCcw size={20} className="text-blue-600" strokeWidth={2} style={{
-              animation: 'spinReverse 3s linear infinite',
-            }} />
+            <span className="animate-pulse text-blue-600 text-xl">⏰</span>
           </div>
           <p className="text-[13px] text-stone-700 font-bold mb-2">时光穿越中...</p>
           <p className="text-[11px] text-stone-600 mb-3">
             当前查阅：<span className="font-semibold text-stone-800">{sessionInfo?.title}</span>
           </p>
-          <p className="text-[10px] text-stone-500">
-            所有写操作已禁用，点击下方"退出穿越"返回现在
-          </p>
+          <p className="text-[10px] text-stone-500">所有写操作已禁用，点击下方"退出穿越"返回现在</p>
         </div>
       )}
     </div>
