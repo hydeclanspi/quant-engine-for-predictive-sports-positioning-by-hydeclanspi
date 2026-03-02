@@ -3797,8 +3797,11 @@ export default function ParamsPage({ openModal }) {
   }
 
   const handleDeleteSnapshot = async (snapshotId) => {
-    alert('作者留言：我实在写不出来这个 delete 功能的代码了.... 这个 Supabase 总是说我请求没有被授权，但是我 API 明明没问题.... 累了，请自行跳转 Supabase 的 table 进行删除吧 （亲测有效，丝滑体验）')
-    window.open('https://supabase.com/dashboard/project/ifwczbobrmbchfroltqe/editor/17494', '_blank')
+    const confirmed = confirm(`【作者留言：我实在是写不出来这个 delete 功能的代码了.... 这个 Supabase 总是说我对应请求没有被授权，但是我 API 明明没问题、RLS什么的也反复调来调去试过了.... 累了，请自行跳转 Supabase 的 table 进行删除吧 （亲测有效, 丝滑体验, 一键勾选想删几个删几个）
+破防ed on Mar 02, 2026.】`)
+    if (confirmed) {
+      window.open('https://supabase.com/dashboard/project/ifwczbobrmbchfroltqe/editor/17494', '_blank')
+    }
   }
 
   const openTimeMachineModal = () => {
