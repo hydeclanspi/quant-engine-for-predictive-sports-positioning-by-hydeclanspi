@@ -3820,8 +3820,10 @@ export default function ParamsPage({ openModal }) {
         await loadTimeMachineSnapshots(tmPage)
         console.log('[handleDeleteSnapshot] Snapshots reloaded')
       } else {
-        alert(`删除失败: ${result.reason}`)
-        setTmSaveStatus(`Failed to delete: ${result.reason}`)
+        const errorMsg = result.errorMessage ? ` - ${result.errorMessage}` : ''
+        const errorCode = result.errorCode ? ` (${result.errorCode})` : ''
+        alert(`删除失败: ${result.reason}${errorCode}${errorMsg}`)
+        setTmSaveStatus(`删除失败: ${result.reason}`)
       }
     } catch (err) {
       console.error('[handleDeleteSnapshot] Exception:', err)

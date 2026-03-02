@@ -322,15 +322,17 @@ export const deleteTimeMachineSnapshotById = async (snapshotId) => {
       console.error('[deleteTimeMachineSnapshotById] Supabase error:', {
         code: error.code,
         message: error.message,
+        details: error.details,
+        hint: error.hint,
       })
-      return { ok: false, reason: 'delete_failed', error }
+      return { ok: false, reason: 'delete_failed', errorCode: error.code, errorMessage: error.message }
     }
     
     console.log('[deleteTimeMachineSnapshotById] Delete successful')
     return { ok: true, snapshotId }
   } catch (err) {
     console.error('[deleteTimeMachineSnapshotById] Exception:', err)
-    return { ok: false, reason: 'exception', error: err }
+    return { ok: false, reason: 'exception', errorMessage: err.message }
   }
 }
 
