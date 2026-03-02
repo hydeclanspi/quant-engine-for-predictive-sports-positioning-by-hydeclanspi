@@ -271,15 +271,27 @@ export const saveTimeMachineSnapshot = async ({ snapshot, title = '', mode = 'ma
     bundle,
   }
 
-  const { error } = await client.from('dugou_sync_snapshots').upsert({
-    id: snapshotId,
-    payload,
-    updated_at: snapshotAt,
-  })
+  try {
+    const { error, data } = await client.from('dugou_sync_snapshots').upsert({
+      id: snapshotId,
+      payload,
+      updated_at: snapshotAt,
+    })
 
-  if (error) {
-    const next = saveCloudSyncState({ lastError: error.message || '时光快照保存失败。' })
-    return { ok: false, reason: 'save_failed', state: next }
+    if (error) {
+      console.error('[saveTimeMachineSnapshot] Supabase error:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      })
+      const next = saveCloudSyncState({ lastError: `${error.code}: ${error.message}` })
+      return { ok: false, reason: 'save_failed', state: next, error }
+    }
+  } catch (err) {
+    console.error('[saveTimeMachineSnapshot] Exception:', err)
+    const next = saveCloudSyncState({ lastError: err.message || '时光快照保存异常。' })
+    return { ok: false, reason: 'exception', state: next, error: err }
   }
 
   return {
