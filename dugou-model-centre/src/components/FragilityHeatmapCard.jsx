@@ -62,6 +62,15 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
       const matchesWithResults = settledInvestments.reduce((sum, inv) => sum + inv.matches.filter(m => m.result !== undefined).length, 0)
       const failedMatches = settledInvestments.reduce((sum, inv) => sum + inv.matches.filter(m => m.result === false).length, 0)
       const wonMatches = settledInvestments.reduce((sum, inv) => sum + inv.matches.filter(m => m.result === true).length, 0)
+
+      // 深度调试：看原始 is_correct 字段
+      const rawInvestments = investments.filter(inv => {
+        const hasRevenues = inv.revenues !== undefined && inv.revenues !== null && Number(inv.revenues) !== 0
+        const isSettled = inv.is_settled === true || inv.status === 'settled' || inv.status === 'settled_win' || inv.status === 'settled_loss'
+        const hasResults = Array.isArray(inv.matches) && inv.matches.some(m => m.result !== undefined && m.result !== null)
+        return hasRevenues || isSettled || hasResults
+      }).slice(0, 5)
+
       console.log('🔍 FragilityHeatmap Debug:', {
         totalSettled: settledInvestments.length,
         totalMatches,
@@ -70,6 +79,18 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
         failedMatches,
         sampleResults: debugSample.matches.map(m => ({ odds: m.odds, result: m.result })),
       })
+      console.log('🔍 Raw data sample (first 5):', rawInvestments.map(inv => ({
+        id: inv.id,
+        status: inv.status,
+        revenues: inv.revenues,
+        matches: (inv.matches || []).map(m => ({
+          is_correct: m.is_correct,
+          is_correct_type: typeof m.is_correct,
+          result: m.result,
+          result_type: typeof m.result,
+          odds: m.odds,
+        }))
+      })))
     }
     return settledInvestments
   }, [])
