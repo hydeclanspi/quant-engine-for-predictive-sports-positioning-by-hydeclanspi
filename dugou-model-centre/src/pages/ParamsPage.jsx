@@ -5269,6 +5269,47 @@ export default function ParamsPage({ openModal }) {
         </div>
       </div>
 
+      {/* Time Machine Card — Future Iteration Style */}
+      <div
+        onClick={openTimeMachineModal}
+        className="console-interactive-surface glow-card mt-24 mb-24 rounded-2xl border border-cyan-200/70 bg-gradient-to-br from-cyan-50/90 via-white/92 to-blue-50/78 p-6 cursor-pointer backdrop-blur-sm shadow-[0_20px_45px_rgba(34,211,238,0.18),inset_0_1px_0_rgba(255,255,255,0.86)]"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-cyan-200 bg-white/80">
+                <TimeMachineIcon size={16} className="tm-icon-pulse" />
+              </span>
+              <span className="text-xs text-cyan-700 font-medium uppercase tracking-[0.1em]">时光穿越机</span>
+              <span className="inline-flex items-center justify-center rounded-full border border-amber-300 bg-gradient-to-b from-amber-100 to-amber-50 px-2 py-0.5 text-[10px] text-amber-800 font-semibold shadow-sm translate-x-0.7">
+                VIP
+              </span>
+            </div>
+            <h3 className="text-lg font-semibold text-stone-800">数据时光穿梭 Time Machine</h3>
+            <p className="text-sm text-stone-500 mt-2 max-w-3xl">
+              {tmIsInMode
+                ? `正在回溯: ${tmSessionInfo?.title} · 所有修改已冻结 · 安全浏览历史版本`
+                : `已保存 ${tmSnapshots.length} 份快照 · 秒级穿梭到任意历史时刻 · 完整恢复您的每一次决策`}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              if (tmIsInMode) {
+                handleExitTimeMachine()
+              } else {
+                openTimeMachineModal()
+              }
+            }}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-white/85 px-3 py-2 text-xs font-medium text-cyan-700 hover:bg-cyan-50 transition-colors"
+          >
+            {tmIsInMode ? '退出穿越' : '进入'}
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+
       <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
@@ -5415,47 +5456,6 @@ export default function ParamsPage({ openModal }) {
           <input ref={jsonInputRef} type="file" accept=".json" onChange={handleJsonImportFile} className="hidden" />
           <button onClick={() => jsonInputRef.current?.click()} className="btn-primary btn-hover">
             导入 JSON
-          </button>
-        </div>
-      </div>
-
-      {/* Time Machine Card — Future Iteration Style */}
-      <div
-        onClick={openTimeMachineModal}
-        className="console-interactive-surface glow-card mt-6 rounded-2xl border border-cyan-200/70 bg-gradient-to-br from-cyan-50/90 via-white/92 to-blue-50/78 p-6 cursor-pointer backdrop-blur-sm shadow-[0_20px_45px_rgba(34,211,238,0.18),inset_0_1px_0_rgba(255,255,255,0.86)]"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-cyan-200 bg-white/80">
-                <TimeMachineIcon size={16} className="tm-icon-pulse" />
-              </span>
-              <span className="text-xs text-cyan-700 font-medium uppercase tracking-[0.1em]">时光穿越机</span>
-              <span className="inline-flex items-center justify-center rounded-full border border-amber-300 bg-gradient-to-b from-amber-100 to-amber-50 px-2 py-0.5 text-[10px] text-amber-800 font-semibold shadow-sm translate-x-0.7">
-                VIP
-              </span>
-            </div>
-            <h3 className="text-lg font-semibold text-stone-800">数据时光穿梭</h3>
-            <p className="text-sm text-stone-500 mt-2 max-w-3xl">
-              {tmIsInMode
-                ? `正在回溯: ${tmSessionInfo?.title} · 所有修改已冻结 · 安全浏览历史版本`
-                : `已保存 ${tmSnapshots.length} 份快照 · 秒级穿梭到任意历史时刻 · 完整恢复您的每一次决策`}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation()
-              if (tmIsInMode) {
-                handleExitTimeMachine()
-              } else {
-                openTimeMachineModal()
-              }
-            }}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-white/85 px-3 py-2 text-xs font-medium text-cyan-700 hover:bg-cyan-50 transition-colors"
-          >
-            {tmIsInMode ? '退出穿越' : '进入'}
-            <ChevronRight size={14} />
           </button>
         </div>
       </div>
