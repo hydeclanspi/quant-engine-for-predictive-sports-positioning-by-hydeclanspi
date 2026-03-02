@@ -5146,3 +5146,578 @@ export const autoApplyAdaptiveWeights = () => {
     suggestions: result.suggestions,
   }
 }
+
+// ============================================================================
+// 依赖风险高级分析系统 (Dependency Risk Premium Analysis System)
+// 核心功能：学习历史失败组合，评估新匹配对的脆弱性风险
+// ============================================================================
+
+/**
+ * 获取市场隐含的失败率（基于赔率）
+ * Market-Implied Failure Rate = 1 / odds
+ *
+ * @param {number} odds - 比赛赔率
+ * @returns {number} 失败概率（0.01 - 0.98）
+ */
+export const getMarketImpliedFailureRate = (odds) => {
+  return toImpliedProbability(odds, 0.01, 0.98)
+}
+
+/**
+ * 获取样本量信心权重
+ * 小样本数据信任度低，大样本数据信任度高
+ *
+ * @param {number} sampleSize - 样本数量
+ * @returns {number} 权重系数（0.1 - 1.0）
+ */
+export const getConfidenceWeight = (sampleSize) => {
+  const size = Math.max(0, toNumber(sampleSize, 0))
+  if (size < 5) return 0.1
+  if (size < 10) return 0.3
+  if (size < 20) return 0.6
+  if (size < 30) return 0.85
+  return 1.0
+}
+
+/**
+ * 获取时间权重系数
+ * 最近2个月的数据获得15%的权重提升
+ *
+ * @param {Date|string|number} date - 数据时间戳
+ * @param {Date} baseDate - 比较基准日期（默认为当前）
+ * @returns {number} 权重倍数（1.0 或 1.15）
+ */
+export const getTemporalWeight = (date, baseDate = new Date()) => {
+  const dataDate = new Date(date)
+  if (Number.isNaN(dataDate.getTime())) return 1.0
+
+  const baseDateMs = new Date(baseDate).getTime()
+  const dataDateMs = dataDate.getTime()
+  const daysDiff = (baseDateMs - dataDateMs) / (1000 * 60 * 60 * 24)
+
+  // 最近60天（约2个月）的数据获得1.15x权重
+  return daysDiff <= 60 ? 1.15 : 1.0
+}
+
+/**
+ * 计算观察到的两个比赛共同失败的加权失败率
+ *
+ * @param {Array} historicalData - 历史组合数据，每个元素为 { matches: [{odds}, ...], succeeded: boolean, createdAt: ... }
+ * @param {number} raceAIndex - 比赛A在组合中的索引
+ * @param {number} raceBIndex - 比赛B在组合中的索引
+ * @returns {object} { failedTogether: number, totalCount: number, weightedCount: number }
+ */
+export const getWeightedObservedFailure = (historicalData = [], raceAIndex, raceBIndex) => {
+  if (!Array.isArray(historicalData)) return { failedTogether: 0, totalCount: 0, weightedCount: 0 }
+
+  let failedTogetherCount = 0
+  let totalWeightedCount = 0
+
+  historicalData.forEach((combo) => {
+    const matches = Array.isArray(combo.matches) ? combo.matches : []
+    if (raceAIndex >= matches.length || raceBIndex >= matches.length) return
+
+    const succeeded = Boolean(combo.succeeded)
+    const matchAResult = matches[raceAIndex]?.result
+    const matchBResult = matches[raceBIndex]?.result
+
+    const matchAFailed = matchAResult === false || matchAResult === 'loss'
+    const matchBFailed = matchBResult === false || matchBResult === 'loss'
+
+    if (matchAFailed && matchBFailed) {
+      const weight = getTemporalWeight(combo.createdAt)
+      failedTogetherCount += weight
+    }
+
+    totalWeightedCount += getTemporalWeight(combo.createdAt)
+  })
+
+  return {
+    failedTogether: failedTogetherCount,
+    totalCount: historicalData.length,
+    weightedCount: totalWeightedCount,
+  }
+}
+
+/**
+ * 计算依赖风险溢价（Dependency Risk Premium）
+ * 使用条件概率方法（Method 2）
+ *
+ * Premium = P(both fail | together) - [P(A fails) × P(B fails)]
+ *
+ * @param {object} raceA - 比赛A信息 { odds: number }
+ * @param {object} raceB - 比赛B信息 { odds: number }
+ * @param {Array} historicalData - 历史组合数据
+ * @param {number} raceAIndex - 比赛A的索引
+ * @param {number} raceBIndex - 比赛B的索引
+ * @returns {object} 详细的溢价分析结果
+ */
+export const calculateDependencyPremium = (
+  raceA,
+  raceB,
+  historicalData = [],
+  raceAIndex = 0,
+  raceBIndex = 1,
+) => {
+  const oddsA = toNumber(raceA?.odds, Number.NaN)
+  const oddsB = toNumber(raceB?.odds, Number.NaN)
+
+  if (!Number.isFinite(oddsA) || !Number.isFinite(oddsB)) {
+    return {
+      premium: Number.NaN,
+      pFailA: Number.NaN,
+      pFailB: Number.NaN,
+      pFailBothObserved: Number.NaN,
+      pFailBothIndependent: Number.NaN,
+      sampleSize: 0,
+      confidence: 0,
+      pValue: Number.NaN,
+      isSignificant: false,
+    }
+  }
+
+  // 步骤1：使用市场隐含概率（Option A）
+  const pFailA = getMarketImpliedFailureRate(oddsA)
+  const pFailB = getMarketImpliedFailureRate(oddsB)
+
+  // 步骤2：获取加权观察到的共同失败率
+  const observed = getWeightedObservedFailure(historicalData, raceAIndex, raceBIndex)
+  const pFailBothObserved = observed.weightedCount > 0 ? observed.failedTogether / observed.weightedCount : 0
+
+  // 步骤3：计算独立假设下的共同失败率
+  const pFailBothIndependent = pFailA * pFailB
+
+  // 步骤4：计算依赖风险溢价
+  const premium = pFailBothObserved - pFailBothIndependent
+
+  // 步骤5：计算样本量信心权重
+  const sampleSize = observed.totalCount
+  const confidenceWeight = getConfidenceWeight(sampleSize)
+
+  // 步骤6：计算p值（二项检验）
+  const pValue = calculateBinomialPValue(
+    observed.failedTogether,
+    observed.totalCount,
+    pFailBothIndependent,
+  )
+
+  const isSignificant = pValue < 0.03 // p值阈值为0.03（更严格）
+
+  return {
+    premium: clamp(premium, -1, 1),
+    pFailA,
+    pFailB,
+    pFailBothObserved: clamp(pFailBothObserved, 0, 1),
+    pFailBothIndependent: clamp(pFailBothIndependent, 0, 1),
+    sampleSize,
+    confidence: confidenceWeight,
+    pValue,
+    isSignificant,
+    observedFailedCount: observed.failedTogether,
+    weightedCount: observed.weightedCount,
+  }
+}
+
+/**
+ * 使用正态近似计算二项p值
+ * 检验：H0 = 观察到的失败率与预期失败率无显著差异
+ *
+ * @param {number} observedFailures - 观察到的失败次数（已加权）
+ * @param {number} totalTrials - 总试验次数
+ * @param {number} expectedProbability - 期望失败概率
+ * @returns {number} p值
+ */
+export const calculateBinomialPValue = (observedFailures, totalTrials, expectedProbability) => {
+  if (totalTrials === 0 || !Number.isFinite(expectedProbability)) return 1.0
+
+  const expectedCount = totalTrials * expectedProbability
+  const variance = totalTrials * expectedProbability * (1 - expectedProbability)
+  const stdDev = Math.sqrt(variance)
+
+  if (stdDev === 0) return 1.0
+
+  // Z分数
+  const z = Math.abs((observedFailures - expectedCount) / stdDev)
+
+  // 近似p值（双尾检验）
+  // 使用error function的简化形式
+  const pValue = erfc(z / Math.sqrt(2))
+  return clamp(pValue, 0, 1)
+}
+
+/**
+ * 互补误差函数（Complementary Error Function）简化计算
+ *
+ * @param {number} x
+ * @returns {number}
+ */
+const erfc = (x) => {
+  const a1 = 0.254829592
+  const a2 = -0.284496736
+  const a3 = 1.421413741
+  const a4 = -1.453152027
+  const a5 = 1.061405429
+  const p = 0.3275911
+
+  const sign = x < 0 ? 1 : -1
+  const absx = Math.abs(x)
+
+  const t = 1.0 / (1.0 + p * absx)
+  const y = 1.0 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-absx * absx)
+
+  return sign === 1 ? y : 2.0 - y
+}
+
+/**
+ * 检查幸存者偏差（倾向评分匹配方法 - Method B）
+ * 比较特征相似的比赛对，检查某个组合是否被过度选择或过度避免
+ *
+ * @param {object} raceA - 比赛A信息
+ * @param {object} raceB - 比赛B信息
+ * @param {Array} historicalData - 历史组合数据
+ * @param {number} raceAIndex - 比赛A的索引
+ * @param {number} raceBIndex - 比赛B的索引
+ * @param {number} toleranceFactor - 特征相似性容差（默认0.15）
+ * @returns {object} 幸存者偏差分析结果
+ */
+export const checkSurvivingBias = (
+  raceA,
+  raceB,
+  historicalData = [],
+  raceAIndex = 0,
+  raceBIndex = 1,
+  toleranceFactor = 0.15,
+) => {
+  const oddsA = toNumber(raceA?.odds, Number.NaN)
+  const oddsB = toNumber(raceB?.odds, Number.NaN)
+
+  if (!Number.isFinite(oddsA) || !Number.isFinite(oddsB)) {
+    return {
+      hasBias: false,
+      biasDirection: 'unknown',
+      biasStrength: 0,
+      matchedPairs: 0,
+      investedInTarget: 0,
+      investedInSimilar: 0,
+    }
+  }
+
+  // 找到特征相似的比赛对（容差范围内）
+  let matchedPairs = 0
+  let investedInTarget = 0
+  let investedInSimilar = 0
+
+  historicalData.forEach((combo) => {
+    const matches = Array.isArray(combo.matches) ? combo.matches : []
+    if (raceAIndex >= matches.length || raceBIndex >= matches.length) return
+
+    const matchA = matches[raceAIndex]
+    const matchB = matches[raceBIndex]
+    const targetOdds = [oddsA, oddsB].sort((a, b) => a - b)
+
+    matches.forEach((otherA, idxA) => {
+      if (idxA === raceAIndex) return
+      matches.forEach((otherB, idxB) => {
+        if (idxB === raceBIndex || idxB === raceAIndex) return
+
+        const otherOdds = [toNumber(otherA?.odds), toNumber(otherB?.odds)].sort((a, b) => a - b)
+
+        // 计算赔率向量的欧氏距离
+        const distance =
+          Math.sqrt(
+            Math.pow((targetOdds[0] - otherOdds[0]) / targetOdds[0], 2) +
+              Math.pow((targetOdds[1] - otherOdds[1]) / targetOdds[1], 2),
+          ) / Math.sqrt(2)
+
+        if (distance <= toleranceFactor) {
+          matchedPairs += 1
+
+          // 如果这对组合被投资过（included in combo），计数
+          const targetIncluded = combo.matches.includes(matchA) && combo.matches.includes(matchB)
+          const otherIncluded = combo.matches.includes(otherA) && combo.matches.includes(otherB)
+
+          if (targetIncluded) investedInTarget += 1
+          if (otherIncluded) investedInSimilar += 1
+        }
+      })
+    })
+  })
+
+  // 分析偏差
+  const biasRatio = matchedPairs > 0 ? investedInTarget / matchedPairs : 0
+  const hasBias = Math.abs(biasRatio - 0.5) > 0.15
+  const biasDirection = biasRatio > 0.5 ? 'overselected' : 'underselected'
+  const biasStrength = Math.abs(biasRatio - 0.5)
+
+  return {
+    hasBias,
+    biasDirection,
+    biasStrength: clamp(biasStrength, 0, 1),
+    matchedPairs,
+    investedInTarget,
+    investedInSimilar,
+  }
+}
+
+/**
+ * 保守的基准率调整
+ * 将依赖风险溢价与全局失败率进行对比，但不过于激进
+ *
+ * @param {number} premium - 依赖风险溢价
+ * @param {Array} historicalData - 历史组合数据
+ * @param {number} conservativeFactor - 保守系数（默认0.2）
+ * @returns {object} 调整后的溢价和调整因子
+ */
+export const adjustForBaseRate = (premium, historicalData = [], conservativeFactor = 0.2) => {
+  if (!Array.isArray(historicalData) || historicalData.length === 0) {
+    return {
+      adjustedPremium: premium,
+      adjustmentFactor: 1.0,
+      globalFailureRate: Number.NaN,
+    }
+  }
+
+  // 计算全局失败率（所有投资中失败的比例）
+  let totalFailed = 0
+  let totalCombos = 0
+
+  historicalData.forEach((combo) => {
+    if (!combo.succeeded) totalFailed += 1
+    totalCombos += 1
+  })
+
+  const globalFailureRate = totalCombos > 0 ? totalFailed / totalCombos : 0
+
+  // 如果溢价与全局失败率方向相反，进行保守调整
+  const adjustmentFactor = premium > 0 ? 1 - conservativeFactor : 1 + conservativeFactor
+  const adjustedPremium = premium * adjustmentFactor
+
+  return {
+    adjustedPremium: clamp(adjustedPremium, -1, 1),
+    adjustmentFactor,
+    globalFailureRate,
+    conservativeFactor,
+  }
+}
+
+/**
+ * 综合脆弱性评分（Fragility Score）
+ * 综合所有统计控制，为新匹配对输出最终风险分数
+ *
+ * @param {object} raceA - 比赛A信息 { odds: number }
+ * @param {object} raceB - 比赛B信息 { odds: number }
+ * @param {Array} historicalData - 历史组合数据
+ * @param {number} raceAIndex - 比赛A的索引
+ * @param {number} raceBIndex - 比赛B的索引
+ * @returns {object} 脆弱性评分详细结果
+ */
+export const assessFragilityScore = (
+  raceA,
+  raceB,
+  historicalData = [],
+  raceAIndex = 0,
+  raceBIndex = 1,
+) => {
+  // 步骤1：计算基础依赖风险溢价
+  const premium = calculateDependencyPremium(
+    raceA,
+    raceB,
+    historicalData,
+    raceAIndex,
+    raceBIndex,
+  )
+
+  if (!Number.isFinite(premium.premium)) {
+    return {
+      fragilityScore: 0,
+      fragilityPercentage: '0%',
+      riskLevel: 'insufficient_data',
+      components: {
+        premium,
+        bias: null,
+        adjusted: null,
+      },
+    }
+  }
+
+  // 步骤2：检查幸存者偏差
+  const bias = checkSurvivingBias(
+    raceA,
+    raceB,
+    historicalData,
+    raceAIndex,
+    raceBIndex,
+  )
+
+  // 如果存在明显偏差，调整溢价
+  const biasCorrectedPremium = bias.hasBias ? premium.premium * (1 - bias.biasStrength * 0.5) : premium.premium
+
+  // 步骤3：应用基准率调整（保守）
+  const adjusted = adjustForBaseRate(biasCorrectedPremium, historicalData)
+
+  // 步骤4：计算最终脆弱性评分
+  // 将调整后的溢价转换为0-100的脆弱性百分比
+  // 0 = 最安全（负溢价），100 = 最脆弱（最高正溢价）
+  const maxPremium = 0.5 // 定义最大合理溢价为0.5
+  const fragilityScore = clamp(
+    (adjusted.adjustedPremium + maxPremium) / (2 * maxPremium) * 100,
+    0,
+    100,
+  )
+
+  const fragilityPercentage = `${fragilityScore.toFixed(2)}%`
+
+  // 步骤5：确定风险级别
+  let riskLevel = 'low'
+  if (fragilityScore > 60) riskLevel = 'critical'
+  else if (fragilityScore > 40) riskLevel = 'high'
+  else if (fragilityScore > 25) riskLevel = 'medium'
+
+  return {
+    fragilityScore: Number(fragilityScore.toFixed(2)),
+    fragilityPercentage,
+    riskLevel,
+    isSignificant: premium.isSignificant,
+    confidence: premium.confidence,
+    components: {
+      premium,
+      bias,
+      adjusted,
+    },
+  }
+}
+
+/**
+ * 为整个组合评估脆弱性（多对分析）
+ * 给定一个完整的组合（如4串），评估其脆弱性
+ *
+ * @param {Array} matchGroup - 匹配组 [{ odds: number }, ...]
+ * @param {Array} historicalData - 历史组合数据
+ * @returns {object} 组合脆弱性分析
+ */
+export const assessComboFragility = (matchGroup = [], historicalData = []) => {
+  if (!Array.isArray(matchGroup) || matchGroup.length < 2) {
+    return {
+      comboSize: 0,
+      overallFragility: Number.NaN,
+      criticalPairs: [],
+      recommendations: [],
+    }
+  }
+
+  const pairAnalysis = []
+
+  // 分析所有对的组合
+  for (let i = 0; i < matchGroup.length; i++) {
+    for (let j = i + 1; j < matchGroup.length; j++) {
+      const assessment = assessFragilityScore(
+        matchGroup[i],
+        matchGroup[j],
+        historicalData,
+        i,
+        j,
+      )
+      pairAnalysis.push({
+        pair: [i, j],
+        assessment,
+      })
+    }
+  }
+
+  // 计算整体脆弱性（加权平均）
+  const weights = pairAnalysis.map((p) => p.assessment.confidence)
+  const totalWeight = weights.reduce((sum, w) => sum + w, 0)
+
+  const overallFragility = totalWeight > 0 ?
+    pairAnalysis.reduce((sum, p, idx) => sum + p.assessment.fragilityScore * weights[idx], 0) / totalWeight :
+    0
+
+  // 识别关键脆弱对（脆弱性 > 40%）
+  const criticalPairs = pairAnalysis
+    .filter((p) => p.assessment.fragilityScore > 40)
+    .sort((a, b) => b.assessment.fragilityScore - a.assessment.fragilityScore)
+
+  // 生成建议
+  const recommendations = generateFragilityRecommendations(
+    matchGroup,
+    pairAnalysis,
+    criticalPairs,
+  )
+
+  return {
+    comboSize: matchGroup.length,
+    overallFragility: Number(overallFragility.toFixed(2)),
+    pairAnalysis,
+    criticalPairs,
+    recommendations,
+  }
+}
+
+/**
+ * 基于脆弱性分析生成重组建议
+ *
+ * @param {Array} matchGroup - 原始匹配组
+ * @param {Array} pairAnalysis - 所有对的分析结果
+ * @param {Array} criticalPairs - 关键脆弱对
+ * @returns {Array} 建议列表
+ */
+export const generateFragilityRecommendations = (matchGroup = [], pairAnalysis = [], criticalPairs = []) => {
+  const recommendations = []
+
+  if (criticalPairs.length === 0) {
+    recommendations.push({
+      type: 'maintain',
+      description: '当前组合稳定，无需调整',
+      riskReduction: 0,
+    })
+    return recommendations
+  }
+
+  // 识别问题比赛（高脆弱性对中出现频率高）
+  const problemMatchCounts = {}
+  criticalPairs.forEach((cp) => {
+    const [idx1, idx2] = cp.pair
+    problemMatchCounts[idx1] = (problemMatchCounts[idx1] || 0) + 1
+    problemMatchCounts[idx2] = (problemMatchCounts[idx2] || 0) + 1
+  })
+
+  const sortedProblems = Object.entries(problemMatchCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([idx]) => parseInt(idx))
+
+  if (sortedProblems.length > 0) {
+    const excludeIdx = sortedProblems[0]
+    const remainingMatches = matchGroup.filter((_, idx) => idx !== excludeIdx)
+
+    if (remainingMatches.length >= 2) {
+      recommendations.push({
+        type: 'exclude',
+        description: `排除比赛 ${excludeIdx + 1}（赔率 ${matchGroup[excludeIdx].odds}），仅投注其他 ${remainingMatches.length} 场`,
+        excludedIndex: excludeIdx,
+        newComboSize: remainingMatches.length,
+        riskReduction: 'medium',
+      })
+    }
+  }
+
+  // 建议分割成多个子组合
+  if (matchGroup.length >= 4) {
+    recommendations.push({
+      type: 'split',
+      description: '将 4 串分割为多个 2-3 串组合，降低灾难性失败风险',
+      suggestedSplits: [
+        {
+          combo1: [0, 1],
+          combo2: [2, 3],
+        },
+        {
+          combo1: [0, 2, 3],
+          combo2: [1, 2],
+        },
+      ],
+      riskReduction: 'high',
+    })
+  }
+
+  return recommendations
+}
