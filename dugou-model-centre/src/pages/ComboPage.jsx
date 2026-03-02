@@ -6625,7 +6625,8 @@ export default function ComboPage({ openModal }) {
         </div>
       )}
 
-      {/* ═══ 依赖风险矩阵（脆弱性热力图）═══ */}
+      {/* ═══ 依赖风险矩阵（脆弱性热力图）— 仅在生成组合后显示 ═══ */}
+      {rankingRows.length > 0 && (
       <div className="mb-6">
         <FragilityHeatmapCard
           matches={selectedMatches.map((m) => ({
@@ -6637,6 +6638,7 @@ export default function ComboPage({ openModal }) {
           onSelectPair={setExpandedFragilityPair}
         />
       </div>
+      )}
 
       <div className="combo-secondary-grid mb-6">
         <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
