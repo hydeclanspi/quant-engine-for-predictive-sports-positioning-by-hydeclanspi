@@ -2464,7 +2464,7 @@ export default function ParamsPage({ openModal }) {
 
         scheduleTask(() => {
           try {
-            const calibrationContext = getPredictionCalibrationContext()
+            const calibrationContext = getPredictionCalibrationContext({ detail: 'full' })
             if (cancelled) return
             setAnalyticsData((prev) => ({ ...prev, calibrationContext }))
             setAnalyticsProgress((prev) => ({ ...prev, calibration: true, phase: '模型收口验证计算中...' }))

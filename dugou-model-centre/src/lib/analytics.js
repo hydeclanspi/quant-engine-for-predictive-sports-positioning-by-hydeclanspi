@@ -17,6 +17,9 @@ const AJR_INPUT_MAX = 0.8
 const MONTE_CARLO_TARGET_RUNS = 100000
 const MONTE_CARLO_MIN_RUNS = 12000
 const MONTE_CARLO_OP_BUDGET = 6000000
+const PREQUENTIAL_STEP_MATCHES = 7
+const PREQUENTIAL_MIN_TRAIN_MATCHES = 14
+const PREQUENTIAL_MIN_TEST_MATCHES = 7
 const ANALYTICS_CACHE_EVENT = 'dugou:data-changed'
 const ANALYTICS_CACHE_HANDLER_KEY = '__dugouAnalyticsCacheInvalidator__'
 
@@ -693,24 +696,57 @@ const simulateKellyDivisorFromRows = (rows, divisor, config) => {
   }
 }
 
-const buildKellyWalkForwardWindows = (rows, checkpoints = [0.55, 0.7, 0.82]) => {
-  if (!Array.isArray(rows) || rows.length < 24) return []
-  const ordered = [...rows].sort(
-    (a, b) => new Date(a?.createdAt || 0).getTime() - new Date(b?.createdAt || 0).getTime(),
+const getRowTemporalTs = (row) => {
+  const raw = row?.createdAt || row?.created_at || row?.date
+  const ts = new Date(raw || 0).getTime()
+  return Number.isFinite(ts) ? ts : Number.NaN
+}
+
+const buildPrequentialWalkForwardWindows = (
+  rows,
+  {
+    minRows = 24,
+    minTrain = PREQUENTIAL_MIN_TRAIN_MATCHES,
+    minTest = PREQUENTIAL_MIN_TEST_MATCHES,
+    step = PREQUENTIAL_STEP_MATCHES,
+    initialTrain = null,
+  } = {},
+) => {
+  if (!Array.isArray(rows) || rows.length < Math.max(minRows, minTrain + minTest)) return []
+
+  const ordered = [...rows].sort((a, b) => {
+    const ta = getRowTemporalTs(a)
+    const tb = getRowTemporalTs(b)
+    return (Number.isFinite(ta) ? ta : 0) - (Number.isFinite(tb) ? tb : 0)
+  })
+  const datedSamples = ordered.filter((row) => Number.isFinite(getRowTemporalTs(row))).length
+  if (datedSamples < Math.max(minTrain + minTest, Math.floor(ordered.length * 0.6))) return []
+
+  const stride = Math.max(1, Number.parseInt(step, 10) || PREQUENTIAL_STEP_MATCHES)
+  const testSize = Math.max(minTest, stride)
+  const startTrain = Math.max(
+    minTrain,
+    Number.isFinite(initialTrain) ? Number(initialTrain) : Math.max(minTrain, stride * 2),
   )
-  const datedSamples = ordered.filter((row) => row?.createdAt).length
-  if (datedSamples < Math.max(12, Math.floor(ordered.length * 0.6))) return []
+
   const windows = []
-  checkpoints.forEach((ratio) => {
-    const split = Math.floor(ordered.length * ratio)
-    const testSize = Math.max(8, Math.floor(ordered.length * 0.12))
+  for (let split = startTrain; split + minTest <= ordered.length; split += stride) {
     const trainRows = ordered.slice(0, split)
     const testRows = ordered.slice(split, Math.min(ordered.length, split + testSize))
-    if (trainRows.length < 16 || testRows.length < 8) return
+    if (trainRows.length < minTrain || testRows.length < minTest) continue
     windows.push({ trainRows, testRows })
-  })
+  }
   return windows
 }
+
+const buildKellyWalkForwardWindows = (rows, options = {}) =>
+  buildPrequentialWalkForwardWindows(rows, {
+    minRows: 24,
+    minTrain: 16,
+    minTest: PREQUENTIAL_MIN_TEST_MATCHES,
+    step: PREQUENTIAL_STEP_MATCHES,
+    ...options,
+  })
 
 const simulateKellyDivisorDeterministic = (rows, divisor, config) => {
   if (!Array.isArray(rows) || rows.length === 0) {
@@ -2072,17 +2108,15 @@ const summarizeBlendWalkForward = (windows) => {
 }
 
 const evaluateBlendWalkForward = (rows, config, teamProfiles) => {
-  if (!Array.isArray(rows) || rows.length < 24) return []
-  const checkpoints = [0.55, 0.7, 0.82]
-  const windows = []
+  const windows = buildPrequentialWalkForwardWindows(rows, {
+    minRows: 24,
+    minTrain: 14,
+    minTest: PREQUENTIAL_MIN_TEST_MATCHES,
+    step: PREQUENTIAL_STEP_MATCHES,
+  })
 
-  checkpoints.forEach((ratio, idx) => {
-    const split = Math.floor(rows.length * ratio)
-    const testSize = Math.max(8, Math.floor(rows.length * 0.12))
-    const trainRows = rows.slice(0, split)
-    const testRows = rows.slice(split, Math.min(rows.length, split + testSize))
-    if (trainRows.length < 14 || testRows.length < 8) return
-
+  return windows.map((window, idx) => {
+    const { trainRows, testRows } = window
     const fit = getConfRegressionCalibration(toCalibrationMatchRows(trainRows))
     const teamModel = buildTeamCalibrationModelFromBinaryRows(trainRows, teamProfiles, (conf) => fit.calibrate(conf))
 
@@ -2109,7 +2143,7 @@ const evaluateBlendWalkForward = (rows, config, teamProfiles) => {
     const strategyMarket = simulateKellyStrategyByRows(testRows, predictMarket, config, divisor)
     const strategyBlended = simulateKellyStrategyByRows(testRows, predictBlended, config, divisor)
 
-    windows.push({
+    return {
       label: `B${idx + 1}`,
       trainSamples: trainRows.length,
       testSamples: testRows.length,
@@ -2122,10 +2156,8 @@ const evaluateBlendWalkForward = (rows, config, teamProfiles) => {
       calibratedRoi: Number(strategyCalibrated.roi.toFixed(2)),
       marketRoi: Number(strategyMarket.roi.toFixed(2)),
       blendedRoi: Number(strategyBlended.roi.toFixed(2)),
-    })
+    }
   })
-
-  return windows
 }
 
 /**
@@ -2263,8 +2295,10 @@ const buildConfOddsCalibrationLayer = (matchRowsInput = null) => {
   }
 }
 
-export const getPredictionCalibrationContext = () => {
-  const cacheKey = getRevisionCacheKey('calibrationContext')
+export const getPredictionCalibrationContext = (options = {}) => {
+  const detail = options?.detail === 'lite' ? 'lite' : 'full'
+  const includeHeavy = detail === 'full'
+  const cacheKey = getRevisionCacheKey('calibrationContext', detail)
   const cached = analyticsMemo.calibrationContext.get(cacheKey)
   if (cached) return cached
 
@@ -2352,7 +2386,7 @@ export const getPredictionCalibrationContext = () => {
   const teamCalibration = buildTeamCalibrationModelFromMatchRows(matchRows, teamProfiles, baseConfCalibrate, n)
 
   const binaryRows = getBinaryOutcomeRows()
-  const blendWalkForward = evaluateBlendWalkForward(binaryRows, config, teamProfiles)
+  const blendWalkForward = includeHeavy ? evaluateBlendWalkForward(binaryRows, config, teamProfiles) : []
   const blendSummary = summarizeBlendWalkForward(blendWalkForward)
 
   // ── Conf×Odds 交叉校准层 ──
@@ -2365,7 +2399,14 @@ export const getPredictionCalibrationContext = () => {
   const isotonicModel = buildIsotonicRegression()
 
   // ── FIX #3: Walk-forward feedback ──
-  const walkForwardFeedback = computeWalkForwardFeedback()
+  const walkForwardFeedback = includeHeavy
+    ? computeWalkForwardFeedback(blendWalkForward)
+    : {
+        ready: false,
+        adjustments: {},
+        diagnostics: {},
+        sampleCount: binaryRows.length,
+      }
 
   // Apply walk-forward odds weight adjustment to base odds weight
   const rawOddsWeight = 0.12 + getWeightFactor(config.weightOdds, 0.06) * 0.95
@@ -2375,19 +2416,40 @@ export const getPredictionCalibrationContext = () => {
   const oddsWeightBase = clamp(rawOddsWeight + wfOddsWeightDelta, 0.08, 0.55)
 
   // ── FIX #4: Entry correlation matrix ──
-  const entryCorrelation = buildEntryCorrelationMatrix()
+  const entryCorrelation = includeHeavy
+    ? buildEntryCorrelationMatrix()
+    : {
+        ready: false,
+        avgCorrelation: 0,
+        pairs: [],
+        sampleCount: 0,
+        getCorrelation: () => ({ rho: 0, samples: 0, reliability: 0 }),
+      }
 
   // ── FIX #6: Comprehensive combo hyperparameter calibration ──
-  const comboHyperparams = backtestComboHyperparams()
+  const comboHyperparams = includeHeavy ? backtestComboHyperparams() : null
 
   // ── FIX #7: Adaptive weight evaluation (side-effect free in render path) ──
   // IMPORTANT: do not write system config while pages are rendering.
   // Auto-apply can be triggered from explicit user actions in Console.
-  const adaptiveWeightSnapshot = computeAdaptiveWeightSuggestions()
+  const adaptiveWeightSnapshot = includeHeavy
+    ? computeAdaptiveWeightSuggestions()
+    : {
+        suggestions: [],
+        sampleCount,
+        minSamples: 0,
+        ready: false,
+        lastUpdateAt: null,
+        updateCount: 0,
+      }
   const adaptiveWeightResult = {
     ...adaptiveWeightSnapshot,
     applied: false,
-    reason: comboHyperparams.ready ? 'deferred_apply' : 'combo_calibration_not_ready',
+    reason: includeHeavy
+      ? comboHyperparams?.ready
+        ? 'deferred_apply'
+        : 'combo_calibration_not_ready'
+      : 'lite_deferred',
   }
 
   // ── Composite calibrate function: linear → isotonic blend ──
@@ -2434,6 +2496,7 @@ export const getPredictionCalibrationContext = () => {
   }
 
   const context = {
+    detail,
     sampleCount,
     n,
     multipliers: {
@@ -2634,31 +2697,138 @@ const simulateKellyStrategyByRows = (rows, predictFn, config, divisor) => {
   }
 }
 
-const evaluateWalkForward = (rows) => {
-  const checkpoints = [0.55, 0.7, 0.82]
-  const windows = []
-  checkpoints.forEach((ratio, idx) => {
-    const split = Math.floor(rows.length * ratio)
-    const testSize = Math.max(8, Math.floor(rows.length * 0.12))
-    const trainRows = rows.slice(0, split)
-    const testRows = rows.slice(split, Math.min(rows.length, split + testSize))
-    if (trainRows.length < 12 || testRows.length < 6) return
+const summarizeModelValidationPrequential = (rows, config) => {
+  const windows = buildPrequentialWalkForwardWindows(rows, {
+    minRows: 24,
+    minTrain: 12,
+    minTest: PREQUENTIAL_MIN_TEST_MATCHES,
+    step: PREQUENTIAL_STEP_MATCHES,
+  })
+  if (windows.length === 0) return null
 
+  const weighted = {
+    trainWeight: 0,
+    testWeight: 0,
+    trainRawBrier: 0,
+    trainCalBrier: 0,
+    testRawBrier: 0,
+    testCalBrier: 0,
+    trainRawLogLoss: 0,
+    trainCalLogLoss: 0,
+    testRawLogLoss: 0,
+    testCalLogLoss: 0,
+    testRawMae: 0,
+    testCalMae: 0,
+    regressionReliability: 0,
+  }
+  const walkForward = []
+  const rawSimRows = []
+  const calibratedSimRows = []
+
+  windows.forEach((window, idx) => {
+    const { trainRows, testRows } = window
     const fit = getConfRegressionCalibration(toCalibrationMatchRows(trainRows))
-    const rawBrier = calcBrierScore(testRows, (row) => row.conf)
-    const calibratedBrier = calcBrierScore(testRows, (row) => fit.calibrate(row.conf))
-    const gain = rawBrier > 0 ? ((rawBrier - calibratedBrier) / rawBrier) * 100 : 0
+    const rawPredict = (row) => row.conf
+    const calibratedPredict = (row) => fit.calibrate(row.conf)
 
-    windows.push({
+    const trainRawBrier = calcBrierScore(trainRows, rawPredict)
+    const trainCalBrier = calcBrierScore(trainRows, calibratedPredict)
+    const testRawBrier = calcBrierScore(testRows, rawPredict)
+    const testCalBrier = calcBrierScore(testRows, calibratedPredict)
+    const trainRawLogLoss = calcLogLoss(trainRows, rawPredict)
+    const trainCalLogLoss = calcLogLoss(trainRows, calibratedPredict)
+    const testRawLogLoss = calcLogLoss(testRows, rawPredict)
+    const testCalLogLoss = calcLogLoss(testRows, calibratedPredict)
+    const testRawMae = calcCalibrationMae(testRows, rawPredict)
+    const testCalMae = calcCalibrationMae(testRows, calibratedPredict)
+    const gain = testRawBrier > 0 ? ((testRawBrier - testCalBrier) / testRawBrier) * 100 : 0
+
+    const trainW = Math.max(1, trainRows.length)
+    const testW = Math.max(1, testRows.length)
+    weighted.trainWeight += trainW
+    weighted.testWeight += testW
+    weighted.trainRawBrier += trainRawBrier * trainW
+    weighted.trainCalBrier += trainCalBrier * trainW
+    weighted.testRawBrier += testRawBrier * testW
+    weighted.testCalBrier += testCalBrier * testW
+    weighted.trainRawLogLoss += trainRawLogLoss * trainW
+    weighted.trainCalLogLoss += trainCalLogLoss * trainW
+    weighted.testRawLogLoss += testRawLogLoss * testW
+    weighted.testCalLogLoss += testCalLogLoss * testW
+    weighted.testRawMae += testRawMae * testW
+    weighted.testCalMae += testCalMae * testW
+    weighted.regressionReliability += toNumber(fit.regressionReliability, 0) * trainW
+
+    walkForward.push({
       label: `W${idx + 1}`,
       trainSamples: trainRows.length,
       testSamples: testRows.length,
-      rawBrier: Number(rawBrier.toFixed(4)),
-      calibratedBrier: Number(calibratedBrier.toFixed(4)),
+      rawBrier: Number(testRawBrier.toFixed(4)),
+      calibratedBrier: Number(testCalBrier.toFixed(4)),
       gainPct: Number(gain.toFixed(2)),
     })
+
+    const divisor = Math.max(1, toNumber(config.kellyDivisor, 4))
+    testRows.forEach((row) => {
+      const odds = Math.max(1.01, toNumber(row.odds, toNumber(config.defaultOdds, 2.5)))
+      const unitReturn = row.actual === 1 ? odds - 1 : -1
+      const pRaw = clamp(toNumber(rawPredict(row), row.conf), 0.02, 0.98)
+      const pCal = clamp(toNumber(calibratedPredict(row), row.conf), 0.02, 0.98)
+      const rawStake = Math.round(calcKellyStake(pRaw, odds, divisor, config))
+      const calibratedStake = Math.round(calcKellyStake(pCal, odds, divisor, config))
+      if (rawStake > 0) {
+        rawSimRows.push({ expected: pRaw, odds, stake: rawStake, unitReturn })
+      }
+      if (calibratedStake > 0) {
+        calibratedSimRows.push({ expected: pCal, odds, stake: calibratedStake, unitReturn })
+      }
+    })
   })
-  return windows
+
+  if (weighted.trainWeight <= 0 || weighted.testWeight <= 0) return null
+  const latestWindow = windows[windows.length - 1] || { trainRows: [], testRows: [] }
+  const meanTrain = (value) => value / weighted.trainWeight
+  const meanTest = (value) => value / weighted.testWeight
+  const strategyRawMc = runKellyBootstrapMonteCarlo(
+    rawSimRows,
+    config,
+    MONTE_CARLO_TARGET_RUNS,
+    rows.length * 193 + 17,
+  )
+  const strategyCalibratedMc = runKellyBootstrapMonteCarlo(
+    calibratedSimRows,
+    config,
+    MONTE_CARLO_TARGET_RUNS,
+    rows.length * 193 + 29,
+  )
+
+  return {
+    trainSamples: latestWindow.trainRows.length,
+    testSamples: latestWindow.testRows.length,
+    regressionReliability: meanTrain(weighted.regressionReliability),
+    brier: {
+      trainRaw: meanTrain(weighted.trainRawBrier),
+      trainCalibrated: meanTrain(weighted.trainCalBrier),
+      testRaw: meanTest(weighted.testRawBrier),
+      testCalibrated: meanTest(weighted.testCalBrier),
+    },
+    logLoss: {
+      trainRaw: meanTrain(weighted.trainRawLogLoss),
+      trainCalibrated: meanTrain(weighted.trainCalLogLoss),
+      testRaw: meanTest(weighted.testRawLogLoss),
+      testCalibrated: meanTest(weighted.testCalLogLoss),
+    },
+    calibrationMae: {
+      testRaw: meanTest(weighted.testRawMae),
+      testCalibrated: meanTest(weighted.testCalMae),
+    },
+    strategy: {
+      raw: strategyRawMc,
+      calibrated: strategyCalibratedMc,
+    },
+    walkForward,
+    positiveWalkForward: walkForward.filter((row) => row.gainPct > 0).length,
+  }
 }
 
 export const getModelValidationSnapshot = () => {
@@ -2685,38 +2855,40 @@ export const getModelValidationSnapshot = () => {
     return insufficient
   }
 
-  const splitIndex = Math.min(rows.length - 8, Math.max(12, Math.floor(rows.length * 0.7)))
-  const trainRows = rows.slice(0, splitIndex)
-  const testRows = rows.slice(splitIndex)
-  const calibration = getConfRegressionCalibration(toCalibrationMatchRows(trainRows))
+  const prequentialSummary = summarizeModelValidationPrequential(rows, config)
+  if (!prequentialSummary) {
+    const insufficient = {
+      ready: false,
+      minimumSamples,
+      sampleCount: rows.length,
+      trainSamples: 0,
+      testSamples: 0,
+      stability: 'insufficient',
+      message: `样本不足：需至少 ${minimumSamples} 场已结算且含命中信息。`,
+      walkForward: [],
+    }
+    analyticsMemo.modelValidation.set(cacheKey, insufficient)
+    return insufficient
+  }
 
-  const rawPredict = (row) => row.conf
-  const calibratedPredict = (row) => calibration.calibrate(row.conf)
-
-  const trainRawBrier = calcBrierScore(trainRows, rawPredict)
-  const trainCalBrier = calcBrierScore(trainRows, calibratedPredict)
-  const testRawBrier = calcBrierScore(testRows, rawPredict)
-  const testCalBrier = calcBrierScore(testRows, calibratedPredict)
-
-  const trainRawLogLoss = calcLogLoss(trainRows, rawPredict)
-  const trainCalLogLoss = calcLogLoss(trainRows, calibratedPredict)
-  const testRawLogLoss = calcLogLoss(testRows, rawPredict)
-  const testCalLogLoss = calcLogLoss(testRows, calibratedPredict)
-
-  const testRawMae = calcCalibrationMae(testRows, rawPredict)
-  const testCalMae = calcCalibrationMae(testRows, calibratedPredict)
-
-  const divisor = Math.max(1, toNumber(config.kellyDivisor, 4))
-  const strategyRaw = simulateKellyStrategyByRows(testRows, rawPredict, config, divisor)
-  const strategyCalibrated = simulateKellyStrategyByRows(testRows, calibratedPredict, config, divisor)
-
-  const brierGainPct = testRawBrier > 0 ? ((testRawBrier - testCalBrier) / testRawBrier) * 100 : 0
-  const logLossGainPct = testRawLogLoss > 0 ? ((testRawLogLoss - testCalLogLoss) / testRawLogLoss) * 100 : 0
-  const maeGainPct = testRawMae > 0 ? ((testRawMae - testCalMae) / testRawMae) * 100 : 0
-  const drift = testCalBrier - trainCalBrier
-
-  const walkForward = evaluateWalkForward(rows)
-  const positiveWalkForward = walkForward.filter((row) => row.gainPct > 0).length
+  const {
+    trainSamples,
+    testSamples,
+    regressionReliability,
+    brier,
+    logLoss,
+    calibrationMae,
+    strategy,
+    walkForward,
+    positiveWalkForward,
+  } = prequentialSummary
+  const brierGainPct = brier.testRaw > 0 ? ((brier.testRaw - brier.testCalibrated) / brier.testRaw) * 100 : 0
+  const logLossGainPct = logLoss.testRaw > 0 ? ((logLoss.testRaw - logLoss.testCalibrated) / logLoss.testRaw) * 100 : 0
+  const maeGainPct =
+    calibrationMae.testRaw > 0
+      ? ((calibrationMae.testRaw - calibrationMae.testCalibrated) / calibrationMae.testRaw) * 100
+      : 0
+  const drift = brier.testCalibrated - brier.trainCalibrated
 
   let stability = 'stable'
   if (drift > 0.03 || brierGainPct < -2) stability = 'risk'
@@ -2726,45 +2898,45 @@ export const getModelValidationSnapshot = () => {
     ready: true,
     minimumSamples,
     sampleCount: rows.length,
-    trainSamples: trainRows.length,
-    testSamples: testRows.length,
-    divisor,
+    trainSamples,
+    testSamples,
+    divisor: Math.max(1, toNumber(config.kellyDivisor, 4)),
     stability,
-    regressionReliability: calibration.regressionReliability,
+    regressionReliability: Number(regressionReliability.toFixed(3)),
     brier: {
-      trainRaw: Number(trainRawBrier.toFixed(4)),
-      trainCalibrated: Number(trainCalBrier.toFixed(4)),
-      testRaw: Number(testRawBrier.toFixed(4)),
-      testCalibrated: Number(testCalBrier.toFixed(4)),
+      trainRaw: Number(brier.trainRaw.toFixed(4)),
+      trainCalibrated: Number(brier.trainCalibrated.toFixed(4)),
+      testRaw: Number(brier.testRaw.toFixed(4)),
+      testCalibrated: Number(brier.testCalibrated.toFixed(4)),
       gainPct: Number(brierGainPct.toFixed(2)),
       drift: Number(drift.toFixed(4)),
     },
     logLoss: {
-      trainRaw: Number(trainRawLogLoss.toFixed(4)),
-      trainCalibrated: Number(trainCalLogLoss.toFixed(4)),
-      testRaw: Number(testRawLogLoss.toFixed(4)),
-      testCalibrated: Number(testCalLogLoss.toFixed(4)),
+      trainRaw: Number(logLoss.trainRaw.toFixed(4)),
+      trainCalibrated: Number(logLoss.trainCalibrated.toFixed(4)),
+      testRaw: Number(logLoss.testRaw.toFixed(4)),
+      testCalibrated: Number(logLoss.testCalibrated.toFixed(4)),
       gainPct: Number(logLossGainPct.toFixed(2)),
     },
     calibrationMae: {
-      testRaw: Number(testRawMae.toFixed(4)),
-      testCalibrated: Number(testCalMae.toFixed(4)),
+      testRaw: Number(calibrationMae.testRaw.toFixed(4)),
+      testCalibrated: Number(calibrationMae.testCalibrated.toFixed(4)),
       gainPct: Number(maeGainPct.toFixed(2)),
     },
     strategy: {
       raw: {
-        runs: strategyRaw.runs || 0,
-        roi: Number(strategyRaw.roi.toFixed(2)),
-        maxDrawdown: Number(strategyRaw.maxDrawdown.toFixed(2)),
-        hitRate: Number(strategyRaw.hitRate.toFixed(1)),
-        samples: strategyRaw.samples,
+        runs: strategy.raw.runs || 0,
+        roi: Number(strategy.raw.roi.toFixed(2)),
+        maxDrawdown: Number(strategy.raw.maxDrawdown.toFixed(2)),
+        hitRate: Number(strategy.raw.hitRate.toFixed(1)),
+        samples: strategy.raw.samples,
       },
       calibrated: {
-        runs: strategyCalibrated.runs || 0,
-        roi: Number(strategyCalibrated.roi.toFixed(2)),
-        maxDrawdown: Number(strategyCalibrated.maxDrawdown.toFixed(2)),
-        hitRate: Number(strategyCalibrated.hitRate.toFixed(1)),
-        samples: strategyCalibrated.samples,
+        runs: strategy.calibrated.runs || 0,
+        roi: Number(strategy.calibrated.roi.toFixed(2)),
+        maxDrawdown: Number(strategy.calibrated.maxDrawdown.toFixed(2)),
+        hitRate: Number(strategy.calibrated.hitRate.toFixed(1)),
+        samples: strategy.calibrated.samples,
       },
     },
     walkForward,
@@ -3934,11 +4106,11 @@ export const buildIsotonicRegression = (binaryRows = null) => {
 // weight based on recent Brier score, LogLoss, and ROI.
 // ═══════════════════════════════════════════════════════════════
 
-export const computeWalkForwardFeedback = () => {
+export const computeWalkForwardFeedback = (precomputedWindows = null) => {
   const config = getSystemConfig()
   const rows = getBinaryOutcomeRows()
   const teamProfiles = getTeamProfiles()
-  const wf = evaluateBlendWalkForward(rows, config, teamProfiles)
+  const wf = Array.isArray(precomputedWindows) ? precomputedWindows : evaluateBlendWalkForward(rows, config, teamProfiles)
 
   const fallback = {
     ready: false,
@@ -4463,6 +4635,104 @@ const evaluateComboTemporalHoldoutQuality = (rows, surplusThresholds, vigOverrou
   }
 }
 
+const deriveComboSurplusProfile = (rows, reliability = 1) => {
+  const safeReliability = clamp(Number(reliability) || 0, 0, 1)
+  const oddsValues = Array.isArray(rows) ? rows.map((r) => r?.odds).filter((o) => Number.isFinite(o) && o > 1) : []
+  const avgImplied =
+    oddsValues.length > 3 ? oddsValues.reduce((sum, odds) => sum + 1 / odds, 0) / oddsValues.length : 0.5
+  const estimatedVig = clamp(2 * (avgImplied - 0.48), 0.02, 0.12)
+  const vigOverround = safeReliability > 0.3 ? estimatedVig : 0.05
+
+  const surplusBuckets = [
+    { min: 0.10, hits: 0, total: 0 },
+    { min: 0.03, hits: 0, total: 0 },
+    { min: -0.04, hits: 0, total: 0 },
+    { min: -Infinity, hits: 0, total: 0 },
+  ]
+  ;(rows || []).forEach((row) => {
+    if (!Number.isFinite(row?.odds) || row.odds <= 1) return
+    const implied = clamp((1 / row.odds) * (1 - vigOverround), 0.02, 0.98)
+    const surplus = row.conf - implied
+    const bucket = surplusBuckets.find((item) => surplus >= item.min) || surplusBuckets[surplusBuckets.length - 1]
+    bucket.total += 1
+    if (row.actual === 1) bucket.hits += 1
+  })
+  const surplusHRs = surplusBuckets.map((bucket) => (bucket.total >= 5 ? bucket.hits / bucket.total : null))
+  const strongEdge =
+    surplusHRs[0] !== null && surplusHRs[0] > 0.55 ? clamp(surplusBuckets[0].min - 0.02, 0.06, 0.20) : 0.12
+  const moderateEdge =
+    surplusHRs[1] !== null && surplusHRs[1] > 0.45 ? clamp(surplusBuckets[1].min - 0.01, 0.01, 0.10) : 0.04
+  const neutralEdge = surplusHRs[2] !== null ? clamp(surplusBuckets[2].min + 0.01, -0.08, 0.0) : -0.03
+
+  return {
+    vigOverround,
+    strongEdge,
+    moderateEdge,
+    neutralEdge,
+  }
+}
+
+const evaluateComboPrequentialQuality = (rows) => {
+  const windows = buildPrequentialWalkForwardWindows(rows, {
+    minRows: 35,
+    minTrain: 25,
+    minTest: PREQUENTIAL_MIN_TEST_MATCHES,
+    step: PREQUENTIAL_STEP_MATCHES,
+    initialTrain: 25,
+  })
+  if (!Array.isArray(windows) || windows.length === 0) {
+    return {
+      enabled: false,
+      windowCount: 0,
+      quality: 1,
+      strongHitRate: null,
+      negativeHitRate: null,
+      samples: 0,
+    }
+  }
+
+  let weightedQuality = 0
+  let weightedStrongHitRate = 0
+  let weightedNegativeHitRate = 0
+  let qualityWeight = 0
+  let strongWeight = 0
+  let negativeWeight = 0
+
+  windows.forEach((window) => {
+    const localReliability = clamp((window.trainRows.length - 25) / 95, 0, 1)
+    const localProfile = deriveComboSurplusProfile(window.trainRows, localReliability)
+    const evalRow = evaluateComboTemporalHoldoutQuality(
+      window.testRows,
+      {
+        strongEdge: localProfile.strongEdge,
+        moderateEdge: localProfile.moderateEdge,
+        neutral: localProfile.neutralEdge,
+      },
+      localProfile.vigOverround,
+    )
+    const weight = Math.max(1, evalRow.samples || window.testRows.length)
+    weightedQuality += evalRow.quality * weight
+    qualityWeight += weight
+    if (Number.isFinite(evalRow.strongHitRate)) {
+      weightedStrongHitRate += evalRow.strongHitRate * weight
+      strongWeight += weight
+    }
+    if (Number.isFinite(evalRow.negativeHitRate)) {
+      weightedNegativeHitRate += evalRow.negativeHitRate * weight
+      negativeWeight += weight
+    }
+  })
+
+  return {
+    enabled: qualityWeight > 0,
+    windowCount: windows.length,
+    quality: qualityWeight > 0 ? Number((weightedQuality / qualityWeight).toFixed(4)) : 1,
+    strongHitRate: strongWeight > 0 ? Number((weightedStrongHitRate / strongWeight).toFixed(4)) : null,
+    negativeHitRate: negativeWeight > 0 ? Number((weightedNegativeHitRate / negativeWeight).toFixed(4)) : null,
+    samples: qualityWeight,
+  }
+}
+
 export const backtestComboHyperparams = () => {
   const settled = getSettledInvestments(getActiveInvestments()).sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
@@ -4504,65 +4774,20 @@ export const backtestComboHyperparams = () => {
   }
   if (totalSampleCount < 25) return fallback
 
-  // Strict temporal split: calibrate on past, validate on future holdout.
-  // This prevents full-history leakage while keeping a graceful fallback.
-  let calibrationBinaryRows = binaryRows
-  let calibrationSettled = settled
-  let calibrationMatchRows = matchRows
-  let holdoutBinaryRows = []
-  if (totalSampleCount >= 35) {
-    const holdoutSize = Math.max(8, Math.floor(totalSampleCount * 0.12))
-    const trainRows = binaryRows.slice(0, totalSampleCount - holdoutSize)
-    const testRows = binaryRows.slice(totalSampleCount - holdoutSize)
-    if (trainRows.length >= 25 && testRows.length >= 8) {
-      const cutoffTs = new Date(trainRows[trainRows.length - 1].created_at).getTime()
-      calibrationBinaryRows = trainRows
-      holdoutBinaryRows = testRows
-      calibrationSettled = settled.filter((item) => new Date(item.created_at).getTime() <= cutoffTs)
-      calibrationMatchRows = calibrationSettled.flatMap((item) => splitInvestmentToMatches(item))
-    }
-  }
+  const calibrationBinaryRows = binaryRows
+  const calibrationSettled = settled
+  const calibrationMatchRows = matchRows
   const n = calibrationBinaryRows.length
   if (n < 25) return fallback
 
   // ── Reliability ramp: 25 → 120 samples for full trust ──
   const baseReliability = clamp((n - 25) / 95, 0, 1)
-
-  // ═══ 1. Vig Estimation from historical odds distribution ═══
-  // Estimate bookmaker overround from average (1/odds) sum across co-occurring matches
-  const oddsValues = calibrationBinaryRows.map((r) => r.odds).filter((o) => Number.isFinite(o) && o > 1)
-  const avgImplied = oddsValues.length > 3
-    ? oddsValues.reduce((s, o) => s + 1 / o, 0) / oddsValues.length
-    : 0.5
-  // Single-market implied averages around 0.5 for fair odds; overround pushes it up
-  // Estimate: if avg(1/odds) = 0.52, vig ≈ 2*(0.52 - 0.5) = 0.04
-  const estimatedVig = clamp(2 * (avgImplied - 0.48), 0.02, 0.12)
-  const vigOverround = baseReliability > 0.3 ? estimatedVig : 0.05
-
-  // ═══ 2. Conf-Surplus Thresholds from hit-rate by surplus bucket ═══
-  const surplusBuckets = [
-    { min: 0.10, hits: 0, total: 0 },  // strong edge
-    { min: 0.03, hits: 0, total: 0 },   // moderate edge
-    { min: -0.04, hits: 0, total: 0 },  // neutral
-    { min: -Infinity, hits: 0, total: 0 },  // negative edge
-  ]
-  calibrationBinaryRows.forEach((r) => {
-    if (!Number.isFinite(r.odds) || r.odds <= 1) return
-    const implied = clamp((1 / r.odds) * (1 - vigOverround), 0.02, 0.98)
-    const surplus = r.conf - implied
-    const bucket = surplusBuckets.find((b) => surplus >= b.min) || surplusBuckets[3]
-    bucket.total += 1
-    if (r.actual === 1) bucket.hits += 1
-  })
-  const surplusHRs = surplusBuckets.map((b) => b.total >= 5 ? b.hits / b.total : null)
-  // Find thresholds where hit rate meaningfully transitions
-  // strong_edge: where HR is highest; find the surplus level that best separates top performers
-  const strongEdge = surplusHRs[0] !== null && surplusHRs[0] > 0.55
-    ? clamp(surplusBuckets[0].min - 0.02, 0.06, 0.20) : 0.12
-  const moderateEdge = surplusHRs[1] !== null && surplusHRs[1] > 0.45
-    ? clamp(surplusBuckets[1].min - 0.01, 0.01, 0.10) : 0.04
-  const neutralEdge = surplusHRs[2] !== null
-    ? clamp(surplusBuckets[2].min + 0.01, -0.08, 0.0) : -0.03
+  const surplusProfile = deriveComboSurplusProfile(calibrationBinaryRows, baseReliability)
+  const vigOverround = surplusProfile.vigOverround
+  const strongEdge = surplusProfile.strongEdge
+  const moderateEdge = surplusProfile.moderateEdge
+  const neutralEdge = surplusProfile.neutralEdge
+  const prequentialQuality = evaluateComboPrequentialQuality(calibrationBinaryRows)
 
   // ═══ 3. Surplus bonus scaling from correlation of surplus vs outcome ═══
   const surplusOutcomes = calibrationBinaryRows
@@ -4760,12 +4985,7 @@ export const backtestComboHyperparams = () => {
   const familyBonusScale = clamp(0.04 + (0.22 - overallBrier) * 0.03, 0.02, 0.08)
 
   // ═══ Blend all with reliability ═══
-  const holdoutQuality = evaluateComboTemporalHoldoutQuality(
-    holdoutBinaryRows,
-    { strongEdge, moderateEdge, neutral: neutralEdge },
-    vigOverround,
-  )
-  const reliability = clamp(baseReliability * holdoutQuality.quality, 0, 1)
+  const reliability = clamp(baseReliability * prequentialQuality.quality, 0, 1)
 
   const blend = (calibrated, defaultVal) =>
     Number((calibrated * reliability + defaultVal * (1 - reliability)).toFixed(4))
@@ -4784,16 +5004,19 @@ export const backtestComboHyperparams = () => {
     sampleCount: n,
     fullSampleCount: totalSampleCount,
     overallBrier: Number(overallBrier.toFixed(4)),
-    temporalSplit: holdoutBinaryRows.length > 0
+    temporalSplit: prequentialQuality.enabled
       ? {
           enabled: true,
+          mode: 'prequential',
+          windowCount: prequentialQuality.windowCount,
+          stepMatches: PREQUENTIAL_STEP_MATCHES,
           trainSamples: n,
-          holdoutSamples: holdoutBinaryRows.length,
-          holdoutQuality: holdoutQuality.quality,
-          holdoutStrongHitRate: holdoutQuality.strongHitRate,
-          holdoutNegativeHitRate: holdoutQuality.negativeHitRate,
+          holdoutSamples: prequentialQuality.samples,
+          holdoutQuality: prequentialQuality.quality,
+          holdoutStrongHitRate: prequentialQuality.strongHitRate,
+          holdoutNegativeHitRate: prequentialQuality.negativeHitRate,
         }
-      : { enabled: false, trainSamples: n, holdoutSamples: 0, holdoutQuality: 1 },
+      : { enabled: false, mode: 'insufficient', trainSamples: n, holdoutSamples: 0, holdoutQuality: 1, windowCount: 0, stepMatches: PREQUENTIAL_STEP_MATCHES },
     portfolioWeights: blendObj(portfolioWeights, fallback.portfolioWeights),
     stratifiedQuotas: blendObj(stratifiedQuotas, fallback.stratifiedQuotas),
     surplusThresholds: {

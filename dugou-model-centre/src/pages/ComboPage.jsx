@@ -3832,8 +3832,40 @@ export default function ComboPage({ openModal }) {
   })
 
   const [systemConfig] = useState(() => getSystemConfig())
-  const calibrationContext = useMemo(() => getPredictionCalibrationContext(), [dataVersion])
+  const [calibrationContext, setCalibrationContext] = useState(() =>
+    getPredictionCalibrationContext({ detail: 'lite' }),
+  )
   const comboRetrospective = useMemo(() => buildComboRetrospective(planHistory), [dataVersion, planHistory])
+
+  useEffect(() => {
+    let cancelled = false
+    let idleId = null
+    let timeoutId = null
+
+    setCalibrationContext(getPredictionCalibrationContext({ detail: 'lite' }))
+
+    const hydrateFull = () => {
+      if (cancelled) return
+      const fullContext = getPredictionCalibrationContext({ detail: 'full' })
+      if (!cancelled) setCalibrationContext(fullContext)
+    }
+
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+      idleId = window.requestIdleCallback(hydrateFull, { timeout: 1200 })
+    } else {
+      timeoutId = window.setTimeout(hydrateFull, 0)
+    }
+
+    return () => {
+      cancelled = true
+      if (idleId !== null && typeof window !== 'undefined' && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(idleId)
+      }
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId)
+      }
+    }
+  }, [dataVersion])
 
   const riskCap = useMemo(
     () => Math.round(systemConfig.initialCapital * systemConfig.riskCapRatio),
