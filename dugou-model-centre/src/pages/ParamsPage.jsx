@@ -3836,7 +3836,7 @@ export default function ParamsPage({ openModal }) {
   const openTimeMachineModal = () => {
     openModal({
       title: '时光穿越机',
-      badge: 'BETA',
+      badge: 'VIP',
       content: (
         <TimeMachineModalContent
           isInMode={tmIsInMode}
@@ -5461,7 +5461,7 @@ export default function ParamsPage({ openModal }) {
               </span>
               <span className="text-xs text-cyan-700 font-medium uppercase tracking-[0.1em]">时光穿越机</span>
               <span className="inline-flex items-center rounded-full border border-amber-300 bg-gradient-to-b from-amber-100 to-amber-50 px-2 py-0.5 text-[10px] text-amber-800 font-semibold shadow-sm">
-                BETA
+                VIP
               </span>
             </div>
             <h3 className="text-lg font-semibold text-stone-800">快照时光机</h3>
