@@ -89,6 +89,26 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
         )
         const score = assessment.overallFragility || 0
 
+        // 调试第一对
+        if (i === 0 && j === 1) {
+          const pa = assessment.pairAnalysis?.[0]?.assessment
+          console.log('🔬 Pair [0,1] detail:', {
+            oddsA: matches[i]?.odds, oddsB: matches[j]?.odds,
+            overallFragility: assessment.overallFragility,
+            fragilityScore: pa?.fragilityScore,
+            riskLevel: pa?.riskLevel,
+            confidence: pa?.confidence,
+            premium: pa?.components?.premium?.premium,
+            pFailA: pa?.components?.premium?.pFailA,
+            pFailB: pa?.components?.premium?.pFailB,
+            pFailBothObserved: pa?.components?.premium?.pFailBothObserved,
+            pFailBothIndependent: pa?.components?.premium?.pFailBothIndependent,
+            sampleSize: pa?.components?.premium?.sampleSize,
+            observedFailedCount: pa?.components?.premium?.observedFailedCount,
+            weightedCount: pa?.components?.premium?.weightedCount,
+          })
+        }
+
         result.push({
           i,
           j,
