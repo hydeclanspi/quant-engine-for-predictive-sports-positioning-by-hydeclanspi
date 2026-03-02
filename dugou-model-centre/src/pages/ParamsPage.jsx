@@ -5329,7 +5329,7 @@ export default function ParamsPage({ openModal }) {
                     {tmSnapshots.slice(0, 2).map((snap, idx) => (
                       <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/50 border border-cyan-100/60">
                         <span className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-500"></span>
-                        {new Date(snap.createdAt).toLocaleDateString()}
+                        {new Date(snap.created_at).toLocaleDateString()}
                       </span>
                     ))}
                     <span className="text-cyan-700 font-medium">现存 {tmSnapshots.length} 份快照</span>
