@@ -153,7 +153,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
         </div>
         <p className="text-sm text-stone-400">
           {matches.length === 0
-            ? '选择至少 2 场比赛以查看脆弱性热力图'
+            ? '点击「生成最优组合」后，此处将展示比赛对之间的依赖风险分析'
             : '只有 1 场比赛，需要至少 2 场来分析依赖关系'}
         </p>
       </div>

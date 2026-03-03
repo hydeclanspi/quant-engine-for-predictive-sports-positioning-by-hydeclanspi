@@ -6625,20 +6625,18 @@ export default function ComboPage({ openModal }) {
         </div>
       )}
 
-      {/* ═══ 依赖风险矩阵（脆弱性热力图）— 仅在生成组合后显示 ═══ */}
-      {rankingRows.length > 0 && (
+      {/* ═══ 依赖风险矩阵（脆弱性热力图）═══ */}
       <div className="mb-6">
         <FragilityHeatmapCard
-          matches={selectedMatches.map((m) => ({
+          matches={rankingRows.length > 0 ? selectedMatches.map((m) => ({
             odds: Number(m.odds) || 2.5,
             teamName: m.homeTeam && m.awayTeam ? `${m.homeTeam} vs ${m.awayTeam}` : m.teamName || '',
             matchDate: m.matchDate || '',
-          }))}
+          })) : []}
           expandedPair={expandedFragilityPair}
           onSelectPair={setExpandedFragilityPair}
         />
       </div>
-      )}
 
       <div className="combo-secondary-grid mb-6">
         <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
