@@ -291,23 +291,23 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                         const obsWidth = Math.max(pFailBothObserved * 100 * scale, 4)
                         const expWidth = Math.max(pFailBothIndependent * 100 * scale, 4)
                         return (
-                          <div className="space-y-1.5">
-                            <div className="flex items-center gap-2">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2.5">
                               <span className="text-[10px] text-stone-400 w-[52px] shrink-0">Observed</span>
-                              <div className="flex-1 h-[7px] rounded-full bg-stone-100/80 overflow-hidden">
+                              <div className="flex-1 h-2.5 rounded bg-stone-200/60 overflow-hidden">
                                 <div
-                                  className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-indigo-500 transition-all duration-500"
-                                  style={{ width: `${Math.max(obsWidth, 3)}%` }}
+                                  className="h-full rounded bg-indigo-500"
+                                  style={{ width: `${Math.max(obsWidth, 4)}%` }}
                                 />
                               </div>
                               <span className="text-[11px] font-semibold text-indigo-600 tabular-nums w-[40px] text-right">{(pFailBothObserved * 100).toFixed(1)}%</span>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2.5">
                               <span className="text-[10px] text-stone-400 w-[52px] shrink-0">Expected</span>
-                              <div className="flex-1 h-[7px] rounded-full bg-stone-100/80 overflow-hidden">
+                              <div className="flex-1 h-2.5 rounded bg-stone-200/60 overflow-hidden">
                                 <div
-                                  className="h-full rounded-full bg-gradient-to-r from-stone-300 to-stone-400 transition-all duration-500"
-                                  style={{ width: `${Math.max(expWidth, 3)}%` }}
+                                  className="h-full rounded bg-stone-400"
+                                  style={{ width: `${Math.max(expWidth, 4)}%` }}
                                 />
                               </div>
                               <span className="text-[11px] font-medium text-stone-500 tabular-nums w-[40px] text-right">{(pFailBothIndependent * 100).toFixed(1)}%</span>
