@@ -301,19 +301,19 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                 </div>
               </div>
 
-              {/* 模块：Level — 分段深色系 */}
+              {/* 模块：Level — 白底卡片 + 分段深色文字 */}
               {(() => {
-                const levelColors = {
-                  low: { bg: 'from-sky-600 to-sky-700', text: 'text-white', sub: 'text-sky-200/80', border: 'border-sky-500/30' },
-                  medium: { bg: 'from-blue-600 to-indigo-700', text: 'text-white', sub: 'text-blue-200/80', border: 'border-blue-500/30' },
-                  high: { bg: 'from-indigo-700 to-violet-800', text: 'text-white', sub: 'text-indigo-200/80', border: 'border-indigo-500/30' },
-                  critical: { bg: 'from-violet-800 to-purple-900', text: 'text-white', sub: 'text-violet-200/80', border: 'border-violet-500/30' },
+                const levelTextColors = {
+                  low: 'text-sky-700',
+                  medium: 'text-blue-800',
+                  high: 'text-indigo-800',
+                  critical: 'text-purple-800',
                 }
-                const lc = levelColors[expandedPair.riskLevel] || levelColors.low
+                const ltc = levelTextColors[expandedPair.riskLevel] || levelTextColors.low
                 return (
-                  <div className={`rounded-xl bg-gradient-to-br ${lc.bg} border ${lc.border} p-3.5 flex flex-col justify-between`}>
-                    <p className={`text-[10px] font-medium ${lc.sub} tracking-wider uppercase mb-2`}>Level</p>
-                    <p className={`text-[15px] font-bold ${lc.text} capitalize leading-tight tracking-tight`}>{getLevelLabel(expandedPair.riskLevel)}</p>
+                  <div className="rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5 flex flex-col justify-between">
+                    <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Level</p>
+                    <p className={`text-lg font-bold ${ltc} capitalize leading-tight tracking-tight`}>{getLevelLabel(expandedPair.riskLevel)}</p>
                   </div>
                 )
               })()}
@@ -366,7 +366,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                                   <span className="text-[13px] font-semibold text-emerald-600 tabular-nums leading-none">{exactWon}</span>
                                   <span className="text-[9px] text-emerald-500/70 font-medium">won</span>
                                 </div>
-                                <span className="text-[11px] font-medium text-stone-400 tabular-nums">{matchedExact > 0 ? ((exactWon / matchedExact) * 100).toFixed(0) : '—'}%</span>
+                                <span className="text-[10px] font-semibold tabular-nums text-sky-500/80 bg-sky-50/70 px-1.5 py-0.5 rounded-full">{matchedExact > 0 ? ((exactWon / matchedExact) * 100).toFixed(0) : '—'}%</span>
                               </div>
                             </div>
                             <div className="h-px bg-sky-100/60" />
@@ -381,7 +381,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                                   <span className="text-[13px] font-semibold text-emerald-600 tabular-nums leading-none">{neighborWon}</span>
                                   <span className="text-[9px] text-emerald-500/70 font-medium">won</span>
                                 </div>
-                                <span className="text-[11px] font-medium text-stone-400 tabular-nums">{matchedNeighbor > 0 ? ((neighborWon / matchedNeighbor) * 100).toFixed(0) : '—'}%</span>
+                                <span className="text-[10px] font-semibold tabular-nums text-sky-500/80 bg-sky-50/70 px-1.5 py-0.5 rounded-full">{matchedNeighbor > 0 ? ((neighborWon / matchedNeighbor) * 100).toFixed(0) : '—'}%</span>
                               </div>
                             </div>
                           </div>
