@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { AlertTriangle, TrendingUp } from 'lucide-react'
+import { Activity, AlertTriangle, TrendingUp } from 'lucide-react'
 import { assessComboFragility } from '../lib/analytics'
 import { getInvestments } from '../lib/localData'
 
@@ -147,9 +147,15 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
   if (matches.length < 2) {
     return (
       <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <TrendingUp size={16} className="text-purple-500" />
-          <h3 className="font-medium text-stone-700">依赖风险矩阵</h3>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <TrendingUp size={16} className="text-sky-500" />
+            <h3 className="font-medium text-stone-700">依赖风险矩阵</h3>
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[10px] border border-sky-200/80 bg-[linear-gradient(120deg,rgba(224,242,254,0.86),rgba(255,255,255,0.9)_52%,rgba(224,242,254,0.84))] text-[11px] font-medium text-sky-700 tracking-[0.02em] shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_10px_22px_-18px_rgba(14,165,233,0.5)] backdrop-blur-[1px]">
+            <Activity size={12} strokeWidth={1.9} className="text-sky-500" />
+            脆弱性评分 0-100%
+          </span>
         </div>
         <p className="text-sm text-stone-400">
           {matches.length === 0
@@ -165,7 +171,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
       {/* 标题 */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <TrendingUp size={16} className="text-purple-500" />
+          <TrendingUp size={16} className="text-sky-500" />
           <h3 className="font-medium text-stone-700">依赖风险矩阵</h3>
           {fragilityMatrix.some(m => m.score > 40) && (
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-600 font-medium">
@@ -173,7 +179,10 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
             </span>
           )}
         </div>
-        <p className="text-xs text-stone-400">脆弱性评分 0-100%</p>
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[10px] border border-sky-200/80 bg-[linear-gradient(120deg,rgba(224,242,254,0.86),rgba(255,255,255,0.9)_52%,rgba(224,242,254,0.84))] text-[11px] font-medium text-sky-700 tracking-[0.02em] shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_10px_22px_-18px_rgba(14,165,233,0.5)] backdrop-blur-[1px]">
+          <Activity size={12} strokeWidth={1.9} className="text-sky-500" />
+          脆弱性评分 0-100%
+        </span>
       </div>
 
       {/* 矩阵热力图 */}
