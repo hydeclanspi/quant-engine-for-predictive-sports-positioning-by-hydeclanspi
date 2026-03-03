@@ -388,10 +388,10 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                           </div>
                         )
                       })()}
-                      {/* Premium */}
-                      <div className="flex items-center justify-between pt-1 border-t border-stone-100/60">
-                        <span className="text-[10px] text-stone-400">Premium</span>
-                        <span className={`text-xs font-semibold tabular-nums ${premiumValue > 0 ? 'text-indigo-600' : 'text-emerald-600'}`}>
+                      {/* Premium — 突出显示 */}
+                      <div className="flex items-center justify-between pt-3 mt-1 border-t border-stone-100/60">
+                        <span className="text-sm font-semibold text-stone-500 tracking-wide">Premium</span>
+                        <span className={`text-lg font-bold tabular-nums tracking-tight ${premiumValue > 0 ? 'text-indigo-600' : 'text-emerald-600'}`}>
                           {premiumValue > 0 ? '+' : ''}{(premiumValue * 100).toFixed(2)}%
                         </span>
                       </div>
