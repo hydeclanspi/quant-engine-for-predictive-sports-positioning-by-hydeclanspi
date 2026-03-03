@@ -254,10 +254,10 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
           {/* 顶栏 — 标题 + 关闭 */}
           <div className="relative flex items-center justify-between px-5 pt-4 pb-3">
             <div className="flex items-center gap-3">
-              {/* 渐变光带 — 扁平横向，纯视觉情绪 */}
+              {/* 渐变光球 — 纯视觉情绪，分数在下方 Resonance 模块 */}
               <div
-                className="h-3 w-14 rounded-full shrink-0"
-                style={{ background: style.orb.replace('radial-gradient(circle at 36% 36%,', 'linear-gradient(90deg,'), boxShadow: style.orbShadow }}
+                className="h-11 w-11 rounded-full shrink-0"
+                style={{ background: style.orb, boxShadow: style.orbShadow }}
               />
               <div>
                 <p className="text-[13px] font-semibold text-stone-700 tracking-tight leading-tight">
@@ -522,7 +522,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
           {/* 图例 — 连续色谱 */}
           <div className="flex items-center gap-1 text-[11px] text-stone-400">
             <span className="mr-1">0</span>
-            <div className="flex h-2.5 rounded-full overflow-hidden" style={{ width: '140px' }}>
+            <div className="flex h-[5px] rounded-full overflow-hidden" style={{ width: '140px' }}>
               <div className="flex-1" style={{ background: 'linear-gradient(90deg, #34d399, #2dd4bf, #22d3ee, #0ea5e9, #3b82f6, #6366f1, #8b5cf6, #f59e0b, #94a3b8, #64748b)' }} />
             </div>
             <span className="ml-1">100</span>
