@@ -5209,7 +5209,7 @@ export const getTemporalWeight = (date, baseDate = new Date()) => {
  * @param {number} odds
  * @returns {number} band 中心值
  */
-const getOddsBand = (odds) => {
+export const getOddsBand = (odds) => {
   if (odds < 1.3) return 1.2
   if (odds < 1.6) return 1.45
   if (odds < 2.0) return 1.8
@@ -5484,6 +5484,8 @@ export const checkSurvivingBias = (
   let matchedPairs = 0
   let exactBandMatch = 0
   let neighborBandMatch = 0
+  let exactBandWon = 0
+  let neighborBandWon = 0
 
   const targetBandA = getOddsBand(oddsA)
   const targetBandB = getOddsBand(oddsB)
@@ -5494,6 +5496,9 @@ export const checkSurvivingBias = (
 
     let foundExact = false
     let foundNeighbor = false
+    // 检查匹配到的两场比赛是否都猜对了
+    let bothCorrectExact = false
+    let bothCorrectNeighbor = false
 
     for (let i = 0; i < matches.length && !foundExact; i++) {
       const mOddsI = toNumber(matches[i]?.odds, 0)
@@ -5504,12 +5509,14 @@ export const checkSurvivingBias = (
         const mOddsJ = toNumber(matches[j]?.odds, 0)
         if (isSameOddsBand(mOddsJ, oddsB)) {
           foundExact = true
+          bothCorrectExact = matches[i]?.result === true && matches[j]?.result === true
           break
         }
         // 相邻 band 检查（容差因子内）
         const relDist = Math.abs(getOddsBand(mOddsJ) - targetBandB) / Math.max(targetBandB, 1)
         if (relDist <= toleranceFactor) {
           foundNeighbor = true
+          bothCorrectNeighbor = matches[i]?.result === true && matches[j]?.result === true
         }
       }
     }
@@ -5517,9 +5524,11 @@ export const checkSurvivingBias = (
     if (foundExact) {
       matchedPairs += 1
       exactBandMatch += 1
+      if (bothCorrectExact) exactBandWon += 1
     } else if (foundNeighbor) {
       matchedPairs += 1
       neighborBandMatch += 1
+      if (bothCorrectNeighbor) neighborBandWon += 1
     }
   })
 
@@ -5538,6 +5547,8 @@ export const checkSurvivingBias = (
     matchedPairs,
     investedInTarget: exactBandMatch,
     investedInSimilar: neighborBandMatch,
+    exactWon: exactBandWon,
+    neighborWon: neighborBandWon,
   }
 }
 

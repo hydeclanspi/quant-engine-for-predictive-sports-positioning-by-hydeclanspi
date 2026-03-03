@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Activity, TrendingUp, X } from 'lucide-react'
-import { assessComboFragility } from '../lib/analytics'
+import { assessComboFragility, getOddsBand } from '../lib/analytics'
 import { getInvestments } from '../lib/localData'
 
 /**
@@ -241,7 +241,12 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
     const biasStrength = bias.biasStrength || 0
     const matchedExact = bias.investedInTarget || 0
     const matchedNeighbor = bias.investedInSimilar || 0
+    const exactWon = bias.exactWon || 0
+    const neighborWon = bias.neighborWon || 0
     const globalFailureRate = adjusted.globalFailureRate
+    // Odds bands
+    const bandA = matchA?.odds ? getOddsBand(matchA.odds) : null
+    const bandB = matchB?.odds ? getOddsBand(matchB.odds) : null
 
     return (
       <div className="mx-6 mb-6 mt-1">
@@ -324,38 +329,77 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
               </div>
             </div>
 
-            {/* 第二行：概率分析模块 — 宽幅条形 */}
+            {/* 第二行：概率分析模块 — 左=Market Implied (内部分割含Odds Profile) | 右=Co-failure Rate（保持原样） */}
             {(Number.isFinite(pFailA) || Number.isFinite(premiumValue)) && (
               <div className="mt-2.5 grid grid-cols-2 gap-2.5">
-                {/* 失败概率对比模块 */}
+                {/* 左半：Market Implied + Odds Profile 内部分割 */}
                 {Number.isFinite(pFailA) && Number.isFinite(pFailB) && (
                   <div className="rounded-xl bg-gradient-to-br from-sky-50/50 via-white to-cyan-50/30 border border-sky-100/60 p-3.5">
-                    <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2.5">Market Implied Failure</p>
-                    <div className="flex items-center justify-between">
+                    <div className="grid grid-cols-2 gap-3 h-full">
+                      {/* 左子：Market Implied Failure — 纵向堆叠 */}
                       <div>
-                        <p className="text-[10px] text-stone-400 mb-0.5 truncate max-w-[120px]">{nameA}</p>
-                        <p className="text-sm font-semibold text-sky-700 tabular-nums">{(pFailA * 100).toFixed(1)}%</p>
+                        <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2.5">Market Implied</p>
+                        <div className="space-y-2">
+                          <div>
+                            <p className="text-[9px] text-stone-400 mb-0.5 truncate">{nameA}</p>
+                            <p className="text-sm font-semibold text-sky-700 tabular-nums">{(pFailA * 100).toFixed(1)}%</p>
+                          </div>
+                          <div className="h-px bg-sky-100/80" />
+                          <div>
+                            <p className="text-[9px] text-stone-400 mb-0.5 truncate">{nameB}</p>
+                            <p className="text-sm font-semibold text-sky-700 tabular-nums">{(pFailB * 100).toFixed(1)}%</p>
+                          </div>
+                        </div>
                       </div>
-                      <div className="mx-3 h-8 w-px bg-sky-100" />
-                      <div>
-                        <p className="text-[10px] text-stone-400 mb-0.5 truncate max-w-[120px]">{nameB}</p>
-                        <p className="text-sm font-semibold text-sky-700 tabular-nums">{(pFailB * 100).toFixed(1)}%</p>
+                      {/* 右子：Odds Profile */}
+                      <div className="border-l border-sky-100/60 pl-3">
+                        <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2.5">Odds Profile</p>
+                        {bandA && bandB ? (
+                          <div className="space-y-2">
+                            {/* Exact band matches */}
+                            <div>
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-[9px] text-stone-400 uppercase tracking-wide">Exact</span>
+                                <span className="text-[8px] text-stone-300 tabular-nums">({bandA}×{bandB})</span>
+                              </div>
+                              <div className="flex items-baseline gap-1 mt-0.5">
+                                <span className="text-base font-bold text-stone-700 tabular-nums leading-none">{matchedExact}</span>
+                                <span className="text-[9px] text-stone-300 font-medium">hit</span>
+                                <span className="text-[9px] text-stone-300">/</span>
+                                <span className="text-[13px] font-semibold text-emerald-600 tabular-nums leading-none">{exactWon}</span>
+                                <span className="text-[9px] text-emerald-500/70 font-medium">won</span>
+                              </div>
+                            </div>
+                            <div className="h-px bg-sky-100/60" />
+                            {/* Neighbor band matches */}
+                            <div>
+                              <span className="text-[9px] text-stone-400 uppercase tracking-wide">Neighbor</span>
+                              <div className="flex items-baseline gap-1 mt-0.5">
+                                <span className="text-base font-bold text-stone-700 tabular-nums leading-none">{matchedNeighbor}</span>
+                                <span className="text-[9px] text-stone-300 font-medium">hit</span>
+                                <span className="text-[9px] text-stone-300">/</span>
+                                <span className="text-[13px] font-semibold text-emerald-600 tabular-nums leading-none">{neighborWon}</span>
+                                <span className="text-[9px] text-emerald-500/70 font-medium">won</span>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-stone-300 italic">No odds data</p>
+                        )}
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* 依赖性溢价模块 — 去掉p-value，加 Observed vs Independent 可视化 */}
+                {/* 右半：Co-failure Rate + Premium — 完全保持原样 */}
                 {Number.isFinite(premiumValue) && (
                   <div className="rounded-xl bg-gradient-to-br from-indigo-50/50 via-white to-violet-50/25 border border-indigo-100/60 p-3.5">
                     <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2.5">Co-failure Rate</p>
                     <div className="space-y-2">
                       {/* 迷你双柱对比 — 黄金比例等比放大 */}
                       {Number.isFinite(pFailBothObserved) && Number.isFinite(pFailBothIndependent) && (() => {
-                        // 等比放大规则：两条保持真实比例，较大条占 ~φ/(1+φ) ≈ 62% 空间
-                        // 阈值分档：max<10% → 较大条占62%, <25% → 68%, <50% → 78%, ≥50% → 直接映射
                         const maxRate = Math.max(pFailBothObserved, pFailBothIndependent, 0.001)
-                        let targetMax // 较大条应该显示的百分比宽度
+                        let targetMax
                         if (maxRate < 0.10) targetMax = 62
                         else if (maxRate < 0.25) targetMax = 68
                         else if (maxRate < 0.50) targetMax = 78
