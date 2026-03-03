@@ -1,12 +1,12 @@
 import { useMemo } from 'react'
-import { Activity, AlertTriangle, TrendingUp } from 'lucide-react'
+import { Activity, TrendingUp, X } from 'lucide-react'
 import { assessComboFragility } from '../lib/analytics'
 import { getInvestments } from '../lib/localData'
 
 /**
  * 依赖风险矩阵智能 — 冰裂共振评分热力图
  *
- * 全幅矩阵设计，球队完整名称，玻璃质感
+ * 全幅矩阵 · 品牌色系 · 模块化详情面板
  */
 export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSelectPair = null }) {
   // 历史数据缓存
@@ -37,7 +37,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
     return settledInvestments
   }, [])
 
-  // 脆弱性矩阵计算
+  // 脆弱性矩阵计算 — 含完整 assessment 数据
   const fragilityMatrix = useMemo(() => {
     if (matches.length < 2) return []
     const result = []
@@ -47,58 +47,72 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
           [matches[i], matches[j]],
           historicalData
         )
+        const pairAssessment = assessment.pairAnalysis?.[0]?.assessment || {}
         const score = assessment.overallFragility || 0
         result.push({
           i,
           j,
           score: Number(score.toFixed(2)),
-          riskLevel: assessment.pairAnalysis?.[0]?.assessment?.riskLevel || 'low',
-          isSignificant: assessment.pairAnalysis?.[0]?.assessment?.isSignificant || false,
-          confidence: assessment.pairAnalysis?.[0]?.assessment?.confidence || 0,
+          riskLevel: pairAssessment.riskLevel || 'low',
+          isSignificant: pairAssessment.isSignificant || false,
+          confidence: pairAssessment.confidence || 0,
+          // 完整数据用于详情面板
+          components: pairAssessment.components || null,
         })
       }
     }
     return result
   }, [matches, historicalData])
 
-  // 颜色系统 — 玻璃质感渐变
+  // ─── 品牌色系 — emerald / sky / indigo / teal ───
+  // 和 ComboPage 投资层级色系一致：emerald → sky → indigo → slate
   const getHeatStyle = (score) => {
     if (score < 25) return {
-      bg: 'bg-gradient-to-br from-emerald-50/80 to-emerald-100/60',
-      border: 'border-emerald-200/60',
+      bg: 'bg-gradient-to-br from-emerald-50/90 to-teal-50/70',
+      border: 'border-emerald-200/50',
       text: 'text-emerald-700',
       glow: '',
+      dot: 'from-emerald-200 to-emerald-300 border-emerald-300/60',
     }
     if (score < 40) return {
-      bg: 'bg-gradient-to-br from-amber-50/80 to-amber-100/60',
-      border: 'border-amber-200/60',
-      text: 'text-amber-700',
+      bg: 'bg-gradient-to-br from-sky-50/90 to-cyan-50/70',
+      border: 'border-sky-200/50',
+      text: 'text-sky-700',
       glow: '',
+      dot: 'from-sky-200 to-sky-300 border-sky-300/60',
     }
     if (score < 60) return {
-      bg: 'bg-gradient-to-br from-orange-50/80 to-orange-100/60',
-      border: 'border-orange-200/70',
-      text: 'text-orange-700',
-      glow: 'shadow-[0_0_12px_-4px_rgba(251,146,60,0.3)]',
+      bg: 'bg-gradient-to-br from-indigo-50/85 to-violet-50/60',
+      border: 'border-indigo-200/50',
+      text: 'text-indigo-700',
+      glow: 'shadow-[0_0_12px_-4px_rgba(99,102,241,0.2)]',
+      dot: 'from-indigo-200 to-indigo-300 border-indigo-300/60',
     }
     return {
-      bg: 'bg-gradient-to-br from-rose-50/80 to-rose-100/60',
-      border: 'border-rose-200/70',
-      text: 'text-rose-700',
-      glow: 'shadow-[0_0_16px_-4px_rgba(244,63,94,0.3)]',
+      bg: 'bg-gradient-to-br from-slate-100/90 to-slate-50/70',
+      border: 'border-slate-300/50',
+      text: 'text-slate-700',
+      glow: 'shadow-[0_0_14px_-4px_rgba(100,116,139,0.25)]',
+      dot: 'from-slate-300 to-slate-400 border-slate-400/60',
     }
   }
 
-  // 截断球队名
+  // 风险级别文字映射
+  const getLevelLabel = (level) => {
+    const map = { low: 'Low', medium: 'Moderate', high: 'Elevated', critical: 'High' }
+    return map[level] || level
+  }
+
+  // 球队名
   const formatTeamName = (match, idx) => {
-    if (match.teamName && match.teamName.length > 0) return match.teamName
+    if (match?.teamName && match.teamName.length > 0) return match.teamName
     return `Match ${idx + 1}`
   }
 
   // 统计
   const avgScore = fragilityMatrix.length > 0
     ? (fragilityMatrix.reduce((s, m) => s + m.score, 0) / fragilityMatrix.length).toFixed(1)
-    : '—'
+    : '\u2014'
   const highRiskCount = fragilityMatrix.filter(m => m.score > 40).length
 
   // ─── 空状态 ───
@@ -127,12 +141,183 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
     )
   }
 
+  // ─── 详情面板 — 模块化几何非对称设计 ───
+  const renderDetailPanel = () => {
+    if (!expandedPair) return null
+
+    const matchA = matches[expandedPair.i]
+    const matchB = matches[expandedPair.j]
+    const nameA = formatTeamName(matchA, expandedPair.i)
+    const nameB = formatTeamName(matchB, expandedPair.j)
+    const oddsA = matchA?.odds?.toFixed(2) || '—'
+    const oddsB = matchB?.odds?.toFixed(2) || '—'
+    const style = getHeatStyle(expandedPair.score)
+
+    // 从 components 中提取详细数据
+    const premium = expandedPair.components?.premium || {}
+    const bias = expandedPair.components?.bias || {}
+
+    const pFailA = premium.pFailA
+    const pFailB = premium.pFailB
+    const pFailBothObserved = premium.pFailBothObserved
+    const pFailBothIndependent = premium.pFailBothIndependent
+    const sampleSize = premium.sampleSize || 0
+    const pValue = premium.pValue
+    const premiumValue = premium.premium
+    const hasBias = bias.hasBias || false
+
+    return (
+      <div className="mx-6 mb-6 mt-1">
+        {/* 面板外框 — 玻璃质感 */}
+        <div className="relative overflow-hidden rounded-2xl border border-stone-200/60 bg-gradient-to-br from-white via-stone-50/40 to-sky-50/30 backdrop-blur-sm">
+          {/* 背景装饰 */}
+          <div className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-sky-100/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-12 -left-12 h-32 w-32 rounded-full bg-indigo-50/15 blur-2xl" />
+
+          {/* 顶栏 — 标题 + 关闭 */}
+          <div className="relative flex items-center justify-between px-5 pt-4 pb-3">
+            <div className="flex items-center gap-3">
+              {/* 分数指示器 */}
+              <div className={`flex h-11 w-11 items-center justify-center rounded-xl border backdrop-blur-[2px] ${style.bg} ${style.border}`}>
+                <span className={`text-base font-bold tabular-nums leading-none ${style.text}`}>{expandedPair.score}</span>
+              </div>
+              <div>
+                <p className="text-[13px] font-semibold text-stone-700 tracking-tight leading-tight">
+                  {nameA}
+                  <span className="mx-1.5 text-stone-300 font-normal">/</span>
+                  {nameB}
+                </p>
+                <p className="text-[11px] text-stone-400 mt-0.5 tabular-nums">
+                  {oddsA} / {oddsB}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => onSelectPair?.(null)}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-stone-300 hover:text-stone-500 hover:bg-stone-100/80 transition-all duration-150"
+            >
+              <X size={14} strokeWidth={2} />
+            </button>
+          </div>
+
+          {/* 核心指标网格 — 非对称模块布局 */}
+          <div className="relative px-5 pb-4">
+            {/* 第一行：左大右小的非对称布局 */}
+            <div className="grid grid-cols-5 gap-2.5">
+
+              {/* 主模块：共振评分 — 占2列 */}
+              <div className="col-span-2 rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5">
+                <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Resonance</p>
+                <div className="flex items-baseline gap-1">
+                  <span className={`text-2xl font-bold tabular-nums leading-none ${style.text}`}>{expandedPair.score}</span>
+                  <span className="text-xs text-stone-400">%</span>
+                </div>
+                <div className="mt-2.5 flex items-center gap-1.5">
+                  <div className={`h-1.5 rounded-full bg-gradient-to-r ${style.dot}`} style={{ width: `${Math.min(expandedPair.score, 100)}%`, minWidth: '8px' }} />
+                  <div className="flex-1 h-1.5 rounded-full bg-stone-100" />
+                </div>
+              </div>
+
+              {/* 模块：Level */}
+              <div className="rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5">
+                <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Level</p>
+                <p className="text-sm font-semibold text-stone-700 capitalize leading-tight">{getLevelLabel(expandedPair.riskLevel)}</p>
+              </div>
+
+              {/* 模块：Confidence */}
+              <div className="rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5">
+                <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Confidence</p>
+                <div className="flex items-baseline gap-0.5">
+                  <span className="text-sm font-semibold text-stone-700 tabular-nums leading-tight">{(expandedPair.confidence * 100).toFixed(0)}</span>
+                  <span className="text-[10px] text-stone-400">%</span>
+                </div>
+              </div>
+
+              {/* 模块：Significance */}
+              <div className="rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5">
+                <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Stat. Sig.</p>
+                <p className="text-sm font-semibold text-stone-700 leading-tight">
+                  {expandedPair.isSignificant ? 'Yes' : 'No'}
+                </p>
+              </div>
+            </div>
+
+            {/* 第二行：概率分析模块 — 宽幅条形 */}
+            {(Number.isFinite(pFailA) || Number.isFinite(premiumValue)) && (
+              <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+                {/* 失败概率对比模块 */}
+                {Number.isFinite(pFailA) && Number.isFinite(pFailB) && (
+                  <div className="rounded-xl bg-gradient-to-br from-sky-50/50 via-white to-cyan-50/30 border border-sky-100/60 p-3.5">
+                    <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2.5">Market Implied Failure</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] text-stone-400 mb-0.5 truncate max-w-[120px]">{nameA}</p>
+                        <p className="text-sm font-semibold text-sky-700 tabular-nums">{(pFailA * 100).toFixed(1)}%</p>
+                      </div>
+                      <div className="mx-3 h-8 w-px bg-sky-100" />
+                      <div>
+                        <p className="text-[10px] text-stone-400 mb-0.5 truncate max-w-[120px]">{nameB}</p>
+                        <p className="text-sm font-semibold text-sky-700 tabular-nums">{(pFailB * 100).toFixed(1)}%</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 依赖性溢价模块 */}
+                {Number.isFinite(premiumValue) && (
+                  <div className="rounded-xl bg-gradient-to-br from-indigo-50/50 via-white to-violet-50/25 border border-indigo-100/60 p-3.5">
+                    <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2.5">Dependency Analysis</p>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-stone-400">Premium</span>
+                        <span className={`text-xs font-semibold tabular-nums ${premiumValue > 0 ? 'text-indigo-600' : 'text-emerald-600'}`}>
+                          {premiumValue > 0 ? '+' : ''}{(premiumValue * 100).toFixed(2)}%
+                        </span>
+                      </div>
+                      {Number.isFinite(pFailBothObserved) && Number.isFinite(pFailBothIndependent) && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-stone-400">Observed vs Expected</span>
+                          <span className="text-[11px] font-medium text-stone-600 tabular-nums">
+                            {(pFailBothObserved * 100).toFixed(1)}% / {(pFailBothIndependent * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                      )}
+                      {Number.isFinite(pValue) && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-stone-400">p-value</span>
+                          <span className="text-[11px] font-medium text-stone-600 tabular-nums">{pValue.toFixed(4)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 底部信息条 */}
+            <div className="mt-2.5 flex items-center justify-between rounded-lg bg-stone-50/60 border border-stone-100/50 px-3.5 py-2">
+              <div className="flex items-center gap-4 text-[10px] text-stone-400">
+                {sampleSize > 0 && (
+                  <span>Matched samples <span className="font-medium text-stone-500 tabular-nums">{sampleSize}</span></span>
+                )}
+                {hasBias && (
+                  <span className="text-indigo-400">Bias correction applied</span>
+                )}
+              </div>
+              <span className="text-[10px] text-stone-300">Click another cell to compare</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // ─── 主视图 ───
   return (
     <div className="glow-card relative overflow-hidden rounded-2xl border border-stone-100 bg-white">
       {/* 背景光晕 */}
       <div className="pointer-events-none absolute -top-24 -right-24 h-56 w-56 rounded-full bg-sky-100/25 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-20 -left-16 h-44 w-44 rounded-full bg-violet-100/15 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 -left-16 h-44 w-44 rounded-full bg-indigo-50/15 blur-3xl" />
 
       {/* 头部 */}
       <div className="relative px-6 pt-6 pb-4">
@@ -188,7 +373,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                     const pairData = fragilityMatrix.find(m => m.i === rowIdx && m.j === colIdx)
                     if (!pairData) return <td key={`cell-${rowIdx}-${colIdx}`} className="p-1" />
 
-                    const style = getHeatStyle(pairData.score)
+                    const cellStyle = getHeatStyle(pairData.score)
                     const isSelected = expandedPair && expandedPair.i === rowIdx && expandedPair.j === colIdx
 
                     return (
@@ -196,7 +381,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                         <button
                           onClick={() => onSelectPair?.(pairData)}
                           className={`w-full h-14 rounded-lg border backdrop-blur-[2px] flex flex-col items-center justify-center transition-all duration-200 cursor-pointer
-                            ${style.bg} ${style.border} ${style.text} ${style.glow}
+                            ${cellStyle.bg} ${cellStyle.border} ${cellStyle.text} ${cellStyle.glow}
                             ${isSelected
                               ? 'ring-2 ring-sky-400/60 ring-offset-1 scale-[1.03]'
                               : 'hover:scale-[1.02] hover:shadow-md'
@@ -218,23 +403,23 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
       {/* 图例 + 统计 */}
       <div className="relative px-6 pb-5 pt-3">
         <div className="flex items-center justify-between border-t border-stone-100 pt-4">
-          {/* 图例 */}
+          {/* 图例 — 品牌色系 */}
           <div className="flex items-center gap-4 text-[11px] text-stone-400">
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-[3px] bg-gradient-to-br from-emerald-100 to-emerald-200 border border-emerald-300/50" />
-              <span>0-25%</span>
+              <span>0-25</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-[3px] bg-gradient-to-br from-amber-100 to-amber-200 border border-amber-300/50" />
-              <span>25-40%</span>
+              <div className="w-2.5 h-2.5 rounded-[3px] bg-gradient-to-br from-sky-100 to-sky-200 border border-sky-300/50" />
+              <span>25-40</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-[3px] bg-gradient-to-br from-orange-100 to-orange-200 border border-orange-300/50" />
-              <span>40-60%</span>
+              <div className="w-2.5 h-2.5 rounded-[3px] bg-gradient-to-br from-indigo-100 to-indigo-200 border border-indigo-300/50" />
+              <span>40-60</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-[3px] bg-gradient-to-br from-rose-100 to-rose-200 border border-rose-300/50" />
-              <span>60-100%</span>
+              <div className="w-2.5 h-2.5 rounded-[3px] bg-gradient-to-br from-slate-200 to-slate-300 border border-slate-400/50" />
+              <span>60-100</span>
             </div>
           </div>
 
@@ -256,52 +441,8 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
         </div>
       </div>
 
-      {/* 展开详情面板 */}
-      {expandedPair && (
-        <div className="mx-6 mb-6 rounded-xl border border-sky-100/80 bg-gradient-to-br from-sky-50/50 via-white to-violet-50/30 p-4 backdrop-blur-sm">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <p className="text-xs font-semibold text-sky-700 tracking-wide">
-                {formatTeamName(matches[expandedPair.i], expandedPair.i)} &times; {formatTeamName(matches[expandedPair.j], expandedPair.j)}
-              </p>
-              <p className="text-[11px] text-stone-400 mt-0.5">
-                Odds {matches[expandedPair.i]?.odds?.toFixed(2)} &times; {matches[expandedPair.j]?.odds?.toFixed(2)}
-              </p>
-            </div>
-            <button
-              onClick={() => onSelectPair?.(null)}
-              className="flex h-5 w-5 items-center justify-center rounded-md text-stone-300 hover:text-stone-500 hover:bg-stone-100 transition-colors"
-            >
-              <span className="text-xs leading-none">&times;</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-4 gap-3">
-            <div>
-              <p className="text-[10px] text-stone-400 mb-0.5">Resonance</p>
-              <p className="text-sm font-semibold text-stone-700 tabular-nums">{expandedPair.score}%</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-stone-400 mb-0.5">Level</p>
-              <p className="text-sm font-semibold text-stone-700 capitalize">{expandedPair.riskLevel}</p>
-            </div>
-            {expandedPair.confidence !== undefined && (
-              <div>
-                <p className="text-[10px] text-stone-400 mb-0.5">Confidence</p>
-                <p className="text-sm font-semibold text-stone-700 tabular-nums">{(expandedPair.confidence * 100).toFixed(0)}%</p>
-              </div>
-            )}
-            {expandedPair.isSignificant !== undefined && (
-              <div>
-                <p className="text-[10px] text-stone-400 mb-0.5">Significance</p>
-                <p className="text-sm font-semibold text-stone-700">
-                  {expandedPair.isSignificant ? 'Significant' : 'Not significant'}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* 详情面板 */}
+      {renderDetailPanel()}
     </div>
   )
 }
