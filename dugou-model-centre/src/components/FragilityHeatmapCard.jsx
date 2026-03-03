@@ -301,11 +301,22 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                 </div>
               </div>
 
-              {/* 模块：Level */}
-              <div className="rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5">
-                <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Level</p>
-                <p className="text-sm font-semibold text-stone-700 capitalize leading-tight">{getLevelLabel(expandedPair.riskLevel)}</p>
-              </div>
+              {/* 模块：Level — 分段深色系 */}
+              {(() => {
+                const levelColors = {
+                  low: { bg: 'from-sky-600 to-sky-700', text: 'text-white', sub: 'text-sky-200/80', border: 'border-sky-500/30' },
+                  medium: { bg: 'from-blue-600 to-indigo-700', text: 'text-white', sub: 'text-blue-200/80', border: 'border-blue-500/30' },
+                  high: { bg: 'from-indigo-700 to-violet-800', text: 'text-white', sub: 'text-indigo-200/80', border: 'border-indigo-500/30' },
+                  critical: { bg: 'from-violet-800 to-purple-900', text: 'text-white', sub: 'text-violet-200/80', border: 'border-violet-500/30' },
+                }
+                const lc = levelColors[expandedPair.riskLevel] || levelColors.low
+                return (
+                  <div className={`rounded-xl bg-gradient-to-br ${lc.bg} border ${lc.border} p-3.5 flex flex-col justify-between`}>
+                    <p className={`text-[10px] font-medium ${lc.sub} tracking-wider uppercase mb-2`}>Level</p>
+                    <p className={`text-[15px] font-bold ${lc.text} capitalize leading-tight tracking-tight`}>{getLevelLabel(expandedPair.riskLevel)}</p>
+                  </div>
+                )
+              })()}
 
               {/* 模块：Confidence — 含样本量说明 */}
               <div className="rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5">
@@ -336,8 +347,50 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                 {Number.isFinite(pFailA) && Number.isFinite(pFailB) && (
                   <div className="rounded-xl bg-gradient-to-br from-sky-50/50 via-white to-cyan-50/30 border border-sky-100/60 p-3.5">
                     <div className="grid grid-cols-2 gap-3 h-full">
-                      {/* 左子：Market Implied Failure — 纵向堆叠 */}
+                      {/* 左子：Odds Profile（互换到左侧） */}
                       <div>
+                        <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2.5">Odds Profile</p>
+                        {bandA && bandB ? (
+                          <div className="space-y-2">
+                            {/* Exact band matches */}
+                            <div>
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-[9px] text-stone-400 uppercase tracking-wide">Exact</span>
+                                <span className="text-[8px] text-stone-300 tabular-nums">({bandA}×{bandB})</span>
+                              </div>
+                              <div className="flex items-baseline justify-between mt-0.5">
+                                <div className="flex items-baseline gap-1">
+                                  <span className="text-base font-bold text-stone-700 tabular-nums leading-none">{matchedExact}</span>
+                                  <span className="text-[9px] text-stone-300 font-medium">hit</span>
+                                  <span className="text-[9px] text-stone-300">/</span>
+                                  <span className="text-[13px] font-semibold text-emerald-600 tabular-nums leading-none">{exactWon}</span>
+                                  <span className="text-[9px] text-emerald-500/70 font-medium">won</span>
+                                </div>
+                                <span className="text-[11px] font-medium text-stone-400 tabular-nums">{matchedExact > 0 ? ((exactWon / matchedExact) * 100).toFixed(0) : '—'}%</span>
+                              </div>
+                            </div>
+                            <div className="h-px bg-sky-100/60" />
+                            {/* Neighbor band matches */}
+                            <div>
+                              <span className="text-[9px] text-stone-400 uppercase tracking-wide">Neighbor</span>
+                              <div className="flex items-baseline justify-between mt-0.5">
+                                <div className="flex items-baseline gap-1">
+                                  <span className="text-base font-bold text-stone-700 tabular-nums leading-none">{matchedNeighbor}</span>
+                                  <span className="text-[9px] text-stone-300 font-medium">hit</span>
+                                  <span className="text-[9px] text-stone-300">/</span>
+                                  <span className="text-[13px] font-semibold text-emerald-600 tabular-nums leading-none">{neighborWon}</span>
+                                  <span className="text-[9px] text-emerald-500/70 font-medium">won</span>
+                                </div>
+                                <span className="text-[11px] font-medium text-stone-400 tabular-nums">{matchedNeighbor > 0 ? ((neighborWon / matchedNeighbor) * 100).toFixed(0) : '—'}%</span>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-stone-300 italic">No odds data</p>
+                        )}
+                      </div>
+                      {/* 右子：Market Implied Failure — 纵向堆叠（互换到右侧） */}
+                      <div className="border-l border-sky-100/60 pl-3">
                         <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2.5">Market Implied</p>
                         <div className="space-y-2">
                           <div>
@@ -350,42 +403,6 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                             <p className="text-sm font-semibold text-sky-700 tabular-nums">{(pFailB * 100).toFixed(1)}%</p>
                           </div>
                         </div>
-                      </div>
-                      {/* 右子：Odds Profile */}
-                      <div className="border-l border-sky-100/60 pl-3">
-                        <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2.5">Odds Profile</p>
-                        {bandA && bandB ? (
-                          <div className="space-y-2">
-                            {/* Exact band matches */}
-                            <div>
-                              <div className="flex items-baseline gap-1">
-                                <span className="text-[9px] text-stone-400 uppercase tracking-wide">Exact</span>
-                                <span className="text-[8px] text-stone-300 tabular-nums">({bandA}×{bandB})</span>
-                              </div>
-                              <div className="flex items-baseline gap-1 mt-0.5">
-                                <span className="text-base font-bold text-stone-700 tabular-nums leading-none">{matchedExact}</span>
-                                <span className="text-[9px] text-stone-300 font-medium">hit</span>
-                                <span className="text-[9px] text-stone-300">/</span>
-                                <span className="text-[13px] font-semibold text-emerald-600 tabular-nums leading-none">{exactWon}</span>
-                                <span className="text-[9px] text-emerald-500/70 font-medium">won</span>
-                              </div>
-                            </div>
-                            <div className="h-px bg-sky-100/60" />
-                            {/* Neighbor band matches */}
-                            <div>
-                              <span className="text-[9px] text-stone-400 uppercase tracking-wide">Neighbor</span>
-                              <div className="flex items-baseline gap-1 mt-0.5">
-                                <span className="text-base font-bold text-stone-700 tabular-nums leading-none">{matchedNeighbor}</span>
-                                <span className="text-[9px] text-stone-300 font-medium">hit</span>
-                                <span className="text-[9px] text-stone-300">/</span>
-                                <span className="text-[13px] font-semibold text-emerald-600 tabular-nums leading-none">{neighborWon}</span>
-                                <span className="text-[9px] text-emerald-500/70 font-medium">won</span>
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="text-[10px] text-stone-300 italic">No odds data</p>
-                        )}
                       </div>
                     </div>
                   </div>
