@@ -277,31 +277,36 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                   <div className="rounded-xl bg-gradient-to-br from-indigo-50/50 via-white to-violet-50/25 border border-indigo-100/60 p-3.5">
                     <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2.5">Co-failure Rate</p>
                     <div className="space-y-2">
-                      {/* 迷你双柱对比 */}
-                      {Number.isFinite(pFailBothObserved) && Number.isFinite(pFailBothIndependent) && (
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-stone-400 w-[52px] shrink-0">Observed</span>
-                            <div className="flex-1 h-2 rounded-full bg-stone-100 overflow-hidden">
-                              <div
-                                className="h-full rounded-full bg-gradient-to-r from-indigo-300 to-indigo-400 transition-all duration-500"
-                                style={{ width: `${Math.min(pFailBothObserved * 100 * 2, 100)}%` }}
-                              />
+                      {/* 迷你双柱对比 — 以较大值为100%基准缩放 */}
+                      {Number.isFinite(pFailBothObserved) && Number.isFinite(pFailBothIndependent) && (() => {
+                        const maxRate = Math.max(pFailBothObserved, pFailBothIndependent, 0.01)
+                        const obsWidth = (pFailBothObserved / maxRate) * 100
+                        const expWidth = (pFailBothIndependent / maxRate) * 100
+                        return (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-stone-400 w-[52px] shrink-0">Observed</span>
+                              <div className="flex-1 h-[7px] rounded-full bg-stone-100/80 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-indigo-500 transition-all duration-500"
+                                  style={{ width: `${Math.max(obsWidth, 3)}%` }}
+                                />
+                              </div>
+                              <span className="text-[11px] font-semibold text-indigo-600 tabular-nums w-[40px] text-right">{(pFailBothObserved * 100).toFixed(1)}%</span>
                             </div>
-                            <span className="text-[11px] font-semibold text-indigo-600 tabular-nums w-[40px] text-right">{(pFailBothObserved * 100).toFixed(1)}%</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-stone-400 w-[52px] shrink-0">Expected</span>
-                            <div className="flex-1 h-2 rounded-full bg-stone-100 overflow-hidden">
-                              <div
-                                className="h-full rounded-full bg-gradient-to-r from-stone-200 to-stone-300 transition-all duration-500"
-                                style={{ width: `${Math.min(pFailBothIndependent * 100 * 2, 100)}%` }}
-                              />
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-stone-400 w-[52px] shrink-0">Expected</span>
+                              <div className="flex-1 h-[7px] rounded-full bg-stone-100/80 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-r from-stone-300 to-stone-400 transition-all duration-500"
+                                  style={{ width: `${Math.max(expWidth, 3)}%` }}
+                                />
+                              </div>
+                              <span className="text-[11px] font-medium text-stone-500 tabular-nums w-[40px] text-right">{(pFailBothIndependent * 100).toFixed(1)}%</span>
                             </div>
-                            <span className="text-[11px] font-medium text-stone-500 tabular-nums w-[40px] text-right">{(pFailBothIndependent * 100).toFixed(1)}%</span>
                           </div>
-                        </div>
-                      )}
+                        )
+                      })()}
                       {/* Premium */}
                       <div className="flex items-center justify-between pt-1 border-t border-stone-100/60">
                         <span className="text-[10px] text-stone-400">Premium</span>
