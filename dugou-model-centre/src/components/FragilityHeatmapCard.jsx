@@ -73,6 +73,8 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
       text: 'text-emerald-700',
       glow: '',
       dot: 'from-emerald-200 to-emerald-300 border-emerald-300/60',
+      orb: 'radial-gradient(circle at 38% 38%, #a7f3d0, #6ee7b7 40%, #34d399 75%, #10b981)',
+      orbShadow: '0 0 14px 2px rgba(16,185,129,0.25)',
     }
     if (score < 40) return {
       bg: 'bg-gradient-to-br from-sky-50/90 to-cyan-50/70',
@@ -80,6 +82,8 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
       text: 'text-sky-700',
       glow: '',
       dot: 'from-sky-200 to-sky-300 border-sky-300/60',
+      orb: 'radial-gradient(circle at 38% 38%, #bae6fd, #7dd3fc 40%, #38bdf8 75%, #0ea5e9)',
+      orbShadow: '0 0 14px 2px rgba(14,165,233,0.25)',
     }
     if (score < 60) return {
       bg: 'bg-gradient-to-br from-indigo-50/85 to-violet-50/60',
@@ -87,6 +91,8 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
       text: 'text-indigo-700',
       glow: 'shadow-[0_0_12px_-4px_rgba(99,102,241,0.2)]',
       dot: 'from-indigo-200 to-indigo-300 border-indigo-300/60',
+      orb: 'radial-gradient(circle at 38% 38%, #c7d2fe, #a5b4fc 40%, #818cf8 75%, #6366f1)',
+      orbShadow: '0 0 14px 2px rgba(99,102,241,0.25)',
     }
     return {
       bg: 'bg-gradient-to-br from-slate-100/90 to-slate-50/70',
@@ -94,6 +100,8 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
       text: 'text-slate-700',
       glow: 'shadow-[0_0_14px_-4px_rgba(100,116,139,0.25)]',
       dot: 'from-slate-300 to-slate-400 border-slate-400/60',
+      orb: 'radial-gradient(circle at 38% 38%, #e2e8f0, #cbd5e1 40%, #94a3b8 75%, #64748b)',
+      orbShadow: '0 0 14px 2px rgba(100,116,139,0.25)',
     }
   }
 
@@ -182,10 +190,11 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
           {/* 顶栏 — 标题 + 关闭 */}
           <div className="relative flex items-center justify-between px-5 pt-4 pb-3">
             <div className="flex items-center gap-3">
-              {/* 分数指示器 */}
-              <div className={`flex h-11 w-11 items-center justify-center rounded-xl border backdrop-blur-[2px] ${style.bg} ${style.border}`}>
-                <span className={`text-base font-bold tabular-nums leading-none ${style.text}`}>{expandedPair.score}</span>
-              </div>
+              {/* 渐变光球 — 纯视觉情绪，分数在下方 Resonance 模块 */}
+              <div
+                className="h-11 w-11 rounded-full shrink-0"
+                style={{ background: style.orb, boxShadow: style.orbShadow }}
+              />
               <div>
                 <p className="text-[13px] font-semibold text-stone-700 tracking-tight leading-tight">
                   {nameA}
