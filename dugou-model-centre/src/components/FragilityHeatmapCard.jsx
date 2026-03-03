@@ -254,10 +254,10 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
           {/* 顶栏 — 标题 + 关闭 */}
           <div className="relative flex items-center justify-between px-5 pt-4 pb-3">
             <div className="flex items-center gap-3">
-              {/* 渐变光球 — 纯视觉情绪，分数在下方 Resonance 模块 */}
+              {/* 渐变光带 — 扁平横向，纯视觉情绪 */}
               <div
-                className="h-11 w-11 rounded-full shrink-0"
-                style={{ background: style.orb, boxShadow: style.orbShadow }}
+                className="h-3 w-14 rounded-full shrink-0"
+                style={{ background: style.orb.replace('radial-gradient(circle at 36% 36%,', 'linear-gradient(90deg,'), boxShadow: style.orbShadow }}
               />
               <div>
                 <p className="text-[13px] font-semibold text-stone-700 tracking-tight leading-tight">
