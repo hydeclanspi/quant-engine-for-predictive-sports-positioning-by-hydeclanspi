@@ -296,7 +296,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                               <span className="text-[10px] text-stone-400 w-[52px] shrink-0">Observed</span>
                               <div className="flex-1 h-2.5 rounded bg-stone-200/60 overflow-hidden">
                                 <div
-                                  className="h-full rounded bg-indigo-500"
+                                  className="h-full rounded bg-gradient-to-r from-indigo-500 to-sky-400"
                                   style={{ width: `${Math.max(obsWidth, 4)}%` }}
                                 />
                               </div>
@@ -306,7 +306,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                               <span className="text-[10px] text-stone-400 w-[52px] shrink-0">Expected</span>
                               <div className="flex-1 h-2.5 rounded bg-stone-200/60 overflow-hidden">
                                 <div
-                                  className="h-full rounded bg-stone-400"
+                                  className="h-full rounded bg-gradient-to-r from-stone-400 to-stone-300"
                                   style={{ width: `${Math.max(expWidth, 4)}%` }}
                                 />
                               </div>
