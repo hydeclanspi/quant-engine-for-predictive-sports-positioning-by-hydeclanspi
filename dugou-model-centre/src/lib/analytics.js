@@ -5490,35 +5490,55 @@ export const checkSurvivingBias = (
   const targetBandA = getOddsBand(oddsA)
   const targetBandB = getOddsBand(oddsB)
 
+  // 预计算有序 band 列表，用于相邻 band 判定
+  const BANDS = [1.2, 1.45, 1.8, 2.25, 3.0, 4.0, 6.0, 10.0]
+  const isNeighborBand = (band1, band2) => {
+    const idx1 = BANDS.indexOf(band1)
+    const idx2 = BANDS.indexOf(band2)
+    if (idx1 === -1 || idx2 === -1) return false
+    return Math.abs(idx1 - idx2) <= 1 && idx1 !== idx2
+  }
+
   historicalData.forEach((combo) => {
     const matches = Array.isArray(combo.matches) ? combo.matches : []
     if (matches.length < 2) return
 
     let foundExact = false
     let foundNeighbor = false
-    // 检查匹配到的两场比赛是否都猜对了
     let bothCorrectExact = false
     let bothCorrectNeighbor = false
 
-    for (let i = 0; i < matches.length && !foundExact; i++) {
+    for (let i = 0; i < matches.length; i++) {
       const mOddsI = toNumber(matches[i]?.odds, 0)
-      if (!isSameOddsBand(mOddsI, oddsA)) continue
+      const bandI = getOddsBand(mOddsI)
+      const exactMatchA = bandI === targetBandA
+      const neighborMatchA = isNeighborBand(bandI, targetBandA)
+      if (!exactMatchA && !neighborMatchA) continue
 
       for (let j = 0; j < matches.length; j++) {
         if (j === i) continue
         const mOddsJ = toNumber(matches[j]?.odds, 0)
-        if (isSameOddsBand(mOddsJ, oddsB)) {
+        const bandJ = getOddsBand(mOddsJ)
+        const exactMatchB = bandJ === targetBandB
+        const neighborMatchB = isNeighborBand(bandJ, targetBandB)
+
+        const bothCorrect = matches[i]?.result === true && matches[j]?.result === true
+
+        // Exact: 两个维度都精确匹配 band
+        if (exactMatchA && exactMatchB) {
           foundExact = true
-          bothCorrectExact = matches[i]?.result === true && matches[j]?.result === true
+          bothCorrectExact = bothCorrect
           break
         }
-        // 相邻 band 检查（容差因子内）
-        const relDist = Math.abs(getOddsBand(mOddsJ) - targetBandB) / Math.max(targetBandB, 1)
-        if (relDist <= toleranceFactor) {
-          foundNeighbor = true
-          bothCorrectNeighbor = matches[i]?.result === true && matches[j]?.result === true
+        // Neighbor: 至少一个维度是相邻 band（另一个可以是精确或相邻）
+        if ((exactMatchA || neighborMatchA) && (exactMatchB || neighborMatchB)) {
+          if (!foundNeighbor) {
+            foundNeighbor = true
+            bothCorrectNeighbor = bothCorrect
+          }
         }
       }
+      if (foundExact) break
     }
 
     if (foundExact) {
