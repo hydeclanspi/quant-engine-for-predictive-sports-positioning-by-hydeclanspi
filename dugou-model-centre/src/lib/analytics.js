@@ -5170,19 +5170,18 @@ export const getMarketImpliedFailureRate = (odds) => {
 }
 
 /**
- * 获取样本量信心权重
- * 小样本数据信任度低，大样本数据信任度高
+ * 获取样本量信心权重 — 连续对数曲线
+ * 公式：clamp(ln(1 + size) / ln(1 + 30), 0.05, 1.0)
+ * 0 → 0.05, 1 → 0.20, 5 → 0.52, 7 → 0.58, 10 → 0.66, 20 → 0.86, 30+ → 1.0
  *
  * @param {number} sampleSize - 样本数量
- * @returns {number} 权重系数（0.1 - 1.0）
+ * @returns {number} 权重系数（0.05 - 1.0）
  */
 export const getConfidenceWeight = (sampleSize) => {
   const size = Math.max(0, toNumber(sampleSize, 0))
-  if (size < 5) return 0.1
-  if (size < 10) return 0.3
-  if (size < 20) return 0.6
-  if (size < 30) return 0.85
-  return 1.0
+  if (size === 0) return 0.05
+  const raw = Math.log(1 + size) / Math.log(1 + 30)
+  return clamp(raw, 0.05, 1.0)
 }
 
 /**
