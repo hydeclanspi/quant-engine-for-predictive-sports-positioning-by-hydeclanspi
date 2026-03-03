@@ -370,7 +370,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                               <div className="flex-1 h-2.5 rounded-[4px] overflow-hidden" style={{ background: 'rgba(241,245,249,0.6)' }}>
                                 <div
                                   className="h-full rounded-[4px]"
-                                  style={{ width: `${Math.max(obsWidth, 4)}%`, background: 'linear-gradient(90deg, #bae6fd, #c7d2fe)' }}
+                                  style={{ width: `${Math.max(obsWidth, 4)}%`, background: 'linear-gradient(90deg, #93c5fd, #a5b4fc)' }}
                                 />
                               </div>
                               <span className="text-[11px] font-semibold text-sky-600 tabular-nums w-[40px] text-right">{(pFailBothObserved * 100).toFixed(1)}%</span>
@@ -380,7 +380,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                               <div className="flex-1 h-2.5 rounded-[4px] overflow-hidden" style={{ background: 'rgba(241,245,249,0.6)' }}>
                                 <div
                                   className="h-full rounded-[4px]"
-                                  style={{ width: `${Math.max(expWidth, 4)}%`, background: 'linear-gradient(90deg, #e0e7ff, #ddd6fe)' }}
+                                  style={{ width: `${Math.max(expWidth, 4)}%`, background: 'linear-gradient(90deg, #c7d2fe, #c4b5fd)' }}
                                 />
                               </div>
                               <span className="text-[11px] font-medium text-stone-400 tabular-nums w-[40px] text-right">{(pFailBothIndependent * 100).toFixed(1)}%</span>
