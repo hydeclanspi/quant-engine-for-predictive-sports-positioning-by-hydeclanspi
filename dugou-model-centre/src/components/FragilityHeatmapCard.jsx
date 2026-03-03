@@ -64,44 +64,108 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
     return result
   }, [matches, historicalData])
 
-  // ─── 品牌色系 — emerald / sky / indigo / teal ───
-  // 和 ComboPage 投资层级色系一致：emerald → sky → indigo → slate
+  // ─── 品牌色系 — 10段细分光谱 ───
+  // 翡翠 → 薄荷 → 青绿 → 天蓝 → 钴蓝 → 靛蓝 → 紫罗兰 → 香槟金 → 银灰 → 深岩
   const getHeatStyle = (score) => {
-    if (score < 25) return {
-      bg: 'bg-gradient-to-br from-emerald-50/90 to-teal-50/70',
+    // 0-10: 翡翠 Emerald — 最安全，清新透亮
+    if (score < 10) return {
+      bg: 'bg-gradient-to-br from-emerald-50/90 to-green-50/70',
       border: 'border-emerald-200/50',
       text: 'text-emerald-700',
       glow: '',
       dot: 'from-emerald-200 to-emerald-300 border-emerald-300/60',
-      orb: 'radial-gradient(circle at 38% 38%, #a7f3d0, #6ee7b7 40%, #34d399 75%, #10b981)',
-      orbShadow: '0 0 14px 2px rgba(16,185,129,0.25)',
+      orb: 'radial-gradient(circle at 36% 36%, #d1fae5, #a7f3d0 35%, #6ee7b7 65%, #34d399)',
+      orbShadow: '0 0 14px 2px rgba(52,211,153,0.28)',
     }
-    if (score < 40) return {
+    // 10-20: 薄荷 Mint — 清凉微甜
+    if (score < 20) return {
+      bg: 'bg-gradient-to-br from-emerald-50/85 to-teal-50/70',
+      border: 'border-teal-200/50',
+      text: 'text-teal-700',
+      glow: '',
+      dot: 'from-teal-200 to-teal-300 border-teal-300/60',
+      orb: 'radial-gradient(circle at 36% 36%, #ccfbf1, #99f6e4 35%, #5eead4 65%, #2dd4bf)',
+      orbShadow: '0 0 14px 2px rgba(45,212,191,0.28)',
+    }
+    // 20-30: 青绿 Teal → Cyan — 过渡到冷调
+    if (score < 30) return {
+      bg: 'bg-gradient-to-br from-teal-50/85 to-cyan-50/70',
+      border: 'border-cyan-200/50',
+      text: 'text-teal-700',
+      glow: '',
+      dot: 'from-cyan-200 to-cyan-300 border-cyan-300/60',
+      orb: 'radial-gradient(circle at 36% 36%, #cffafe, #a5f3fc 35%, #67e8f9 65%, #22d3ee)',
+      orbShadow: '0 0 14px 2px rgba(34,211,238,0.28)',
+    }
+    // 30-38: 天蓝 Sky — 清澈开阔
+    if (score < 38) return {
       bg: 'bg-gradient-to-br from-sky-50/90 to-cyan-50/70',
       border: 'border-sky-200/50',
       text: 'text-sky-700',
       glow: '',
       dot: 'from-sky-200 to-sky-300 border-sky-300/60',
-      orb: 'radial-gradient(circle at 38% 38%, #bae6fd, #7dd3fc 40%, #38bdf8 75%, #0ea5e9)',
-      orbShadow: '0 0 14px 2px rgba(14,165,233,0.25)',
+      orb: 'radial-gradient(circle at 36% 36%, #bae6fd, #7dd3fc 35%, #38bdf8 65%, #0ea5e9)',
+      orbShadow: '0 0 14px 2px rgba(14,165,233,0.28)',
     }
-    if (score < 60) return {
-      bg: 'bg-gradient-to-br from-indigo-50/85 to-violet-50/60',
+    // 38-46: 钴蓝 Cobalt — 深邃沉稳
+    if (score < 46) return {
+      bg: 'bg-gradient-to-br from-sky-50/85 to-blue-50/65',
+      border: 'border-blue-200/50',
+      text: 'text-blue-700',
+      glow: 'shadow-[0_0_10px_-4px_rgba(59,130,246,0.15)]',
+      dot: 'from-blue-200 to-blue-300 border-blue-300/60',
+      orb: 'radial-gradient(circle at 36% 36%, #bfdbfe, #93c5fd 35%, #60a5fa 65%, #3b82f6)',
+      orbShadow: '0 0 14px 2px rgba(59,130,246,0.28)',
+    }
+    // 46-54: 靛蓝 Indigo — 神秘张力
+    if (score < 54) return {
+      bg: 'bg-gradient-to-br from-indigo-50/85 to-violet-50/55',
       border: 'border-indigo-200/50',
       text: 'text-indigo-700',
-      glow: 'shadow-[0_0_12px_-4px_rgba(99,102,241,0.2)]',
+      glow: 'shadow-[0_0_12px_-4px_rgba(99,102,241,0.18)]',
       dot: 'from-indigo-200 to-indigo-300 border-indigo-300/60',
-      orb: 'radial-gradient(circle at 38% 38%, #c7d2fe, #a5b4fc 40%, #818cf8 75%, #6366f1)',
-      orbShadow: '0 0 14px 2px rgba(99,102,241,0.25)',
+      orb: 'radial-gradient(circle at 36% 36%, #c7d2fe, #a5b4fc 35%, #818cf8 65%, #6366f1)',
+      orbShadow: '0 0 14px 2px rgba(99,102,241,0.28)',
     }
-    return {
-      bg: 'bg-gradient-to-br from-slate-100/90 to-slate-50/70',
-      border: 'border-slate-300/50',
+    // 54-64: 紫罗兰 Violet — 优雅深沉
+    if (score < 64) return {
+      bg: 'bg-gradient-to-br from-violet-50/80 to-purple-50/55',
+      border: 'border-violet-200/50',
+      text: 'text-violet-700',
+      glow: 'shadow-[0_0_12px_-4px_rgba(139,92,246,0.18)]',
+      dot: 'from-violet-200 to-violet-300 border-violet-300/60',
+      orb: 'radial-gradient(circle at 36% 36%, #ddd6fe, #c4b5fd 35%, #a78bfa 65%, #8b5cf6)',
+      orbShadow: '0 0 14px 2px rgba(139,92,246,0.28)',
+    }
+    // 64-76: 香槟金 Champagne — 精英叙事
+    if (score < 76) return {
+      bg: 'bg-gradient-to-br from-amber-50/70 to-yellow-50/50',
+      border: 'border-amber-200/50',
+      text: 'text-amber-700',
+      glow: 'shadow-[0_0_12px_-4px_rgba(245,158,11,0.18)]',
+      dot: 'from-amber-200 to-amber-300 border-amber-300/60',
+      orb: 'radial-gradient(circle at 36% 36%, #fef3c7, #fde68a 35%, #fbbf24 65%, #f59e0b)',
+      orbShadow: '0 0 14px 2px rgba(245,158,11,0.28)',
+    }
+    // 76-88: 银灰 Silver — 冷静克制
+    if (score < 88) return {
+      bg: 'bg-gradient-to-br from-slate-50/90 to-stone-50/70',
+      border: 'border-slate-200/60',
       text: 'text-slate-700',
-      glow: 'shadow-[0_0_14px_-4px_rgba(100,116,139,0.25)]',
+      glow: 'shadow-[0_0_14px_-4px_rgba(100,116,139,0.2)]',
+      dot: 'from-slate-200 to-slate-300 border-slate-300/60',
+      orb: 'radial-gradient(circle at 36% 36%, #f1f5f9, #e2e8f0 35%, #cbd5e1 65%, #94a3b8)',
+      orbShadow: '0 0 14px 2px rgba(148,163,184,0.28)',
+    }
+    // 88-100: 深岩 Obsidian — 极端区域
+    return {
+      bg: 'bg-gradient-to-br from-slate-100/90 to-zinc-100/70',
+      border: 'border-slate-300/60',
+      text: 'text-slate-800',
+      glow: 'shadow-[0_0_16px_-4px_rgba(71,85,105,0.25)]',
       dot: 'from-slate-300 to-slate-400 border-slate-400/60',
-      orb: 'radial-gradient(circle at 38% 38%, #e2e8f0, #cbd5e1 40%, #94a3b8 75%, #64748b)',
-      orbShadow: '0 0 14px 2px rgba(100,116,139,0.25)',
+      orb: 'radial-gradient(circle at 36% 36%, #e2e8f0, #cbd5e1 30%, #94a3b8 55%, #64748b 80%, #475569)',
+      orbShadow: '0 0 16px 3px rgba(71,85,105,0.3)',
     }
   }
 
@@ -455,24 +519,13 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
       {/* 图例 + 统计 */}
       <div className="relative px-6 pb-5 pt-3">
         <div className="flex items-center justify-between border-t border-stone-100 pt-4">
-          {/* 图例 — 品牌色系 */}
-          <div className="flex items-center gap-4 text-[11px] text-stone-400">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-[3px] bg-gradient-to-br from-emerald-100 to-emerald-200 border border-emerald-300/50" />
-              <span>0-25</span>
+          {/* 图例 — 连续色谱 */}
+          <div className="flex items-center gap-1 text-[11px] text-stone-400">
+            <span className="mr-1">0</span>
+            <div className="flex h-2.5 rounded-full overflow-hidden" style={{ width: '140px' }}>
+              <div className="flex-1" style={{ background: 'linear-gradient(90deg, #34d399, #2dd4bf, #22d3ee, #0ea5e9, #3b82f6, #6366f1, #8b5cf6, #f59e0b, #94a3b8, #64748b)' }} />
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-[3px] bg-gradient-to-br from-sky-100 to-sky-200 border border-sky-300/50" />
-              <span>25-40</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-[3px] bg-gradient-to-br from-indigo-100 to-indigo-200 border border-indigo-300/50" />
-              <span>40-60</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-[3px] bg-gradient-to-br from-slate-200 to-slate-300 border border-slate-400/50" />
-              <span>60-100</span>
-            </div>
+            <span className="ml-1">100</span>
           </div>
 
           {/* 统计数字 */}
