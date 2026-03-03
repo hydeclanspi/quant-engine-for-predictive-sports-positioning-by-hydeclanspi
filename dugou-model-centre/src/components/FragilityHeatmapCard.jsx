@@ -150,16 +150,16 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <TrendingUp size={16} className="text-sky-500" />
-            <h3 className="font-medium text-stone-700">依赖风险矩阵</h3>
+            <h3 className="font-medium text-stone-700">依赖风险矩阵智能</h3>
           </div>
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[10px] border border-sky-200/80 bg-[linear-gradient(120deg,rgba(224,242,254,0.86),rgba(255,255,255,0.9)_52%,rgba(224,242,254,0.84))] text-[11px] font-medium text-sky-700 tracking-[0.02em] shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_10px_22px_-18px_rgba(14,165,233,0.5)] backdrop-blur-[1px]">
             <Activity size={12} strokeWidth={1.9} className="text-sky-500" />
-            脆弱性评分 0-100%
+            冰裂共振评分 0-100%
           </span>
         </div>
         <p className="text-sm text-stone-400">
           {matches.length === 0
-            ? '点击「生成最优组合」后，此处将展示比赛对之间的依赖风险分析'
+            ? '在 dataset 的结算积累中学习和进化。点击「生成最优组合」后，此处将展示比赛对之间的依赖风险与相关性分析'
             : '只有 1 场比赛，需要至少 2 场来分析依赖关系'}
         </p>
       </div>
@@ -172,7 +172,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <TrendingUp size={16} className="text-sky-500" />
-          <h3 className="font-medium text-stone-700">依赖风险矩阵</h3>
+          <h3 className="font-medium text-stone-700">依赖风险矩阵智能</h3>
           {fragilityMatrix.some(m => m.score > 40) && (
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-600 font-medium">
               ⚠️ 高风险对
@@ -181,7 +181,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
         </div>
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[10px] border border-sky-200/80 bg-[linear-gradient(120deg,rgba(224,242,254,0.86),rgba(255,255,255,0.9)_52%,rgba(224,242,254,0.84))] text-[11px] font-medium text-sky-700 tracking-[0.02em] shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_10px_22px_-18px_rgba(14,165,233,0.5)] backdrop-blur-[1px]">
           <Activity size={12} strokeWidth={1.9} className="text-sky-500" />
-          脆弱性评分 0-100%
+          冰裂共振评分 0-100%
         </span>
       </div>
 
