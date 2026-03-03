@@ -4,27 +4,19 @@ import { assessComboFragility } from '../lib/analytics'
 import { getInvestments } from '../lib/localData'
 
 /**
- * 脆弱性热力图卡片
+ * 依赖风险矩阵智能 — 冰裂共振评分热力图
  *
- * 在矩阵中展示比赛对的脆弱性评分
- * - 实时计算：当 matches 变化时立即更新
- * - 颜色编码：绿→黄→橙→红，对应 0-100% 脆弱性
- * - 点击交互：显示比赛对的详细分析
+ * 全幅矩阵设计，球队完整名称，玻璃质感
  */
 export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSelectPair = null }) {
-    // 历史数据缓存：从已完成的投资中提取
+  // 历史数据缓存
   const historicalData = useMemo(() => {
     const investments = getInvestments()
-    
-    // 筛选已结算的组合投注（至少2场比赛且有结果数据）
     const settledInvestments = investments
       .filter(inv => {
         const matches = Array.isArray(inv.matches) ? inv.matches : []
-        // 必须至少有2场比赛才能做依赖性分析
         if (matches.length < 2) return false
-        // 必须有比赛结果（is_correct 是主要字段）
         const hasMatchResults = matches.some(m => typeof m.is_correct === 'boolean')
-        // 必须是已结算的（有收益数据或状态标记）
         const hasRevenues = inv.revenues !== undefined && inv.revenues !== null
         const isSettled = inv.status === 'win' || inv.status === 'lose' || inv.status === 'settled' || inv.status === 'settled_win' || inv.status === 'settled_loss'
         return hasMatchResults && (hasRevenues || isSettled)
@@ -35,7 +27,6 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
         return {
           matches: matches.map(m => ({
             odds: Number(m.odds) || 1,
-            // is_correct 是我们数据中的主要结果字段
             result: typeof m.is_correct === 'boolean' ? m.is_correct : undefined,
           })),
           succeeded: Number(inv.revenues || 0) > 0 || inv.status === 'settled_win' || inv.status === 'win',
@@ -43,43 +34,12 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
         }
       })
       .filter(d => d.matches.length >= 2 && d.matches.some(m => m.result !== undefined))
-    
-    // 调试输出
-    const allCombos = investments.filter(inv => (Array.isArray(inv.matches) ? inv.matches : []).length >= 2)
-    const settledCombos = allCombos.filter(inv => {
-      const hasMatchResults = (inv.matches || []).some(m => typeof m.is_correct === 'boolean')
-      const hasRevenues = inv.revenues !== undefined && inv.revenues !== null
-      const isSettled = inv.status === 'win' || inv.status === 'lose' || inv.status === 'settled' || inv.status === 'settled_win' || inv.status === 'settled_loss'
-      return hasMatchResults && (hasRevenues || isSettled)
-    })
-
-    const totalMatches = settledInvestments.reduce((sum, inv) => sum + inv.matches.length, 0)
-    const failedMatches = settledInvestments.reduce((sum, inv) => sum + inv.matches.filter(m => m.result === false).length, 0)
-    const wonMatches = settledInvestments.reduce((sum, inv) => sum + inv.matches.filter(m => m.result === true).length, 0)
-
-    console.log('🔍 FragilityHeatmap Debug:', {
-      totalInvestments: investments.length,
-      combosWithMultipleMatches: allCombos.length,
-      settledCombosUsed: settledInvestments.length,
-      totalMatches,
-      wonMatches,
-      failedMatches,
-      sampleCombo: settledInvestments[0] || 'none',
-    })
-    if (settledCombos.length > 0 && settledInvestments.length === 0) {
-      console.warn('⚠️ Found settled combos but none passed filter! Sample:', settledCombos.slice(0, 2).map(inv => ({
-        id: inv.id, status: inv.status, revenues: inv.revenues,
-        matchCount: inv.matches?.length,
-        is_correct_values: (inv.matches || []).map(m => m.is_correct),
-      })))
-    }
     return settledInvestments
   }, [])
 
-  // 脆弱性分析：计算所有比赛对的脆弱性评分
+  // 脆弱性矩阵计算
   const fragilityMatrix = useMemo(() => {
     if (matches.length < 2) return []
-
     const result = []
     for (let i = 0; i < matches.length; i++) {
       for (let j = i + 1; j < matches.length; j++) {
@@ -88,27 +48,6 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
           historicalData
         )
         const score = assessment.overallFragility || 0
-
-        // 调试第一对
-        if (i === 0 && j === 1) {
-          const pa = assessment.pairAnalysis?.[0]?.assessment
-          console.log('🔬 Pair [0,1] detail:', {
-            oddsA: matches[i]?.odds, oddsB: matches[j]?.odds,
-            overallFragility: assessment.overallFragility,
-            fragilityScore: pa?.fragilityScore,
-            riskLevel: pa?.riskLevel,
-            confidence: pa?.confidence,
-            premium: pa?.components?.premium?.premium,
-            pFailA: pa?.components?.premium?.pFailA,
-            pFailB: pa?.components?.premium?.pFailB,
-            pFailBothObserved: pa?.components?.premium?.pFailBothObserved,
-            pFailBothIndependent: pa?.components?.premium?.pFailBothIndependent,
-            sampleSize: pa?.components?.premium?.sampleSize,
-            observedFailedCount: pa?.components?.premium?.observedFailedCount,
-            weightedCount: pa?.components?.premium?.weightedCount,
-          })
-        }
-
         result.push({
           i,
           j,
@@ -122,42 +61,64 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
     return result
   }, [matches, historicalData])
 
-  // 颜色映射函数
-  const getHeatColor = (score) => {
-    // score: 0-100
-    if (score < 25) return { bg: 'bg-emerald-100', border: 'border-emerald-300', text: 'text-emerald-900' }
-    if (score < 40) return { bg: 'bg-amber-100', border: 'border-amber-300', text: 'text-amber-900' }
-    if (score < 60) return { bg: 'bg-orange-100', border: 'border-orange-300', text: 'text-orange-900' }
-    return { bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-900' }
-  }
-
-  const getRiskIcon = (riskLevel) => {
-    switch (riskLevel) {
-      case 'critical':
-        return '🚨'
-      case 'high':
-        return '⛔'
-      case 'medium':
-        return '⚠️'
-      default:
-        return '✅'
+  // 颜色系统 — 玻璃质感渐变
+  const getHeatStyle = (score) => {
+    if (score < 25) return {
+      bg: 'bg-gradient-to-br from-emerald-50/80 to-emerald-100/60',
+      border: 'border-emerald-200/60',
+      text: 'text-emerald-700',
+      glow: '',
+    }
+    if (score < 40) return {
+      bg: 'bg-gradient-to-br from-amber-50/80 to-amber-100/60',
+      border: 'border-amber-200/60',
+      text: 'text-amber-700',
+      glow: '',
+    }
+    if (score < 60) return {
+      bg: 'bg-gradient-to-br from-orange-50/80 to-orange-100/60',
+      border: 'border-orange-200/70',
+      text: 'text-orange-700',
+      glow: 'shadow-[0_0_12px_-4px_rgba(251,146,60,0.3)]',
+    }
+    return {
+      bg: 'bg-gradient-to-br from-rose-50/80 to-rose-100/60',
+      border: 'border-rose-200/70',
+      text: 'text-rose-700',
+      glow: 'shadow-[0_0_16px_-4px_rgba(244,63,94,0.3)]',
     }
   }
 
+  // 截断球队名
+  const formatTeamName = (match, idx) => {
+    if (match.teamName && match.teamName.length > 0) return match.teamName
+    return `Match ${idx + 1}`
+  }
+
+  // 统计
+  const avgScore = fragilityMatrix.length > 0
+    ? (fragilityMatrix.reduce((s, m) => s + m.score, 0) / fragilityMatrix.length).toFixed(1)
+    : '—'
+  const highRiskCount = fragilityMatrix.filter(m => m.score > 40).length
+
+  // ─── 空状态 ───
   if (matches.length < 2) {
     return (
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <TrendingUp size={16} className="text-sky-500" />
-            <h3 className="font-medium text-stone-700">依赖风险矩阵智能</h3>
+      <div className="glow-card relative overflow-hidden rounded-2xl border border-stone-100 bg-white p-6">
+        <div className="pointer-events-none absolute -top-20 -right-20 h-52 w-52 rounded-full bg-sky-100/30 blur-3xl" />
+        <div className="relative flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-sky-50 to-sky-100/80 border border-sky-200/50">
+              <TrendingUp size={14} strokeWidth={2} className="text-sky-500" />
+            </div>
+            <h3 className="font-medium text-stone-700 tracking-tight">依赖风险矩阵智能</h3>
           </div>
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[10px] border border-sky-200/80 bg-[linear-gradient(120deg,rgba(224,242,254,0.86),rgba(255,255,255,0.9)_52%,rgba(224,242,254,0.84))] text-[11px] font-medium text-sky-700 tracking-[0.02em] shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_10px_22px_-18px_rgba(14,165,233,0.5)] backdrop-blur-[1px]">
             <Activity size={12} strokeWidth={1.9} className="text-sky-500" />
             冰裂共振评分 0-100%
           </span>
         </div>
-        <p className="text-sm text-stone-400">
+        <p className="relative text-sm text-stone-400 leading-relaxed">
           {matches.length === 0
             ? '在 dataset 的结算积累中学习和进化。点击「生成最优组合」后，此处将展示比赛对之间的依赖风险与相关性分析'
             : '只有 1 场比赛，需要至少 2 场来分析依赖关系'}
@@ -166,193 +127,179 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
     )
   }
 
+  // ─── 主视图 ───
   return (
-    <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6">
-      {/* 标题 */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <TrendingUp size={16} className="text-sky-500" />
-          <h3 className="font-medium text-stone-700">依赖风险矩阵智能</h3>
-          {fragilityMatrix.some(m => m.score > 40) && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-600 font-medium">
-              ⚠️ 高风险对
-            </span>
-          )}
+    <div className="glow-card relative overflow-hidden rounded-2xl border border-stone-100 bg-white">
+      {/* 背景光晕 */}
+      <div className="pointer-events-none absolute -top-24 -right-24 h-56 w-56 rounded-full bg-sky-100/25 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 -left-16 h-44 w-44 rounded-full bg-violet-100/15 blur-3xl" />
+
+      {/* 头部 */}
+      <div className="relative px-6 pt-6 pb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-sky-50 to-sky-100/80 border border-sky-200/50">
+              <TrendingUp size={14} strokeWidth={2} className="text-sky-500" />
+            </div>
+            <h3 className="font-medium text-stone-700 tracking-tight">依赖风险矩阵智能</h3>
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[10px] border border-sky-200/80 bg-[linear-gradient(120deg,rgba(224,242,254,0.86),rgba(255,255,255,0.9)_52%,rgba(224,242,254,0.84))] text-[11px] font-medium text-sky-700 tracking-[0.02em] shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_10px_22px_-18px_rgba(14,165,233,0.5)] backdrop-blur-[1px]">
+            <Activity size={12} strokeWidth={1.9} className="text-sky-500" />
+            冰裂共振评分 0-100%
+          </span>
         </div>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[10px] border border-sky-200/80 bg-[linear-gradient(120deg,rgba(224,242,254,0.86),rgba(255,255,255,0.9)_52%,rgba(224,242,254,0.84))] text-[11px] font-medium text-sky-700 tracking-[0.02em] shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_10px_22px_-18px_rgba(14,165,233,0.5)] backdrop-blur-[1px]">
-          <Activity size={12} strokeWidth={1.9} className="text-sky-500" />
-          冰裂共振评分 0-100%
-        </span>
       </div>
 
-      {/* 矩阵热力图 */}
-      <div className="overflow-x-auto">
-        <div className="inline-block min-w-full">
-          {/* 列标题 */}
-          <div className="flex items-start">
-            <div className="w-12 h-12" />
-            {matches.map((match, idx) => (
-              <div
-                key={`col-${idx}`}
-                className="w-12 h-12 flex items-center justify-center text-xs font-semibold text-stone-600 border-b border-stone-200"
-              >
-                {idx + 1}
-              </div>
-            ))}
-          </div>
-
-          {/* 行 */}
-          {matches.map((rowMatch, rowIdx) => (
-            <div key={`row-${rowIdx}`} className="flex items-stretch">
-              {/* 行标题 */}
-              <div className="w-12 h-12 flex items-center justify-center text-xs font-semibold text-stone-600 border-r border-stone-200 bg-stone-50">
-                {rowIdx + 1}
-              </div>
-
-              {/* 单元格 */}
-              {matches.map((_, colIdx) => {
-                if (colIdx <= rowIdx) {
-                  // 下三角：空白
-                  return (
-                    <div
-                      key={`cell-${rowIdx}-${colIdx}`}
-                      className="w-12 h-12 bg-stone-50 border border-stone-100"
-                    />
-                  )
-                }
-
-                // 上三角：脆弱性分数
-                const pairData = fragilityMatrix.find(m => m.i === rowIdx && m.j === colIdx)
-                if (!pairData) return null
-
-                const colors = getHeatColor(pairData.score)
-                const isSelected = expandedPair && expandedPair.i === rowIdx && expandedPair.j === colIdx
-                const isHighRisk = pairData.score > 40
-
-                return (
-                  <button
-                    key={`cell-${rowIdx}-${colIdx}`}
-                    onClick={() => onSelectPair?.(pairData)}
-                    className={`w-12 h-12 border-2 flex flex-col items-center justify-center text-[9px] font-semibold transition-all hover:shadow-md cursor-pointer ${
-                      isSelected ? `${colors.bg} ${colors.border} ring-2 ring-purple-400` : `${colors.bg} ${colors.border}`
-                    } ${colors.text}`}
-                    title={`比赛 ${rowIdx + 1} × ${colIdx + 1}: ${pairData.score}% ${getRiskIcon(pairData.riskLevel)}`}
+      {/* 全幅矩阵 */}
+      <div className="relative px-6 pb-2">
+        <div className="w-full overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                <th className="w-0" />
+                {matches.map((match, idx) => (
+                  <th
+                    key={`col-${idx}`}
+                    className="px-1.5 py-2.5 text-[11px] font-medium text-stone-400 tracking-wide text-center whitespace-nowrap"
                   >
-                    <div>{pairData.score}</div>
-                    <div className="text-[7px] opacity-70">%</div>
-                  </button>
-                )
-              })}
-            </div>
-          ))}
+                    {formatTeamName(match, idx)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {matches.map((rowMatch, rowIdx) => (
+                <tr key={`row-${rowIdx}`}>
+                  {/* 行标题 */}
+                  <td className="pr-3 py-1.5 text-[11px] font-medium text-stone-400 tracking-wide text-right whitespace-nowrap align-middle">
+                    {formatTeamName(rowMatch, rowIdx)}
+                  </td>
+
+                  {/* 单元格 */}
+                  {matches.map((_, colIdx) => {
+                    if (colIdx <= rowIdx) {
+                      return (
+                        <td key={`cell-${rowIdx}-${colIdx}`} className="p-1">
+                          <div className="h-14 rounded-lg bg-stone-50/50 border border-stone-100/60" />
+                        </td>
+                      )
+                    }
+
+                    const pairData = fragilityMatrix.find(m => m.i === rowIdx && m.j === colIdx)
+                    if (!pairData) return <td key={`cell-${rowIdx}-${colIdx}`} className="p-1" />
+
+                    const style = getHeatStyle(pairData.score)
+                    const isSelected = expandedPair && expandedPair.i === rowIdx && expandedPair.j === colIdx
+
+                    return (
+                      <td key={`cell-${rowIdx}-${colIdx}`} className="p-1">
+                        <button
+                          onClick={() => onSelectPair?.(pairData)}
+                          className={`w-full h-14 rounded-lg border backdrop-blur-[2px] flex flex-col items-center justify-center transition-all duration-200 cursor-pointer
+                            ${style.bg} ${style.border} ${style.text} ${style.glow}
+                            ${isSelected
+                              ? 'ring-2 ring-sky-400/60 ring-offset-1 scale-[1.03]'
+                              : 'hover:scale-[1.02] hover:shadow-md'
+                            }`}
+                        >
+                          <span className="text-base font-semibold leading-none tabular-nums">{pairData.score}</span>
+                          <span className="text-[9px] opacity-50 mt-0.5">%</span>
+                        </button>
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* 图例与统计 */}
-      <div className="mt-4 pt-4 border-t border-stone-100 space-y-3">
-        {/* 颜色图例 */}
-        <div className="flex items-center gap-4 flex-wrap text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-emerald-100 border border-emerald-300" />
-            <span className="text-stone-600">0-25% (安全)</span>
+      {/* 图例 + 统计 */}
+      <div className="relative px-6 pb-5 pt-3">
+        <div className="flex items-center justify-between border-t border-stone-100 pt-4">
+          {/* 图例 */}
+          <div className="flex items-center gap-4 text-[11px] text-stone-400">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-[3px] bg-gradient-to-br from-emerald-100 to-emerald-200 border border-emerald-300/50" />
+              <span>0-25%</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-[3px] bg-gradient-to-br from-amber-100 to-amber-200 border border-amber-300/50" />
+              <span>25-40%</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-[3px] bg-gradient-to-br from-orange-100 to-orange-200 border border-orange-300/50" />
+              <span>40-60%</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-[3px] bg-gradient-to-br from-rose-100 to-rose-200 border border-rose-300/50" />
+              <span>60-100%</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-amber-100 border border-amber-300" />
-            <span className="text-stone-600">25-40% (注意)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-orange-100 border border-orange-300" />
-            <span className="text-stone-600">40-60% (风险)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-red-100 border border-red-300" />
-            <span className="text-stone-600">60-100% (危险)</span>
+
+          {/* 统计数字 */}
+          <div className="flex items-center gap-5 text-[11px]">
+            <div className="text-right">
+              <span className="text-stone-400">Avg</span>
+              <span className="ml-1.5 font-semibold text-stone-600 tabular-nums">{avgScore}%</span>
+            </div>
+            <div className="text-right">
+              <span className="text-stone-400">Elevated</span>
+              <span className="ml-1.5 font-semibold text-stone-600 tabular-nums">{highRiskCount}/{fragilityMatrix.length}</span>
+            </div>
+            <div className="text-right">
+              <span className="text-stone-400">Samples</span>
+              <span className="ml-1.5 font-semibold text-stone-600 tabular-nums">{historicalData.length}</span>
+            </div>
           </div>
         </div>
-
-        {/* 统计信息 */}
-        {fragilityMatrix.length > 0 && (
-          <div className="grid grid-cols-3 gap-3 pt-2">
-            {/* 平均脆弱性 */}
-            <div className="bg-stone-50 rounded-lg p-2">
-              <p className="text-[10px] text-stone-500 uppercase tracking-wider">平均脆弱性</p>
-              <p className="text-sm font-semibold text-stone-700">
-                {(fragilityMatrix.reduce((sum, m) => sum + m.score, 0) / fragilityMatrix.length).toFixed(1)}%
-              </p>
-            </div>
-
-            {/* 高风险对数 */}
-            <div className="bg-orange-50 rounded-lg p-2">
-              <p className="text-[10px] text-orange-600 uppercase tracking-wider">高风险对</p>
-              <p className="text-sm font-semibold text-orange-700">
-                {fragilityMatrix.filter(m => m.score > 40).length} / {fragilityMatrix.length}
-              </p>
-            </div>
-
-            {/* 样本量 */}
-            <div className="bg-purple-50 rounded-lg p-2">
-              <p className="text-[10px] text-purple-600 uppercase tracking-wider">历史样本</p>
-              <p className="text-sm font-semibold text-purple-700">{historicalData.length}</p>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* 详细信息面板 */}
+      {/* 展开详情面板 */}
       {expandedPair && (
-        <div className="mt-4 pt-4 border-t border-stone-100 bg-gradient-to-br from-purple-50 to-violet-50 rounded-lg p-3 animate-fade-in">
-          <div className="flex items-start justify-between mb-2">
+        <div className="mx-6 mb-6 rounded-xl border border-sky-100/80 bg-gradient-to-br from-sky-50/50 via-white to-violet-50/30 p-4 backdrop-blur-sm">
+          <div className="flex items-start justify-between mb-3">
             <div>
-              <p className="text-xs font-semibold text-purple-700 uppercase tracking-wider">
-                比赛 {expandedPair.i + 1} × 比赛 {expandedPair.j + 1}
+              <p className="text-xs font-semibold text-sky-700 tracking-wide">
+                {formatTeamName(matches[expandedPair.i], expandedPair.i)} &times; {formatTeamName(matches[expandedPair.j], expandedPair.j)}
               </p>
-              <p className="text-[11px] text-stone-600 mt-0.5">
-                赔率: {matches[expandedPair.i]?.odds?.toFixed(2)} × {matches[expandedPair.j]?.odds?.toFixed(2)}
+              <p className="text-[11px] text-stone-400 mt-0.5">
+                Odds {matches[expandedPair.i]?.odds?.toFixed(2)} &times; {matches[expandedPair.j]?.odds?.toFixed(2)}
               </p>
             </div>
             <button
               onClick={() => onSelectPair?.(null)}
-              className="text-xs text-purple-400 hover:text-purple-600"
+              className="flex h-5 w-5 items-center justify-center rounded-md text-stone-300 hover:text-stone-500 hover:bg-stone-100 transition-colors"
             >
-              ✕
+              <span className="text-xs leading-none">&times;</span>
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div className="text-[11px]">
-              <span className="text-stone-500">脆弱性分数</span>
-              <p className="text-sm font-semibold text-stone-700">{expandedPair.score}%</p>
+          <div className="grid grid-cols-4 gap-3">
+            <div>
+              <p className="text-[10px] text-stone-400 mb-0.5">Resonance</p>
+              <p className="text-sm font-semibold text-stone-700 tabular-nums">{expandedPair.score}%</p>
             </div>
-            <div className="text-[11px]">
-              <span className="text-stone-500">风险等级</span>
-              <p className="text-sm font-semibold text-stone-700">
-                {getRiskIcon(expandedPair.riskLevel)} {expandedPair.riskLevel}
-              </p>
+            <div>
+              <p className="text-[10px] text-stone-400 mb-0.5">Level</p>
+              <p className="text-sm font-semibold text-stone-700 capitalize">{expandedPair.riskLevel}</p>
             </div>
             {expandedPair.confidence !== undefined && (
-              <div className="text-[11px]">
-                <span className="text-stone-500">置信度</span>
-                <p className="text-sm font-semibold text-stone-700">{(expandedPair.confidence * 100).toFixed(0)}%</p>
+              <div>
+                <p className="text-[10px] text-stone-400 mb-0.5">Confidence</p>
+                <p className="text-sm font-semibold text-stone-700 tabular-nums">{(expandedPair.confidence * 100).toFixed(0)}%</p>
               </div>
             )}
             {expandedPair.isSignificant !== undefined && (
-              <div className="text-[11px]">
-                <span className="text-stone-500">统计显著性</span>
+              <div>
+                <p className="text-[10px] text-stone-400 mb-0.5">Significance</p>
                 <p className="text-sm font-semibold text-stone-700">
-                  {expandedPair.isSignificant ? '✓ 显著' : '○ 不显著'}
+                  {expandedPair.isSignificant ? 'Significant' : 'Not significant'}
                 </p>
               </div>
             )}
           </div>
-
-          {expandedPair.score > 40 && (
-            <div className="mt-2 pt-2 border-t border-purple-200/50 flex items-start gap-2">
-              <AlertTriangle size={12} className="text-orange-500 mt-0.5 flex-shrink-0" />
-              <p className="text-[10px] text-orange-700">
-                这对比赛的失败风险高度相关。考虑避免同时投注或分割成独立组合。
-              </p>
-            </div>
-          )}
         </div>
       )}
     </div>
