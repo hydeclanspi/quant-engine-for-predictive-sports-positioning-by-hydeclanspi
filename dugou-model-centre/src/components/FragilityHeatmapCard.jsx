@@ -277,11 +277,19 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                   <div className="rounded-xl bg-gradient-to-br from-indigo-50/50 via-white to-violet-50/25 border border-indigo-100/60 p-3.5">
                     <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2.5">Co-failure Rate</p>
                     <div className="space-y-2">
-                      {/* 迷你双柱对比 — 以较大值为100%基准缩放 */}
+                      {/* 迷你双柱对比 — 黄金比例等比放大 */}
                       {Number.isFinite(pFailBothObserved) && Number.isFinite(pFailBothIndependent) && (() => {
-                        const maxRate = Math.max(pFailBothObserved, pFailBothIndependent, 0.01)
-                        const obsWidth = (pFailBothObserved / maxRate) * 100
-                        const expWidth = (pFailBothIndependent / maxRate) * 100
+                        // 等比放大规则：两条保持真实比例，较大条占 ~φ/(1+φ) ≈ 62% 空间
+                        // 阈值分档：max<10% → 较大条占62%, <25% → 68%, <50% → 78%, ≥50% → 直接映射
+                        const maxRate = Math.max(pFailBothObserved, pFailBothIndependent, 0.001)
+                        let targetMax // 较大条应该显示的百分比宽度
+                        if (maxRate < 0.10) targetMax = 62
+                        else if (maxRate < 0.25) targetMax = 68
+                        else if (maxRate < 0.50) targetMax = 78
+                        else targetMax = Math.min(maxRate * 100 * 1.15, 96)
+                        const scale = targetMax / (maxRate * 100)
+                        const obsWidth = Math.max(pFailBothObserved * 100 * scale, 4)
+                        const expWidth = Math.max(pFailBothIndependent * 100 * scale, 4)
                         return (
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-2">
