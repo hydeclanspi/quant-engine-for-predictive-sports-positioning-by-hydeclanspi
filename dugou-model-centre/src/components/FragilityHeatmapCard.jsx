@@ -156,15 +156,20 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
     // 从 components 中提取详细数据
     const premium = expandedPair.components?.premium || {}
     const bias = expandedPair.components?.bias || {}
+    const adjusted = expandedPair.components?.adjusted || {}
 
     const pFailA = premium.pFailA
     const pFailB = premium.pFailB
     const pFailBothObserved = premium.pFailBothObserved
     const pFailBothIndependent = premium.pFailBothIndependent
     const sampleSize = premium.sampleSize || 0
-    const pValue = premium.pValue
     const premiumValue = premium.premium
+    const observedFailedCount = premium.observedFailedCount || 0
     const hasBias = bias.hasBias || false
+    const biasStrength = bias.biasStrength || 0
+    const matchedExact = bias.investedInTarget || 0
+    const matchedNeighbor = bias.investedInSimilar || 0
+    const globalFailureRate = adjusted.globalFailureRate
 
     return (
       <div className="mx-6 mb-6 mt-1">
@@ -202,7 +207,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
 
           {/* 核心指标网格 — 非对称模块布局 */}
           <div className="relative px-5 pb-4">
-            {/* 第一行：左大右小的非对称布局 */}
+            {/* 第一行：左大右小的非对称布局 — 4模块 */}
             <div className="grid grid-cols-5 gap-2.5">
 
               {/* 主模块：共振评分 — 占2列 */}
@@ -224,21 +229,25 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                 <p className="text-sm font-semibold text-stone-700 capitalize leading-tight">{getLevelLabel(expandedPair.riskLevel)}</p>
               </div>
 
-              {/* 模块：Confidence */}
+              {/* 模块：Confidence — 含样本量说明 */}
               <div className="rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5">
                 <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Confidence</p>
                 <div className="flex items-baseline gap-0.5">
                   <span className="text-sm font-semibold text-stone-700 tabular-nums leading-tight">{(expandedPair.confidence * 100).toFixed(0)}</span>
                   <span className="text-[10px] text-stone-400">%</span>
                 </div>
+                {sampleSize > 0 && (
+                  <p className="text-[9px] text-stone-400 mt-1 tabular-nums">{sampleSize} samples</p>
+                )}
               </div>
 
-              {/* 模块：Significance */}
+              {/* 模块：Co-failure — 替代 Stat.Sig. */}
               <div className="rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5">
-                <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Stat. Sig.</p>
-                <p className="text-sm font-semibold text-stone-700 leading-tight">
-                  {expandedPair.isSignificant ? 'Yes' : 'No'}
+                <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Co-failure</p>
+                <p className="text-sm font-semibold text-stone-700 tabular-nums leading-tight">
+                  {observedFailedCount}<span className="text-[10px] font-normal text-stone-400"> / {sampleSize}</span>
                 </p>
+                <p className="text-[9px] text-stone-400 mt-1">pairs failed</p>
               </div>
             </div>
 
@@ -263,31 +272,43 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                   </div>
                 )}
 
-                {/* 依赖性溢价模块 */}
+                {/* 依赖性溢价模块 — 去掉p-value，加 Observed vs Independent 可视化 */}
                 {Number.isFinite(premiumValue) && (
                   <div className="rounded-xl bg-gradient-to-br from-indigo-50/50 via-white to-violet-50/25 border border-indigo-100/60 p-3.5">
-                    <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2.5">Dependency Analysis</p>
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2.5">Co-failure Rate</p>
+                    <div className="space-y-2">
+                      {/* 迷你双柱对比 */}
+                      {Number.isFinite(pFailBothObserved) && Number.isFinite(pFailBothIndependent) && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-stone-400 w-[52px] shrink-0">Observed</span>
+                            <div className="flex-1 h-2 rounded-full bg-stone-100 overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-indigo-300 to-indigo-400 transition-all duration-500"
+                                style={{ width: `${Math.min(pFailBothObserved * 100 * 2, 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-[11px] font-semibold text-indigo-600 tabular-nums w-[40px] text-right">{(pFailBothObserved * 100).toFixed(1)}%</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-stone-400 w-[52px] shrink-0">Expected</span>
+                            <div className="flex-1 h-2 rounded-full bg-stone-100 overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-stone-200 to-stone-300 transition-all duration-500"
+                                style={{ width: `${Math.min(pFailBothIndependent * 100 * 2, 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-[11px] font-medium text-stone-500 tabular-nums w-[40px] text-right">{(pFailBothIndependent * 100).toFixed(1)}%</span>
+                          </div>
+                        </div>
+                      )}
+                      {/* Premium */}
+                      <div className="flex items-center justify-between pt-1 border-t border-stone-100/60">
                         <span className="text-[10px] text-stone-400">Premium</span>
                         <span className={`text-xs font-semibold tabular-nums ${premiumValue > 0 ? 'text-indigo-600' : 'text-emerald-600'}`}>
                           {premiumValue > 0 ? '+' : ''}{(premiumValue * 100).toFixed(2)}%
                         </span>
                       </div>
-                      {Number.isFinite(pFailBothObserved) && Number.isFinite(pFailBothIndependent) && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-stone-400">Observed vs Expected</span>
-                          <span className="text-[11px] font-medium text-stone-600 tabular-nums">
-                            {(pFailBothObserved * 100).toFixed(1)}% / {(pFailBothIndependent * 100).toFixed(1)}%
-                          </span>
-                        </div>
-                      )}
-                      {Number.isFinite(pValue) && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-stone-400">p-value</span>
-                          <span className="text-[11px] font-medium text-stone-600 tabular-nums">{pValue.toFixed(4)}</span>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
@@ -296,12 +317,21 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
 
             {/* 底部信息条 */}
             <div className="mt-2.5 flex items-center justify-between rounded-lg bg-stone-50/60 border border-stone-100/50 px-3.5 py-2">
-              <div className="flex items-center gap-4 text-[10px] text-stone-400">
+              <div className="flex items-center gap-3 text-[10px] text-stone-400">
                 {sampleSize > 0 && (
-                  <span>Matched samples <span className="font-medium text-stone-500 tabular-nums">{sampleSize}</span></span>
+                  <span>Matched <span className="font-medium text-stone-500 tabular-nums">{sampleSize}</span></span>
+                )}
+                {Number.isFinite(globalFailureRate) && (
+                  <span>Global fail rate <span className="font-medium text-stone-500 tabular-nums">{(globalFailureRate * 100).toFixed(0)}%</span></span>
                 )}
                 {hasBias && (
-                  <span className="text-indigo-400">Bias correction applied</span>
+                  <span className="text-indigo-400">
+                    Bias adj. {(biasStrength * 100).toFixed(0)}%
+                    <span className="text-stone-300 ml-1">({matchedExact}e+{matchedNeighbor}n)</span>
+                  </span>
+                )}
+                {!hasBias && sampleSize > 0 && (
+                  <span>No bias detected</span>
                 )}
               </div>
               <span className="text-[10px] text-stone-300">Click another cell to compare</span>
