@@ -294,20 +294,20 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                           <div className="space-y-2">
                             <div className="flex items-center gap-2.5">
                               <span className="text-[10px] text-stone-400 w-[52px] shrink-0">Observed</span>
-                              <div className="flex-1 h-2.5 rounded bg-stone-200/60 overflow-hidden">
+                              <div className="flex-1 h-2.5 rounded-[4px] overflow-hidden" style={{ background: 'rgba(224,231,255,0.5)' }}>
                                 <div
-                                  className="h-full rounded bg-gradient-to-r from-indigo-500 to-sky-400"
-                                  style={{ width: `${Math.max(obsWidth, 4)}%` }}
+                                  className="h-full rounded-[4px]"
+                                  style={{ width: `${Math.max(obsWidth, 4)}%`, background: 'linear-gradient(90deg, #818cf8, #38bdf8)' }}
                                 />
                               </div>
                               <span className="text-[11px] font-semibold text-indigo-600 tabular-nums w-[40px] text-right">{(pFailBothObserved * 100).toFixed(1)}%</span>
                             </div>
                             <div className="flex items-center gap-2.5">
                               <span className="text-[10px] text-stone-400 w-[52px] shrink-0">Expected</span>
-                              <div className="flex-1 h-2.5 rounded bg-stone-200/60 overflow-hidden">
+                              <div className="flex-1 h-2.5 rounded-[4px] overflow-hidden" style={{ background: 'rgba(224,231,255,0.5)' }}>
                                 <div
-                                  className="h-full rounded bg-gradient-to-r from-stone-400 to-stone-300"
-                                  style={{ width: `${Math.max(expWidth, 4)}%` }}
+                                  className="h-full rounded-[4px]"
+                                  style={{ width: `${Math.max(expWidth, 4)}%`, background: 'linear-gradient(90deg, #c4b5fd, #a5b4fc)' }}
                                 />
                               </div>
                               <span className="text-[11px] font-medium text-stone-500 tabular-nums w-[40px] text-right">{(pFailBothIndependent * 100).toFixed(1)}%</span>
