@@ -523,7 +523,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
           <div className="flex items-center gap-1 text-[11px] text-stone-400">
             <span className="mr-1">0</span>
             <div className="flex h-[5px] rounded-full overflow-hidden" style={{ width: '140px' }}>
-              <div className="flex-1" style={{ background: 'linear-gradient(90deg, #34d399, #2dd4bf, #22d3ee, #0ea5e9, #3b82f6, #6366f1, #8b5cf6, #f59e0b, #94a3b8, #64748b)' }} />
+              <div className="flex-1" style={{ background: 'linear-gradient(90deg, #34d399, #2dd4bf, #22d3ee, #0ea5e9, #3b82f6, #6366f1, #8b5cf6, #f59e0b, #c0c7d0, #b4bec9)' }} />
             </div>
             <span className="ml-1">100</span>
           </div>
