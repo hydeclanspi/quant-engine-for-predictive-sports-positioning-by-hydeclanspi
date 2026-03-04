@@ -5514,25 +5514,46 @@ export const calculateDependencyPremium = (
     const localRate = localTotalWeight > 0 ? localWeightedFail / localTotalWeight : 0
     const localPremium = localRate - pFailBothIndependent
 
-    // 比值：局部信号 vs 核回归平滑值
-    // 当两者都接近0时避免除零
+    // 当两者都接近0时避免无意义校准
     if (Math.abs(rawPremium) < 0.001 && Math.abs(localPremium) < 0.001) return rawPremium
 
-    // 差异度 = localPremium - rawPremium
     const diff = localPremium - rawPremium
 
-    // 校准信心：样本量越多越信任局部信号（3→最低, 25→最高）
-    const calConfidence = clamp((recentMatches.length - 3) / 22, 0, 1) // 3→0, 25→1
+    // ── 信号质量评估 ──
 
-    // 修正幅度映射：calConfidence 0→5%, 1→25% 的 diff 影响力
-    const maxInfluence = 0.06 + calConfidence * 0.14 // 6%~20%
+    // (a) 样本量信心：3场→0, 25场→1
+    const calConfidence = clamp((recentMatches.length - 3) / 22, 0, 1)
 
-    // 将 diff 限制在 ±maxInfluence × |rawPremium| 的范围内（相对幅度）
-    // 但对 rawPremium 接近0的情况用绝对值兜底
+    // (b) 数据一致性：局部数据方差越小（全失败或全成功）→ 信号越可靠
+    // consistency: 0=纯随机(50/50), 1=完全一致(全0或全1)
+    const consistency = 1 - 4 * localRate * (1 - localRate)
+
+    // (c) 方向一致性：核回归和局部信号方向是否吻合
+    // 同向→放大修正(1.3x)，反向→压缩修正(0.55x)，一方近零→中性(0.85x)
+    const sameDirection = (rawPremium > 0.005 && localPremium > 0.005) || (rawPremium < -0.005 && localPremium < -0.005)
+    const oppositeDirection = (rawPremium > 0.005 && localPremium < -0.005) || (rawPremium < -0.005 && localPremium > 0.005)
+    const directionBoost = sameDirection ? 1.3 : oppositeDirection ? 0.55 : 0.85
+
+    // ── 修正幅度计算 ──
+
+    // 基础上限：6%~20%（由样本量信心决定）
+    const baseMaxInfluence = 0.06 + calConfidence * 0.14
+
+    // 一致性加成：高一致性放大上限（最多+40%），低一致性压缩
+    const consistencyMult = 0.7 + consistency * 0.6 // 0.7~1.3
+    const maxInfluence = baseMaxInfluence * consistencyMult * directionBoost
+
+    // ── 非线性响应：tanh 映射 ──
+    // 小diff敏感放大，大diff柔和压制
+    // scale 决定"多大的diff算大"— 取 rawPremium 量级的2倍作为参考
     const absBase = Math.max(Math.abs(rawPremium), 0.02)
-    const cappedDiff = clamp(diff, -maxInfluence * absBase, maxInfluence * absBase)
+    const scale = absBase * 2.5
+    const tanhResponse = Math.tanh(diff / scale) // [-1, 1]
 
-    return rawPremium + cappedDiff
+    // 最终修正量 = tanh响应 × 上限幅度 × 基础值
+    const adjustment = tanhResponse * maxInfluence * absBase
+
+    return rawPremium + adjustment
   })()
 
   const premium = calibratePremium
