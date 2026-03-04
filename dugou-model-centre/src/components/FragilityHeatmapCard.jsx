@@ -569,39 +569,44 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                         </td>
                       )
                     }
-                    // 下三角 — 显示 Premium（玻璃水晶质感）
+                    // 下三角 — 显示 Premium（暖色系渐变质感，与上三角冷色系形成对比）
                     if (colIdx < rowIdx) {
                       const mirrorData = fragilityMatrix.find(m => m.i === colIdx && m.j === rowIdx)
                       if (!mirrorData) return <td key={`cell-${rowIdx}-${colIdx}`} className="p-1" />
                       const prem = mirrorData.components?.premium?.premium
-                      // 高光匹配：支持双向 — 无论从上三角还是下三角点击都高亮对称位置
                       const isSelected = expandedPair && (
                         (expandedPair.i === colIdx && expandedPair.j === rowIdx) ||
                         (expandedPair.i === rowIdx && expandedPair.j === colIdx)
                       )
-                      const premColor = Number.isFinite(prem) && prem > 0 ? '#e11d48' : '#059669'
+                      // Premium 暖色10段色谱 — 蜜桃→樱粉→紫藤→薰衣草→丁香 | 杏黄→蜂蜜→橘橙→珊瑚→朱砂
+                      const getPremiumCell = (v) => {
+                        if (!Number.isFinite(v)) return { bg: 'bg-gradient-to-br from-stone-50/60 to-stone-50/40', border: 'border-stone-200/40', text: 'text-stone-400' }
+                        const p = v * 100
+                        if (p <= -12) return { bg: 'bg-gradient-to-br from-rose-50/90 to-pink-50/70', border: 'border-rose-200/50', text: 'text-rose-700' }
+                        if (p <= -8)  return { bg: 'bg-gradient-to-br from-pink-50/85 to-fuchsia-50/70', border: 'border-pink-200/50', text: 'text-pink-700' }
+                        if (p <= -5)  return { bg: 'bg-gradient-to-br from-fuchsia-50/85 to-purple-50/70', border: 'border-fuchsia-200/50', text: 'text-fuchsia-700' }
+                        if (p <= -2)  return { bg: 'bg-gradient-to-br from-purple-50/85 to-violet-50/70', border: 'border-purple-200/50', text: 'text-purple-700' }
+                        if (p < 0)    return { bg: 'bg-gradient-to-br from-violet-50/80 to-indigo-50/55', border: 'border-violet-200/50', text: 'text-violet-700' }
+                        if (p < 2)    return { bg: 'bg-gradient-to-br from-amber-50/80 to-yellow-50/60', border: 'border-amber-200/50', text: 'text-amber-700' }
+                        if (p < 5)    return { bg: 'bg-gradient-to-br from-yellow-50/85 to-amber-50/70', border: 'border-yellow-200/50', text: 'text-yellow-700' }
+                        if (p < 8)    return { bg: 'bg-gradient-to-br from-orange-50/85 to-amber-50/65', border: 'border-orange-200/50', text: 'text-orange-700' }
+                        if (p < 12)   return { bg: 'bg-gradient-to-br from-orange-50/90 to-red-50/70', border: 'border-orange-200/60', text: 'text-orange-700' }
+                        return               { bg: 'bg-gradient-to-br from-red-50/90 to-rose-50/70', border: 'border-red-200/60', text: 'text-red-700' }
+                      }
+                      const pc = getPremiumCell(prem)
                       return (
                         <td key={`cell-${rowIdx}-${colIdx}`} className="p-1">
                           <button
                             onClick={() => onSelectPair?.(mirrorData)}
-                            className={`w-full h-14 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer
+                            className={`w-full h-14 rounded-lg border backdrop-blur-[2px] flex items-center justify-center transition-all duration-200 cursor-pointer
+                              ${pc.bg} ${pc.border}
                               ${isSelected
                                 ? 'ring-2 ring-sky-400/60 ring-offset-1 scale-[1.03]'
                                 : 'hover:scale-[1.02] hover:shadow-md'
                               }`}
-                            style={{
-                              background: 'linear-gradient(145deg, rgba(255,255,255,0.75), rgba(248,250,252,0.55) 50%, rgba(241,245,249,0.45))',
-                              border: '1px solid rgba(226,232,240,0.6)',
-                              boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(148,163,184,0.08), 0 1px 3px rgba(148,163,184,0.06)',
-                              backdropFilter: 'blur(8px)',
-                              WebkitBackdropFilter: 'blur(8px)',
-                            }}
                           >
                             {Number.isFinite(prem) ? (
-                              <span
-                                className="text-[14px] font-bold tabular-nums leading-none italic"
-                                style={{ color: premColor, letterSpacing: '-0.03em' }}
-                              >
+                              <span className={`text-[13px] font-semibold tabular-nums leading-none italic tracking-tight ${pc.text}`}>
                                 {prem > 0 ? '+' : ''}{(prem * 100).toFixed(1)}%
                               </span>
                             ) : (
