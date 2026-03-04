@@ -310,9 +310,16 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                       <span className="text-2xl font-bold tabular-nums leading-none" style={{ backgroundImage: rs.gradient, backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent', WebkitTextFillColor: 'transparent' }}>{expandedPair.score}</span>
                       <span className="text-xs font-medium" style={{ backgroundImage: rs.gradient, backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent', WebkitTextFillColor: 'transparent', opacity: 0.7 }}>%</span>
                     </div>
-                    <div className="mt-2.5 pl-2 flex items-center gap-1.5">
-                      <div className={`h-[5px] rounded-full bg-gradient-to-r ${style.dot}`} style={{ width: `${Math.min(expandedPair.score, 100)}%`, minWidth: '8px', boxShadow: style.orbShadow?.replace('14px 2px', '6px 1px') || 'none' }} />
-                      <div className={`flex-1 h-[5px] rounded-full ${rs.track}`} />
+                    {/* 寻光轨迹 — 光点 + 拖尾 + 细轨道 */}
+                    <div className="mt-3 pl-2 relative h-[3px]">
+                      {/* 底层轨道 */}
+                      <div className={`absolute inset-0 rounded-full ${rs.track}`} />
+                      {/* 光尾 — 从左渐入到光点位置 */}
+                      <div className="absolute left-0 top-0 h-full rounded-full" style={{ width: `${Math.min(expandedPair.score, 100)}%`, minWidth: '4px', background: `linear-gradient(90deg, transparent 0%, ${rs.gradient.match(/#[0-9a-fA-F]{6}/g)?.[1] || '#3b82f6'}18 30%, ${rs.gradient.match(/#[0-9a-fA-F]{6}/g)?.[1] || '#3b82f6'}60 100%)` }} />
+                      {/* 光点 */}
+                      <div className="absolute top-1/2 -translate-y-1/2" style={{ left: `${Math.min(expandedPair.score, 100)}%`, transform: `translateX(-50%) translateY(-50%)` }}>
+                        <div className="w-[7px] h-[7px] rounded-full" style={{ background: rs.gradient, boxShadow: `0 0 8px 2px ${rs.gradient.match(/#[0-9a-fA-F]{6}/g)?.[1] || '#3b82f6'}50` }} />
+                      </div>
                     </div>
                   </div>
                 )
