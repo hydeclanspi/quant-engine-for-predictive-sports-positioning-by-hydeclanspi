@@ -417,7 +417,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                       <div>
                         <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2.5">Odds Profile</p>
                         {bandA && bandB ? (
-                          <div className="space-y-2">
+                          <div className="relative space-y-2 pb-3">
                             {/* Exact band matches */}
                             <div>
                               <div className="flex items-center justify-between mb-1.5">
@@ -458,6 +458,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                                 </div>
                               </div>
                             </div>
+                            <p className="absolute right-0 bottom-0 text-[9px] text-stone-400">pairs won</p>
                           </div>
                         ) : (
                           <p className="text-[10px] text-stone-300 italic">No odds data</p>
