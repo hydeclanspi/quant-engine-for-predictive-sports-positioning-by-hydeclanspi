@@ -237,6 +237,8 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
     const premiumValue = premium.premium
     const observedFailedCount = premium.observedFailedCount || 0
     const observedPartialMiss = premium.observedPartialMiss || 0
+    const partialMissRatePct = sampleSize > 0 && Number.isFinite(observedPartialMiss) ? (observedPartialMiss / sampleSize) * 100 : null
+    const bustRatePct = sampleSize > 0 && Number.isFinite(observedFailedCount) ? (observedFailedCount / sampleSize) * 100 : null
     const hasBias = bias.hasBias || false
     const biasStrength = bias.biasStrength || 0
     const matchedExact = bias.investedInTarget || 0
@@ -388,21 +390,27 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
               })()}
 
               {/* 模块：Partial Miss (Split) — 一对一错 */}
-              <div className="rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5">
+              <div className="relative rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5 pb-7">
                 <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Partial Miss (Split)</p>
                 <p className="text-sm font-semibold text-stone-700 tabular-nums leading-tight">
                   {Number.isFinite(observedPartialMiss) ? Number(observedPartialMiss).toFixed(3) : observedPartialMiss}<span className="text-[10px] font-normal text-stone-400"> / {sampleSize}</span>
                 </p>
-                <p className="text-[9px] text-stone-400 mt-1">half-hit outcomes</p>
+                <p className="text-[9px] text-stone-400 mt-1">half-hit pairs</p>
+                <span className="absolute right-3.5 bottom-2 text-[10px] font-semibold tabular-nums text-sky-500/80 bg-sky-50/70 px-1.5 py-0.5 rounded-full">
+                  {Number.isFinite(partialMissRatePct) ? partialMissRatePct.toFixed(0) : '—'}%
+                </span>
               </div>
 
               {/* 模块：Co-failure — 替代 Stat.Sig. */}
-              <div className="rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5">
+              <div className="relative rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5 pb-7">
                 <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">BUST (Total Miss)</p>
                 <p className="text-sm font-semibold text-stone-700 tabular-nums leading-tight">
                   {Number.isFinite(observedFailedCount) ? Number(observedFailedCount).toFixed(3) : observedFailedCount}<span className="text-[10px] font-normal text-stone-400"> / {sampleSize}</span>
                 </p>
                 <p className="text-[9px] text-stone-400 mt-1">pairs failed</p>
+                <span className="absolute right-3.5 bottom-2 text-[10px] font-semibold tabular-nums text-sky-500/80 bg-sky-50/70 px-1.5 py-0.5 rounded-full">
+                  {Number.isFinite(bustRatePct) ? bustRatePct.toFixed(0) : '—'}%
+                </span>
               </div>
             </div>
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 import { getTeamsSnapshot } from '../lib/analytics'
 import { getInvestments, getTeamProfiles } from '../lib/localData'
@@ -80,6 +80,7 @@ const getAJRColor = (ajr) => {
 }
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
+const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000
 
 // 样本量字符串
 const getSampleText = (count) => `样本 ${count}`
@@ -88,6 +89,41 @@ const normalizeSeries = (series) => {
   if (!Array.isArray(series)) return [0]
   const values = series.map((value) => Number(value)).filter((value) => Number.isFinite(value))
   return values.length > 0 ? values : [0]
+}
+
+const buildTeamMatchGroupKey = (homeTeam, awayTeam) => `${normalize(homeTeam)}__${normalize(awayTeam)}`
+
+const groupTeamHistoryRows = (rows) => {
+  if (!Array.isArray(rows) || rows.length === 0) return []
+  const groups = []
+  const latestGroupIndexByMatch = new Map()
+
+  rows.forEach((row, rowIndex) => {
+    const matchKey = row.matchKey || buildTeamMatchGroupKey(row.homeTeam, row.awayTeam)
+    const groupIndex = latestGroupIndexByMatch.get(matchKey)
+    const timestamp = Number.isFinite(row.timestamp) ? row.timestamp : 0
+    const canMerge =
+      Number.isInteger(groupIndex) &&
+      groups[groupIndex] &&
+      Number.isFinite(groups[groupIndex].anchorTimestamp) &&
+      groups[groupIndex].anchorTimestamp - timestamp <= TWO_DAYS_MS
+
+    if (canMerge) {
+      groups[groupIndex].items.push(row)
+      return
+    }
+
+    const nextGroup = {
+      id: `${matchKey}-${timestamp}-${rowIndex}`,
+      matchKey,
+      anchorTimestamp: timestamp,
+      items: [row],
+    }
+    groups.push(nextGroup)
+    latestGroupIndexByMatch.set(matchKey, groups.length - 1)
+  })
+
+  return groups
 }
 
 const buildAliasMap = (profiles) => {
@@ -149,20 +185,25 @@ const buildTeamHistoryRowsMap = (periodKey) => {
       const allocatedProfit = Number.isFinite(weightedRevenue) ? weightedRevenue - perInput : fallbackPerProfit
       const profitText =
         isPending || !Number.isFinite(allocatedProfit) ? '待结算' : `${allocatedProfit >= 0 ? '+' : '-'}¥${Math.round(Math.abs(allocatedProfit))}`
+      const homeTeam = normalizeTeamName(match.home_team, aliasMap)
+      const awayTeam = normalizeTeamName(match.away_team, aliasMap)
+      const timestamp = new Date(investment.created_at || 0).getTime()
       const ajr = Number.parseFloat(match?.match_rating)
       const row = {
-        timestamp: new Date(investment.created_at || 0).getTime(),
+        timestamp: Number.isFinite(timestamp) ? timestamp : 0,
         date: formatDateDash(investment.created_at),
-        match: `${match.home_team || '-'} vs ${match.away_team || '-'}`,
+        match: `${homeTeam || '-'} vs ${awayTeam || '-'}`,
         entry: getEntryText(match),
         result: match.results || '-',
         odds: Number.isFinite(odd) ? odd.toFixed(2) : '-',
         ajr: Number.isFinite(ajr) ? ajr.toFixed(2) : '-',
+        ajrValue: Number.isFinite(ajr) ? ajr : null,
         profit: profitText,
+        homeTeam,
+        awayTeam,
+        matchKey: buildTeamMatchGroupKey(homeTeam, awayTeam),
       }
 
-      const homeTeam = normalizeTeamName(match.home_team, aliasMap)
-      const awayTeam = normalizeTeamName(match.away_team, aliasMap)
       appendRow(homeTeam, row)
       appendRow(awayTeam, row)
     })
@@ -181,6 +222,7 @@ export default function TeamsPage() {
   const [timePeriod, setTimePeriod] = useState('all')
   const [leagueFilter, setLeagueFilter] = useState(LEAGUE_ALL_KEY)
   const [teamHistoryPage, setTeamHistoryPage] = useState(1)
+  const [expandedHistoryGroupIds, setExpandedHistoryGroupIds] = useState([])
 
   const teamsByPeriod = useMemo(() => getTeamsSnapshot('', timePeriod), [timePeriod])
   const leagueOptions = useMemo(() => {
@@ -217,30 +259,59 @@ export default function TeamsPage() {
   )
   const selectedTeamDetail = useMemo(() => {
     if (!selectedTeam) return null
-    const labels = (selectedTeam.roiHistory || []).map((item) => String(item.label || '').replace('-', '/')).slice(-8)
+    const roiLabels = (selectedTeam.roiHistory || []).map((item) => String(item.label || '').replace('-', '/')).slice(-8)
     const roiSeries = (selectedTeam.roiHistory || []).map((item) => Number(item.value || 0)).slice(-8)
-    const ratingSeries = (selectedTeam.ratingHistory || []).map((item) => Number(item.value || 0)).slice(-8)
     const history = teamHistoryRowsMap.get(selectedTeam.name) || []
+    const ratingRows = history.filter((row) => Number.isFinite(row.ajrValue)).slice(0, 8).reverse()
+    const ratingLabels = ratingRows.map((row) => String(row.date || '--').replace('-', '/'))
+    const ratingSeries = ratingRows.map((row) => Number(row.ajrValue || 0))
+    const historyGroups = groupTeamHistoryRows(history)
 
     return {
-      labels: labels.length > 0 ? labels : ['--', '--', '--'],
+      roiLabels: roiLabels.length > 0 ? roiLabels : ['--', '--', '--'],
       roiSeries: roiSeries.length > 0 ? roiSeries : [0],
+      ratingLabels: ratingLabels.length > 0 ? ratingLabels : ['--', '--', '--'],
       ratingSeries: ratingSeries.length > 0 ? ratingSeries : [0],
       history,
+      historyGroups,
     }
   }, [selectedTeam, teamHistoryRowsMap])
-  const teamHistoryPageSize = 4
-  const totalTeamHistoryPages = selectedTeamDetail ? Math.max(1, Math.ceil(selectedTeamDetail.history.length / teamHistoryPageSize)) : 1
+  const teamHistoryPageSize = 7
+  const totalTeamHistoryPages = selectedTeamDetail ? Math.max(1, Math.ceil(selectedTeamDetail.historyGroups.length / teamHistoryPageSize)) : 1
   const currentTeamHistoryPage = Math.min(teamHistoryPage, totalTeamHistoryPages)
-  const pagedTeamHistory = selectedTeamDetail
-    ? selectedTeamDetail.history.slice((currentTeamHistoryPage - 1) * teamHistoryPageSize, currentTeamHistoryPage * teamHistoryPageSize)
+  const pagedTeamHistoryGroups = selectedTeamDetail
+    ? selectedTeamDetail.historyGroups.slice((currentTeamHistoryPage - 1) * teamHistoryPageSize, currentTeamHistoryPage * teamHistoryPageSize)
     : []
+  const expandedHistoryGroupSet = useMemo(() => new Set(expandedHistoryGroupIds), [expandedHistoryGroupIds])
+  const expandableGroupIds = useMemo(
+    () => pagedTeamHistoryGroups.filter((group) => group.items.length > 1).map((group) => group.id),
+    [pagedTeamHistoryGroups],
+  )
+  const allPageGroupsExpanded =
+    expandableGroupIds.length > 0 && expandableGroupIds.every((groupId) => expandedHistoryGroupSet.has(groupId))
+
+  const toggleHistoryGroup = (groupId) => {
+    setExpandedHistoryGroupIds((prev) => {
+      if (prev.includes(groupId)) return prev.filter((id) => id !== groupId)
+      return [...prev, groupId]
+    })
+  }
+
+  const toggleExpandAllHistoryGroups = () => {
+    if (expandableGroupIds.length === 0) return
+    setExpandedHistoryGroupIds((prev) => {
+      if (allPageGroupsExpanded) return prev.filter((id) => !expandableGroupIds.includes(id))
+      const next = new Set(prev)
+      expandableGroupIds.forEach((id) => next.add(id))
+      return [...next]
+    })
+  }
 
   return (
     <div className="page-shell page-content-fluid">
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-stone-800 font-display">球队档案馆</h2>
-        <p className="text-stone-400 text-sm mt-1">球队维度：样本量 / ROI / AJR-Conf 走势</p>
+        <p className="text-stone-400 text-sm mt-1">球队维度：样本量 / ROI / AJR 走势</p>
       </div>
 
       <div className="glow-card bg-white rounded-2xl p-4 border border-stone-100 mb-6 relative z-30">
@@ -282,6 +353,7 @@ export default function TeamsPage() {
             onClick={() => {
               setSelectedTeamName(team.name)
               setTeamHistoryPage(1)
+              setExpandedHistoryGroupIds([])
             }}
             className={`team-select-card glow-card bg-white rounded-2xl p-5 border cursor-pointer transition-all lift-card ${
               isSelected ? 'team-select-card--selected' : 'border-stone-100'
@@ -335,6 +407,7 @@ export default function TeamsPage() {
                 onClick={() => {
                   setSelectedTeamName('__none__')
                   setTeamHistoryPage(1)
+                  setExpandedHistoryGroupIds([])
                 }}
                 className="text-stone-400 hover:text-stone-600"
               >
@@ -385,14 +458,14 @@ export default function TeamsPage() {
                     })()}
                   </svg>
                   <div className="flex justify-between text-[10px] text-stone-400 px-1">
-                    <span>{selectedTeamDetail.labels[0]}</span>
-                    <span>{selectedTeamDetail.labels[Math.floor((selectedTeamDetail.labels.length - 1) / 2)]}</span>
-                    <span>{selectedTeamDetail.labels[selectedTeamDetail.labels.length - 1]}</span>
+                    <span>{selectedTeamDetail.roiLabels[0]}</span>
+                    <span>{selectedTeamDetail.roiLabels[Math.floor((selectedTeamDetail.roiLabels.length - 1) / 2)]}</span>
+                    <span>{selectedTeamDetail.roiLabels[selectedTeamDetail.roiLabels.length - 1]}</span>
                   </div>
                 </div>
               </div>
               <div>
-                <h4 className="text-sm font-medium text-stone-600 mb-3">(Act. - Conf) Rating 走势</h4>
+                <h4 className="text-sm font-medium text-stone-600 mb-3">Actual Judgemental Rating 走势</h4>
                 <div className="h-40 rounded-xl border border-sky-100 bg-gradient-to-b from-sky-50/60 to-white px-3 py-2">
                   <svg viewBox="0 0 100 48" className="w-full h-[118px]">
                     {(() => {
@@ -430,9 +503,9 @@ export default function TeamsPage() {
                     })()}
                   </svg>
                   <div className="flex justify-between text-[10px] text-stone-400 px-1">
-                    <span>{selectedTeamDetail.labels[0]}</span>
-                    <span>{selectedTeamDetail.labels[Math.floor((selectedTeamDetail.labels.length - 1) / 2)]}</span>
-                    <span>{selectedTeamDetail.labels[selectedTeamDetail.labels.length - 1]}</span>
+                    <span>{selectedTeamDetail.ratingLabels[0]}</span>
+                    <span>{selectedTeamDetail.ratingLabels[Math.floor((selectedTeamDetail.ratingLabels.length - 1) / 2)]}</span>
+                    <span>{selectedTeamDetail.ratingLabels[selectedTeamDetail.ratingLabels.length - 1]}</span>
                   </div>
                 </div>
               </div>
@@ -441,7 +514,17 @@ export default function TeamsPage() {
             <div className="mt-6 border-t border-stone-100 pt-5">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-sm font-medium text-stone-700">近期投资比赛明细</h4>
-                <span className="text-xs text-stone-400">共 {selectedTeamDetail.history.length} 场</span>
+                <div className="flex items-center gap-3">
+                  {expandableGroupIds.length > 0 && (
+                    <button
+                      onClick={toggleExpandAllHistoryGroups}
+                      className="rounded-md border border-sky-200 px-2.5 py-1 text-[11px] font-medium text-sky-600 transition-colors hover:bg-sky-50"
+                    >
+                      {allPageGroupsExpanded ? '一键收起' : '一键展开'}
+                    </button>
+                  )}
+                  <span className="text-xs text-stone-400">共 {selectedTeamDetail.history.length} 场</span>
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
@@ -457,24 +540,77 @@ export default function TeamsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {pagedTeamHistory.map((row, idx) => (
-                      <tr key={`${row.match}-${row.date}-${idx}`} className="border-b border-stone-50">
-                        <td className="py-2 text-stone-500">{row.date}</td>
-                        <td className="py-2 text-stone-700">{row.match}</td>
-                        <td className="py-2 text-stone-600">{row.entry}</td>
-                        <td className="py-2 text-stone-500">{row.result}</td>
-                        <td className="py-2 text-violet-600 italic font-semibold">{row.odds}</td>
-                        <td className={`py-2 font-semibold ${row.ajr === '-' ? 'text-stone-400' : getAJRColor(row.ajr)}`}>{row.ajr}</td>
-                        <td
-                          className={`py-2 font-medium ${
-                            row.profit.startsWith('+') ? 'text-emerald-600' : row.profit.startsWith('-') ? 'text-rose-500' : 'text-stone-500'
-                          }`}
-                        >
-                          {row.profit}
-                        </td>
-                      </tr>
-                    ))}
-                    {pagedTeamHistory.length === 0 && (
+                    {pagedTeamHistoryGroups.map((group) => {
+                      const headRow = group.items[0]
+                      const isExpandable = group.items.length > 1
+                      const isExpanded = expandedHistoryGroupSet.has(group.id)
+
+                      return (
+                        <Fragment key={group.id}>
+                          <tr className="border-b border-stone-50">
+                            <td className="py-2 text-stone-500">{headRow.date}</td>
+                            <td className="py-2 text-stone-700">
+                              <div className="flex items-center gap-2">
+                                {isExpandable && (
+                                  <button
+                                    onClick={() => toggleHistoryGroup(group.id)}
+                                    className="h-4 w-4 rounded-full border border-sky-200 text-[10px] leading-none text-sky-600 transition-colors hover:bg-sky-50"
+                                    aria-label={isExpanded ? '收起同场投注' : '展开同场投注'}
+                                  >
+                                    {isExpanded ? '−' : '+'}
+                                  </button>
+                                )}
+                                <span>{headRow.match}</span>
+                                {isExpandable && (
+                                  <span className="rounded-full border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-600">
+                                    同场 {group.items.length} 笔
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-2 text-stone-600">{headRow.entry}</td>
+                            <td className="py-2 text-stone-500">{headRow.result}</td>
+                            <td className="py-2 text-violet-600 italic font-semibold">{headRow.odds}</td>
+                            <td className={`py-2 font-semibold ${headRow.ajr === '-' ? 'text-stone-400' : getAJRColor(headRow.ajr)}`}>{headRow.ajr}</td>
+                            <td
+                              className={`py-2 font-medium ${
+                                headRow.profit.startsWith('+')
+                                  ? 'text-emerald-600'
+                                  : headRow.profit.startsWith('-')
+                                  ? 'text-rose-500'
+                                  : 'text-stone-500'
+                              }`}
+                            >
+                              {headRow.profit}
+                            </td>
+                          </tr>
+                          {isExpanded &&
+                            group.items.slice(1).map((row, nestedIdx) => (
+                              <tr key={`${group.id}-${nestedIdx}`} className="border-b border-sky-50 bg-sky-50/20">
+                                <td className="py-2 pl-4 text-stone-400">{row.date}</td>
+                                <td className="py-2 text-stone-600">
+                                  <div className="flex items-center gap-2">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
+                                    <span>{row.match}</span>
+                                  </div>
+                                </td>
+                                <td className="py-2 text-stone-600">{row.entry}</td>
+                                <td className="py-2 text-stone-500">{row.result}</td>
+                                <td className="py-2 text-violet-600 italic font-semibold">{row.odds}</td>
+                                <td className={`py-2 font-semibold ${row.ajr === '-' ? 'text-stone-400' : getAJRColor(row.ajr)}`}>{row.ajr}</td>
+                                <td
+                                  className={`py-2 font-medium ${
+                                    row.profit.startsWith('+') ? 'text-emerald-600' : row.profit.startsWith('-') ? 'text-rose-500' : 'text-stone-500'
+                                  }`}
+                                >
+                                  {row.profit}
+                                </td>
+                              </tr>
+                            ))}
+                        </Fragment>
+                      )
+                    })}
+                    {pagedTeamHistoryGroups.length === 0 && (
                       <tr>
                         <td colSpan={7} className="py-4 text-center text-stone-400">
                           暂无球队样本明细
