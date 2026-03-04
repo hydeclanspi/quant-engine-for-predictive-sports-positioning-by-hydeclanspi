@@ -5254,72 +5254,79 @@ const getBandIndex = (odds) => {
 }
 
 /**
- * 高斯核函数
- * @param {number} d - 距离（band index 差）
- * @param {number} h - 带宽
- * @returns {number} 核权重 (0, 1]
+ * 分段核函数 — 精确指定每个 band 距离的权重衰减
+ *
+ * d=0 → 1.000 (精确匹配)
+ * d=1 → 0.630 (相邻band)
+ * d=2 → 0.214 (隔一个band)
+ * d=3 → 0.045 (隔两个band)
+ * d=4 → 0.0135
+ * d≥5 → 线性外推衰减至近零
+ *
+ * @param {number} d - 距离（band index 差的绝对值）
+ * @returns {number} 基础核权重 (0, 1]
  */
-const gaussianKernel = (d, h) => {
-  if (h <= 0) return d === 0 ? 1 : 0
-  return Math.exp(-(d * d) / (2 * h * h))
+const KERNEL_TABLE = [1.0, 0.63, 0.214, 0.045, 0.0135]
+const kernelWeight = (d) => {
+  const di = Math.floor(Math.abs(d))
+  if (di < KERNEL_TABLE.length) return KERNEL_TABLE[di]
+  // d≥5: 以 d=4 的衰减比率继续指数递减
+  const ratio = KERNEL_TABLE[4] / KERNEL_TABLE[3] // ≈ 0.3
+  return KERNEL_TABLE[4] * Math.pow(ratio, di - 4)
 }
 
 /**
- * 计算自适应带宽
- * 基于历史数据在每个 band 位置的局部密度，数据越密集带宽越小
- *
- * h(x) = h0 × (geometricMeanDensity / localDensity(x))^0.5
+ * 计算局部密度调节因子
+ * 数据稀疏的 band 位置会"拉宽"核函数的有效覆盖，
+ * 通过对权重做 density^(-alpha) 的微调实现
  *
  * @param {Array} historicalData - 全量历史数据
- * @param {number} h0 - 基础带宽（默认1.2）
- * @returns {Float64Array} 8个band位置各自的自适应带宽
+ * @returns {Float64Array} 8个band位置的密度调节因子（均值归一化后）
  */
-const computeAdaptiveBandwidths = (historicalData, h0 = 1.2) => {
-  // 统计每个 band 出现次数
+const computeDensityFactors = (historicalData) => {
   const bandCounts = new Float64Array(BANDS.length)
   historicalData.forEach((combo) => {
     const matches = Array.isArray(combo.matches) ? combo.matches : []
     matches.forEach((m) => {
       const odds = toNumber(m?.odds, 0)
-      if (odds > 1) {
-        const idx = getBandIndex(odds)
-        bandCounts[idx] += 1
-      }
+      if (odds > 1) bandCounts[getBandIndex(odds)] += 1
     })
   })
 
-  // 计算几何均值密度（避免 0 → 加1平滑）
+  // 加1平滑 → 计算几何均值 → 归一化
   const smoothed = bandCounts.map(c => c + 1)
   const logSum = smoothed.reduce((s, c) => s + Math.log(c), 0)
   const geometricMean = Math.exp(logSum / BANDS.length)
 
-  // 每个 band 的自适应带宽
-  const bandwidths = new Float64Array(BANDS.length)
+  // 密度因子: (geomMean / local)^0.3
+  // alpha=0.3 — 温和调节，稀疏区略微放大权重，密集区略微压缩
+  const factors = new Float64Array(BANDS.length)
   for (let i = 0; i < BANDS.length; i++) {
-    bandwidths[i] = h0 * Math.pow(geometricMean / smoothed[i], 0.5)
-    // 下限 0.4（防止过拟合），上限 3.0（防止过度平滑）
-    bandwidths[i] = clamp(bandwidths[i], 0.4, 3.0)
+    factors[i] = clamp(Math.pow(geometricMean / smoothed[i], 0.3), 0.5, 2.0)
   }
-
-  return bandwidths
+  return factors
 }
 
+// 兼容旧接口名 — assessComboFragility 中预计算复用
+const computeAdaptiveBandwidths = (historicalData) => computeDensityFactors(historicalData)
+
 /**
- * 计算两个赔率对之间的核权重（2D 乘积核 + 自适应带宽）
+ * 计算两个赔率对之间的核权重（2D 分段查表核 × 密度调节）
  *
  * @param {number} targetIdxA - 目标比赛A的band索引
  * @param {number} targetIdxB - 目标比赛B的band索引
  * @param {number} histIdxA - 历史比赛A的band索引
  * @param {number} histIdxB - 历史比赛B的band索引
- * @param {Float64Array} bandwidths - 自适应带宽数组
- * @returns {number} 核权重 (0, 1]
+ * @param {Float64Array} densityFactors - 密度调节因子数组
+ * @returns {number} 核权重
  */
-const computePairKernelWeight = (targetIdxA, targetIdxB, histIdxA, histIdxB, bandwidths) => {
-  const hA = (bandwidths[targetIdxA] + bandwidths[histIdxA]) / 2
-  const hB = (bandwidths[targetIdxB] + bandwidths[histIdxB]) / 2
+const computePairKernelWeight = (targetIdxA, targetIdxB, histIdxA, histIdxB, densityFactors) => {
   const dA = Math.abs(targetIdxA - histIdxA)
   const dB = Math.abs(targetIdxB - histIdxB)
-  return gaussianKernel(dA, hA) * gaussianKernel(dB, hB)
+  const baseWeight = kernelWeight(dA) * kernelWeight(dB)
+  // 密度调节：取历史端的两个 band 位置的调节因子均值
+  const densityAdj = (densityFactors[histIdxA] + densityFactors[histIdxB]) / 2
+  return baseWeight * densityAdj
 }
 
 /**
