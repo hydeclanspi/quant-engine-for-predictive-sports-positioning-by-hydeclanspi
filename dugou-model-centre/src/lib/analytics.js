@@ -5525,7 +5525,7 @@ export const calculateDependencyPremium = (
     const calConfidence = clamp((recentMatches.length - 3) / 22, 0, 1) // 3→0, 25→1
 
     // 修正幅度映射：calConfidence 0→5%, 1→25% 的 diff 影响力
-    const maxInfluence = 0.05 + calConfidence * 0.20 // 5%~25%
+    const maxInfluence = 0.06 + calConfidence * 0.14 // 6%~20%
 
     // 将 diff 限制在 ±maxInfluence × |rawPremium| 的范围内（相对幅度）
     // 但对 rawPremium 接近0的情况用绝对值兜底
