@@ -575,19 +575,30 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                       if (!mirrorData) return <td key={`cell-${rowIdx}-${colIdx}`} className="p-1" />
                       const prem = mirrorData.components?.premium?.premium
                       const isSelected = expandedPair && expandedPair.i === colIdx && expandedPair.j === rowIdx
+                      // 毛玻璃 + premium 正负色调
+                      const premBg = Number.isFinite(prem) && prem > 0
+                        ? 'rgba(254,226,226,0.35), rgba(255,255,255,0.6)'   // 淡红
+                        : 'rgba(209,250,229,0.35), rgba(255,255,255,0.6)'   // 淡翡翠
+                      const premBorder = Number.isFinite(prem) && prem > 0
+                        ? 'rgba(252,165,165,0.3)'  // red-300/30
+                        : 'rgba(110,231,183,0.3)'   // emerald-300/30
                       return (
                         <td key={`cell-${rowIdx}-${colIdx}`} className="p-1">
                           <button
                             onClick={() => onSelectPair?.(mirrorData)}
-                            className={`w-full h-14 rounded-lg border backdrop-blur-[2px] flex items-center justify-center transition-all duration-200 cursor-pointer
-                              bg-gradient-to-br from-white/80 to-stone-50/60 border-stone-200/50
+                            className={`w-full h-14 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer backdrop-blur-[6px]
                               ${isSelected
                                 ? 'ring-2 ring-sky-400/60 ring-offset-1 scale-[1.03]'
-                                : 'hover:scale-[1.02] hover:shadow-md hover:border-stone-200/80'
+                                : 'hover:scale-[1.02] hover:shadow-md'
                               }`}
+                            style={{
+                              background: `linear-gradient(135deg, ${premBg})`,
+                              border: `1px solid ${premBorder}`,
+                              boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5)',
+                            }}
                           >
                             {Number.isFinite(prem) ? (
-                              <span className={`text-[13px] font-semibold tabular-nums tracking-tight ${prem > 0 ? 'text-indigo-500' : 'text-emerald-500'}`}>
+                              <span className={`text-[13px] font-semibold tabular-nums tracking-tight ${prem > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
                                 {prem > 0 ? '+' : ''}{(prem * 100).toFixed(1)}%
                               </span>
                             ) : (
