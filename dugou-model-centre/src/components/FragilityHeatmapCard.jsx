@@ -402,7 +402,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
               <div className="rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5">
                 <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Co-failure</p>
                 <p className="text-sm font-semibold text-stone-700 tabular-nums leading-tight">
-                  {observedFailedCount}<span className="text-[10px] font-normal text-stone-400"> / {sampleSize}</span>
+                  {Number.isFinite(observedFailedCount) ? Number(observedFailedCount).toFixed(3) : observedFailedCount}<span className="text-[10px] font-normal text-stone-400"> / {sampleSize}</span>
                 </p>
                 <p className="text-[9px] text-stone-400 mt-1">pairs failed</p>
               </div>
