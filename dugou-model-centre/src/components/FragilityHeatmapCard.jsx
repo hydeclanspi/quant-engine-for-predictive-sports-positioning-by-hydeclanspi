@@ -466,8 +466,8 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                             <p className="text-sm font-semibold text-sky-700 tabular-nums">{(pFailA * 100).toFixed(1)}%</p>
                           </div>
                           <div className="h-px bg-sky-100/80" />
-                          <div className="flex-1 flex flex-col justify-center">
-                            <p className="text-[9px] text-stone-400 mb-0.5 truncate">{nameB}</p>
+                          <div className="flex-1 flex flex-col justify-center pt-1">
+                            <p className="text-[9px] text-stone-400 mb-1 truncate">{nameB}</p>
                             <p className="text-sm font-semibold text-sky-700 tabular-nums">{(pFailB * 100).toFixed(1)}%</p>
                           </div>
                         </div>
