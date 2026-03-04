@@ -5185,23 +5185,35 @@ export const getConfidenceWeight = (sampleSize) => {
 }
 
 /**
- * 获取时间权重系数
- * 最近2个月的数据获得15%的权重提升
+ * 获取时间权重系数 — 4档近因衰减
+ * 按照投注顺序分档加权（非按日期，而是按排名序号）
  *
- * @param {Date|string|number} date - 数据时间戳
- * @param {Date} baseDate - 比较基准日期（默认为当前）
- * @returns {number} 权重倍数（1.0 或 1.15）
+ * 注意：此函数用 comboIndex（从新到旧的排序序号）来确定权重，
+ * 若传入日期则退化为基于时间的粗略估计。
+ *
+ * @param {Date|string|number|null} date - 数据时间戳（兼容旧接口）
+ * @param {Date} baseDate - 比较基准日期
+ * @param {number} comboIndex - 从新到旧的排序序号（0=最新）
+ * @param {number} totalCombos - 总历史组合数
+ * @returns {number} 权重倍数
  */
-export const getTemporalWeight = (date, baseDate = new Date()) => {
+export const getTemporalWeight = (date, baseDate = new Date(), comboIndex = -1, totalCombos = -1) => {
+  // 新模式：基于序号的4档近因衰减
+  if (comboIndex >= 0 && totalCombos > 0) {
+    if (comboIndex < 30) return 1.45
+    if (comboIndex < 75) return 1.28
+    if (comboIndex < 150) return 1.15
+    return 1.0
+  }
+
+  // 兼容旧接口：基于日期的粗略估计
   const dataDate = new Date(date)
   if (Number.isNaN(dataDate.getTime())) return 1.0
-
-  const baseDateMs = new Date(baseDate).getTime()
-  const dataDateMs = dataDate.getTime()
-  const daysDiff = (baseDateMs - dataDateMs) / (1000 * 60 * 60 * 24)
-
-  // 最近60天（约2个月）的数据获得1.15x权重
-  return daysDiff <= 60 ? 1.15 : 1.0
+  const daysDiff = (new Date(baseDate).getTime() - dataDate.getTime()) / (1000 * 60 * 60 * 24)
+  if (daysDiff <= 30) return 1.45
+  if (daysDiff <= 90) return 1.28
+  if (daysDiff <= 180) return 1.15
+  return 1.0
 }
 
 /**
@@ -5227,92 +5239,164 @@ const isSameOddsBand = (oddsA, oddsB) => {
   return getOddsBand(oddsA) === getOddsBand(oddsB)
 }
 
+// ─── 核回归框架 — 连续加权替代离散匹配 ───
+
+const BANDS = [1.2, 1.45, 1.8, 2.25, 3.0, 4.0, 6.0, 10.0]
+
 /**
- * 计算观察到的两个比赛共同失败的加权失败率
- * 基于赔率相似性匹配（odds-band matching），而非位置索引
+ * 获取赔率在 BANDS 数组中的连续位置索引（支持插值）
+ * 例如 odds 在 1.45 和 1.8 正中间 → 返回 1.5
+ */
+const getBandIndex = (odds) => {
+  const band = getOddsBand(odds)
+  const idx = BANDS.indexOf(band)
+  return idx === -1 ? 0 : idx
+}
+
+/**
+ * 高斯核函数
+ * @param {number} d - 距离（band index 差）
+ * @param {number} h - 带宽
+ * @returns {number} 核权重 (0, 1]
+ */
+const gaussianKernel = (d, h) => {
+  if (h <= 0) return d === 0 ? 1 : 0
+  return Math.exp(-(d * d) / (2 * h * h))
+}
+
+/**
+ * 计算自适应带宽
+ * 基于历史数据在每个 band 位置的局部密度，数据越密集带宽越小
  *
- * 核心逻辑：在历史组合中，找到所有 "赔率A相似 且 赔率B相似" 的比赛对，
- * 统计它们共同失败的频率。
+ * h(x) = h0 × (geometricMeanDensity / localDensity(x))^0.5
  *
- * @param {Array} historicalData - 历史组合数据，每个元素为 { matches: [{odds, result}, ...], succeeded: boolean, createdAt: ... }
+ * @param {Array} historicalData - 全量历史数据
+ * @param {number} h0 - 基础带宽（默认1.2）
+ * @returns {Float64Array} 8个band位置各自的自适应带宽
+ */
+const computeAdaptiveBandwidths = (historicalData, h0 = 1.2) => {
+  // 统计每个 band 出现次数
+  const bandCounts = new Float64Array(BANDS.length)
+  historicalData.forEach((combo) => {
+    const matches = Array.isArray(combo.matches) ? combo.matches : []
+    matches.forEach((m) => {
+      const odds = toNumber(m?.odds, 0)
+      if (odds > 1) {
+        const idx = getBandIndex(odds)
+        bandCounts[idx] += 1
+      }
+    })
+  })
+
+  // 计算几何均值密度（避免 0 → 加1平滑）
+  const smoothed = bandCounts.map(c => c + 1)
+  const logSum = smoothed.reduce((s, c) => s + Math.log(c), 0)
+  const geometricMean = Math.exp(logSum / BANDS.length)
+
+  // 每个 band 的自适应带宽
+  const bandwidths = new Float64Array(BANDS.length)
+  for (let i = 0; i < BANDS.length; i++) {
+    bandwidths[i] = h0 * Math.pow(geometricMean / smoothed[i], 0.5)
+    // 下限 0.4（防止过拟合），上限 3.0（防止过度平滑）
+    bandwidths[i] = clamp(bandwidths[i], 0.4, 3.0)
+  }
+
+  return bandwidths
+}
+
+/**
+ * 计算两个赔率对之间的核权重（2D 乘积核 + 自适应带宽）
+ *
+ * @param {number} targetIdxA - 目标比赛A的band索引
+ * @param {number} targetIdxB - 目标比赛B的band索引
+ * @param {number} histIdxA - 历史比赛A的band索引
+ * @param {number} histIdxB - 历史比赛B的band索引
+ * @param {Float64Array} bandwidths - 自适应带宽数组
+ * @returns {number} 核权重 (0, 1]
+ */
+const computePairKernelWeight = (targetIdxA, targetIdxB, histIdxA, histIdxB, bandwidths) => {
+  const hA = (bandwidths[targetIdxA] + bandwidths[histIdxA]) / 2
+  const hB = (bandwidths[targetIdxB] + bandwidths[histIdxB]) / 2
+  const dA = Math.abs(targetIdxA - histIdxA)
+  const dB = Math.abs(targetIdxB - histIdxB)
+  return gaussianKernel(dA, hA) * gaussianKernel(dB, hB)
+}
+
+/**
+ * 核回归版：计算观察到的两个比赛共同失败的加权概率
+ *
+ * 所有历史数据都参与计算，通过核权重 × 时间权重加权。
+ * 核权重由赔率band距离决定（近=高权重，远=低权重，永不为零）
+ *
+ * @param {Array} historicalData - 全量历史组合数据
  * @param {number} oddsA - 比赛A的赔率
  * @param {number} oddsB - 比赛B的赔率
- * @returns {object} { failedTogether: number, totalCount: number, weightedCount: number }
+ * @param {Float64Array} [bandwidths] - 预计算的自适应带宽（可选）
+ * @returns {object} { failedTogether, totalWeight, effectiveSampleSize, rawPairCount }
  */
-export const getWeightedObservedFailure = (historicalData = [], oddsAOrIndex, oddsBOrIndex) => {
-  if (!Array.isArray(historicalData)) return { failedTogether: 0, totalCount: 0, weightedCount: 0 }
+export const getWeightedObservedFailure = (historicalData = [], oddsA, oddsB, bandwidths = null) => {
+  if (!Array.isArray(historicalData) || historicalData.length === 0) {
+    return { failedTogether: 0, totalWeight: 0, effectiveSampleSize: 0, rawPairCount: 0 }
+  }
 
-  // 支持两种调用方式：
-  // 1) getWeightedObservedFailure(data, oddsA, oddsB) — 新方式（赔率匹配）
-  // 2) getWeightedObservedFailure(data, indexA, indexB) — 旧方式（兼容）
-  // 判断方式：如果参数 > 1.0 认为是赔率，否则认为是索引
-  const isOddsBased = oddsAOrIndex > 1.0 && oddsBOrIndex > 1.0
-  const targetOddsA = isOddsBased ? oddsAOrIndex : null
-  const targetOddsB = isOddsBased ? oddsBOrIndex : null
+  const bw = bandwidths || computeAdaptiveBandwidths(historicalData)
+  const targetIdxA = getBandIndex(oddsA)
+  const targetIdxB = getBandIndex(oddsB)
+  const totalCombos = historicalData.length
 
-  let failedTogetherCount = 0
-  let totalWeightedCount = 0
-  let pairCount = 0
+  let weightedFailedTogether = 0
+  let totalWeight = 0
+  let rawPairCount = 0
+  let sumW2 = 0 // 用于计算有效样本量 ESS = (ΣW)² / ΣW²
 
-  historicalData.forEach((combo) => {
+  historicalData.forEach((combo, comboIdx) => {
     const matches = Array.isArray(combo.matches) ? combo.matches : []
     if (matches.length < 2) return
 
-    const weight = getTemporalWeight(combo.createdAt)
+    const temporalW = getTemporalWeight(combo.createdAt, undefined, comboIdx, totalCombos)
 
-    if (isOddsBased) {
-      // 赔率匹配模式：在每个历史组合中，找到赔率与 A 和 B 相似的比赛对
-      for (let i = 0; i < matches.length; i++) {
-        const mOddsI = toNumber(matches[i]?.odds, 0)
-        if (!isSameOddsBand(mOddsI, targetOddsA)) continue
+    // 在每个历史组合中找最佳匹配对（核权重最高的那对）
+    let bestKernelW = 0
+    let bestFailedBoth = false
 
-        for (let j = 0; j < matches.length; j++) {
-          if (j === i) continue
-          const mOddsJ = toNumber(matches[j]?.odds, 0)
-          if (!isSameOddsBand(mOddsJ, targetOddsB)) continue
+    for (let i = 0; i < matches.length; i++) {
+      const mOddsI = toNumber(matches[i]?.odds, 0)
+      if (mOddsI <= 1) continue
+      const idxI = getBandIndex(mOddsI)
 
-          // 找到了一对匹配的比赛
-          pairCount += 1
-          totalWeightedCount += weight
+      for (let j = 0; j < matches.length; j++) {
+        if (j === i) continue
+        const mOddsJ = toNumber(matches[j]?.odds, 0)
+        if (mOddsJ <= 1) continue
+        const idxJ = getBandIndex(mOddsJ)
 
-          // 检查是否都失败了
-          const resultI = matches[i]?.result
-          const resultJ = matches[j]?.result
-          const failedI = resultI === false
-          const failedJ = resultJ === false
-
-          if (failedI && failedJ) {
-            failedTogetherCount += weight
-          }
-          // 只计算第一对匹配（避免同一组合中多次计数同类赔率）
-          break
+        const kw = computePairKernelWeight(targetIdxA, targetIdxB, idxI, idxJ, bw)
+        if (kw > bestKernelW) {
+          bestKernelW = kw
+          bestFailedBoth = matches[i]?.result === false && matches[j]?.result === false
         }
-        break
       }
-    } else {
-      // 旧索引模式（保留向后兼容）
-      const raceAIndex = oddsAOrIndex
-      const raceBIndex = oddsBOrIndex
-      if (raceAIndex >= matches.length || raceBIndex >= matches.length) return
+    }
 
-      const matchAResult = matches[raceAIndex]?.result
-      const matchBResult = matches[raceBIndex]?.result
-      const matchAFailed = matchAResult === false || matchAResult === 'loss'
-      const matchBFailed = matchBResult === false || matchBResult === 'loss'
-
-      pairCount += 1
-      totalWeightedCount += weight
-
-      if (matchAFailed && matchBFailed) {
-        failedTogetherCount += weight
+    if (bestKernelW > 1e-6) {
+      const w = bestKernelW * temporalW
+      totalWeight += w
+      sumW2 += w * w
+      rawPairCount += 1
+      if (bestFailedBoth) {
+        weightedFailedTogether += w
       }
     }
   })
 
+  // 有效样本量 (Kish's ESS)
+  const effectiveSampleSize = sumW2 > 0 ? (totalWeight * totalWeight) / sumW2 : 0
+
   return {
-    failedTogether: failedTogetherCount,
-    totalCount: pairCount,
-    weightedCount: totalWeightedCount,
+    failedTogether: weightedFailedTogether,
+    totalWeight,
+    effectiveSampleSize,
+    rawPairCount,
   }
 }
 
@@ -5335,6 +5419,7 @@ export const calculateDependencyPremium = (
   historicalData = [],
   raceAIndex = 0,
   raceBIndex = 1,
+  precomputedBandwidths = null,
 ) => {
   const oddsA = toNumber(raceA?.odds, Number.NaN)
   const oddsB = toNumber(raceB?.odds, Number.NaN)
@@ -5347,19 +5432,21 @@ export const calculateDependencyPremium = (
       pFailBothObserved: Number.NaN,
       pFailBothIndependent: Number.NaN,
       sampleSize: 0,
+      effectiveSampleSize: 0,
       confidence: 0,
       pValue: Number.NaN,
       isSignificant: false,
     }
   }
 
-  // 步骤1：使用市场隐含概率（Option A）
+  // 步骤1：使用市场隐含概率
   const pFailA = getMarketImpliedFailureRate(oddsA)
   const pFailB = getMarketImpliedFailureRate(oddsB)
 
-  // 步骤2：获取加权观察到的共同失败率（使用赔率匹配）
-  const observed = getWeightedObservedFailure(historicalData, oddsA, oddsB)
-  const pFailBothObserved = observed.weightedCount > 0 ? observed.failedTogether / observed.weightedCount : 0
+  // 步骤2：核回归 — 全量历史加权共同失败率
+  const bw = precomputedBandwidths || computeAdaptiveBandwidths(historicalData)
+  const observed = getWeightedObservedFailure(historicalData, oddsA, oddsB, bw)
+  const pFailBothObserved = observed.totalWeight > 0 ? observed.failedTogether / observed.totalWeight : 0
 
   // 步骤3：计算独立假设下的共同失败率
   const pFailBothIndependent = pFailA * pFailB
@@ -5367,18 +5454,17 @@ export const calculateDependencyPremium = (
   // 步骤4：计算依赖风险溢价
   const premium = pFailBothObserved - pFailBothIndependent
 
-  // 步骤5：计算样本量信心权重
-  const sampleSize = observed.totalCount
-  const confidenceWeight = getConfidenceWeight(sampleSize)
+  // 步骤5：基于有效样本量的信心权重（ESS替代raw count）
+  const confidenceWeight = getConfidenceWeight(observed.effectiveSampleSize)
 
-  // 步骤6：计算p值（二项检验）
+  // 步骤6：计算p值（使用有效样本量）
   const pValue = calculateBinomialPValue(
     observed.failedTogether,
-    observed.totalCount,
+    observed.totalWeight,
     pFailBothIndependent,
   )
 
-  const isSignificant = pValue < 0.03 // p值阈值为0.03（更严格）
+  const isSignificant = pValue < 0.03
 
   return {
     premium: clamp(premium, -1, 1),
@@ -5386,12 +5472,13 @@ export const calculateDependencyPremium = (
     pFailB,
     pFailBothObserved: clamp(pFailBothObserved, 0, 1),
     pFailBothIndependent: clamp(pFailBothIndependent, 0, 1),
-    sampleSize,
+    sampleSize: observed.rawPairCount,
+    effectiveSampleSize: observed.effectiveSampleSize,
     confidence: confidenceWeight,
     pValue,
     isSignificant,
     observedFailedCount: observed.failedTogether,
-    weightedCount: observed.weightedCount,
+    weightedCount: observed.totalWeight,
   }
 }
 
@@ -5630,14 +5717,16 @@ export const assessFragilityScore = (
   historicalData = [],
   raceAIndex = 0,
   raceBIndex = 1,
+  precomputedBandwidths = null,
 ) => {
-  // 步骤1：计算基础依赖风险溢价
+  // 步骤1：计算基础依赖风险溢价（核回归版）
   const premium = calculateDependencyPremium(
     raceA,
     raceB,
     historicalData,
     raceAIndex,
     raceBIndex,
+    precomputedBandwidths,
   )
 
   if (!Number.isFinite(premium.premium)) {
@@ -5718,6 +5807,9 @@ export const assessComboFragility = (matchGroup = [], historicalData = []) => {
     }
   }
 
+  // 预计算自适应带宽（所有 pair 共享，避免 O(N²) 重复计算）
+  const bandwidths = computeAdaptiveBandwidths(historicalData)
+
   const pairAnalysis = []
 
   // 分析所有对的组合
@@ -5729,6 +5821,7 @@ export const assessComboFragility = (matchGroup = [], historicalData = []) => {
         historicalData,
         i,
         j,
+        bandwidths,
       )
       pairAnalysis.push({
         pair: [i, j],

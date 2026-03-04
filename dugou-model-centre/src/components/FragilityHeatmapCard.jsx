@@ -21,7 +21,6 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
         const isSettled = inv.status === 'win' || inv.status === 'lose' || inv.status === 'settled' || inv.status === 'settled_win' || inv.status === 'settled_loss'
         return hasMatchResults && (hasRevenues || isSettled)
       })
-      .slice(0, 150)
       .map(inv => {
         const matches = Array.isArray(inv.matches) ? inv.matches : []
         return {
