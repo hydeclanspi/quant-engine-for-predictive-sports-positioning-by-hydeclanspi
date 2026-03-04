@@ -335,7 +335,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                     {/* 左侧竖色带 */}
                     <div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full" style={{ background: ls.bar }} />
                     <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2 pl-2">Level</p>
-                    <p className="text-lg font-bold capitalize leading-tight tracking-tight pl-2" style={{ background: ls.gradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{getLevelLabel(expandedPair.riskLevel)}</p>
+                    <p className="text-lg font-bold capitalize leading-tight tracking-tight pl-2" style={{ backgroundImage: ls.gradient, backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent', WebkitTextFillColor: 'transparent' }}>{getLevelLabel(expandedPair.riskLevel)}</p>
                   </div>
                 )
               })()}
