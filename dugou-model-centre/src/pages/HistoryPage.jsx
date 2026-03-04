@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { Search, Filter, Trash2, Archive, Undo2, ChevronRight, ChevronDown } from 'lucide-react'
-import { deleteInvestment, getInvestments, saveInvestment, setInvestmentArchived } from '../lib/localData'
+import { Search, Filter, Trash2, Archive, Undo2, ChevronRight, ChevronDown, SquarePen } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { deleteInvestment, getInvestments, saveInvestment, setInvestmentArchived, updateInvestment } from '../lib/localData'
 
 const LEAGUE_ORDER = ['英超', '西甲', '意甲', '德甲', '法甲', '荷甲', '葡超', '土超', '沙特联', '国际赛', '其他']
 const TEAM_LEAGUE_MAP = {
@@ -448,6 +449,7 @@ const buildDataRows = (investments) => {
 }
 
 export default function HistoryPage() {
+  const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('全部')
   const [layoutMode, setLayoutMode] = useState('modern')
@@ -583,6 +585,22 @@ export default function HistoryPage() {
     const ok = setInvestmentArchived(id, !archived)
     if (!ok) return
     setRefreshKey((prev) => prev + 1)
+  }
+
+  const handleReturnToSettle = (id, event) => {
+    event.stopPropagation()
+    const ok = updateInvestment(id, (previous) => ({
+      ...previous,
+      status: 'pending',
+      is_archived: false,
+    }))
+    if (!ok) {
+      window.alert('回退失败，请刷新后重试。')
+      return
+    }
+    setRefreshKey((prev) => prev + 1)
+    window.alert('已丢回重新结算。')
+    navigate('/settle')
   }
 
   const handleUndoDelete = () => {
@@ -839,6 +857,14 @@ export default function HistoryPage() {
                     </td>
                     <td className="px-3 py-2.5 text-right">
                       <button
+                        onClick={(event) => handleReturnToSettle(row.id, event)}
+                        className="inline-flex items-center justify-center w-6 h-6 rounded-md text-stone-400 hover:text-violet-600 hover:bg-violet-50 transition-colors mr-1"
+                        title="重新结算（编辑）"
+                        aria-label="重新结算（编辑）"
+                      >
+                        <SquarePen size={13} />
+                      </button>
+                      <button
                         onClick={(event) => handleToggleArchive(row.id, row.isArchived, event)}
                         className="inline-flex items-center justify-center w-6 h-6 rounded-md text-stone-400 hover:text-sky-600 hover:bg-sky-50 transition-colors mr-1"
                         title={row.isArchived ? '取消归档' : '归档记录'}
@@ -1067,6 +1093,14 @@ export default function HistoryPage() {
                     <td className="px-2 py-2.5 text-right">
                       {row.isPrimary ? (
                         <>
+                          <button
+                            onClick={(event) => handleReturnToSettle(row.investmentId, event)}
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-md text-stone-400 hover:text-violet-600 hover:bg-violet-50 transition-colors mr-1"
+                            title="重新结算（编辑）"
+                            aria-label="重新结算（编辑）"
+                          >
+                            <SquarePen size={13} />
+                          </button>
                           <button
                             onClick={(event) => handleToggleArchive(row.investmentId, row.isArchived, event)}
                             className="inline-flex items-center justify-center w-6 h-6 rounded-md text-stone-400 hover:text-sky-600 hover:bg-sky-50 transition-colors mr-1"
