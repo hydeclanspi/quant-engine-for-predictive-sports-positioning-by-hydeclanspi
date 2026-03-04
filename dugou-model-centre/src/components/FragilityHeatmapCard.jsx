@@ -625,20 +625,24 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                         (expandedPair.i === colIdx && expandedPair.j === rowIdx) ||
                         (expandedPair.i === rowIdx && expandedPair.j === colIdx)
                       )
-                      // Premium 暖色10段色谱 — 蜜桃→樱粉→紫藤→薰衣草→丁香 | 杏黄→蜂蜜→橘橙→珊瑚→朱砂
+                      // Premium 冷调统一色谱 — 负值(清透冷)→近零(中性灰蓝)→正值(深沉冷)
+                      // 与上三角多彩光谱形成「彩色 vs 单色温」的高级对比
                       const getPremiumCell = (v) => {
                         if (!Number.isFinite(v)) return { bg: 'bg-gradient-to-br from-stone-50/60 to-stone-50/40', border: 'border-stone-200/40', text: 'text-stone-400' }
                         const p = v * 100
-                        if (p <= -12) return { bg: 'bg-gradient-to-br from-rose-50/90 to-pink-50/70', border: 'border-rose-200/50', text: 'text-rose-700' }
-                        if (p <= -8)  return { bg: 'bg-gradient-to-br from-pink-50/85 to-fuchsia-50/70', border: 'border-pink-200/50', text: 'text-pink-700' }
-                        if (p <= -5)  return { bg: 'bg-gradient-to-br from-fuchsia-50/85 to-purple-50/70', border: 'border-fuchsia-200/50', text: 'text-fuchsia-700' }
-                        if (p <= -2)  return { bg: 'bg-gradient-to-br from-purple-50/85 to-violet-50/70', border: 'border-purple-200/50', text: 'text-purple-700' }
-                        if (p < 0)    return { bg: 'bg-gradient-to-br from-violet-50/80 to-indigo-50/55', border: 'border-violet-200/50', text: 'text-violet-700' }
-                        if (p < 2)    return { bg: 'bg-gradient-to-br from-amber-50/80 to-yellow-50/60', border: 'border-amber-200/50', text: 'text-amber-700' }
-                        if (p < 5)    return { bg: 'bg-gradient-to-br from-yellow-50/85 to-amber-50/70', border: 'border-yellow-200/50', text: 'text-yellow-700' }
-                        if (p < 8)    return { bg: 'bg-gradient-to-br from-orange-50/85 to-amber-50/65', border: 'border-orange-200/50', text: 'text-orange-700' }
-                        if (p < 12)   return { bg: 'bg-gradient-to-br from-orange-50/90 to-red-50/70', border: 'border-orange-200/60', text: 'text-orange-700' }
-                        return               { bg: 'bg-gradient-to-br from-red-50/90 to-rose-50/70', border: 'border-red-200/60', text: 'text-red-700' }
+                        // 负值 — 清透明亮冷调，越负越鲜明
+                        if (p <= -12) return { bg: 'bg-gradient-to-br from-emerald-50/80 to-teal-50/60', border: 'border-emerald-200/50', text: 'text-emerald-600' }
+                        if (p <= -8)  return { bg: 'bg-gradient-to-br from-teal-50/75 to-cyan-50/55', border: 'border-teal-200/45', text: 'text-teal-600' }
+                        if (p <= -5)  return { bg: 'bg-gradient-to-br from-cyan-50/70 to-sky-50/50', border: 'border-cyan-200/45', text: 'text-cyan-600' }
+                        if (p <= -2)  return { bg: 'bg-gradient-to-br from-sky-50/65 to-blue-50/45', border: 'border-sky-200/40', text: 'text-sky-600' }
+                        if (p < 0)    return { bg: 'bg-gradient-to-br from-sky-50/55 to-slate-50/40', border: 'border-sky-100/40', text: 'text-sky-500' }
+                        // 近零 — 极淡中性
+                        if (p < 2)    return { bg: 'bg-gradient-to-br from-slate-50/55 to-blue-50/35', border: 'border-slate-200/35', text: 'text-slate-500' }
+                        // 正值 — 深沉冷调，越正越浓郁
+                        if (p < 5)    return { bg: 'bg-gradient-to-br from-blue-50/60 to-indigo-50/40', border: 'border-blue-200/40', text: 'text-blue-600' }
+                        if (p < 8)    return { bg: 'bg-gradient-to-br from-indigo-50/65 to-violet-50/45', border: 'border-indigo-200/45', text: 'text-indigo-600' }
+                        if (p < 12)   return { bg: 'bg-gradient-to-br from-violet-50/70 to-purple-50/50', border: 'border-violet-200/50', text: 'text-violet-600' }
+                        return               { bg: 'bg-gradient-to-br from-purple-50/75 to-fuchsia-50/55', border: 'border-purple-200/50', text: 'text-purple-700' }
                       }
                       const pc = getPremiumCell(prem)
                       return (
