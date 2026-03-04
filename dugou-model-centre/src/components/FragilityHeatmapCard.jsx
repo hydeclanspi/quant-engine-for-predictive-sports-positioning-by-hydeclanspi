@@ -658,10 +658,10 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                           >
                             {Number.isFinite(prem) ? (
                               <div className="flex flex-col items-center justify-center">
-                                <span className={`text-[15px] font-medium tabular-nums leading-none tracking-tight ${pc.text}`}>
-                                  <span className="text-[10px] font-normal opacity-70">{prem >= 0 ? '+' : '\u2212'}</span>{Math.abs(prem * 100).toFixed(1)}
+                                <span className={`text-sm font-semibold tabular-nums leading-none tracking-normal ${pc.text}`}>
+                                  <span className="text-[9px] font-medium opacity-60 mr-px">{prem >= 0 ? '+' : '\u2212'}</span>{Math.abs(prem * 100).toFixed(1)}
                                 </span>
-                                <span className={`text-[9px] font-normal opacity-40 mt-0.5 ${pc.text}`}>%</span>
+                                <span className={`text-[8px] font-medium opacity-35 mt-0.5 ${pc.text}`}>%</span>
                               </div>
                             ) : (
                               <span className="text-[11px] text-stone-300">—</span>
