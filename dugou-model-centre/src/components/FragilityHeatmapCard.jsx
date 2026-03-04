@@ -398,7 +398,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
 
               {/* 模块：Co-failure — 替代 Stat.Sig. */}
               <div className="rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5">
-                <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Co-failure</p>
+                <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">BUST (Total Miss)</p>
                 <p className="text-sm font-semibold text-stone-700 tabular-nums leading-tight">
                   {Number.isFinite(observedFailedCount) ? Number(observedFailedCount).toFixed(3) : observedFailedCount}<span className="text-[10px] font-normal text-stone-400"> / {sampleSize}</span>
                 </p>
@@ -415,7 +415,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                     <div className="grid grid-cols-2 gap-3 h-full">
                       {/* 左子：Odds Profile（互换到左侧） */}
                       <div>
-                        <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2.5">Odds Profile</p>
+                        <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2.5">Full Hit (Sweep)</p>
                         {bandA && bandB ? (
                           <div className="relative space-y-2 pb-3">
                             {/* Exact band matches */}
@@ -458,7 +458,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                                 </div>
                               </div>
                             </div>
-                            <p className="absolute right-0 bottom-0 text-[9px] text-stone-400">pairs won</p>
+                            <p className="absolute right-0 -bottom-1 text-[9px] text-stone-400">odds profile</p>
                           </div>
                         ) : (
                           <p className="text-[10px] text-stone-300 italic">No odds data</p>
