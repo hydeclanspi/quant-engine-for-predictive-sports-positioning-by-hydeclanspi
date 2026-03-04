@@ -412,15 +412,15 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                         )}
                       </div>
                       {/* 右子：Market Implied Failure — 纵向堆叠（互换到右侧） */}
-                      <div className="border-l border-sky-100/60 pl-3">
-                        <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2.5">Market Implied</p>
-                        <div className="space-y-2">
-                          <div>
+                      <div className="border-l border-sky-100/60 pl-3 flex flex-col">
+                        <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-1">Market Implied</p>
+                        <div className="flex-1 flex flex-col">
+                          <div className="flex-1 flex flex-col justify-center">
                             <p className="text-[9px] text-stone-400 mb-0.5 truncate">{nameA}</p>
                             <p className="text-sm font-semibold text-sky-700 tabular-nums">{(pFailA * 100).toFixed(1)}%</p>
                           </div>
                           <div className="h-px bg-sky-100/80" />
-                          <div>
+                          <div className="flex-1 flex flex-col justify-center">
                             <p className="text-[9px] text-stone-400 mb-0.5 truncate">{nameB}</p>
                             <p className="text-sm font-semibold text-sky-700 tabular-nums">{(pFailB * 100).toFixed(1)}%</p>
                           </div>
