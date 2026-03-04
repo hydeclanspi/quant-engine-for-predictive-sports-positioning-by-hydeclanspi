@@ -5458,8 +5458,84 @@ export const calculateDependencyPremium = (
   // 步骤3：计算独立假设下的共同失败率
   const pFailBothIndependent = pFailA * pFailB
 
-  // 步骤4：计算依赖风险溢价
-  const premium = pFailBothObserved - pFailBothIndependent
+  // 步骤4：计算依赖风险溢价（核回归基础值）
+  const rawPremium = pFailBothObserved - pFailBothIndependent
+
+  // 步骤4b：近因校准 — 最近25场d≤1精确/相邻数据修正核回归估计
+  // 从全量数据中提取最近的 d≤1 匹配，计算局部共同失败率
+  // 与核回归估计做比值 → 映射为 ±5%~25% 的修正幅度
+  const calibratePremium = (() => {
+    const targetIdxA = getBandIndex(oddsA)
+    const targetIdxB = getBandIndex(oddsB)
+    const recentMatches = [] // { failedBoth: boolean, recency: number }
+
+    for (let ci = 0; ci < historicalData.length && recentMatches.length < 25; ci++) {
+      const combo = historicalData[ci]
+      const matches = Array.isArray(combo?.matches) ? combo.matches : []
+      if (matches.length < 2) continue
+
+      // 在此组合中找 d≤1 的匹配对
+      let found = false
+      for (let i = 0; i < matches.length && !found; i++) {
+        const oi = toNumber(matches[i]?.odds, 0)
+        if (oi <= 1) continue
+        const idxI = getBandIndex(oi)
+        const dA = Math.abs(idxI - targetIdxA)
+        if (dA > 1) continue
+
+        for (let j = 0; j < matches.length; j++) {
+          if (j === i) continue
+          const oj = toNumber(matches[j]?.odds, 0)
+          if (oj <= 1) continue
+          const idxJ = getBandIndex(oj)
+          const dB = Math.abs(idxJ - targetIdxB)
+          if (dB > 1) continue
+
+          recentMatches.push({
+            failedBoth: matches[i]?.result === false && matches[j]?.result === false,
+            recency: ci, // 越小越近
+          })
+          found = true
+          break
+        }
+      }
+    }
+
+    if (recentMatches.length < 3) return rawPremium // 数据太少，不校准
+
+    // 局部共同失败率（加近因权重）
+    let localWeightedFail = 0
+    let localTotalWeight = 0
+    recentMatches.forEach((m, idx) => {
+      const w = 1 + 0.5 * (1 - idx / recentMatches.length) // 越近权重越高 1.0~1.5
+      localTotalWeight += w
+      if (m.failedBoth) localWeightedFail += w
+    })
+    const localRate = localTotalWeight > 0 ? localWeightedFail / localTotalWeight : 0
+    const localPremium = localRate - pFailBothIndependent
+
+    // 比值：局部信号 vs 核回归平滑值
+    // 当两者都接近0时避免除零
+    if (Math.abs(rawPremium) < 0.001 && Math.abs(localPremium) < 0.001) return rawPremium
+
+    // 差异度 = localPremium - rawPremium
+    const diff = localPremium - rawPremium
+
+    // 校准信心：样本量越多越信任局部信号（3→最低, 25→最高）
+    const calConfidence = clamp((recentMatches.length - 3) / 22, 0, 1) // 3→0, 25→1
+
+    // 修正幅度映射：calConfidence 0→5%, 1→25% 的 diff 影响力
+    const maxInfluence = 0.05 + calConfidence * 0.20 // 5%~25%
+
+    // 将 diff 限制在 ±maxInfluence × |rawPremium| 的范围内（相对幅度）
+    // 但对 rawPremium 接近0的情况用绝对值兜底
+    const absBase = Math.max(Math.abs(rawPremium), 0.02)
+    const cappedDiff = clamp(diff, -maxInfluence * absBase, maxInfluence * absBase)
+
+    return rawPremium + cappedDiff
+  })()
+
+  const premium = calibratePremium
 
   // 步骤5：基于有效样本量的信心权重（ESS替代raw count）
   const confidenceWeight = getConfidenceWeight(observed.effectiveSampleSize)
