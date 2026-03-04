@@ -236,6 +236,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
     const sampleSize = premium.sampleSize || 0
     const premiumValue = premium.premium
     const observedFailedCount = premium.observedFailedCount || 0
+    const observedPartialMiss = premium.observedPartialMiss || 0
     const hasBias = bias.hasBias || false
     const biasStrength = bias.biasStrength || 0
     const matchedExact = bias.investedInTarget || 0
@@ -386,16 +387,13 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                 )
               })()}
 
-              {/* 模块：Confidence — 含样本量说明 */}
+              {/* 模块：Partial Miss (Split) — 一对一错 */}
               <div className="rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5">
-                <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Confidence</p>
-                <div className="flex items-baseline gap-0.5">
-                  <span className="text-sm font-semibold text-stone-700 tabular-nums leading-tight">{(expandedPair.confidence * 100).toFixed(1)}</span>
-                  <span className="text-[10px] text-stone-400">%</span>
-                </div>
-                {sampleSize > 0 && (
-                  <p className="text-[9px] text-stone-400 mt-1 tabular-nums">{sampleSize} samples</p>
-                )}
+                <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Partial Miss</p>
+                <p className="text-sm font-semibold text-stone-700 tabular-nums leading-tight">
+                  {Number.isFinite(observedPartialMiss) ? Number(observedPartialMiss).toFixed(3) : observedPartialMiss}<span className="text-[10px] font-normal text-stone-400"> / {sampleSize}</span>
+                </p>
+                <p className="text-[9px] text-stone-400 mt-1">split outcomes</p>
               </div>
 
               {/* 模块：Co-failure — 替代 Stat.Sig. */}
@@ -546,6 +544,9 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                 )}
                 {Number.isFinite(globalFailureRate) && (
                   <span>Global fail rate <span className="font-medium text-stone-500 tabular-nums">{(globalFailureRate * 100).toFixed(0)}%</span></span>
+                )}
+                {Number.isFinite(expandedPair.confidence) && (
+                  <span>Confidence <span className="font-medium text-stone-500 tabular-nums">{(expandedPair.confidence * 100).toFixed(1)}%</span></span>
                 )}
                 {hasBias && (
                   <span className="text-indigo-400">
