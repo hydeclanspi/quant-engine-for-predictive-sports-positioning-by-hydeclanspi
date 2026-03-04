@@ -431,12 +431,12 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                               </div>
                               <div className="flex items-end gap-2.5">
                                 <div className="flex flex-col items-center">
-                                  <span className="text-xl font-bold text-stone-700 tabular-nums leading-none">{matchedExact}</span>
+                                  <span className="text-lg font-bold text-stone-700 tabular-nums leading-none">{matchedExact}</span>
                                   <span className="text-[8px] text-stone-400 font-medium mt-1 uppercase tracking-wider">hit</span>
                                 </div>
                                 <span className="text-stone-200 text-xs font-light mb-0.5">/</span>
                                 <div className="flex flex-col items-center">
-                                  <span className="text-xl font-bold text-emerald-600 tabular-nums leading-none">{exactWon}</span>
+                                  <span className="text-[15px] font-semibold text-emerald-600 tabular-nums leading-none">{exactWon}</span>
                                   <span className="text-[8px] text-emerald-500/70 font-medium mt-1 uppercase tracking-wider">won</span>
                                 </div>
                               </div>
@@ -450,12 +450,12 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                               </div>
                               <div className="flex items-end gap-2.5">
                                 <div className="flex flex-col items-center">
-                                  <span className="text-xl font-bold text-stone-700 tabular-nums leading-none">{matchedNeighbor}</span>
+                                  <span className="text-lg font-bold text-stone-700 tabular-nums leading-none">{matchedNeighbor}</span>
                                   <span className="text-[8px] text-stone-400 font-medium mt-1 uppercase tracking-wider">hit</span>
                                 </div>
                                 <span className="text-stone-200 text-xs font-light mb-0.5">/</span>
                                 <div className="flex flex-col items-center">
-                                  <span className="text-xl font-bold text-emerald-600 tabular-nums leading-none">{neighborWon}</span>
+                                  <span className="text-[15px] font-semibold text-emerald-600 tabular-nums leading-none">{neighborWon}</span>
                                   <span className="text-[8px] text-emerald-500/70 font-medium mt-1 uppercase tracking-wider">won</span>
                                 </div>
                               </div>
@@ -474,8 +474,8 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                             <p className="text-sm font-semibold text-sky-700 tabular-nums">{(pFailA * 100).toFixed(1)}%</p>
                           </div>
                           <div className="h-px bg-sky-100/80" />
-                          <div className="flex-1 flex flex-col justify-center pt-1">
-                            <p className="text-[9px] text-stone-400 mb-1 truncate">{nameB}</p>
+                          <div className="flex-1 flex flex-col justify-center pt-0.5">
+                            <p className="text-[9px] text-stone-400 mb-0.5 truncate">{nameB}</p>
                             <p className="text-sm font-semibold text-sky-700 tabular-nums">{(pFailB * 100).toFixed(1)}%</p>
                           </div>
                         </div>
