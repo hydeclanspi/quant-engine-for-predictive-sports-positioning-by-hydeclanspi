@@ -351,20 +351,20 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                       <div>
                         <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2.5">Odds Profile</p>
                         {bandA && bandB ? (
-                          <div className="space-y-2">
+                          <div className="space-y-2.5">
                             {/* Exact band matches */}
                             <div>
                               <div className="flex items-baseline gap-1">
                                 <span className="text-[9px] text-stone-400 uppercase tracking-wide">Exact</span>
                                 <span className="text-[8px] text-stone-300 tabular-nums">({bandA}×{bandB})</span>
                               </div>
-                              <div className="flex items-baseline justify-between mt-0.5">
+                              <div className="flex items-baseline justify-between mt-1">
                                 <div className="flex items-baseline gap-1">
-                                  <span className="text-base font-bold text-stone-700 tabular-nums leading-none">{matchedExact}</span>
-                                  <span className="text-[9px] text-stone-300 font-medium">hit</span>
-                                  <span className="text-[9px] text-stone-300">/</span>
-                                  <span className="text-[13px] font-semibold text-emerald-600 tabular-nums leading-none">{exactWon}</span>
-                                  <span className="text-[9px] text-emerald-500/70 font-medium">won</span>
+                                  <span className="text-lg font-bold text-stone-700 tabular-nums leading-none">{matchedExact}</span>
+                                  <span className="text-[10px] text-stone-300 font-medium">hit</span>
+                                  <span className="text-[10px] text-stone-300">/</span>
+                                  <span className="text-[15px] font-semibold text-emerald-600 tabular-nums leading-none">{exactWon}</span>
+                                  <span className="text-[10px] text-emerald-500/70 font-medium">won</span>
                                 </div>
                                 <span className="text-[10px] font-semibold tabular-nums text-sky-500/80 bg-sky-50/70 px-1.5 py-0.5 rounded-full">{matchedExact > 0 ? ((exactWon / matchedExact) * 100).toFixed(0) : '—'}%</span>
                               </div>
@@ -373,13 +373,13 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                             {/* Neighbor band matches */}
                             <div>
                               <span className="text-[9px] text-stone-400 uppercase tracking-wide">Neighbor</span>
-                              <div className="flex items-baseline justify-between mt-0.5">
+                              <div className="flex items-baseline justify-between mt-1">
                                 <div className="flex items-baseline gap-1">
-                                  <span className="text-base font-bold text-stone-700 tabular-nums leading-none">{matchedNeighbor}</span>
-                                  <span className="text-[9px] text-stone-300 font-medium">hit</span>
-                                  <span className="text-[9px] text-stone-300">/</span>
-                                  <span className="text-[13px] font-semibold text-emerald-600 tabular-nums leading-none">{neighborWon}</span>
-                                  <span className="text-[9px] text-emerald-500/70 font-medium">won</span>
+                                  <span className="text-lg font-bold text-stone-700 tabular-nums leading-none">{matchedNeighbor}</span>
+                                  <span className="text-[10px] text-stone-300 font-medium">hit</span>
+                                  <span className="text-[10px] text-stone-300">/</span>
+                                  <span className="text-[15px] font-semibold text-emerald-600 tabular-nums leading-none">{neighborWon}</span>
+                                  <span className="text-[10px] text-emerald-500/70 font-medium">won</span>
                                 </div>
                                 <span className="text-[10px] font-semibold tabular-nums text-sky-500/80 bg-sky-50/70 px-1.5 py-0.5 rounded-full">{matchedNeighbor > 0 ? ((neighborWon / matchedNeighbor) * 100).toFixed(0) : '—'}%</span>
                               </div>
