@@ -288,18 +288,35 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
             {/* 第一行：左大右小的非对称布局 — 4模块 */}
             <div className="grid grid-cols-5 gap-2.5">
 
-              {/* 主模块：共振评分 — 占2列 */}
-              <div className="col-span-2 rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5">
-                <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Resonance</p>
-                <div className="flex items-baseline gap-1">
-                  <span className={`text-2xl font-bold tabular-nums leading-none ${style.text}`}>{expandedPair.score}</span>
-                  <span className="text-xs text-stone-400">%</span>
-                </div>
-                <div className="mt-2.5 flex items-center gap-1.5">
-                  <div className={`h-1.5 rounded-full bg-gradient-to-r ${style.dot}`} style={{ width: `${Math.min(expandedPair.score, 100)}%`, minWidth: '8px' }} />
-                  <div className="flex-1 h-1.5 rounded-full bg-stone-100" />
-                </div>
-              </div>
+              {/* 主模块：共振评分 — 渐变文字 + 左侧色带 + 微光底色 + 进度条 */}
+              {(() => {
+                const s = expandedPair.score
+                const rs = s < 10  ? { gradient: 'linear-gradient(135deg, #059669, #34d399, #6ee7b7)', bar: 'linear-gradient(180deg, #a7f3d0, #059669)', bg: 'from-emerald-50/60 to-white', border: 'border-emerald-100/80', track: 'bg-emerald-100/60' }
+                     : s < 20  ? { gradient: 'linear-gradient(135deg, #0d9488, #2dd4bf, #5eead4)', bar: 'linear-gradient(180deg, #99f6e4, #0d9488)', bg: 'from-teal-50/55 to-white', border: 'border-teal-100/75', track: 'bg-teal-100/60' }
+                     : s < 30  ? { gradient: 'linear-gradient(135deg, #0891b2, #22d3ee, #67e8f9)', bar: 'linear-gradient(180deg, #a5f3fc, #0891b2)', bg: 'from-cyan-50/55 to-white', border: 'border-cyan-100/75', track: 'bg-cyan-100/60' }
+                     : s < 38  ? { gradient: 'linear-gradient(135deg, #0284c7, #0ea5e9, #38bdf8)', bar: 'linear-gradient(180deg, #7dd3fc, #0284c7)', bg: 'from-sky-50/60 to-white', border: 'border-sky-100/80', track: 'bg-sky-100/60' }
+                     : s < 46  ? { gradient: 'linear-gradient(135deg, #1e40af, #3b82f6, #60a5fa)', bar: 'linear-gradient(180deg, #93c5fd, #1e40af)', bg: 'from-blue-50/50 to-white', border: 'border-blue-100/70', track: 'bg-blue-100/60' }
+                     : s < 54  ? { gradient: 'linear-gradient(135deg, #3730a3, #6366f1, #818cf8)', bar: 'linear-gradient(180deg, #a5b4fc, #3730a3)', bg: 'from-indigo-50/50 to-white', border: 'border-indigo-100/70', track: 'bg-indigo-100/60' }
+                     : s < 64  ? { gradient: 'linear-gradient(135deg, #6d28d9, #8b5cf6, #a78bfa)', bar: 'linear-gradient(180deg, #c4b5fd, #6d28d9)', bg: 'from-violet-50/50 to-white', border: 'border-violet-100/70', track: 'bg-violet-100/60' }
+                     : s < 76  ? { gradient: 'linear-gradient(135deg, #b45309, #f59e0b, #fbbf24)', bar: 'linear-gradient(180deg, #fde68a, #b45309)', bg: 'from-amber-50/50 to-white', border: 'border-amber-100/70', track: 'bg-amber-100/60' }
+                     : s < 88  ? { gradient: 'linear-gradient(135deg, #475569, #64748b, #94a3b8)', bar: 'linear-gradient(180deg, #cbd5e1, #475569)', bg: 'from-slate-50/60 to-white', border: 'border-slate-100/80', track: 'bg-slate-100/60' }
+                     :           { gradient: 'linear-gradient(135deg, #334155, #475569, #64748b)', bar: 'linear-gradient(180deg, #94a3b8, #334155)', bg: 'from-slate-100/70 to-white', border: 'border-slate-200/80', track: 'bg-slate-200/60' }
+                return (
+                  <div className={`col-span-2 relative rounded-xl bg-gradient-to-br ${rs.bg} border ${rs.border} p-3.5 overflow-hidden`}>
+                    {/* 左侧竖色带 */}
+                    <div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full" style={{ background: rs.bar }} />
+                    <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2 pl-2">Resonance</p>
+                    <div className="flex items-baseline gap-1 pl-2">
+                      <span className="text-2xl font-bold tabular-nums leading-none" style={{ backgroundImage: rs.gradient, backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent', WebkitTextFillColor: 'transparent' }}>{expandedPair.score}</span>
+                      <span className="text-xs font-medium" style={{ backgroundImage: rs.gradient, backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent', WebkitTextFillColor: 'transparent', opacity: 0.7 }}>%</span>
+                    </div>
+                    <div className="mt-2.5 pl-2 flex items-center gap-1.5">
+                      <div className={`h-[5px] rounded-full bg-gradient-to-r ${style.dot}`} style={{ width: `${Math.min(expandedPair.score, 100)}%`, minWidth: '8px', boxShadow: style.orbShadow?.replace('14px 2px', '6px 1px') || 'none' }} />
+                      <div className={`flex-1 h-[5px] rounded-full ${rs.track}`} />
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* 模块：Level — 渐变文字 + 左侧色带 + 微光背景 */}
               {(() => {
@@ -606,9 +623,12 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                               }`}
                           >
                             {Number.isFinite(prem) ? (
-                              <span className={`text-[13px] font-semibold tabular-nums leading-none italic tracking-tight ${pc.text}`}>
-                                {prem > 0 ? '+' : ''}{(prem * 100).toFixed(1)}%
-                              </span>
+                              <div className="flex flex-col items-center justify-center">
+                                <span className={`text-base font-bold tabular-nums leading-none italic ${pc.text}`}>
+                                  <span className="text-[10px] font-semibold">{prem >= 0 ? '+' : '\u2212'}</span>{Math.abs(prem * 100).toFixed(1)}
+                                </span>
+                                <span className={`text-[9px] italic opacity-50 mt-0.5 ${pc.text}`}>%</span>
+                              </div>
                             ) : (
                               <span className="text-[11px] text-stone-300">—</span>
                             )}
