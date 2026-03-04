@@ -561,10 +561,39 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
 
                   {/* 单元格 */}
                   {matches.map((_, colIdx) => {
-                    if (colIdx <= rowIdx) {
+                    // 对角线 — 空白
+                    if (colIdx === rowIdx) {
                       return (
                         <td key={`cell-${rowIdx}-${colIdx}`} className="p-1">
-                          <div className="h-14 rounded-lg bg-stone-50/50 border border-stone-100/60" />
+                          <div className="h-14 rounded-lg bg-stone-50/30 border border-stone-100/40" />
+                        </td>
+                      )
+                    }
+                    // 下三角 — 显示 Premium
+                    if (colIdx < rowIdx) {
+                      const mirrorData = fragilityMatrix.find(m => m.i === colIdx && m.j === rowIdx)
+                      if (!mirrorData) return <td key={`cell-${rowIdx}-${colIdx}`} className="p-1" />
+                      const prem = mirrorData.components?.premium?.premium
+                      const isSelected = expandedPair && expandedPair.i === colIdx && expandedPair.j === rowIdx
+                      return (
+                        <td key={`cell-${rowIdx}-${colIdx}`} className="p-1">
+                          <button
+                            onClick={() => onSelectPair?.(mirrorData)}
+                            className={`w-full h-14 rounded-lg border backdrop-blur-[2px] flex items-center justify-center transition-all duration-200 cursor-pointer
+                              bg-gradient-to-br from-white/80 to-stone-50/60 border-stone-200/50
+                              ${isSelected
+                                ? 'ring-2 ring-sky-400/60 ring-offset-1 scale-[1.03]'
+                                : 'hover:scale-[1.02] hover:shadow-md hover:border-stone-200/80'
+                              }`}
+                          >
+                            {Number.isFinite(prem) ? (
+                              <span className={`text-[13px] font-semibold tabular-nums tracking-tight ${prem > 0 ? 'text-indigo-500' : 'text-emerald-500'}`}>
+                                {prem > 0 ? '+' : ''}{(prem * 100).toFixed(1)}%
+                              </span>
+                            ) : (
+                              <span className="text-[11px] text-stone-300">—</span>
+                            )}
+                          </button>
                         </td>
                       )
                     }
