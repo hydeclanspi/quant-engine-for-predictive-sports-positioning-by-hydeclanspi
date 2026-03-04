@@ -389,11 +389,11 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
 
               {/* 模块：Partial Miss (Split) — 一对一错 */}
               <div className="rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5">
-                <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Partial Miss</p>
+                <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Partial Miss (Split)</p>
                 <p className="text-sm font-semibold text-stone-700 tabular-nums leading-tight">
                   {Number.isFinite(observedPartialMiss) ? Number(observedPartialMiss).toFixed(3) : observedPartialMiss}<span className="text-[10px] font-normal text-stone-400"> / {sampleSize}</span>
                 </p>
-                <p className="text-[9px] text-stone-400 mt-1">split outcomes</p>
+                <p className="text-[9px] text-stone-400 mt-1">half-hit outcomes</p>
               </div>
 
               {/* 模块：Co-failure — 替代 Stat.Sig. */}
