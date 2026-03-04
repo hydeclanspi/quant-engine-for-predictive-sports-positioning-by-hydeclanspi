@@ -575,26 +575,21 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                       if (!mirrorData) return <td key={`cell-${rowIdx}-${colIdx}`} className="p-1" />
                       const prem = mirrorData.components?.premium?.premium
                       const isSelected = expandedPair && expandedPair.i === colIdx && expandedPair.j === rowIdx
-                      // 毛玻璃 + premium 正负色调
-                      const premBg = Number.isFinite(prem) && prem > 0
-                        ? 'rgba(254,226,226,0.35), rgba(255,255,255,0.6)'   // 淡红
-                        : 'rgba(209,250,229,0.35), rgba(255,255,255,0.6)'   // 淡翡翠
-                      const premBorder = Number.isFinite(prem) && prem > 0
-                        ? 'rgba(252,165,165,0.3)'  // red-300/30
-                        : 'rgba(110,231,183,0.3)'   // emerald-300/30
                       return (
                         <td key={`cell-${rowIdx}-${colIdx}`} className="p-1">
                           <button
                             onClick={() => onSelectPair?.(mirrorData)}
-                            className={`w-full h-14 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer backdrop-blur-[6px]
+                            className={`w-full h-14 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer
                               ${isSelected
                                 ? 'ring-2 ring-sky-400/60 ring-offset-1 scale-[1.03]'
                                 : 'hover:scale-[1.02] hover:shadow-md'
                               }`}
                             style={{
-                              background: `linear-gradient(135deg, ${premBg})`,
-                              border: `1px solid ${premBorder}`,
-                              boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5)',
+                              background: 'linear-gradient(145deg, rgba(255,255,255,0.75), rgba(248,250,252,0.55) 50%, rgba(241,245,249,0.45))',
+                              border: '1px solid rgba(226,232,240,0.6)',
+                              boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(148,163,184,0.08), 0 1px 3px rgba(148,163,184,0.06)',
+                              backdropFilter: 'blur(8px)',
+                              WebkitBackdropFilter: 'blur(8px)',
                             }}
                           >
                             {Number.isFinite(prem) ? (
