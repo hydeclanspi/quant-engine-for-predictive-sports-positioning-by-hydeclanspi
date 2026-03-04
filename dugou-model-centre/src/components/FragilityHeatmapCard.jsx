@@ -569,17 +569,19 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                         </td>
                       )
                     }
-                    // 下三角 — 显示 Premium
+                    // 下三角 — 显示 Premium（玻璃水晶质感）
                     if (colIdx < rowIdx) {
                       const mirrorData = fragilityMatrix.find(m => m.i === colIdx && m.j === rowIdx)
                       if (!mirrorData) return <td key={`cell-${rowIdx}-${colIdx}`} className="p-1" />
                       const prem = mirrorData.components?.premium?.premium
+                      // 高光匹配：expandedPair 存的是 i<j，下三角 colIdx<rowIdx，所以直接对比
                       const isSelected = expandedPair && expandedPair.i === colIdx && expandedPair.j === rowIdx
+                      const premColor = Number.isFinite(prem) && prem > 0 ? '#e11d48' : '#059669'
                       return (
                         <td key={`cell-${rowIdx}-${colIdx}`} className="p-1">
                           <button
                             onClick={() => onSelectPair?.(mirrorData)}
-                            className={`w-full h-14 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer
+                            className={`w-full h-14 rounded-lg flex flex-col items-center justify-center transition-all duration-200 cursor-pointer
                               ${isSelected
                                 ? 'ring-2 ring-sky-400/60 ring-offset-1 scale-[1.03]'
                                 : 'hover:scale-[1.02] hover:shadow-md'
@@ -593,9 +595,15 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                             }}
                           >
                             {Number.isFinite(prem) ? (
-                              <span className={`text-[13px] font-semibold tabular-nums tracking-tight ${prem > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
-                                {prem > 0 ? '+' : ''}{(prem * 100).toFixed(1)}%
-                              </span>
+                              <>
+                                <span
+                                  className="text-[14px] font-bold tabular-nums leading-none italic"
+                                  style={{ color: premColor, letterSpacing: '-0.03em' }}
+                                >
+                                  {prem > 0 ? '+' : ''}{(prem * 100).toFixed(1)}
+                                </span>
+                                <span className="text-[9px] font-medium mt-0.5 italic" style={{ color: premColor, opacity: 0.5 }}>%</span>
+                              </>
                             ) : (
                               <span className="text-[11px] text-stone-300">—</span>
                             )}
