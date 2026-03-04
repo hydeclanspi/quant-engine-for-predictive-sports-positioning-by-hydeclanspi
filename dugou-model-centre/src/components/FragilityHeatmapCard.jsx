@@ -331,8 +331,15 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                         <div className="mt-3 pl-2 relative h-[3px]">
                           <div className={`absolute inset-0 rounded-full ${rs.track}`} />
                           <div className="absolute left-0 top-0 h-full rounded-full" style={{ width: `${pos}%`, minWidth: '4px', background: `linear-gradient(90deg, transparent 0%, ${midColor}18 30%, ${midColor}60 100%)` }} />
+                          {/* 切割宝石 — 八边形 + conic折射 + 辉光 */}
                           <div className="absolute top-1/2" style={{ left: `${pos}%`, transform: 'translate(-50%, -50%)' }}>
-                            <div className="w-[7px] h-[7px] rounded-full" style={{ background: rs.gradient, boxShadow: `0 0 8px 2px ${midColor}50` }} />
+                            <div style={{
+                              width: '11px',
+                              height: '11px',
+                              clipPath: 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)',
+                              background: `conic-gradient(from 0deg, ${midColor}ee, ${midColor}44, ${midColor}cc, ${midColor}33, ${midColor}dd, ${midColor}55, ${midColor}ee)`,
+                              boxShadow: `0 0 10px 3px ${midColor}40, 0 0 4px 1px ${midColor}60`,
+                            }} />
                           </div>
                         </div>
                       )
