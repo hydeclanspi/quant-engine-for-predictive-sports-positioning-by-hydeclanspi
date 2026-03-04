@@ -223,6 +223,8 @@ export default function TeamsPage() {
   const [leagueFilter, setLeagueFilter] = useState(LEAGUE_ALL_KEY)
   const [teamHistoryPage, setTeamHistoryPage] = useState(1)
   const [expandedHistoryGroupIds, setExpandedHistoryGroupIds] = useState([])
+  const [roiHoverIndex, setRoiHoverIndex] = useState(null)
+  const [ratingHoverIndex, setRatingHoverIndex] = useState(null)
 
   const teamsByPeriod = useMemo(() => getTeamsSnapshot('', timePeriod), [timePeriod])
   const leagueOptions = useMemo(() => {
@@ -252,6 +254,11 @@ export default function TeamsPage() {
   useEffect(() => {
     if (!leagueOptions[leagueFilter]) setLeagueFilter(LEAGUE_ALL_KEY)
   }, [leagueFilter, leagueOptions])
+
+  useEffect(() => {
+    setRoiHoverIndex(null)
+    setRatingHoverIndex(null)
+  }, [selectedTeamName])
 
   const selectedTeam = useMemo(
     () => (selectedTeamName === '__none__' ? null : teams.find((team) => team.name === selectedTeamName) || teams[0] || null),
@@ -419,7 +426,7 @@ export default function TeamsPage() {
               <div>
                 <h4 className="text-sm font-medium text-stone-600 mb-3">ROI 走势</h4>
                 <div className="h-40 rounded-xl border border-indigo-100 bg-gradient-to-b from-indigo-50/40 to-white px-3 py-2">
-                  <svg viewBox="0 0 100 48" className="w-full h-[118px]">
+                  <svg viewBox="0 0 100 48" className="w-full h-[118px]" onMouseLeave={() => setRoiHoverIndex(null)}>
                     {(() => {
                       const series = normalizeSeries(selectedTeamDetail.roiSeries)
                       const min = Math.min(...series)
@@ -429,10 +436,30 @@ export default function TeamsPage() {
                       const points = series.map((value, idx) => {
                         const x = 8 + idx * step
                         const y = 38 - ((value - min) / span) * 27
-                        return { x, y, value }
+                        return {
+                          x,
+                          y,
+                          value,
+                          label: selectedTeamDetail.roiLabels[idx] || selectedTeamDetail.roiLabels[selectedTeamDetail.roiLabels.length - 1] || '--',
+                        }
                       })
+                      const activePoint = Number.isInteger(roiHoverIndex) ? points[roiHoverIndex] || null : null
                       const line = points.map((p) => `${p.x},${p.y}`).join(' ')
-                      const area = `${line} 92,42 8,42`
+                      const yAxisTop = 11
+                      const yAxisBottom = 38
+                      const tickCount = 5
+                      const tickYs = Array.from(
+                        { length: tickCount },
+                        (_, idx) => yAxisTop + (idx * (yAxisBottom - yAxisTop)) / (tickCount - 1),
+                      )
+                      const tickValues = Array.from(
+                        { length: tickCount },
+                        (_, idx) => max - (idx * (max - min)) / (tickCount - 1),
+                      )
+                      const bubbleWidth = 28
+                      const bubbleHeight = 9.8
+                      const bubbleX = activePoint ? clamp(activePoint.x - bubbleWidth / 2, 8, 92 - bubbleWidth) : 8
+                      const bubbleY = activePoint ? clamp(activePoint.y - bubbleHeight - 2.8, 2, 34) : 2
 
                       return (
                         <>
@@ -442,17 +469,60 @@ export default function TeamsPage() {
                               <stop offset="100%" stopColor="#6366f1" />
                             </linearGradient>
                           </defs>
+                          <line x1="8" y1="9.8" x2="8" y2="42" stroke="#c7d2fe" strokeWidth="0.45" />
                           <line x1="8" y1="42" x2="92" y2="42" stroke="#e0e7ff" strokeWidth="0.45" />
-                          <line x1="8" y1="30" x2="92" y2="30" stroke="#c7d2fe" strokeWidth="0.35" strokeDasharray="1.2 1.8" />
+                          {tickYs.map((tickY, idx) => (
+                            <line
+                              key={`roi-tick-line-${idx}`}
+                              x1="8"
+                              y1={tickY}
+                              x2="92"
+                              y2={tickY}
+                              stroke="#c7d2fe"
+                              strokeWidth={idx === 0 || idx === tickYs.length - 1 ? '0.34' : '0.3'}
+                              strokeDasharray={idx === 0 || idx === tickYs.length - 1 ? undefined : '1.1 1.8'}
+                              opacity={idx === 0 || idx === tickYs.length - 1 ? 0.75 : 0.55}
+                            />
+                          ))}
+                          {tickYs.map((tickY, idx) => (
+                            <text
+                              key={`roi-tick-label-${idx}`}
+                              x="6.5"
+                              y={tickY + 0.9}
+                              fontSize="2.5"
+                              textAnchor="end"
+                              fill={idx === 0 ? '#818cf8' : '#94a3b8'}
+                            >
+                              {toSigned(tickValues[idx], 1, '%')}
+                            </text>
+                          ))}
                           <polyline fill="none" stroke="url(#teamRoiLineLg)" strokeWidth="1.2" points={line} />
                           {points.map((p, idx) => (
                             <g key={idx}>
-                              <circle cx={p.x} cy={p.y} r="1.15" fill="#6366f1" />
-                              {idx === points.length - 1 && (
-                                <text x={p.x - 3} y={p.y - 3.2} fontSize="3.1" fill="#4338ca">{`ROI ${p.value.toFixed(1)}%`}</text>
-                              )}
+                              <circle cx={p.x} cy={p.y} r={activePoint && roiHoverIndex === idx ? '1.7' : '1.15'} fill="#6366f1" />
+                              <circle
+                                cx={p.x}
+                                cy={p.y}
+                                r="3.1"
+                                fill="transparent"
+                                className="cursor-pointer"
+                                onMouseEnter={() => setRoiHoverIndex(idx)}
+                                onFocus={() => setRoiHoverIndex(idx)}
+                              />
                             </g>
                           ))}
+                          {activePoint && (
+                            <g pointerEvents="none">
+                              <line x1={activePoint.x} y1={activePoint.y + 1.5} x2={activePoint.x} y2="42" stroke="#a5b4fc" strokeWidth="0.35" strokeDasharray="1.1 1.4" />
+                              <rect x={bubbleX} y={bubbleY} width={bubbleWidth} height={bubbleHeight} rx="2.3" fill="rgba(255,255,255,0.92)" stroke="#c7d2fe" strokeWidth="0.45" />
+                              <text x={bubbleX + bubbleWidth / 2} y={bubbleY + 3.45} textAnchor="middle" fontSize="2.7" fontWeight="600" fill="#4f46e5">
+                                {toSigned(activePoint.value, 1, '%')}
+                              </text>
+                              <text x={bubbleX + bubbleWidth / 2} y={bubbleY + 7.2} textAnchor="middle" fontSize="2.25" fill="#64748b">
+                                {activePoint.label}
+                              </text>
+                            </g>
+                          )}
                         </>
                       )
                     })()}
@@ -467,7 +537,7 @@ export default function TeamsPage() {
               <div>
                 <h4 className="text-sm font-medium text-stone-600 mb-3">Actual Judgemental Rating 走势</h4>
                 <div className="h-40 rounded-xl border border-sky-100 bg-gradient-to-b from-sky-50/60 to-white px-3 py-2">
-                  <svg viewBox="0 0 100 48" className="w-full h-[118px]">
+                  <svg viewBox="0 0 100 48" className="w-full h-[118px]" onMouseLeave={() => setRatingHoverIndex(null)}>
                     {(() => {
                       const series = normalizeSeries(selectedTeamDetail.ratingSeries)
                       const min = Math.min(...series)
@@ -477,10 +547,30 @@ export default function TeamsPage() {
                       const points = series.map((value, idx) => {
                         const x = 8 + idx * step
                         const y = 38 - ((value - min) / span) * 27
-                        return { x, y, value }
+                        return {
+                          x,
+                          y,
+                          value,
+                          label: selectedTeamDetail.ratingLabels[idx] || selectedTeamDetail.ratingLabels[selectedTeamDetail.ratingLabels.length - 1] || '--',
+                        }
                       })
+                      const activePoint = Number.isInteger(ratingHoverIndex) ? points[ratingHoverIndex] || null : null
                       const line = points.map((p) => `${p.x},${p.y}`).join(' ')
-                      const zeroY = 38 - ((0 - min) / span) * 27
+                      const yAxisTop = 11
+                      const yAxisBottom = 38
+                      const tickCount = 5
+                      const tickYs = Array.from(
+                        { length: tickCount },
+                        (_, idx) => yAxisTop + (idx * (yAxisBottom - yAxisTop)) / (tickCount - 1),
+                      )
+                      const tickValues = Array.from(
+                        { length: tickCount },
+                        (_, idx) => max - (idx * (max - min)) / (tickCount - 1),
+                      )
+                      const bubbleWidth = 26
+                      const bubbleHeight = 9.8
+                      const bubbleX = activePoint ? clamp(activePoint.x - bubbleWidth / 2, 8, 92 - bubbleWidth) : 8
+                      const bubbleY = activePoint ? clamp(activePoint.y - bubbleHeight - 2.8, 2, 34) : 2
 
                       return (
                         <>
@@ -490,14 +580,60 @@ export default function TeamsPage() {
                               <stop offset="100%" stopColor="#2563eb" />
                             </linearGradient>
                           </defs>
+                          <line x1="8" y1="9.8" x2="8" y2="42" stroke="#bae6fd" strokeWidth="0.45" />
                           <line x1="8" y1="42" x2="92" y2="42" stroke="#e0f2fe" strokeWidth="0.45" />
-                          <line x1="8" y1="30" x2="92" y2="30" stroke="#bae6fd" strokeWidth="0.35" strokeDasharray="1.2 1.8" />
-                          <line x1="8" y1={zeroY} x2="92" y2={zeroY} stroke="#7dd3fc" strokeWidth="0.5" strokeDasharray="1.4 1.8" />
+                          {tickYs.map((tickY, idx) => (
+                            <line
+                              key={`rating-tick-line-${idx}`}
+                              x1="8"
+                              y1={tickY}
+                              x2="92"
+                              y2={tickY}
+                              stroke="#bae6fd"
+                              strokeWidth={idx === 0 || idx === tickYs.length - 1 ? '0.34' : '0.3'}
+                              strokeDasharray={idx === 0 || idx === tickYs.length - 1 ? undefined : '1.1 1.8'}
+                              opacity={idx === 0 || idx === tickYs.length - 1 ? 0.75 : 0.55}
+                            />
+                          ))}
+                          {tickYs.map((tickY, idx) => (
+                            <text
+                              key={`rating-tick-label-${idx}`}
+                              x="6.5"
+                              y={tickY + 0.9}
+                              fontSize="2.5"
+                              textAnchor="end"
+                              fill={idx === 0 ? '#0284c7' : '#94a3b8'}
+                            >
+                              {tickValues[idx].toFixed(2)}
+                            </text>
+                          ))}
                           <polyline fill="none" stroke="url(#teamRatingLineLg)" strokeWidth="1" points={line} />
                           {points.map((p, idx) => (
-                            <circle key={idx} cx={p.x} cy={p.y} r="0.9" fill={p.value >= 0 ? '#0284c7' : '#0ea5e9'} />
+                            <g key={idx}>
+                              <circle cx={p.x} cy={p.y} r={activePoint && ratingHoverIndex === idx ? '1.5' : '0.9'} fill={p.value >= 0 ? '#0284c7' : '#0ea5e9'} />
+                              <circle
+                                cx={p.x}
+                                cy={p.y}
+                                r="2.9"
+                                fill="transparent"
+                                className="cursor-pointer"
+                                onMouseEnter={() => setRatingHoverIndex(idx)}
+                                onFocus={() => setRatingHoverIndex(idx)}
+                              />
+                            </g>
                           ))}
-                          <text x="9" y={zeroY - 1.8} fontSize="2.8" fill="#0284c7">0</text>
+                          {activePoint && (
+                            <g pointerEvents="none">
+                              <line x1={activePoint.x} y1={activePoint.y + 1.5} x2={activePoint.x} y2="42" stroke="#7dd3fc" strokeWidth="0.35" strokeDasharray="1.1 1.4" />
+                              <rect x={bubbleX} y={bubbleY} width={bubbleWidth} height={bubbleHeight} rx="2.3" fill="rgba(255,255,255,0.92)" stroke="#bae6fd" strokeWidth="0.45" />
+                              <text x={bubbleX + bubbleWidth / 2} y={bubbleY + 3.45} textAnchor="middle" fontSize="2.7" fontWeight="600" fill="#0369a1">
+                                {activePoint.value.toFixed(2)}
+                              </text>
+                              <text x={bubbleX + bubbleWidth / 2} y={bubbleY + 7.2} textAnchor="middle" fontSize="2.25" fill="#64748b">
+                                {activePoint.label}
+                              </text>
+                            </g>
+                          )}
                         </>
                       )
                     })()}
@@ -562,8 +698,8 @@ export default function TeamsPage() {
                                 )}
                                 <span>{headRow.match}</span>
                                 {isExpandable && (
-                                  <span className="rounded-full border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-600">
-                                    同场 {group.items.length} 笔
+                                  <span className="rounded-full border border-sky-200 bg-sky-50 px-1.25 py-[1px] text-[9px] font-medium text-sky-600">
+                                    同场 {group.items.length} 次
                                   </span>
                                 )}
                               </div>
