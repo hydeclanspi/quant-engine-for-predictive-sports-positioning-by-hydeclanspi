@@ -5352,6 +5352,7 @@ export const getWeightedObservedFailure = (historicalData = [], oddsA, oddsB, ba
   const totalCombos = historicalData.length
 
   let weightedFailedTogether = 0
+  let weightedPartialMiss = 0
   let totalWeight = 0
   let rawPairCount = 0
   let sumW2 = 0 // 用于计算有效样本量 ESS = (ΣW)² / ΣW²
@@ -5365,6 +5366,7 @@ export const getWeightedObservedFailure = (historicalData = [], oddsA, oddsB, ba
     // 在每个历史组合中找最佳匹配对（核权重最高的那对）
     let bestKernelW = 0
     let bestFailedBoth = false
+    let bestPartialMiss = false
 
     for (let i = 0; i < matches.length; i++) {
       const mOddsI = toNumber(matches[i]?.odds, 0)
@@ -5380,7 +5382,10 @@ export const getWeightedObservedFailure = (historicalData = [], oddsA, oddsB, ba
         const kw = computePairKernelWeight(targetIdxA, targetIdxB, idxI, idxJ, bw)
         if (kw > bestKernelW) {
           bestKernelW = kw
-          bestFailedBoth = matches[i]?.result === false && matches[j]?.result === false
+          const rI = matches[i]?.result
+          const rJ = matches[j]?.result
+          bestFailedBoth = rI === false && rJ === false
+          bestPartialMiss = (rI === true && rJ === false) || (rI === false && rJ === true)
         }
       }
     }
@@ -5393,6 +5398,9 @@ export const getWeightedObservedFailure = (historicalData = [], oddsA, oddsB, ba
       if (bestFailedBoth) {
         weightedFailedTogether += w
       }
+      if (bestPartialMiss) {
+        weightedPartialMiss += w
+      }
     }
   })
 
@@ -5401,6 +5409,7 @@ export const getWeightedObservedFailure = (historicalData = [], oddsA, oddsB, ba
 
   return {
     failedTogether: weightedFailedTogether,
+    partialMiss: weightedPartialMiss,
     totalWeight,
     effectiveSampleSize,
     rawPairCount,
@@ -5582,6 +5591,7 @@ export const calculateDependencyPremium = (
     pValue,
     isSignificant,
     observedFailedCount: observed.failedTogether,
+    observedPartialMiss: observed.partialMiss,
     weightedCount: observed.totalWeight,
   }
 }
