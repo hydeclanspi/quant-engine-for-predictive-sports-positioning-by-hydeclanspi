@@ -331,15 +331,39 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                         <div className="mt-3 pl-2 relative h-[3px]">
                           <div className={`absolute inset-0 rounded-full ${rs.track}`} />
                           <div className="absolute left-0 top-0 h-full rounded-full" style={{ width: `${pos}%`, minWidth: '4px', background: `linear-gradient(90deg, transparent 0%, ${midColor}18 30%, ${midColor}60 100%)` }} />
-                          {/* 切割宝石 — 八边形 + conic折射 + 辉光 */}
+                          {/* 六芒微星 — 实心圆核 + 6向星芒光线 + 辉光 */}
                           <div className="absolute top-1/2" style={{ left: `${pos}%`, transform: 'translate(-50%, -50%)' }}>
                             <div style={{
-                              width: '11px',
-                              height: '11px',
-                              clipPath: 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)',
-                              background: `conic-gradient(from 0deg, ${midColor}ee, ${midColor}44, ${midColor}cc, ${midColor}33, ${midColor}dd, ${midColor}55, ${midColor}ee)`,
-                              boxShadow: `0 0 10px 3px ${midColor}40, 0 0 4px 1px ${midColor}60`,
-                            }} />
+                              position: 'relative',
+                              width: '9px',
+                              height: '9px',
+                            }}>
+                              {/* 核心实心圆 */}
+                              <div style={{
+                                position: 'absolute',
+                                inset: '1px',
+                                borderRadius: '50%',
+                                background: `radial-gradient(circle, white 10%, ${midColor} 70%)`,
+                                boxShadow: `0 0 6px 2px ${midColor}50`,
+                              }} />
+                              {/* 6向星芒 — 3条交叉光线 */}
+                              <div style={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '50%',
+                                width: 0,
+                                height: 0,
+                                boxShadow: [
+                                  `${midColor}bb 0 0 0 0`,
+                                  `${midColor}90 -8px 0 2px 0.3px`,
+                                  `${midColor}90 8px 0 2px 0.3px`,
+                                  `${midColor}60 -4px -7px 2px 0.3px`,
+                                  `${midColor}60 4px 7px 2px 0.3px`,
+                                  `${midColor}60 -4px 7px 2px 0.3px`,
+                                  `${midColor}60 4px -7px 2px 0.3px`,
+                                ].join(', '),
+                              }} />
+                            </div>
                           </div>
                         </div>
                       )
