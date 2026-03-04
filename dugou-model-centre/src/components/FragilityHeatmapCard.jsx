@@ -301,19 +301,41 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                 </div>
               </div>
 
-              {/* 模块：Level — 白底卡片 + 分段深色文字 */}
+              {/* 模块：Level — 渐变文字 + 左侧色带 + 微光背景 */}
               {(() => {
-                const levelTextColors = {
-                  low: 'text-sky-700',
-                  medium: 'text-blue-800',
-                  high: 'text-indigo-800',
-                  critical: 'text-purple-800',
+                const levelStyles = {
+                  low: {
+                    gradient: 'linear-gradient(135deg, #0284c7, #0ea5e9, #38bdf8)',
+                    bar: 'linear-gradient(180deg, #7dd3fc, #0ea5e9)',
+                    bg: 'from-sky-50/60 to-white',
+                    border: 'border-sky-100/80',
+                  },
+                  medium: {
+                    gradient: 'linear-gradient(135deg, #1e40af, #3b82f6, #60a5fa)',
+                    bar: 'linear-gradient(180deg, #93c5fd, #2563eb)',
+                    bg: 'from-blue-50/50 to-white',
+                    border: 'border-blue-100/70',
+                  },
+                  high: {
+                    gradient: 'linear-gradient(135deg, #3730a3, #6366f1, #818cf8)',
+                    bar: 'linear-gradient(180deg, #a5b4fc, #4f46e5)',
+                    bg: 'from-indigo-50/50 to-white',
+                    border: 'border-indigo-100/70',
+                  },
+                  critical: {
+                    gradient: 'linear-gradient(135deg, #6b21a8, #9333ea, #a855f7)',
+                    bar: 'linear-gradient(180deg, #c4b5fd, #7c3aed)',
+                    bg: 'from-purple-50/50 to-white',
+                    border: 'border-purple-100/70',
+                  },
                 }
-                const ltc = levelTextColors[expandedPair.riskLevel] || levelTextColors.low
+                const ls = levelStyles[expandedPair.riskLevel] || levelStyles.low
                 return (
-                  <div className="rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5 flex flex-col justify-between">
-                    <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Level</p>
-                    <p className={`text-lg font-bold ${ltc} capitalize leading-tight tracking-tight`}>{getLevelLabel(expandedPair.riskLevel)}</p>
+                  <div className={`relative rounded-xl bg-gradient-to-br ${ls.bg} border ${ls.border} p-3.5 flex flex-col justify-between overflow-hidden`}>
+                    {/* 左侧竖色带 */}
+                    <div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full" style={{ background: ls.bar }} />
+                    <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2 pl-2">Level</p>
+                    <p className="text-lg font-bold capitalize leading-tight tracking-tight pl-2" style={{ background: ls.gradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{getLevelLabel(expandedPair.riskLevel)}</p>
                   </div>
                 )
               })()}
