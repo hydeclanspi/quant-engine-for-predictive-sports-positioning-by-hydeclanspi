@@ -311,16 +311,32 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                       <span className="text-xs font-medium" style={{ backgroundImage: rs.gradient, backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent', WebkitTextFillColor: 'transparent', opacity: 0.7 }}>%</span>
                     </div>
                     {/* 寻光轨迹 — 光点 + 拖尾 + 细轨道 */}
-                    <div className="mt-3 pl-2 relative h-[3px]">
-                      {/* 底层轨道 */}
-                      <div className={`absolute inset-0 rounded-full ${rs.track}`} />
-                      {/* 光尾 — 从左渐入到光点位置 */}
-                      <div className="absolute left-0 top-0 h-full rounded-full" style={{ width: `${Math.min(expandedPair.score, 100)}%`, minWidth: '4px', background: `linear-gradient(90deg, transparent 0%, ${rs.gradient.match(/#[0-9a-fA-F]{6}/g)?.[1] || '#3b82f6'}18 30%, ${rs.gradient.match(/#[0-9a-fA-F]{6}/g)?.[1] || '#3b82f6'}60 100%)` }} />
-                      {/* 光点 */}
-                      <div className="absolute top-1/2 -translate-y-1/2" style={{ left: `${Math.min(expandedPair.score, 100)}%`, transform: `translateX(-50%) translateY(-50%)` }}>
-                        <div className="w-[7px] h-[7px] rounded-full" style={{ background: rs.gradient, boxShadow: `0 0 8px 2px ${rs.gradient.match(/#[0-9a-fA-F]{6}/g)?.[1] || '#3b82f6'}50` }} />
-                      </div>
-                    </div>
+                    {(() => {
+                      // 非线性视觉映射 — 让大部分数据占2/3左右轨道
+                      // 低分快升、中段平缓、高分收敛
+                      const raw = Math.min(expandedPair.score, 100)
+                      const visualPos = raw < 10  ? 20 + raw * 2.5        // 0→20%, 10→45%
+                        : raw < 20  ? 45 + (raw - 10) * 1.3              // 10→45%, 20→58%
+                        : raw < 30  ? 58 + (raw - 20) * 0.9              // 20→58%, 30→67%
+                        : raw < 38  ? 67 + (raw - 30) * 0.7              // 30→67%, 38→72.6%
+                        : raw < 46  ? 72.6 + (raw - 38) * 0.65           // 38→72.6%, 46→77.8%
+                        : raw < 54  ? 77.8 + (raw - 46) * 0.6            // 46→77.8%, 54→82.6%
+                        : raw < 64  ? 82.6 + (raw - 54) * 0.5            // 54→82.6%, 64→87.6%
+                        : raw < 76  ? 87.6 + (raw - 64) * 0.35           // 64→87.6%, 76→91.8%
+                        : raw < 88  ? 91.8 + (raw - 76) * 0.25           // 76→91.8%, 88→94.8%
+                        :             94.8 + (raw - 88) * 0.15            // 88→94.8%, 100→96.6%
+                      const pos = Math.min(visualPos, 97)
+                      const midColor = rs.gradient.match(/#[0-9a-fA-F]{6}/g)?.[1] || '#3b82f6'
+                      return (
+                        <div className="mt-3 pl-2 relative h-[3px]">
+                          <div className={`absolute inset-0 rounded-full ${rs.track}`} />
+                          <div className="absolute left-0 top-0 h-full rounded-full" style={{ width: `${pos}%`, minWidth: '4px', background: `linear-gradient(90deg, transparent 0%, ${midColor}18 30%, ${midColor}60 100%)` }} />
+                          <div className="absolute top-1/2" style={{ left: `${pos}%`, transform: 'translate(-50%, -50%)' }}>
+                            <div className="w-[7px] h-[7px] rounded-full" style={{ background: rs.gradient, boxShadow: `0 0 8px 2px ${midColor}50` }} />
+                          </div>
+                        </div>
+                      )
+                    })()}
                   </div>
                 )
               })()}
