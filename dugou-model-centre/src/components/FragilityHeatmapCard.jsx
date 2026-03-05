@@ -676,7 +676,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                           <div className="flex flex-col">
                             <span className="text-sm font-semibold text-stone-500 tracking-wide">Premium</span>
                           </div>
-                          <span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-base font-semibold tabular-nums tracking-tight ${
+                          <span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-[15px] font-medium tabular-nums tracking-normal ${
                             premiumValue > 0
                               ? 'border-indigo-100/80 bg-indigo-50/70 text-indigo-500'
                               : 'border-emerald-100/80 bg-emerald-50/70 text-emerald-500'
@@ -691,7 +691,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                               ? 'border-emerald-100/80 bg-emerald-50/70 text-emerald-500'
                               : 'border-rose-100/80 bg-rose-50/70 text-rose-400'
                           }`}>
-                            {formatSigned(Number(deltaSurvivalPair) * 100, 2, 'pp')}
+                            {formatSigned(Number(deltaSurvivalPair) * 100, 2)}
                           </span>
                         </div>
                       </div>
