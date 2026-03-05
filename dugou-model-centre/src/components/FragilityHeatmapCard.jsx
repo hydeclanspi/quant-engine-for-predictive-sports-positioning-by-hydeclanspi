@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Activity, TrendingUp, X } from 'lucide-react'
 import { assessComboFragility, getOddsBand } from '../lib/analytics'
 import { getInvestments } from '../lib/localData'
@@ -14,12 +14,59 @@ const getMedian = (values = []) => {
   return (nums[mid - 1] + nums[mid]) / 2
 }
 
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
+
+const getPercentile = (sortedValues = [], p = 0.5) => {
+  if (!Array.isArray(sortedValues) || sortedValues.length === 0) return Number.NaN
+  const pos = clamp(Number(p) * (sortedValues.length - 1), 0, sortedValues.length - 1)
+  const lo = Math.floor(pos)
+  const hi = Math.ceil(pos)
+  if (lo === hi) return sortedValues[lo]
+  const t = pos - lo
+  return sortedValues[lo] + (sortedValues[hi] - sortedValues[lo]) * t
+}
+
+const formatSigned = (value, digits = 1, suffix = '') => {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return '—'
+  return `${num > 0 ? '+' : ''}${num.toFixed(digits)}${suffix}`
+}
+
+const resolveDeltaSurvival = (premium = null) => {
+  const pFailA = Number(premium?.pFailA)
+  const pFailB = Number(premium?.pFailB)
+  const pFailBothObserved = Number(premium?.pFailBothObserved)
+  if (!(Number.isFinite(pFailA) && Number.isFinite(pFailB) && Number.isFinite(pFailBothObserved))) {
+    return { aToB: Number.NaN, bToA: Number.NaN, pair: Number.NaN }
+  }
+
+  const condFailBGivenA = pFailA > 1e-6 ? clamp(pFailBothObserved / pFailA, 0, 1) : Number.NaN
+  const condFailAGivenB = pFailB > 1e-6 ? clamp(pFailBothObserved / pFailB, 0, 1) : Number.NaN
+  const deltaAtoB = Number.isFinite(condFailBGivenA) ? condFailBGivenA - pFailB : Number.NaN
+  const deltaBtoA = Number.isFinite(condFailAGivenB) ? condFailAGivenB - pFailA : Number.NaN
+
+  const finite = [deltaAtoB, deltaBtoA].filter((v) => Number.isFinite(v))
+  const pair = finite.length > 0 ? finite.reduce((sum, v) => sum + v, 0) / finite.length : Number.NaN
+  return { aToB: deltaAtoB, bToA: deltaBtoA, pair }
+}
+
+const getRiskLevelByScore = (score) => {
+  const s = Number(score)
+  if (!Number.isFinite(s)) return 'low'
+  if (s > 60) return 'critical'
+  if (s > 40) return 'high'
+  if (s > 25) return 'medium'
+  return 'low'
+}
+
 /**
  * 依赖风险矩阵智能 — 冰裂共振评分热力图
  *
  * 全幅矩阵 · 品牌色系 · 模块化详情面板
  */
 export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSelectPair = null }) {
+  const [mappedViewEnabled, setMappedViewEnabled] = useState(true)
+
   // 历史数据缓存
   const historicalData = useMemo(() => {
     const investments = getInvestments()
@@ -59,6 +106,8 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
         )
         const pairAssessment = assessment.pairAnalysis?.[0]?.assessment || {}
         const score = assessment.overallFragility || 0
+        const components = pairAssessment.components || null
+        const delta = resolveDeltaSurvival(components?.premium)
         result.push({
           i,
           j,
@@ -67,12 +116,63 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
           isSignificant: pairAssessment.isSignificant || false,
           confidence: pairAssessment.confidence || 0,
           // 完整数据用于详情面板
-          components: pairAssessment.components || null,
+          components,
+          deltaSurvival: Number.isFinite(delta.pair) ? Number(delta.pair.toFixed(4)) : Number.NaN,
+          deltaSurvivalAToB: Number.isFinite(delta.aToB) ? Number(delta.aToB.toFixed(4)) : Number.NaN,
+          deltaSurvivalBToA: Number.isFinite(delta.bToA) ? Number(delta.bToA.toFixed(4)) : Number.NaN,
         })
       }
     }
-    return result
+
+    const rawScores = result
+      .map((pair) => Number(pair.score))
+      .filter((value) => Number.isFinite(value))
+      .sort((a, b) => a - b)
+    if (rawScores.length <= 1) {
+      return result.map((pair) => ({ ...pair, mappedScore: pair.score }))
+    }
+
+    const p10 = getPercentile(rawScores, 0.1)
+    const p90 = getPercentile(rawScores, 0.9)
+    const minScore = rawScores[0]
+    const maxScore = rawScores[rawScores.length - 1]
+    const useRobustRange = Number.isFinite(p10) && Number.isFinite(p90) && p90 - p10 > 1e-6
+    const lo = useRobustRange ? p10 : minScore
+    const hi = useRobustRange ? p90 : maxScore
+    const denom = Math.max(hi - lo, 1e-6)
+
+    return result.map((pair) => {
+      const raw = Number(pair.score)
+      if (!Number.isFinite(raw)) return { ...pair, mappedScore: pair.score }
+      const normalized = clamp((raw - lo) / denom, 0, 1)
+      return {
+        ...pair,
+        mappedScore: Number((normalized * 100).toFixed(2)),
+      }
+    })
   }, [matches, historicalData])
+
+  const displayFragilityMatrix = useMemo(
+    () =>
+      fragilityMatrix.map((pair) => ({
+        ...pair,
+        displayScore:
+          mappedViewEnabled && Number.isFinite(pair.mappedScore)
+            ? pair.mappedScore
+            : pair.score,
+      })),
+    [fragilityMatrix, mappedViewEnabled],
+  )
+
+  const resolvedExpandedPair = useMemo(() => {
+    if (!expandedPair) return null
+    const found = displayFragilityMatrix.find(
+      (pair) =>
+        (pair.i === expandedPair.i && pair.j === expandedPair.j) ||
+        (pair.i === expandedPair.j && pair.j === expandedPair.i),
+    )
+    return found || expandedPair
+  }, [expandedPair, displayFragilityMatrix])
 
   // ─── 品牌色系 — 10段细分光谱 ───
   // 翡翠 → 薄荷 → 青绿 → 天蓝 → 钴蓝 → 靛蓝 → 紫罗兰 → 香槟金 → 银灰 → 深岩
@@ -192,10 +292,10 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
   }
 
   // 统计
-  const avgScore = fragilityMatrix.length > 0
-    ? (fragilityMatrix.reduce((s, m) => s + m.score, 0) / fragilityMatrix.length).toFixed(1)
+  const avgScore = displayFragilityMatrix.length > 0
+    ? (displayFragilityMatrix.reduce((s, m) => s + m.displayScore, 0) / displayFragilityMatrix.length).toFixed(1)
     : '\u2014'
-  const highRiskCount = fragilityMatrix.filter(m => m.score > 40).length
+  const highRiskCount = displayFragilityMatrix.filter(m => m.displayScore > 40).length
 
   // ─── 空状态 ───
   if (matches.length < 2) {
@@ -225,20 +325,22 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
 
   // ─── 详情面板 — 模块化几何非对称设计 ───
   const renderDetailPanel = () => {
-    if (!expandedPair) return null
+    if (!resolvedExpandedPair) return null
 
-    const matchA = matches[expandedPair.i]
-    const matchB = matches[expandedPair.j]
-    const nameA = formatTeamName(matchA, expandedPair.i)
-    const nameB = formatTeamName(matchB, expandedPair.j)
+    const matchA = matches[resolvedExpandedPair.i]
+    const matchB = matches[resolvedExpandedPair.j]
+    const nameA = formatTeamName(matchA, resolvedExpandedPair.i)
+    const nameB = formatTeamName(matchB, resolvedExpandedPair.j)
     const oddsA = matchA?.odds?.toFixed(2) || '—'
     const oddsB = matchB?.odds?.toFixed(2) || '—'
-    const style = getHeatStyle(expandedPair.score)
+    const detailScore = Number(resolvedExpandedPair.displayScore ?? resolvedExpandedPair.score ?? 0)
+    const style = getHeatStyle(detailScore)
+    const detailRiskLevel = getRiskLevelByScore(detailScore)
 
     // 从 components 中提取详细数据
-    const premium = expandedPair.components?.premium || {}
-    const bias = expandedPair.components?.bias || {}
-    const adjusted = expandedPair.components?.adjusted || {}
+    const premium = resolvedExpandedPair.components?.premium || {}
+    const bias = resolvedExpandedPair.components?.bias || {}
+    const adjusted = resolvedExpandedPair.components?.adjusted || {}
 
     const pFailA = premium.pFailA
     const pFailB = premium.pFailB
@@ -246,6 +348,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
     const pFailBothIndependent = premium.pFailBothIndependent
     const sampleSize = premium.sampleSize || 0
     const premiumValue = premium.premium
+    const deltaSurvivalPair = resolvedExpandedPair.deltaSurvival
     const observedFailedCount = premium.observedFailedCount || 0
     const observedPartialMiss = premium.observedPartialMiss || 0
     const partialMissRatePct = sampleSize > 0 && Number.isFinite(observedPartialMiss) ? (observedPartialMiss / sampleSize) * 100 : null
@@ -321,7 +424,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
 
               {/* 主模块：共振评分 — 渐变文字 + 左侧色带 + 微光底色 + 进度条 */}
               {(() => {
-                const s = expandedPair.score
+                const s = detailScore
                 const rs = s < 10  ? { gradient: 'linear-gradient(135deg, #059669, #34d399, #6ee7b7)', bar: 'linear-gradient(180deg, #a7f3d0, #059669)', bg: 'from-emerald-50/60 to-white', border: 'border-emerald-100/80', track: 'bg-emerald-100/60' }
                      : s < 20  ? { gradient: 'linear-gradient(135deg, #0d9488, #2dd4bf, #5eead4)', bar: 'linear-gradient(180deg, #99f6e4, #0d9488)', bg: 'from-teal-50/55 to-white', border: 'border-teal-100/75', track: 'bg-teal-100/60' }
                      : s < 30  ? { gradient: 'linear-gradient(135deg, #0891b2, #22d3ee, #67e8f9)', bar: 'linear-gradient(180deg, #a5f3fc, #0891b2)', bg: 'from-cyan-50/55 to-white', border: 'border-cyan-100/75', track: 'bg-cyan-100/60' }
@@ -338,14 +441,14 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                     <div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full" style={{ background: rs.bar }} />
                     <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2 pl-2">Resonance</p>
                     <div className="flex items-baseline gap-1 pl-2">
-                      <span className="text-2xl font-bold tabular-nums leading-none" style={{ backgroundImage: rs.gradient, backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent', WebkitTextFillColor: 'transparent' }}>{expandedPair.score}</span>
+                      <span className="text-2xl font-bold tabular-nums leading-none" style={{ backgroundImage: rs.gradient, backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent', WebkitTextFillColor: 'transparent' }}>{detailScore.toFixed(2)}</span>
                       <span className="text-xs font-medium" style={{ backgroundImage: rs.gradient, backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent', WebkitTextFillColor: 'transparent', opacity: 0.7 }}>%</span>
                     </div>
                     {/* 寻光轨迹 — 光点 + 拖尾 + 细轨道 */}
                     {(() => {
                       // 非线性视觉映射 — 让大部分数据占2/3左右轨道
                       // 低分快升、中段平缓、高分收敛
-                      const raw = Math.min(expandedPair.score, 100)
+                      const raw = Math.min(detailScore, 100)
                       const visualPos = raw < 10  ? 15 + raw * 2.0        // 0→15%, 10→35%
                         : raw < 20  ? 35 + (raw - 10) * 1.1              // 10→35%, 20→46%
                         : raw < 30  ? 46 + (raw - 20) * 0.8              // 20→46%, 30→54%
@@ -407,13 +510,13 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                     border: 'border-purple-100/70',
                   },
                 }
-                const ls = levelStyles[expandedPair.riskLevel] || levelStyles.low
+                const ls = levelStyles[detailRiskLevel] || levelStyles.low
                 return (
                   <div className={`relative rounded-xl bg-gradient-to-br ${ls.bg} border ${ls.border} p-3.5 flex flex-col justify-between overflow-hidden`}>
                     {/* 左侧竖色带 */}
                     <div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full" style={{ background: ls.bar }} />
                     <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2 pl-2">Level</p>
-                    <p className="text-lg font-bold capitalize leading-tight tracking-tight pl-2" style={{ backgroundImage: ls.gradient, backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent', WebkitTextFillColor: 'transparent' }}>{getLevelLabel(expandedPair.riskLevel)}</p>
+                    <p className="text-lg font-bold capitalize leading-tight tracking-tight pl-2" style={{ backgroundImage: ls.gradient, backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent', WebkitTextFillColor: 'transparent' }}>{getLevelLabel(detailRiskLevel)}</p>
                   </div>
                 )
               })()}
@@ -574,6 +677,12 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                           {premiumValue > 0 ? '+' : ''}{(premiumValue * 100).toFixed(2)}%
                         </span>
                       </div>
+                      <div className="flex items-center justify-between pt-2">
+                        <span className="text-[11px] font-semibold text-stone-400 tracking-wide">ΔSurvival</span>
+                        <span className={`text-sm font-semibold tabular-nums tracking-tight ${Number(deltaSurvivalPair) >= 0 ? 'text-sky-600' : 'text-rose-500'}`}>
+                          {formatSigned(Number(deltaSurvivalPair) * 100, 2, 'pp')}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -589,8 +698,8 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                 {Number.isFinite(globalFailureRate) && (
                   <span>Global fail rate <span className="font-medium text-stone-500 tabular-nums">{(globalFailureRate * 100).toFixed(0)}%</span></span>
                 )}
-                {Number.isFinite(expandedPair.confidence) && (
-                  <span>Confidence <span className="font-medium text-stone-500 tabular-nums">{(expandedPair.confidence * 100).toFixed(1)}%</span></span>
+                {Number.isFinite(resolvedExpandedPair.confidence) && (
+                  <span>Confidence <span className="font-medium text-stone-500 tabular-nums">{(resolvedExpandedPair.confidence * 100).toFixed(1)}%</span></span>
                 )}
                 {hasBias && (
                   <span className="text-indigo-400">
@@ -626,10 +735,23 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
             </div>
             <h3 className="font-medium text-stone-700 tracking-tight">依赖风险矩阵智能</h3>
           </div>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[10px] border border-sky-200/80 bg-[linear-gradient(120deg,rgba(224,242,254,0.86),rgba(255,255,255,0.9)_52%,rgba(224,242,254,0.84))] text-[11px] font-medium text-sky-700 tracking-[0.02em] shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_10px_22px_-18px_rgba(14,165,233,0.5)] backdrop-blur-[1px]">
-            <Activity size={12} strokeWidth={1.9} className="text-sky-500" />
-            冰裂共振评分 0-100%
-          </span>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setMappedViewEnabled((prev) => !prev)}
+              className="inline-flex items-center gap-2 px-2.5 py-1 rounded-[10px] border border-sky-200/80 bg-[linear-gradient(120deg,rgba(224,242,254,0.86),rgba(255,255,255,0.92)_52%,rgba(224,242,254,0.84))] text-[11px] font-medium text-sky-700 tracking-[0.02em] shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_10px_22px_-18px_rgba(14,165,233,0.5)] backdrop-blur-[1px] transition-all duration-200 hover:border-sky-300/90"
+              title={mappedViewEnabled ? '当前：映射增强视图（点击切换为源数据）' : '当前：源数据视图（点击切换为映射增强）'}
+            >
+              <span>{mappedViewEnabled ? '映射增强' : '源数据'}</span>
+              <span className={`relative h-4 w-8 rounded-full border transition-colors duration-200 ${mappedViewEnabled ? 'bg-sky-200/85 border-sky-300/90' : 'bg-stone-200/75 border-stone-300/75'}`}>
+                <span className={`absolute top-[1px] h-[12px] w-[12px] rounded-full bg-white shadow-sm transition-transform duration-200 ${mappedViewEnabled ? 'translate-x-[15px]' : 'translate-x-[1px]'}`} />
+              </span>
+            </button>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[10px] border border-sky-200/80 bg-[linear-gradient(120deg,rgba(224,242,254,0.86),rgba(255,255,255,0.9)_52%,rgba(224,242,254,0.84))] text-[11px] font-medium text-sky-700 tracking-[0.02em] shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_10px_22px_-18px_rgba(14,165,233,0.5)] backdrop-blur-[1px]">
+              <Activity size={12} strokeWidth={1.9} className="text-sky-500" />
+              冰裂共振评分 0-100%
+            </span>
+          </div>
         </div>
       </div>
 
@@ -670,12 +792,13 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                     }
                     // 下三角 — 显示 Premium（暖色系渐变质感，与上三角冷色系形成对比）
                     if (colIdx < rowIdx) {
-                      const mirrorData = fragilityMatrix.find(m => m.i === colIdx && m.j === rowIdx)
+                      const mirrorData = displayFragilityMatrix.find(m => m.i === colIdx && m.j === rowIdx)
                       if (!mirrorData) return <td key={`cell-${rowIdx}-${colIdx}`} className="p-1" />
                       const prem = mirrorData.components?.premium?.premium
-                      const isSelected = expandedPair && (
-                        (expandedPair.i === colIdx && expandedPair.j === rowIdx) ||
-                        (expandedPair.i === rowIdx && expandedPair.j === colIdx)
+                      const deltaSurvival = Number(mirrorData.deltaSurvival)
+                      const isSelected = resolvedExpandedPair && (
+                        (resolvedExpandedPair.i === colIdx && resolvedExpandedPair.j === rowIdx) ||
+                        (resolvedExpandedPair.i === rowIdx && resolvedExpandedPair.j === colIdx)
                       )
                       // Premium 冷调统一色谱 — 负值(清透冷)→近零(中性灰蓝)→正值(深沉冷)
                       // 与上三角多彩光谱形成「彩色 vs 单色温」的高级对比
@@ -709,11 +832,19 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                               }`}
                           >
                             {Number.isFinite(prem) ? (
-                              <div className="flex flex-col items-center justify-center">
-                                <span className={`text-sm font-semibold tabular-nums leading-none tracking-normal ${pc.text}`}>
-                                  <span className="text-[9px] font-medium opacity-60 mr-px">{prem >= 0 ? '+' : '\u2212'}</span>{Math.abs(prem * 100).toFixed(1)}
-                                </span>
-                                <span className={`text-[8px] font-medium opacity-35 mt-0.5 ${pc.text}`}>%</span>
+                              <div className="grid grid-cols-2 h-full w-full">
+                                <div className={`flex flex-col items-center justify-center border-r border-white/55 px-1 ${pc.text}`}>
+                                  <span className="text-[12px] font-semibold tabular-nums leading-none tracking-normal">
+                                    {formatSigned(Number(prem) * 100, 1)}
+                                  </span>
+                                  <span className="text-[8px] font-medium opacity-55 mt-0.5">Prem</span>
+                                </div>
+                                <div className={`flex flex-col items-center justify-center px-1 ${Number(deltaSurvival) >= 0 ? 'text-sky-600' : 'text-rose-500'}`}>
+                                  <span className="text-[12px] font-semibold tabular-nums leading-none tracking-normal">
+                                    {formatSigned(Number(deltaSurvival) * 100, 1)}
+                                  </span>
+                                  <span className="text-[8px] font-medium opacity-55 mt-0.5">ΔS</span>
+                                </div>
                               </div>
                             ) : (
                               <span className="text-[11px] text-stone-300">—</span>
@@ -723,13 +854,13 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                       )
                     }
 
-                    const pairData = fragilityMatrix.find(m => m.i === rowIdx && m.j === colIdx)
+                    const pairData = displayFragilityMatrix.find(m => m.i === rowIdx && m.j === colIdx)
                     if (!pairData) return <td key={`cell-${rowIdx}-${colIdx}`} className="p-1" />
 
-                    const cellStyle = getHeatStyle(pairData.score)
-                    const isSelected = expandedPair && (
-                      (expandedPair.i === rowIdx && expandedPair.j === colIdx) ||
-                      (expandedPair.i === colIdx && expandedPair.j === rowIdx)
+                    const cellStyle = getHeatStyle(pairData.displayScore)
+                    const isSelected = resolvedExpandedPair && (
+                      (resolvedExpandedPair.i === rowIdx && resolvedExpandedPair.j === colIdx) ||
+                      (resolvedExpandedPair.i === colIdx && resolvedExpandedPair.j === rowIdx)
                     )
 
                     return (
@@ -743,7 +874,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                               : 'hover:scale-[1.02] hover:shadow-md'
                             }`}
                         >
-                          <span className="text-base font-semibold leading-none tabular-nums">{pairData.score}</span>
+                          <span className="text-base font-semibold leading-none tabular-nums">{Number(pairData.displayScore).toFixed(2)}</span>
                           <span className="text-[9px] opacity-50 mt-0.5">%</span>
                         </button>
                       </td>
