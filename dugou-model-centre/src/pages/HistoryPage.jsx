@@ -858,7 +858,7 @@ export default function HistoryPage() {
                     <td className="px-3 py-2.5 text-right">
                       <button
                         onClick={(event) => handleReturnToSettle(row.id, event)}
-                        className="inline-flex items-center justify-center w-6 h-6 rounded-md text-stone-400 hover:text-violet-600 hover:bg-violet-50 transition-colors mr-1"
+                        className="inline-flex items-center justify-center w-6 h-6 rounded-md text-stone-400 hover:text-violet-600 hover:bg-violet-50 transition-colors mr-[5px]"
                         title="重新结算（编辑）"
                         aria-label="重新结算（编辑）"
                       >
@@ -1095,7 +1095,7 @@ export default function HistoryPage() {
                         <>
                           <button
                             onClick={(event) => handleReturnToSettle(row.investmentId, event)}
-                            className="inline-flex items-center justify-center w-6 h-6 rounded-md text-stone-400 hover:text-violet-600 hover:bg-violet-50 transition-colors mr-1"
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-md text-stone-400 hover:text-violet-600 hover:bg-violet-50 transition-colors mr-[5px]"
                             title="重新结算（编辑）"
                             aria-label="重新结算（编辑）"
                           >

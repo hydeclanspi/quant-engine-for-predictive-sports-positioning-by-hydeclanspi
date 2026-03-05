@@ -696,6 +696,7 @@ export default function TeamsPage() {
                                     {isExpanded ? '−' : '+'}
                                   </button>
                                 )}
+                                {!isExpandable && <span className="inline-block h-4 w-4 shrink-0" aria-hidden="true" />}
                                 <span>{headRow.match}</span>
                                 {isExpandable && (
                                   <span className="rounded-full border border-sky-200 bg-sky-50 px-1.25 py-[1px] text-[9px] font-medium text-sky-600">
