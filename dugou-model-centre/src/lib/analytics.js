@@ -5378,13 +5378,16 @@ export const getWeightedObservedFailure = (historicalData = [], oddsA, oddsB, ba
         if (j === i) continue
         const mOddsJ = toNumber(matches[j]?.odds, 0)
         if (mOddsJ <= 1) continue
+        const rI = matches[i]?.result
+        const rJ = matches[j]?.result
+        const bothDefined = typeof rI === 'boolean' && typeof rJ === 'boolean'
+        // 只统计双边都已结算的pair，避免未结算样本被补集误计为full-hit。
+        if (!bothDefined) continue
         const idxJ = getBandIndex(mOddsJ)
 
         const kw = computePairKernelWeight(targetIdxA, targetIdxB, idxI, idxJ, bw)
         if (kw > bestKernelW) {
           bestKernelW = kw
-          const rI = matches[i]?.result
-          const rJ = matches[j]?.result
           bestFailedBoth = rI === false && rJ === false
           bestPartialMiss = (rI === true && rJ === false) || (rI === false && rJ === true)
         }
@@ -5731,6 +5734,7 @@ export const checkSurvivingBias = (
         const rI = matches[i]?.result
         const rJ = matches[j]?.result
         const bothDefined = typeof rI === 'boolean' && typeof rJ === 'boolean'
+        if (!bothDefined) continue
         const bothCorrect = bothDefined && rI === true && rJ === true
         const partialMiss = bothDefined && ((rI === true && rJ === false) || (rI === false && rJ === true))
 

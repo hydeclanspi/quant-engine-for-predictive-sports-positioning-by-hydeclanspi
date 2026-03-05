@@ -9,6 +9,7 @@ import {
   getMarketImpliedFailureRate,
   getConfidenceWeight,
   getTemporalWeight,
+  getWeightedObservedFailure,
   calculateDependencyPremium,
   calculateBinomialPValue,
   checkSurvivingBias,
@@ -103,6 +104,38 @@ describe('Dependency Risk Premium Analysis', () => {
       const justOldDate = new Date(today.getTime() - 61 * 24 * 60 * 60 * 1000)
 
       expect(getTemporalWeight(justOldDate, today)).toBe(1.0)
+    })
+  })
+
+  // ==========================================================================
+  // 测试4：加权观察失败统计
+  // ==========================================================================
+
+  describe('getWeightedObservedFailure', () => {
+    it('只统计双边结果都已结算的pair，避免未结算样本污染分母', () => {
+      const now = new Date().toISOString()
+      const historicalData = [
+        {
+          matches: [
+            { odds: 2.0, result: false },
+            { odds: 2.0, result: false },
+          ],
+          createdAt: now,
+        },
+        {
+          matches: [
+            { odds: 2.0, result: true },
+            { odds: 2.0, result: undefined },
+          ],
+          createdAt: now,
+        },
+      ]
+
+      const observed = getWeightedObservedFailure(historicalData, 2.0, 2.0)
+      expect(observed.rawPairCount).toBe(1)
+      expect(observed.totalWeight).toBeGreaterThan(0)
+      expect(observed.failedTogether).toBeCloseTo(observed.totalWeight, 6)
+      expect(observed.partialMiss).toBeCloseTo(0, 6)
     })
   })
 
@@ -207,6 +240,35 @@ describe('Dependency Risk Premium Analysis', () => {
       const pValue = calculateBinomialPValue(10, 10, 0.05)
 
       expect(pValue).toBeLessThan(0.01)
+    })
+  })
+
+  // ==========================================================================
+  // 测试6：幸存者偏差匹配
+  // ==========================================================================
+
+  describe('checkSurvivingBias', () => {
+    it('未结算pair不应计入matchedPairs', () => {
+      const raceA = { odds: 2.0 }
+      const raceB = { odds: 2.0 }
+      const historicalData = [
+        {
+          matches: [
+            { odds: 2.0, result: true },
+            { odds: 2.0, result: undefined },
+          ],
+        },
+        {
+          matches: [
+            { odds: 2.0, result: true },
+            { odds: 2.0, result: true },
+          ],
+        },
+      ]
+
+      const result = checkSurvivingBias(raceA, raceB, historicalData)
+      expect(result.matchedPairs).toBe(1)
+      expect(result.exactWon).toBe(1)
     })
   })
 

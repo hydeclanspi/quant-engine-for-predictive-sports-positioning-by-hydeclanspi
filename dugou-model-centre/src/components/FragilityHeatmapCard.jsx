@@ -347,31 +347,44 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
     const pFailBothObserved = premium.pFailBothObserved
     const pFailBothIndependent = premium.pFailBothIndependent
     const sampleSize = premium.sampleSize || 0
+    const weightedSampleSize = Number(premium.weightedCount)
+    const normalizedSampleBase = Number.isFinite(weightedSampleSize) && weightedSampleSize > 0
+      ? weightedSampleSize
+      : sampleSize
+    const sampleBaseText = Number.isFinite(normalizedSampleBase)
+      ? (Math.abs(normalizedSampleBase - Math.round(normalizedSampleBase)) < 0.01
+          ? String(Math.round(normalizedSampleBase))
+          : normalizedSampleBase.toFixed(3))
+      : '—'
     const premiumValue = premium.premium
     const deltaSurvivalPair = resolvedExpandedPair.deltaSurvival
     const observedFailedCount = premium.observedFailedCount || 0
     const observedPartialMiss = premium.observedPartialMiss || 0
-    const observedFullHit = Math.max(sampleSize - observedPartialMiss - observedFailedCount, 0)
-    const bustRatePct = sampleSize > 0 && Number.isFinite(observedFailedCount) ? (observedFailedCount / sampleSize) * 100 : null
-    const fullHitRatePct = sampleSize > 0 && Number.isFinite(observedFullHit) ? (observedFullHit / sampleSize) * 100 : null
+    const observedFullHit = Math.max(normalizedSampleBase - observedPartialMiss - observedFailedCount, 0)
+    const bustRatePct = normalizedSampleBase > 0 && Number.isFinite(observedFailedCount) ? (observedFailedCount / normalizedSampleBase) * 100 : null
+    const fullHitRatePct = normalizedSampleBase > 0 && Number.isFinite(observedFullHit) ? (observedFullHit / normalizedSampleBase) * 100 : null
     const matrixBustMedianPct = getMedian(
       fragilityMatrix.map((pair) => {
         const pairPremium = pair.components?.premium || {}
         const pairSample = Number(pairPremium.sampleSize)
+        const pairWeighted = Number(pairPremium.weightedCount)
+        const pairBase = Number.isFinite(pairWeighted) && pairWeighted > 0 ? pairWeighted : pairSample
         const pairBust = Number(pairPremium.observedFailedCount)
-        if (!Number.isFinite(pairSample) || pairSample <= 0 || !Number.isFinite(pairBust)) return null
-        return (pairBust / pairSample) * 100
+        if (!Number.isFinite(pairBase) || pairBase <= 0 || !Number.isFinite(pairBust)) return null
+        return (pairBust / pairBase) * 100
       }),
     )
     const matrixFullHitMedianPct = getMedian(
       fragilityMatrix.map((pair) => {
         const pairPremium = pair.components?.premium || {}
         const pairSample = Number(pairPremium.sampleSize)
+        const pairWeighted = Number(pairPremium.weightedCount)
+        const pairBase = Number.isFinite(pairWeighted) && pairWeighted > 0 ? pairWeighted : pairSample
         const pairPartialMiss = Number(pairPremium.observedPartialMiss)
         const pairBust = Number(pairPremium.observedFailedCount)
-        if (!Number.isFinite(pairSample) || pairSample <= 0 || !Number.isFinite(pairPartialMiss) || !Number.isFinite(pairBust)) return null
-        const pairFullHit = Math.max(pairSample - pairPartialMiss - pairBust, 0)
-        return (pairFullHit / pairSample) * 100
+        if (!Number.isFinite(pairBase) || pairBase <= 0 || !Number.isFinite(pairPartialMiss) || !Number.isFinite(pairBust)) return null
+        const pairFullHit = Math.max(pairBase - pairPartialMiss - pairBust, 0)
+        return (pairFullHit / pairBase) * 100
       }),
     )
     const hasBias = bias.hasBias || false
@@ -530,7 +543,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
               <div className="relative rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5 pb-7">
                 <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">BUST (Total Miss)</p>
                 <p className="text-sm font-semibold text-stone-700 tabular-nums leading-tight">
-                  {Number.isFinite(observedFailedCount) ? Number(observedFailedCount).toFixed(3) : observedFailedCount}<span className="text-[10px] font-normal text-stone-400"> / {sampleSize}</span>
+                  {Number.isFinite(observedFailedCount) ? Number(observedFailedCount).toFixed(3) : observedFailedCount}<span className="text-[10px] font-normal text-stone-400"> / {sampleBaseText}</span>
                 </p>
                 <p className="text-[9px] text-stone-400 mt-1">pairs failed</p>
                 <p className="absolute left-3.5 bottom-2 text-[9px] font-medium text-amber-400/90 tabular-nums">
@@ -545,7 +558,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
               <div className="relative rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5 pb-7">
                 <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Full Hit (Sweep)</p>
                 <p className="text-sm font-semibold text-stone-700 tabular-nums leading-tight">
-                  {Number.isFinite(observedFullHit) ? Number(observedFullHit).toFixed(3) : observedFullHit}<span className="text-[10px] font-normal text-stone-400"> / {sampleSize}</span>
+                  {Number.isFinite(observedFullHit) ? Number(observedFullHit).toFixed(3) : observedFullHit}<span className="text-[10px] font-normal text-stone-400"> / {sampleBaseText}</span>
                 </p>
                 <p className="text-[9px] text-stone-400 mt-1">pairs won</p>
                 <p className="absolute left-3.5 bottom-2 text-[9px] font-medium text-amber-400/90 tabular-nums">
