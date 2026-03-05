@@ -3,6 +3,17 @@ import { Activity, TrendingUp, X } from 'lucide-react'
 import { assessComboFragility, getOddsBand } from '../lib/analytics'
 import { getInvestments } from '../lib/localData'
 
+const getMedian = (values = []) => {
+  const nums = values
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => a - b)
+  if (nums.length === 0) return null
+  const mid = Math.floor(nums.length / 2)
+  if (nums.length % 2 === 1) return nums[mid]
+  return (nums[mid - 1] + nums[mid]) / 2
+}
+
 /**
  * 依赖风险矩阵智能 — 冰裂共振评分热力图
  *
@@ -239,6 +250,24 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
     const observedPartialMiss = premium.observedPartialMiss || 0
     const partialMissRatePct = sampleSize > 0 && Number.isFinite(observedPartialMiss) ? (observedPartialMiss / sampleSize) * 100 : null
     const bustRatePct = sampleSize > 0 && Number.isFinite(observedFailedCount) ? (observedFailedCount / sampleSize) * 100 : null
+    const matrixPartialMissMedianPct = getMedian(
+      fragilityMatrix.map((pair) => {
+        const pairPremium = pair.components?.premium || {}
+        const pairSample = Number(pairPremium.sampleSize)
+        const pairPartialMiss = Number(pairPremium.observedPartialMiss)
+        if (!Number.isFinite(pairSample) || pairSample <= 0 || !Number.isFinite(pairPartialMiss)) return null
+        return (pairPartialMiss / pairSample) * 100
+      }),
+    )
+    const matrixBustMedianPct = getMedian(
+      fragilityMatrix.map((pair) => {
+        const pairPremium = pair.components?.premium || {}
+        const pairSample = Number(pairPremium.sampleSize)
+        const pairBust = Number(pairPremium.observedFailedCount)
+        if (!Number.isFinite(pairSample) || pairSample <= 0 || !Number.isFinite(pairBust)) return null
+        return (pairBust / pairSample) * 100
+      }),
+    )
     const hasBias = bias.hasBias || false
     const biasStrength = bias.biasStrength || 0
     const matchedExact = bias.investedInTarget || 0
@@ -396,6 +425,9 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                   {Number.isFinite(observedPartialMiss) ? Number(observedPartialMiss).toFixed(3) : observedPartialMiss}<span className="text-[10px] font-normal text-stone-400"> / {sampleSize}</span>
                 </p>
                 <p className="text-[9px] text-stone-400 mt-1">half-hit pairs</p>
+                <p className="absolute left-3.5 bottom-2 text-[9px] font-medium text-amber-400/90 tabular-nums">
+                  今日矩阵中位 {Number.isFinite(matrixPartialMissMedianPct) ? `${matrixPartialMissMedianPct.toFixed(1)}%` : '—'}
+                </p>
                 <span className="absolute right-3.5 bottom-2 text-[10px] font-semibold tabular-nums text-sky-500/80 bg-sky-50/70 px-1.5 py-0.5 rounded-full">
                   {Number.isFinite(partialMissRatePct) ? partialMissRatePct.toFixed(0) : '—'}%
                 </span>
@@ -408,6 +440,9 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                   {Number.isFinite(observedFailedCount) ? Number(observedFailedCount).toFixed(3) : observedFailedCount}<span className="text-[10px] font-normal text-stone-400"> / {sampleSize}</span>
                 </p>
                 <p className="text-[9px] text-stone-400 mt-1">pairs failed</p>
+                <p className="absolute left-3.5 bottom-2 text-[9px] font-medium text-amber-400/90 tabular-nums">
+                  今日矩阵中位 {Number.isFinite(matrixBustMedianPct) ? `${matrixBustMedianPct.toFixed(1)}%` : '—'}
+                </p>
                 <span className="absolute right-3.5 bottom-2 text-[10px] font-semibold tabular-nums text-sky-500/80 bg-sky-50/70 px-1.5 py-0.5 rounded-full">
                   {Number.isFinite(bustRatePct) ? bustRatePct.toFixed(0) : '—'}%
                 </span>
