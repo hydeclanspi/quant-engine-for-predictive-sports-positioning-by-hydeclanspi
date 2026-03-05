@@ -540,13 +540,14 @@ export default function TeamsPage() {
                   <svg viewBox="0 0 100 48" className="w-full h-[118px]" onMouseLeave={() => setRatingHoverIndex(null)}>
                     {(() => {
                       const series = normalizeSeries(selectedTeamDetail.ratingSeries)
-                      const min = Math.min(...series)
-                      const max = Math.max(...series)
-                      const span = Math.max(max - min, 0.02)
+                      const axisMin = 0.1
+                      const axisMax = 0.8
+                      const span = axisMax - axisMin
                       const step = series.length > 1 ? 84 / (series.length - 1) : 0
                       const points = series.map((value, idx) => {
                         const x = 8 + idx * step
-                        const y = 38 - ((value - min) / span) * 27
+                        const normalized = clamp((value - axisMin) / span, 0, 1)
+                        const y = 38 - normalized * 27
                         return {
                           x,
                           y,
@@ -565,7 +566,7 @@ export default function TeamsPage() {
                       )
                       const tickValues = Array.from(
                         { length: tickCount },
-                        (_, idx) => max - (idx * (max - min)) / (tickCount - 1),
+                        (_, idx) => axisMax - (idx * (axisMax - axisMin)) / (tickCount - 1),
                       )
                       const bubbleWidth = 26
                       const bubbleHeight = 9.8
@@ -690,7 +691,7 @@ export default function TeamsPage() {
                                 {isExpandable && (
                                   <button
                                     onClick={() => toggleHistoryGroup(group.id)}
-                                    className="absolute -left-5 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border border-sky-200 text-[10px] leading-none text-sky-600 transition-colors hover:bg-sky-50"
+                                    className="absolute -left-[22px] top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border border-sky-200 text-[10px] leading-none text-sky-600 transition-colors hover:bg-sky-50"
                                     aria-label={isExpanded ? '收起同场投注' : '展开同场投注'}
                                   >
                                     {isExpanded ? '−' : '+'}
