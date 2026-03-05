@@ -670,18 +670,30 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                           </div>
                         )
                       })()}
-                      {/* Premium — 突出显示 */}
-                      <div className="flex items-center justify-between pt-3 mt-1 border-t border-stone-100/60">
-                        <span className="text-sm font-semibold text-stone-500 tracking-wide">Premium</span>
-                        <span className={`text-lg font-bold tabular-nums tracking-tight ${premiumValue > 0 ? 'text-indigo-600' : 'text-emerald-600'}`}>
-                          {premiumValue > 0 ? '+' : ''}{(premiumValue * 100).toFixed(2)}%
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between pt-2">
-                        <span className="text-xs font-semibold text-stone-500 tracking-wide">Marginal Survival Impact (pp)</span>
-                        <span className={`text-base font-bold tabular-nums tracking-tight ${Number(deltaSurvivalPair) >= 0 ? 'text-sky-600' : 'text-rose-500'}`}>
-                          {formatSigned(Number(deltaSurvivalPair) * 100, 2, 'pp')}
-                        </span>
+                      {/* Premium + Marginal Survival — 统一行式，降低冲突色饱和度 */}
+                      <div className="pt-3 mt-1 border-t border-stone-100/60 space-y-2">
+                        <div className="flex items-center justify-between rounded-lg border border-indigo-100/60 bg-white/70 px-3 py-2">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-semibold text-stone-500 tracking-wide">Premium</span>
+                          </div>
+                          <span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-base font-semibold tabular-nums tracking-tight ${
+                            premiumValue > 0
+                              ? 'border-indigo-100/80 bg-indigo-50/70 text-indigo-500'
+                              : 'border-emerald-100/80 bg-emerald-50/70 text-emerald-500'
+                          }`}>
+                            {premiumValue > 0 ? '+' : ''}{(premiumValue * 100).toFixed(2)}%
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between rounded-lg border border-sky-100/60 bg-sky-50/35 px-3 py-2">
+                          <span className="text-xs font-semibold text-stone-500 tracking-wide">Marginal Survival Impact (pp)</span>
+                          <span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-sm font-semibold tabular-nums tracking-tight ${
+                            Number(deltaSurvivalPair) >= 0
+                              ? 'border-emerald-100/80 bg-emerald-50/70 text-emerald-500'
+                              : 'border-rose-100/80 bg-rose-50/70 text-rose-400'
+                          }`}>
+                            {formatSigned(Number(deltaSurvivalPair) * 100, 2, 'pp')}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
