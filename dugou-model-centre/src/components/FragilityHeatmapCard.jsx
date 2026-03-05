@@ -678,8 +678,8 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                         </span>
                       </div>
                       <div className="flex items-center justify-between pt-2">
-                        <span className="text-[11px] font-semibold text-stone-400 tracking-wide">ΔSurvival</span>
-                        <span className={`text-sm font-semibold tabular-nums tracking-tight ${Number(deltaSurvivalPair) >= 0 ? 'text-sky-600' : 'text-rose-500'}`}>
+                        <span className="text-xs font-semibold text-stone-500 tracking-wide">Marginal Survival Impact (pp)</span>
+                        <span className={`text-base font-bold tabular-nums tracking-tight ${Number(deltaSurvivalPair) >= 0 ? 'text-sky-600' : 'text-rose-500'}`}>
                           {formatSigned(Number(deltaSurvivalPair) * 100, 2, 'pp')}
                         </span>
                       </div>
