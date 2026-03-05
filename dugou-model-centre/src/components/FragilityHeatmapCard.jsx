@@ -662,9 +662,6 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                         return               { bg: 'bg-gradient-to-br from-purple-50/75 to-fuchsia-50/55', border: 'border-purple-200/50', text: 'text-purple-700' }
                       }
                       const pc = getPremiumCell(prem)
-                      const signTone = prem >= 0
-                        ? 'text-violet-700 bg-violet-100/80 border-violet-200/70'
-                        : 'text-emerald-700 bg-emerald-100/80 border-emerald-200/70'
                       return (
                         <td key={`cell-${rowIdx}-${colIdx}`} className="p-1">
                           <button
@@ -678,15 +675,10 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                           >
                             {Number.isFinite(prem) ? (
                               <div className="flex flex-col items-center justify-center">
-                                <div className="flex items-center gap-1">
-                                  <span className={`inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-md border text-[11px] font-bold leading-none ${signTone}`}>
-                                    {prem >= 0 ? '+' : '\u2212'}
-                                  </span>
-                                  <span className={`text-base font-semibold tabular-nums leading-none tracking-normal ${pc.text}`}>
-                                    {Math.abs(prem * 100).toFixed(1)}
-                                  </span>
-                                </div>
-                                <span className={`text-[9px] font-medium opacity-55 mt-0.5 ${pc.text}`}>%</span>
+                                <span className={`text-sm font-semibold tabular-nums leading-none tracking-normal ${pc.text}`}>
+                                  <span className="text-[9px] font-medium opacity-60 mr-px">{prem >= 0 ? '+' : '\u2212'}</span>{Math.abs(prem * 100).toFixed(1)}
+                                </span>
+                                <span className={`text-[8px] font-medium opacity-35 mt-0.5 ${pc.text}`}>%</span>
                               </div>
                             ) : (
                               <span className="text-[11px] text-stone-300">—</span>
