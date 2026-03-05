@@ -667,7 +667,7 @@ export default function TeamsPage() {
                   <thead>
                     <tr className="border-b border-stone-100 text-left text-stone-500">
                       <th className="py-2">日期</th>
-                      <th className="py-2">比赛</th>
+                      <th className="py-2 pl-5">比赛</th>
                       <th className="py-2">entry</th>
                       <th className="py-2">result</th>
                       <th className="py-2">赔率</th>
@@ -685,21 +685,20 @@ export default function TeamsPage() {
                         <Fragment key={group.id}>
                           <tr className="border-b border-stone-50">
                             <td className="py-2 text-stone-500">{headRow.date}</td>
-                            <td className="py-2 text-stone-700">
-                              <div className="flex items-center gap-2">
+                            <td className="py-2 pl-5 text-stone-700">
+                              <div className="relative flex items-center gap-2">
                                 {isExpandable && (
                                   <button
                                     onClick={() => toggleHistoryGroup(group.id)}
-                                    className="h-4 w-4 rounded-full border border-sky-200 text-[10px] leading-none text-sky-600 transition-colors hover:bg-sky-50"
+                                    className="absolute -left-5 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border border-sky-200 text-[10px] leading-none text-sky-600 transition-colors hover:bg-sky-50"
                                     aria-label={isExpanded ? '收起同场投注' : '展开同场投注'}
                                   >
                                     {isExpanded ? '−' : '+'}
                                   </button>
                                 )}
-                                {!isExpandable && <span className="inline-block h-4 w-4 shrink-0" aria-hidden="true" />}
                                 <span>{headRow.match}</span>
                                 {isExpandable && (
-                                  <span className="rounded-full border border-sky-200 bg-sky-50 px-1.25 py-[1px] text-[9px] font-medium text-sky-600">
+                                  <span className="inline-flex h-[16px] items-center rounded-full border border-sky-200 bg-sky-50 px-1 text-[8px] leading-none font-medium text-sky-600">
                                     同场 {group.items.length} 次
                                   </span>
                                 )}
@@ -725,9 +724,11 @@ export default function TeamsPage() {
                             group.items.slice(1).map((row, nestedIdx) => (
                               <tr key={`${group.id}-${nestedIdx}`} className="border-b border-sky-50 bg-sky-50/20">
                                 <td className="py-2 pl-4 text-stone-400">{row.date}</td>
-                                <td className="py-2 text-stone-600">
-                                  <div className="flex items-center gap-2">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
+                                <td className="py-2 pl-5 text-stone-600">
+                                  <div className="relative flex items-center gap-2">
+                                    <span className="absolute -left-5 top-1/2 inline-flex h-4 w-4 -translate-y-1/2 items-center justify-center" aria-hidden="true">
+                                      <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
+                                    </span>
                                     <span>{row.match}</span>
                                   </div>
                                 </td>
