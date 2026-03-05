@@ -674,12 +674,12 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                       <div className="pt-3 mt-1 border-t border-stone-100/60 space-y-2">
                         <div className="flex items-center justify-between rounded-lg border border-indigo-100/60 bg-white/70 px-3.5 py-2.5">
                           <div className="flex flex-col">
-                            <span className="text-sm font-semibold text-stone-500 tracking-wide">Premium</span>
+                            <span className="text-sm font-semibold text-stone-500 tracking-wide">Premium (%)</span>
                           </div>
-                          <span className={`min-w-[88px] text-right whitespace-nowrap text-[19px] leading-none font-semibold tabular-nums tracking-[0.012em] ${
+                          <span className={`min-w-[88px] text-right whitespace-nowrap text-[18px] leading-none font-semibold tabular-nums tracking-[0.012em] ${
                             premiumValue > 0 ? 'text-indigo-500' : 'text-emerald-500'
                           }`}>
-                            {premiumValue > 0 ? '+' : ''}{(premiumValue * 100).toFixed(2)}%
+                            {premiumValue > 0 ? '+' : ''}{(premiumValue * 100).toFixed(2)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between rounded-lg border border-sky-100/60 bg-sky-50/35 px-3.5 py-2.5">
@@ -752,7 +752,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
             >
               <span>{mappedViewEnabled ? '映射增强' : '源数据'}</span>
               <span className={`relative h-4 w-8 rounded-full border transition-colors duration-200 ${mappedViewEnabled ? 'bg-sky-200/85 border-sky-300/90' : 'bg-stone-200/75 border-stone-300/75'}`}>
-                <span className={`absolute top-[1px] h-[12px] w-[12px] rounded-full bg-white shadow-sm transition-transform duration-200 ${mappedViewEnabled ? 'translate-x-[15px]' : 'translate-x-[1px]'}`} />
+                <span className={`absolute top-1/2 h-[12px] w-[12px] -translate-y-1/2 rounded-full bg-white shadow-sm transition-all duration-200 ${mappedViewEnabled ? 'right-[1px]' : 'left-[1px]'}`} />
               </span>
             </button>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[10px] border border-sky-200/80 bg-[linear-gradient(120deg,rgba(224,242,254,0.86),rgba(255,255,255,0.9)_52%,rgba(224,242,254,0.84))] text-[11px] font-medium text-sky-700 tracking-[0.02em] shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_10px_22px_-18px_rgba(14,165,233,0.5)] backdrop-blur-[1px]">
