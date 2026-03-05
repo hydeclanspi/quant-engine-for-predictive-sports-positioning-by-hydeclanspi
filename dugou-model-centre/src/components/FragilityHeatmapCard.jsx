@@ -42,8 +42,11 @@ const resolveDeltaSurvival = (premium = null) => {
 
   const condFailBGivenA = pFailA > 1e-6 ? clamp(pFailBothObserved / pFailA, 0, 1) : Number.NaN
   const condFailAGivenB = pFailB > 1e-6 ? clamp(pFailBothObserved / pFailB, 0, 1) : Number.NaN
-  const deltaAtoB = Number.isFinite(condFailBGivenA) ? condFailBGivenA - pFailB : Number.NaN
-  const deltaBtoA = Number.isFinite(condFailAGivenB) ? condFailAGivenB - pFailA : Number.NaN
+  // MSI adopts survival-direction semantics:
+  // positive => improves survival (reduces conditional fail risk),
+  // negative => harms survival (raises conditional fail risk).
+  const deltaAtoB = Number.isFinite(condFailBGivenA) ? pFailB - condFailBGivenA : Number.NaN
+  const deltaBtoA = Number.isFinite(condFailAGivenB) ? pFailA - condFailAGivenB : Number.NaN
 
   const finite = [deltaAtoB, deltaBtoA].filter((v) => Number.isFinite(v))
   const pair = finite.length > 0 ? finite.reduce((sum, v) => sum + v, 0) / finite.length : Number.NaN
