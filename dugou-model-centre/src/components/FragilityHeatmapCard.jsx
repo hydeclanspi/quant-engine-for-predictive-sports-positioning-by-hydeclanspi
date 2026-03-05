@@ -174,6 +174,14 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
     return found || expandedPair
   }, [expandedPair, displayFragilityMatrix])
 
+  const selectedAxisSet = useMemo(() => {
+    if (!resolvedExpandedPair) return null
+    const i = Number(resolvedExpandedPair.i)
+    const j = Number(resolvedExpandedPair.j)
+    if (!Number.isInteger(i) || !Number.isInteger(j)) return null
+    return new Set([i, j])
+  }, [resolvedExpandedPair])
+
   // ─── 品牌色系 — 10段细分光谱 ───
   // 翡翠 → 薄荷 → 青绿 → 天蓝 → 钴蓝 → 靛蓝 → 紫罗兰 → 香槟金 → 银灰 → 深岩
   const getHeatStyle = (score) => {
@@ -792,7 +800,9 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                 {matches.map((match, idx) => (
                   <th
                     key={`col-${idx}`}
-                    className="px-1.5 py-2.5 text-[11px] font-medium text-stone-400 tracking-wide text-center whitespace-nowrap"
+                    className={`px-1.5 py-2.5 text-[11px] font-medium tracking-wide text-center whitespace-nowrap transition-colors duration-200 ${
+                      selectedAxisSet?.has(idx) ? 'text-amber-600/90' : 'text-stone-400'
+                    }`}
                   >
                     {formatTeamName(match, idx)}
                   </th>
@@ -803,7 +813,9 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
               {matches.map((rowMatch, rowIdx) => (
                 <tr key={`row-${rowIdx}`}>
                   {/* 行标题 */}
-                  <td className="pr-3 py-1.5 text-[11px] font-medium text-stone-400 tracking-wide text-right whitespace-nowrap align-middle">
+                  <td className={`pr-3 py-1.5 text-[11px] font-medium tracking-wide text-right whitespace-nowrap align-middle transition-colors duration-200 ${
+                    selectedAxisSet?.has(rowIdx) ? 'text-amber-600/90' : 'text-stone-400'
+                  }`}>
                     {formatTeamName(rowMatch, rowIdx)}
                   </td>
 
@@ -885,6 +897,11 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                     if (!pairData) return <td key={`cell-${rowIdx}-${colIdx}`} className="p-1" />
 
                     const cellStyle = getHeatStyle(pairData.displayScore)
+                    const axisHighlighted = Boolean(
+                      selectedAxisSet &&
+                      colIdx > rowIdx &&
+                      (selectedAxisSet.has(rowIdx) || selectedAxisSet.has(colIdx))
+                    )
                     const isSelected = resolvedExpandedPair && (
                       (resolvedExpandedPair.i === rowIdx && resolvedExpandedPair.j === colIdx) ||
                       (resolvedExpandedPair.i === colIdx && resolvedExpandedPair.j === rowIdx)
@@ -894,15 +911,18 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                       <td key={`cell-${rowIdx}-${colIdx}`} className="p-1">
                         <button
                           onClick={() => onSelectPair?.(pairData)}
-                          className={`w-full h-14 rounded-lg border backdrop-blur-[2px] flex flex-col items-center justify-center transition-all duration-200 cursor-pointer
+                          className={`relative w-full h-14 rounded-lg border backdrop-blur-[2px] flex flex-col items-center justify-center transition-all duration-200 cursor-pointer overflow-hidden
                             ${cellStyle.bg} ${cellStyle.border} ${cellStyle.text} ${cellStyle.glow}
                             ${isSelected
                               ? 'ring-2 ring-sky-400/60 ring-offset-1 scale-[1.03]'
                               : 'hover:scale-[1.02] hover:shadow-md'
                             }`}
                         >
-                          <span className="text-base font-semibold leading-none tabular-nums">{Number(pairData.displayScore).toFixed(2)}</span>
-                          <span className="text-[9px] opacity-50 mt-0.5">%</span>
+                          {axisHighlighted && !isSelected && (
+                            <span className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-amber-100/28 via-yellow-50/16 to-amber-50/10" />
+                          )}
+                          <span className="relative z-10 text-base font-semibold leading-none tabular-nums">{Number(pairData.displayScore).toFixed(2)}</span>
+                          <span className="relative z-10 text-[9px] opacity-50 mt-0.5">%</span>
                         </button>
                       </td>
                     )
