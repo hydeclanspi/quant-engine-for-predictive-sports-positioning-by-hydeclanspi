@@ -220,6 +220,39 @@ const hasNoteContent = (value) => {
   return Boolean(plain && plain !== '-')
 }
 
+const buildMatchNotePopupPayload = (preNote, postNote) => {
+  const pre = String(preNote || '').trim()
+  const post = String(postNote || '').trim()
+  const hasPre = hasNoteContent(pre)
+  const hasPost = hasNoteContent(post)
+
+  if (hasPre && hasPost) {
+    return {
+      trigger: '赛前 | 赛后',
+      label: '赛前 | 赛后备注',
+      note: `【赛前】\n${pre}\n\n【赛后】\n${post}`,
+    }
+  }
+
+  if (hasPre) {
+    return {
+      trigger: '赛前',
+      label: '赛前备注',
+      note: pre,
+    }
+  }
+
+  if (hasPost) {
+    return {
+      trigger: '赛后',
+      label: '赛后备注',
+      note: post,
+    }
+  }
+
+  return null
+}
+
 const getStatusLabel = (status) => {
   if (status === 'pending') return '待结算'
   if (status === 'win') return '已中'
@@ -919,60 +952,70 @@ export default function HistoryPage() {
                       <td colSpan={8} className="px-4 py-4">
                         <div className="history-expand-content rounded-xl border border-stone-200 bg-white p-4" style={{ '--history-expand-delay': expandDelay }}>
                           <div className="space-y-2">
-                            {row.matchRows.map((matchRow, matchIndex) => (
-                              <div
-                                key={matchRow.id}
-                                className="history-expand-item rounded-lg border border-stone-100 px-3 py-2"
-                                style={{ '--history-expand-delay': `${Math.min(rowIndex * 26 + matchIndex * 24, 460)}ms` }}
-                              >
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <p className="text-stone-700 font-medium">
-                                    {matchRow.seqLabel} · {matchRow.match}
-                                  </p>
-                                  <p className="text-[10px] text-stone-400">{matchRow.date}</p>
+                            {row.matchRows.map((matchRow, matchIndex) => {
+                              const notePayload = buildMatchNotePopupPayload(matchRow.preNote, matchRow.postNote)
+                              return (
+                                <div
+                                  key={matchRow.id}
+                                  className="history-expand-item rounded-lg border border-stone-100 px-3 py-2"
+                                  style={{ '--history-expand-delay': `${Math.min(rowIndex * 26 + matchIndex * 24, 460)}ms` }}
+                                >
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <p className="text-stone-700 font-medium">
+                                      {matchRow.seqLabel} · {matchRow.match}
+                                    </p>
+                                    <p className="text-[10px] text-stone-400">{matchRow.date}</p>
+                                  </div>
+                                  <div className="mt-2 grid gap-2 md:grid-cols-6">
+                                    <div>
+                                      <p className="text-[10px] text-stone-400">Entries</p>
+                                      <p className="mt-0.5">{renderOutcomeText(matchRow.entries)}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] text-stone-400">Results</p>
+                                      <p className="mt-0.5 font-semibold">{renderOutcomeText(matchRow.results)}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] text-stone-400">Odds</p>
+                                      <p className="mt-0.5 font-semibold italic text-violet-600">{matchRow.odds}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] text-stone-400">Conf / AJR</p>
+                                      <p className="mt-0.5 font-semibold">
+                                        <span className={matchRow.conf === '-' ? 'text-stone-300' : getConfColor(matchRow.conf)}>
+                                          {matchRow.conf === '-' ? '—' : matchRow.conf}
+                                        </span>
+                                        <span className="mx-1 text-stone-300">/</span>
+                                        <span className={matchRow.ajr === '-' ? 'text-stone-300' : getAJRColor(matchRow.ajr)}>
+                                          {matchRow.ajr === '-' ? '—' : matchRow.ajr}
+                                        </span>
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] text-stone-400">状态</p>
+                                      <p className="mt-0.5">
+                                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${getStatusBadgeTone(matchRow.status)}`}>
+                                          {getStatusLabel(matchRow.status)}
+                                        </span>
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] text-stone-400">备注</p>
+                                      {notePayload ? (
+                                        <button
+                                          onClick={(event) => showNote(notePayload.note, notePayload.label, event)}
+                                          className="note-cell mt-0.5 inline-flex items-center text-[11px] text-stone-600"
+                                        >
+                                          {notePayload.trigger}
+                                        </button>
+                                      ) : (
+                                        <p className="mt-0.5 text-stone-300">-</p>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="mt-2 grid gap-2 md:grid-cols-6">
-                                  <div>
-                                    <p className="text-[10px] text-stone-400">Entries</p>
-                                    <p className="mt-0.5">{renderOutcomeText(matchRow.entries)}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-[10px] text-stone-400">Results</p>
-                                    <p className="mt-0.5 font-semibold">{renderOutcomeText(matchRow.results)}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-[10px] text-stone-400">Odds</p>
-                                    <p className="mt-0.5 font-semibold italic text-violet-600">{matchRow.odds}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-[10px] text-stone-400">Conf / AJR</p>
-                                    <p className="mt-0.5 font-semibold">
-                                      <span className={matchRow.conf === '-' ? 'text-stone-300' : getConfColor(matchRow.conf)}>
-                                        {matchRow.conf === '-' ? '—' : matchRow.conf}
-                                      </span>
-                                      <span className="mx-1 text-stone-300">/</span>
-                                      <span className={matchRow.ajr === '-' ? 'text-stone-300' : getAJRColor(matchRow.ajr)}>
-                                        {matchRow.ajr === '-' ? '—' : matchRow.ajr}
-                                      </span>
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-[10px] text-stone-400">状态</p>
-                                    <p className="mt-0.5">
-                                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${getStatusBadgeTone(matchRow.status)}`}>
-                                        {getStatusLabel(matchRow.status)}
-                                      </span>
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-[10px] text-stone-400">备注</p>
-                                    <p className="mt-0.5 text-stone-600">
-                                      {renderStyledNote(matchRow.preNote !== '-' ? matchRow.preNote : matchRow.postNote || '-')}
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
+                              )
+                            })}
                           </div>
 
                           <div className="grid gap-2 mt-3 border-t border-stone-100 pt-3 md:grid-cols-2 xl:grid-cols-4">
