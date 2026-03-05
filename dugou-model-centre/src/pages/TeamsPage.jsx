@@ -68,6 +68,12 @@ const getEntryText = (match) => {
   return '-'
 }
 
+const toZhOutcomeText = (value) =>
+  String(value ?? '')
+    .replace(/\bwin\b/gi, '胜')
+    .replace(/\bdraw\b/gi, '平')
+    .replace(/\blose\b/gi, '负')
+
 const getAJRColor = (ajr) => {
   const value = Number.parseFloat(ajr)
   if (!Number.isFinite(value)) return 'text-stone-400'
@@ -129,7 +135,8 @@ const groupTeamHistoryRows = (rows) => {
 const buildAliasMap = (profiles) => {
   const map = new Map()
   profiles.forEach((profile) => {
-    const canonicalName = normalize(profile.teamName) === '西汉姆' ? '西汉姆联' : profile.teamName
+    const normalizedProfileName = normalize(profile.teamName)
+    const canonicalName = normalizedProfileName === '西汉姆' ? '西汉姆联' : normalizedProfileName === '维拉' ? '阿斯顿维拉' : profile.teamName
     const aliases = [profile.teamName, ...(profile.abbreviations || [])]
     aliases.forEach((alias) => map.set(normalize(alias), canonicalName))
   })
@@ -139,6 +146,7 @@ const buildAliasMap = (profiles) => {
 const normalizeTeamName = (teamName, aliasMap) => {
   const resolved = aliasMap.get(normalize(teamName)) || String(teamName || '').trim()
   if (normalize(resolved) === '西汉姆') return '西汉姆联'
+  if (normalize(resolved) === '维拉') return '阿斯顿维拉'
   return resolved
 }
 
@@ -705,8 +713,8 @@ export default function TeamsPage() {
                                 )}
                               </div>
                             </td>
-                            <td className="py-2 text-stone-600">{headRow.entry}</td>
-                            <td className="py-2 text-stone-500">{headRow.result}</td>
+                            <td className="py-2 text-stone-600">{toZhOutcomeText(headRow.entry)}</td>
+                            <td className="py-2 text-stone-500">{toZhOutcomeText(headRow.result)}</td>
                             <td className="py-2 text-violet-600 italic font-semibold">{headRow.odds}</td>
                             <td className={`py-2 font-semibold ${headRow.ajr === '-' ? 'text-stone-400' : getAJRColor(headRow.ajr)}`}>{headRow.ajr}</td>
                             <td
@@ -733,8 +741,8 @@ export default function TeamsPage() {
                                     <span>{row.match}</span>
                                   </div>
                                 </td>
-                                <td className="py-2 text-stone-600">{row.entry}</td>
-                                <td className="py-2 text-stone-500">{row.result}</td>
+                                <td className="py-2 text-stone-600">{toZhOutcomeText(row.entry)}</td>
+                                <td className="py-2 text-stone-500">{toZhOutcomeText(row.result)}</td>
                                 <td className="py-2 text-violet-600 italic font-semibold">{row.odds}</td>
                                 <td className={`py-2 font-semibold ${row.ajr === '-' ? 'text-stone-400' : getAJRColor(row.ajr)}`}>{row.ajr}</td>
                                 <td

@@ -1326,6 +1326,7 @@ const normalizeTeamName = (teamName, aliasMap) => {
   const key = normalize(teamName)
   const resolved = aliasMap.get(key) || String(teamName || '').trim()
   if (normalize(resolved) === '西汉姆') return '西汉姆联'
+  if (normalize(resolved) === '维拉') return '阿斯顿维拉'
   return resolved
 }
 
