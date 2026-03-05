@@ -5688,6 +5688,8 @@ export const checkSurvivingBias = (
   let neighborBandMatch = 0
   let exactBandWon = 0
   let neighborBandWon = 0
+  let exactBandPartialMiss = 0
+  let neighborBandPartialMiss = 0
 
   const targetBandA = getOddsBand(oddsA)
   const targetBandB = getOddsBand(oddsB)
@@ -5709,6 +5711,8 @@ export const checkSurvivingBias = (
     let foundNeighbor = false
     let bothCorrectExact = false
     let bothCorrectNeighbor = false
+    let partialMissExact = false
+    let partialMissNeighbor = false
 
     for (let i = 0; i < matches.length; i++) {
       const mOddsI = toNumber(matches[i]?.odds, 0)
@@ -5724,12 +5728,17 @@ export const checkSurvivingBias = (
         const exactMatchB = bandJ === targetBandB
         const neighborMatchB = isNeighborBand(bandJ, targetBandB)
 
-        const bothCorrect = matches[i]?.result === true && matches[j]?.result === true
+        const rI = matches[i]?.result
+        const rJ = matches[j]?.result
+        const bothDefined = typeof rI === 'boolean' && typeof rJ === 'boolean'
+        const bothCorrect = bothDefined && rI === true && rJ === true
+        const partialMiss = bothDefined && ((rI === true && rJ === false) || (rI === false && rJ === true))
 
         // Exact: 两个维度都精确匹配 band
         if (exactMatchA && exactMatchB) {
           foundExact = true
           bothCorrectExact = bothCorrect
+          partialMissExact = partialMiss
           break
         }
         // Neighbor: 至少一个维度是相邻 band（另一个可以是精确或相邻）
@@ -5737,6 +5746,7 @@ export const checkSurvivingBias = (
           if (!foundNeighbor) {
             foundNeighbor = true
             bothCorrectNeighbor = bothCorrect
+            partialMissNeighbor = partialMiss
           }
         }
       }
@@ -5747,10 +5757,12 @@ export const checkSurvivingBias = (
       matchedPairs += 1
       exactBandMatch += 1
       if (bothCorrectExact) exactBandWon += 1
+      if (partialMissExact) exactBandPartialMiss += 1
     } else if (foundNeighbor) {
       matchedPairs += 1
       neighborBandMatch += 1
       if (bothCorrectNeighbor) neighborBandWon += 1
+      if (partialMissNeighbor) neighborBandPartialMiss += 1
     }
   })
 
@@ -5771,6 +5783,8 @@ export const checkSurvivingBias = (
     investedInSimilar: neighborBandMatch,
     exactWon: exactBandWon,
     neighborWon: neighborBandWon,
+    exactPartialMiss: exactBandPartialMiss,
+    neighborPartialMiss: neighborBandPartialMiss,
   }
 }
 

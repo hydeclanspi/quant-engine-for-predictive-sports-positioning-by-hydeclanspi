@@ -352,18 +352,8 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
     const observedFailedCount = premium.observedFailedCount || 0
     const observedPartialMiss = premium.observedPartialMiss || 0
     const observedFullHit = Math.max(sampleSize - observedPartialMiss - observedFailedCount, 0)
-    const partialMissRatePct = sampleSize > 0 && Number.isFinite(observedPartialMiss) ? (observedPartialMiss / sampleSize) * 100 : null
     const bustRatePct = sampleSize > 0 && Number.isFinite(observedFailedCount) ? (observedFailedCount / sampleSize) * 100 : null
     const fullHitRatePct = sampleSize > 0 && Number.isFinite(observedFullHit) ? (observedFullHit / sampleSize) * 100 : null
-    const matrixPartialMissMedianPct = getMedian(
-      fragilityMatrix.map((pair) => {
-        const pairPremium = pair.components?.premium || {}
-        const pairSample = Number(pairPremium.sampleSize)
-        const pairPartialMiss = Number(pairPremium.observedPartialMiss)
-        if (!Number.isFinite(pairSample) || pairSample <= 0 || !Number.isFinite(pairPartialMiss)) return null
-        return (pairPartialMiss / pairSample) * 100
-      }),
-    )
     const matrixBustMedianPct = getMedian(
       fragilityMatrix.map((pair) => {
         const pairPremium = pair.components?.premium || {}
@@ -388,41 +378,10 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
     const biasStrength = bias.biasStrength || 0
     const matchedExact = bias.investedInTarget || 0
     const matchedNeighbor = bias.investedInSimilar || 0
-    const exactWon = bias.exactWon || 0
-    const neighborWon = bias.neighborWon || 0
-    const totalBandMatched = matchedExact + matchedNeighbor
-    const exactHalfHit = totalBandMatched > 0 ? (observedPartialMiss * matchedExact) / totalBandMatched : 0
-    const neighborHalfHit = totalBandMatched > 0 ? (observedPartialMiss * matchedNeighbor) / totalBandMatched : 0
+    const exactHalfHit = bias.exactPartialMiss || 0
+    const neighborHalfHit = bias.neighborPartialMiss || 0
     const exactHalfHitRatePct = matchedExact > 0 ? (exactHalfHit / matchedExact) * 100 : null
     const neighborHalfHitRatePct = matchedNeighbor > 0 ? (neighborHalfHit / matchedNeighbor) * 100 : null
-    const matrixExactHalfHitMedianPct = getMedian(
-      fragilityMatrix.map((pair) => {
-        const pairBias = pair.components?.bias || {}
-        const pairPremium = pair.components?.premium || {}
-        const pairExact = Number(pairBias.investedInTarget)
-        const pairNeighbor = Number(pairBias.investedInSimilar)
-        const pairPartial = Number(pairPremium.observedPartialMiss)
-        if (!Number.isFinite(pairExact) || !Number.isFinite(pairNeighbor) || !Number.isFinite(pairPartial) || pairExact <= 0) return null
-        const total = pairExact + pairNeighbor
-        if (total <= 0) return null
-        const allocated = (pairPartial * pairExact) / total
-        return (allocated / pairExact) * 100
-      }),
-    )
-    const matrixNeighborHalfHitMedianPct = getMedian(
-      fragilityMatrix.map((pair) => {
-        const pairBias = pair.components?.bias || {}
-        const pairPremium = pair.components?.premium || {}
-        const pairExact = Number(pairBias.investedInTarget)
-        const pairNeighbor = Number(pairBias.investedInSimilar)
-        const pairPartial = Number(pairPremium.observedPartialMiss)
-        if (!Number.isFinite(pairExact) || !Number.isFinite(pairNeighbor) || !Number.isFinite(pairPartial) || pairNeighbor <= 0) return null
-        const total = pairExact + pairNeighbor
-        if (total <= 0) return null
-        const allocated = (pairPartial * pairNeighbor) / total
-        return (allocated / pairNeighbor) * 100
-      }),
-    )
     const globalFailureRate = adjusted.globalFailureRate
     // Odds bands
     const bandA = matchA?.odds ? getOddsBand(matchA.odds) : null
@@ -598,10 +557,10 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
               </div>
             </div>
 
-            {/* 第二行：概率分析模块 — 左=Market Implied (内部分割含Odds Profile) | 右=Co-failure Rate（保持原样） */}
+            {/* 第二行：概率分析模块 — 左=Market Implied (内部分割含 Partial Miss 明细) | 右=Co-failure Rate */}
             {(Number.isFinite(pFailA) || Number.isFinite(premiumValue)) && (
               <div className="mt-2.5 grid grid-cols-2 gap-2.5">
-                {/* 左半：Market Implied + Odds Profile 内部分割 */}
+                {/* 左半：Market Implied + Partial Miss 内部分割 */}
                 {Number.isFinite(pFailA) && Number.isFinite(pFailB) && (
                   <div className="rounded-xl bg-gradient-to-br from-sky-50/50 via-white to-cyan-50/30 border border-sky-100/60 p-3.5">
                     <div className="grid grid-cols-2 gap-3 h-full">
@@ -617,7 +576,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                                   <span className="text-[9px] text-stone-400 uppercase tracking-wide font-medium">Exact</span>
                                   <span className="text-[8px] text-stone-300/80 tabular-nums">({bandA}×{bandB})</span>
                                 </div>
-                                <span className="text-[10px] font-semibold tabular-nums text-sky-500/80 bg-sky-50/70 px-1.5 py-0.5 rounded-full">{Number.isFinite(matrixExactHalfHitMedianPct) ? matrixExactHalfHitMedianPct.toFixed(0) : '—'}%</span>
+                                <span className="text-[10px] font-semibold tabular-nums text-sky-500/80 bg-sky-50/70 px-1.5 py-0.5 rounded-full">{Number.isFinite(exactHalfHitRatePct) ? exactHalfHitRatePct.toFixed(0) : '—'}%</span>
                               </div>
                               <div className="flex items-end gap-2.5">
                                 <div className="flex flex-col items-center">
@@ -626,7 +585,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                                 </div>
                                 <span className="text-stone-200 text-xs font-light mb-0.5">/</span>
                                 <div className="flex flex-col items-center">
-                                  <span className="text-[15px] font-semibold text-amber-600 tabular-nums leading-none">{Number.isFinite(exactHalfHit) ? Number(exactHalfHit).toFixed(1) : '—'}</span>
+                                  <span className="text-[15px] font-semibold text-amber-600 tabular-nums leading-none">{exactHalfHit}</span>
                                   <span className="text-[8px] text-amber-500/75 font-medium mt-1 uppercase tracking-wider">half-hit</span>
                                 </div>
                               </div>
@@ -645,14 +604,12 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                                 </div>
                                 <span className="text-stone-200 text-xs font-light mb-0.5">/</span>
                                 <div className="flex flex-col items-center">
-                                  <span className="text-[15px] font-semibold text-amber-600 tabular-nums leading-none">{Number.isFinite(neighborHalfHit) ? Number(neighborHalfHit).toFixed(1) : '—'}</span>
+                                  <span className="text-[15px] font-semibold text-amber-600 tabular-nums leading-none">{neighborHalfHit}</span>
                                   <span className="text-[8px] text-amber-500/75 font-medium mt-1 uppercase tracking-wider">half-hit</span>
                                 </div>
                               </div>
                             </div>
-                            <p className="absolute right-0 -bottom-1 text-[9px] font-medium text-sky-500/75 tabular-nums">
-                              中位 {Number.isFinite(matrixNeighborHalfHitMedianPct) ? `${matrixNeighborHalfHitMedianPct.toFixed(1)}%` : '—'}
-                            </p>
+                            <p className="absolute right-0 -bottom-1 text-[9px] text-stone-400">half-hit pairs</p>
                           </div>
                         ) : (
                           <p className="text-[10px] text-stone-300 italic">No odds data</p>
@@ -672,7 +629,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                             <p className="text-sm font-semibold text-sky-700 tabular-nums">{(pFailB * 100).toFixed(1)}%</p>
                           </div>
                         </div>
-                        <p className="absolute right-0 bottom-0 text-[9px] text-stone-400">odds profile</p>
+                        <p className="absolute right-0 -bottom-1 text-[9px] text-stone-400">odds profile</p>
                       </div>
                     </div>
                   </div>
