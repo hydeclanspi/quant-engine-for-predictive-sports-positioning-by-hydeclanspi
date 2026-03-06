@@ -716,7 +716,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                             <span className="text-sm font-semibold text-stone-500 tracking-wide">Premium (%)</span>
                           </div>
                           <span className={`min-w-[88px] text-right whitespace-nowrap text-[18px] leading-none font-semibold tabular-nums tracking-[0.012em] ${
-                            premiumValue > 0 ? 'text-rose-500' : 'text-sky-500'
+                            premiumValue > 0 ? 'text-rose-500' : 'text-amber-500'
                           }`}>
                             {premiumValue > 0 ? '+' : ''}{(premiumValue * 100).toFixed(2)}
                           </span>
