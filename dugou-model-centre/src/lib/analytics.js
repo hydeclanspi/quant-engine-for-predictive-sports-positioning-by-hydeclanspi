@@ -6093,16 +6093,20 @@ export const assessComboFragility = (matchGroup = [], historicalData = []) => {
 
   const edges = Array.from(pairCopulaModel.values())
   if (edges.length > 0) {
-    const valueFromTheta = (thetaSum) => {
-      const collapse = clamp(
-        independentCollapse * Math.exp(edgeScale * thetaSum),
-        1e-8,
-        0.999999,
-      )
-      return 1 - collapse
+    // ─── Pair-level Shapley MSI ───
+    // 价值函数：给定一组激活的依赖边，组合的「pair 级额外风险总量」
+    // 每条边的额外风险 = qCopula - qInd（copula 联合失败率 vs 独立假设）
+    // Shapley 公平分摊：每条边对总额外风险的边际贡献
+    const valueFromEdgeSet = (activeSet) => {
+      let totalExtraRisk = 0
+      for (let k = 0; k < activeSet.length; k++) {
+        if (activeSet[k]) {
+          totalExtraRisk += (edges[k].qCopula - edges[k].qInd)
+        }
+      }
+      return totalExtraRisk
     }
 
-    // 2) Shapley: 对“组合生存率”做边际归因（Monte Carlo 近似）
     const sampleCount = Math.max(192, Math.min(960, edges.length * 96))
     const contributions = new Float64Array(edges.length)
     const seedBase = matchGroup.reduce((acc, match, idx) => {
@@ -6112,13 +6116,13 @@ export const assessComboFragility = (matchGroup = [], historicalData = []) => {
 
     for (let s = 0; s < sampleCount; s++) {
       const permutation = deterministicPermutation(edges.length, seedBase + s * 7919)
-      let thetaRunning = 0
-      let prevValue = valueFromTheta(thetaRunning)
+      const active = new Uint8Array(edges.length) // 全0
+      let prevValue = 0
 
       for (let k = 0; k < permutation.length; k++) {
         const edgeIdx = permutation[k]
-        thetaRunning += edges[edgeIdx].thetaEdge
-        const nextValue = valueFromTheta(thetaRunning)
+        active[edgeIdx] = 1
+        const nextValue = valueFromEdgeSet(active)
         contributions[edgeIdx] += nextValue - prevValue
         prevValue = nextValue
       }
@@ -6126,7 +6130,9 @@ export const assessComboFragility = (matchGroup = [], historicalData = []) => {
 
     edges.forEach((edge, edgeIdx) => {
       const shapleyValue = contributions[edgeIdx] / sampleCount
-      const msiPP = shapleyValue * 100
+      // MSI 方向约定：正值 = 改善生存（依赖降低风险），负值 = 恶化生存
+      // qCopula > qInd 表示依赖增加了共同失败风险，所以取负号
+      const msiPP = -shapleyValue * 100
       const key = makeEdgeKey(edge.i, edge.j)
       const pairItem = pairAnalysis.find((item) => makeEdgeKey(item.pair[0], item.pair[1]) === key)
       if (!pairItem || !pairItem.assessment) return
