@@ -6093,21 +6093,26 @@ export const assessComboFragility = (matchGroup = [], historicalData = []) => {
 
   const edges = Array.from(pairCopulaModel.values())
   if (edges.length > 0) {
-    // ─── Pair-level Shapley MSI ───
-    // 价值函数：给定一组激活的依赖边，组合的「pair 级额外风险总量」
-    // 每条边的额外风险 = qCopula - qInd（copula 联合失败率 vs 独立假设）
-    // Shapley 公平分摊：每条边对总额外风险的边际贡献
+    // ─── Pair-level Shapley MSI (Multiplicative Game) ───
+    // 价值函数（乘法博弈）：至少一对出现依赖性共同翻车的概率
+    //   V_copula(S) = 1 - Π_{k∈S}(1 - qCopula_k)   组合级联合翻车风险
+    //   V_ind(S)    = 1 - Π_{k∈S}(1 - qInd_k)       独立假设下的基线风险
+    //   V(S) = V_copula(S) - V_ind(S)                 依赖带来的额外风险
+    // 乘法博弈具有交互效应：边越多，单条边的边际贡献递减（风险饱和）
+    // Shapley 公平分摊：每条边对组合额外风险的边际贡献
     const valueFromEdgeSet = (activeSet) => {
-      let totalExtraRisk = 0
+      let survivalCopula = 1
+      let survivalInd = 1
       for (let k = 0; k < activeSet.length; k++) {
         if (activeSet[k]) {
-          totalExtraRisk += (edges[k].qCopula - edges[k].qInd)
+          survivalCopula *= (1 - edges[k].qCopula)
+          survivalInd *= (1 - edges[k].qInd)
         }
       }
-      return totalExtraRisk
+      return (1 - survivalCopula) - (1 - survivalInd)
     }
 
-    const sampleCount = Math.max(192, Math.min(960, edges.length * 96))
+    const sampleCount = 7500
     const contributions = new Float64Array(edges.length)
     const seedBase = matchGroup.reduce((acc, match, idx) => {
       const odds = toNumber(match?.odds, 1 + idx)
@@ -6131,7 +6136,8 @@ export const assessComboFragility = (matchGroup = [], historicalData = []) => {
     edges.forEach((edge, edgeIdx) => {
       const shapleyValue = contributions[edgeIdx] / sampleCount
       // MSI 方向约定：正值 = 改善生存（依赖降低风险），负值 = 恶化生存
-      // qCopula > qInd 表示依赖增加了共同失败风险，所以取负号
+      // 乘法博弈：V(S) = (1-Πsurvival_copula) - (1-Πsurvival_ind) > 0 表示依赖增加了风险
+      // 取负号使得 MSI 负值 = 依赖恶化生存
       const msiPP = -shapleyValue * 100
       const key = makeEdgeKey(edge.i, edge.j)
       const pairItem = pairAnalysis.find((item) => makeEdgeKey(item.pair[0], item.pair[1]) === key)
