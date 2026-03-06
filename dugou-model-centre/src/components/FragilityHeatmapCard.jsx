@@ -127,6 +127,9 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
       }
     }
 
+    // ─── Sigmoid 映射增强 ───
+    // 输出范围 ≈ 2~87，自然渐近永远不碰 0 或 89
+    // anchor = 中位数（数据驱动），k = 自适应斜率（基于 IQR）
     const rawScores = result
       .map((pair) => Number(pair.score))
       .filter((value) => Number.isFinite(value))
@@ -135,22 +138,23 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
       return result.map((pair) => ({ ...pair, mappedScore: pair.score }))
     }
 
-    const p10 = getPercentile(rawScores, 0.1)
-    const p90 = getPercentile(rawScores, 0.9)
-    const minScore = rawScores[0]
-    const maxScore = rawScores[rawScores.length - 1]
-    const useRobustRange = Number.isFinite(p10) && Number.isFinite(p90) && p90 - p10 > 1e-6
-    const lo = useRobustRange ? p10 : minScore
-    const hi = useRobustRange ? p90 : maxScore
-    const denom = Math.max(hi - lo, 1e-6)
+    const anchor = getPercentile(rawScores, 0.5) // 中位数作为锚点
+    const q25 = getPercentile(rawScores, 0.25)
+    const q75 = getPercentile(rawScores, 0.75)
+    const iqr = Math.max(q75 - q25, 1e-6) // 四分位距
+    // k 自适应：IQR 越大说明数据分散，k 越小（曲线越平缓）
+    // 目标：IQR 内的分数大致映射到 sigmoid 的 25%~75% 区间
+    // sigmoid(k*iqr/2) ≈ 0.73 → k*iqr/2 ≈ 1.0 → k ≈ 2.0/iqr
+    const k = 2.0 / iqr
+    const MAX_OUTPUT = 89
 
     return result.map((pair) => {
       const raw = Number(pair.score)
       if (!Number.isFinite(raw)) return { ...pair, mappedScore: pair.score }
-      const normalized = clamp((raw - lo) / denom, 0, 1)
+      const sigmoid = 1 / (1 + Math.exp(-k * (raw - anchor)))
       return {
         ...pair,
-        mappedScore: Number((normalized * 100).toFixed(2)),
+        mappedScore: Number((sigmoid * MAX_OUTPUT).toFixed(2)),
       }
     })
   }, [matches, historicalData])
