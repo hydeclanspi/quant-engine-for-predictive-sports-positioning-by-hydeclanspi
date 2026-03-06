@@ -870,11 +870,11 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                         if (!Number.isFinite(v)) return { bg: 'bg-gradient-to-br from-stone-50/60 to-stone-50/40', border: 'border-stone-200/40', text: 'text-stone-400' }
                         const p = v * 100
                         // 负值 — 清透明亮冷调，越负越鲜明
-                        if (p <= -12) return { bg: 'bg-gradient-to-br from-emerald-50/80 to-teal-50/60', border: 'border-emerald-200/50', text: 'text-emerald-600' }
+                        if (p <= -12) return { bg: 'bg-gradient-to-br from-emerald-50/80 to-teal-50/60', border: 'border-emerald-200/50', text: 'text-teal-600' }
                         if (p <= -8)  return { bg: 'bg-gradient-to-br from-teal-50/75 to-cyan-50/55', border: 'border-teal-200/45', text: 'text-teal-600' }
-                        if (p <= -5)  return { bg: 'bg-gradient-to-br from-cyan-50/70 to-sky-50/50', border: 'border-cyan-200/45', text: 'text-cyan-600' }
-                        if (p <= -2)  return { bg: 'bg-gradient-to-br from-sky-50/65 to-blue-50/45', border: 'border-sky-200/40', text: 'text-sky-600' }
-                        if (p < 0)    return { bg: 'bg-gradient-to-br from-sky-50/55 to-slate-50/40', border: 'border-sky-100/40', text: 'text-sky-500' }
+                        if (p <= -5)  return { bg: 'bg-gradient-to-br from-cyan-50/70 to-sky-50/50', border: 'border-cyan-200/45', text: 'text-teal-600' }
+                        if (p <= -2)  return { bg: 'bg-gradient-to-br from-sky-50/65 to-blue-50/45', border: 'border-sky-200/40', text: 'text-teal-600' }
+                        if (p < 0)    return { bg: 'bg-gradient-to-br from-sky-50/55 to-slate-50/40', border: 'border-sky-100/40', text: 'text-teal-600' }
                         // 近零 — 极淡中性
                         if (p < 2)    return { bg: 'bg-gradient-to-br from-slate-50/55 to-blue-50/35', border: 'border-slate-200/35', text: 'text-slate-500' }
                         // 正值 — 深沉冷调，越正越浓郁
