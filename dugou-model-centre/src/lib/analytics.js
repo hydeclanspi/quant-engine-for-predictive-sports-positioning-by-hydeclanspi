@@ -5963,6 +5963,190 @@ export const assessComboFragility = (matchGroup = [], historicalData = []) => {
     }
   }
 
+  // ==========================================================================
+  // MSI v2: Copula + Time-Varying + Shapley Attribution
+  // ==========================================================================
+
+  const makeEdgeKey = (a, b) => `${Math.min(a, b)}:${Math.max(a, b)}`
+
+  const seededRandom = (seedInput) => {
+    let seed = Math.floor(Math.abs(seedInput)) % 2147483647
+    if (seed <= 0) seed += 2147483646
+    return () => {
+      seed = (seed * 16807) % 2147483647
+      return (seed - 1) / 2147483646
+    }
+  }
+
+  const deterministicPermutation = (length, seedValue) => {
+    const rng = seededRandom(seedValue)
+    const arr = Array.from({ length }, (_, idx) => idx)
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1))
+      const tmp = arr[i]
+      arr[i] = arr[j]
+      arr[j] = tmp
+    }
+    return arr
+  }
+
+  const historicalByRecency = Array.isArray(historicalData)
+    ? [...historicalData].sort((a, b) => {
+        const ta = new Date(a?.createdAt || 0).getTime()
+        const tb = new Date(b?.createdAt || 0).getTime()
+        return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0)
+      })
+    : []
+
+  const estimateRecentJointFailure = (oddsA, oddsB, windowSize = 60) => {
+    if (historicalByRecency.length === 0) {
+      return { rate: Number.NaN, effectiveSample: 0 }
+    }
+    const recentData = historicalByRecency.slice(0, Math.min(windowSize, historicalByRecency.length))
+    const observed = getWeightedObservedFailure(recentData, oddsA, oddsB, bandwidths)
+    const rate = observed.totalWeight > 0 ? observed.failedTogether / observed.totalWeight : Number.NaN
+    return {
+      rate,
+      effectiveSample: Number.isFinite(observed.effectiveSampleSize) ? observed.effectiveSampleSize : 0,
+    }
+  }
+
+  const pFailByMatch = matchGroup.map((match) => {
+    const odds = toNumber(match?.odds, Number.NaN)
+    const p = getMarketImpliedFailureRate(odds)
+    return Number.isFinite(p) ? clamp(p, 1e-5, 1 - 1e-5) : 0.5
+  })
+
+  const independentCollapse = clamp(
+    pFailByMatch.reduce((prod, p) => prod * p, 1),
+    1e-8,
+    0.999999,
+  )
+
+  const edgeScale = 1 / Math.max(1, matchGroup.length - 1)
+  const pairCopulaModel = new Map()
+
+  pairAnalysis.forEach((item) => {
+    const [i, j] = item.pair
+    const premium = item.assessment?.components?.premium || {}
+    const pA = Number.isFinite(pFailByMatch[i]) ? pFailByMatch[i] : toNumber(premium.pFailA, 0.5)
+    const pB = Number.isFinite(pFailByMatch[j]) ? pFailByMatch[j] : toNumber(premium.pFailB, 0.5)
+    const qInd = clamp(pA * pB, 1e-8, 0.999999)
+
+    const qGlobalRaw = toNumber(premium.pFailBothObserved, Number.NaN)
+    const qGlobal = Number.isFinite(qGlobalRaw) ? clamp(qGlobalRaw, 0, 1) : qInd
+
+    // 5) Time-varying: 近期窗口 + 全局窗口的可信度融合
+    const oddsA = toNumber(matchGroup[i]?.odds, Number.NaN)
+    const oddsB = toNumber(matchGroup[j]?.odds, Number.NaN)
+    const recent = estimateRecentJointFailure(oddsA, oddsB, 60)
+    const recentRate = Number.isFinite(recent.rate) ? clamp(recent.rate, 0, 1) : qGlobal
+    const recentCredibility = clamp(recent.effectiveSample / (recent.effectiveSample + 10), 0, 1)
+    const qTimeVarying = recentCredibility * recentRate + (1 - recentCredibility) * qGlobal
+
+    // 5) Bayesian shrink: 避免样本少时过激
+    const nEff = Math.max(
+      0,
+      toNumber(premium.effectiveSampleSize, 0),
+      toNumber(premium.weightedCount, 0),
+    )
+    const priorStrength = 16
+    const posteriorMean = clamp(
+      (qTimeVarying * nEff + qInd * priorStrength) / (nEff + priorStrength),
+      0,
+      1,
+    )
+
+    // 4) Copula (FGM): 在固定边际(pA,pB)下构造联合失败
+    const fgmDenominator = Math.max(qInd * (1 - pA) * (1 - pB), 1e-8)
+    const thetaRaw = (posteriorMean - qInd) / fgmDenominator
+    const copulaTheta = clamp(thetaRaw, -0.95, 0.95)
+
+    const frechetLower = Math.max(0, pA + pB - 1)
+    const frechetUpper = Math.min(pA, pB)
+    const qCopula = clamp(
+      qInd + copulaTheta * fgmDenominator,
+      frechetLower + 1e-8,
+      Math.max(frechetLower + 1e-8, frechetUpper - 1e-8),
+    )
+
+    const interactionLift = Math.log((qCopula + 1e-8) / (qInd + 1e-8))
+    const thetaEdge = clamp(interactionLift, -2.5, 2.5)
+
+    pairCopulaModel.set(makeEdgeKey(i, j), {
+      i,
+      j,
+      pA,
+      pB,
+      qInd,
+      qGlobal,
+      qRecent: recentRate,
+      qTimeVarying,
+      qPosterior: posteriorMean,
+      qCopula,
+      copulaTheta,
+      thetaEdge,
+      recentCredibility,
+      effectiveSample: nEff,
+    })
+  })
+
+  const edges = Array.from(pairCopulaModel.values())
+  if (edges.length > 0) {
+    const valueFromTheta = (thetaSum) => {
+      const collapse = clamp(
+        independentCollapse * Math.exp(edgeScale * thetaSum),
+        1e-8,
+        0.999999,
+      )
+      return 1 - collapse
+    }
+
+    // 2) Shapley: 对“组合生存率”做边际归因（Monte Carlo 近似）
+    const sampleCount = Math.max(192, Math.min(960, edges.length * 96))
+    const contributions = new Float64Array(edges.length)
+    const seedBase = matchGroup.reduce((acc, match, idx) => {
+      const odds = toNumber(match?.odds, 1 + idx)
+      return acc + Math.floor(odds * 1000) * (idx + 11)
+    }, 17029)
+
+    for (let s = 0; s < sampleCount; s++) {
+      const permutation = deterministicPermutation(edges.length, seedBase + s * 7919)
+      let thetaRunning = 0
+      let prevValue = valueFromTheta(thetaRunning)
+
+      for (let k = 0; k < permutation.length; k++) {
+        const edgeIdx = permutation[k]
+        thetaRunning += edges[edgeIdx].thetaEdge
+        const nextValue = valueFromTheta(thetaRunning)
+        contributions[edgeIdx] += nextValue - prevValue
+        prevValue = nextValue
+      }
+    }
+
+    edges.forEach((edge, edgeIdx) => {
+      const shapleyValue = contributions[edgeIdx] / sampleCount
+      const msiPP = shapleyValue * 100
+      const key = makeEdgeKey(edge.i, edge.j)
+      const pairItem = pairAnalysis.find((item) => makeEdgeKey(item.pair[0], item.pair[1]) === key)
+      if (!pairItem || !pairItem.assessment) return
+
+      if (!pairItem.assessment.components) pairItem.assessment.components = {}
+      pairItem.assessment.components.msi = {
+        marginalSurvivalImpactPP: Number(msiPP.toFixed(3)),
+        copulaTheta: Number(edge.copulaTheta.toFixed(4)),
+        qIndependent: Number(edge.qInd.toFixed(6)),
+        qGlobal: Number(edge.qGlobal.toFixed(6)),
+        qRecent: Number(edge.qRecent.toFixed(6)),
+        qTimeVarying: Number(edge.qTimeVarying.toFixed(6)),
+        qPosterior: Number(edge.qPosterior.toFixed(6)),
+        qCopula: Number(edge.qCopula.toFixed(6)),
+        recentCredibility: Number(edge.recentCredibility.toFixed(4)),
+        edgeScale: Number(edgeScale.toFixed(4)),
+      }
+    })
+  }
+
   // 计算整体脆弱性（加权平均）
   const weights = pairAnalysis.map((p) => p.assessment.confidence)
   const totalWeight = weights.reduce((sum, w) => sum + w, 0)

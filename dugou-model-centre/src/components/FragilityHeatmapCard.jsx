@@ -32,7 +32,12 @@ const formatSigned = (value, digits = 1, suffix = '') => {
   return `${num > 0 ? '+' : ''}${num.toFixed(digits)}${suffix}`
 }
 
-const resolveDeltaSurvival = (premium = null) => {
+const resolveDeltaSurvival = (premium = null, msi = null) => {
+  const msiPP = Number(msi?.marginalSurvivalImpactPP)
+  if (Number.isFinite(msiPP)) {
+    const pair = msiPP / 100
+    return { aToB: Number.NaN, bToA: Number.NaN, pair }
+  }
   const pFailA = Number(premium?.pFailA)
   const pFailB = Number(premium?.pFailB)
   const pFailBothObserved = Number(premium?.pFailBothObserved)
@@ -68,7 +73,7 @@ const getRiskLevelByScore = (score) => {
  * 全幅矩阵 · 品牌色系 · 模块化详情面板
  */
 export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSelectPair = null }) {
-  const [mappedViewEnabled, setMappedViewEnabled] = useState(true)
+  const [mappedViewEnabled, setMappedViewEnabled] = useState(false)
 
   // 历史数据缓存
   const historicalData = useMemo(() => {
@@ -100,18 +105,21 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
   // 脆弱性矩阵计算 — 含完整 assessment 数据
   const fragilityMatrix = useMemo(() => {
     if (matches.length < 2) return []
-    const result = []
-    for (let i = 0; i < matches.length; i++) {
-      for (let j = i + 1; j < matches.length; j++) {
-        const assessment = assessComboFragility(
-          [matches[i], matches[j]],
-          historicalData
-        )
-        const pairAssessment = assessment.pairAnalysis?.[0]?.assessment || {}
-        const score = assessment.overallFragility || 0
+    const comboAssessment = assessComboFragility(matches, historicalData)
+    const result = (comboAssessment.pairAnalysis || [])
+      .map((pairItem) => {
+        const pair = Array.isArray(pairItem?.pair) ? pairItem.pair : []
+        const i = Number(pair[0])
+        const j = Number(pair[1])
+        if (!Number.isInteger(i) || !Number.isInteger(j)) return null
+
+        const pairAssessment = pairItem.assessment || {}
         const components = pairAssessment.components || null
-        const delta = resolveDeltaSurvival(components?.premium)
-        result.push({
+        const delta = resolveDeltaSurvival(components?.premium, components?.msi)
+        const scoreRaw = Number(pairAssessment.fragilityScore)
+        const score = Number.isFinite(scoreRaw) ? scoreRaw : 0
+
+        return {
           i,
           j,
           score: Number(score.toFixed(2)),
@@ -123,9 +131,9 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
           deltaSurvival: Number.isFinite(delta.pair) ? Number(delta.pair.toFixed(4)) : Number.NaN,
           deltaSurvivalAToB: Number.isFinite(delta.aToB) ? Number(delta.aToB.toFixed(4)) : Number.NaN,
           deltaSurvivalBToA: Number.isFinite(delta.bToA) ? Number(delta.bToA.toFixed(4)) : Number.NaN,
-        })
-      }
-    }
+        }
+      })
+      .filter(Boolean)
 
     // ─── Sigmoid 映射增强 ───
     // 输出范围 [0, 89]，可触及边界但不超过89
