@@ -5090,7 +5090,37 @@ export default function ComboPage({ openModal }) {
           <p><strong>49. 数值边界防护</strong>：MC 直方图在 P&L 全同值时自动启用退化区间处理（range {'>'} 1e-9 守卫），消除零区间导致的 NaN 索引风险。</p>
           <p><strong>50. PRNG 种子隔离</strong>：xorshift32 种子初始化采用多层哈希（混合组合数量、仓位、赔率与索引偏移），确保不同 portfolio 的 MC 模拟序列充分独立。</p>
 
-          <p className="text-[11px] text-stone-400 mt-3 pt-2 border-t border-stone-100">DuGou Portfolio Optimization Engine v4.9 · Composite Calibration · PAV Isotonic · Learned Context Factors · Walk-Forward Feedback · Entry Correlation (Multiplicative) · Conf-Surplus · Anchor Diversification · Portfolio Allocation (Cosine Annealing) · Correlated Monte Carlo · Full-Spectrum WF Hyperparameter Calibration · Adaptive Weight Auto-Apply · Combo Retrospective Learning</p>
+          <p className="font-semibold text-indigo-600 text-xs tracking-wide mt-4">— 新增 Feature: 依赖矩阵智能 —</p>
+          <p className="text-xs text-stone-500 mb-2"><strong>Updated Mar 6, 2026</strong></p>
+
+          <p className="text-xs text-stone-400 italic">传统组合优化假设各腿独立——实际上同一赔率区间、同一时段的比赛存在隐性联动。本模块构建全配对依赖风险矩阵，从历史共同失败模式中量化每对比赛的尾部联动强度，为组合构建提供结构性风险视图。</p>
+
+          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 连续核回归估计</p>
+          <p><strong>51. 全量历史核加权回归</strong>：摒弃离散 band 匹配的硬分桶方案，改用连续核回归——任意历史配对均以赔率距离的核权重贡献于当前估计。核权重表 <code>[1.0, 0.63, 0.214, 0.045, 0.0135]</code> 按 band 距离 d=0…4 分段定义，d≥5 按末两段比率指数衰减。全量历史数据参与计算，不设记录数上限。</p>
+          <p><strong>52. 自适应密度因子</strong>：各赔率 band 的样本密度差异通过密度调节因子补偿——以全 band 几何均值为锚点，<code>factor = (geometricMean / localDensity)^0.3</code>，clamp [0.5, 2.0]。高密度区域适度降权、低密度区域温和增权，alpha=0.3 保证修正温和不过激。</p>
+          <p><strong>53. 2D 乘积核 + 密度校正</strong>：双维核权重取两个赔率维度的一维核权重乘积，再乘以两维密度因子的算术均值，构成最终的 pair-level 核权重。每个历史组合中选取核权重最高的配对作为该组合的代表样本。</p>
+          <p><strong>54. 四级时间近因衰减</strong>：历史组合按索引排序（最近优先），分四档加权——近 30 场 ×1.45、31–75 场 ×1.28、76–150 场 ×1.15、其余 ×1.0。索引排序替代日期排序，消除时间戳缺失或格式不一致的脆弱性。</p>
+          <p><strong>55. Kish 有效样本量</strong>：加权估计的置信度不以原始计数衡量，而采用 Kish ESS = (ΣW)² / ΣW²，真实反映加权后的等效独立样本数。ESS 驱动后续置信度映射与校准层的准入门槛。</p>
+
+          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 近因校准层</p>
+          <p><strong>56. 局部-全局双率比较</strong>：提取最近 25 场 d≤1 匹配的局部共同失败率，与核回归平滑估计对比。差异经 tanh 非线性响应压缩——小差异近似线性放大、大差异自然饱和，避免极端样本制造虚假信号。</p>
+          <p><strong>57. 方向一致性加权</strong>：当局部趋势与全局趋势同向时乘以 1.3× 增益（信号互证），反向时乘以 0.55× 衰减（信号矛盾需保守），中性时 0.85×。叠加数据一致性因子（局部方差越低越可信，范围 0.7–1.3×）。</p>
+          <p><strong>58. 弹性校准幅度</strong>：校准总影响力由 ESS 驱动的置信度控制在 6%–20% 区间内——低 ESS 时校准层仅施加微调（6%），高 ESS 时允许更大幅度修正（20%），但永远不超过 20%。</p>
+
+          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ Copula 尾部依赖建模</p>
+          <p><strong>59. FGM Copula 联合失败率</strong>：在固定边际失败率 (pA, pB) 下，以 FGM copula 构造联合分布。copula 参数 θ 由贝叶斯后验均值（时变观测 × 有效样本 + 独立先验 × 先验强度 16）经 Fréchet 边界约束求解，刻画超越独立假设的尾部联动。</p>
+          <p><strong>60. 时变贝叶斯收缩</strong>：联合失败率估计融合三层信号——全局核回归率、近 60 场滚动窗口率、独立先验率。近期窗口可信度 = ESS / (ESS + 10)，自适应控制近期信号的采信程度。后验均值再以先验强度 16 收缩，小样本不偏离独立假设，大样本充分反映观测依赖。</p>
+
+          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ Shapley 公平归因</p>
+          <p><strong>61. MSI Shapley 边际归因</strong>：Marginal Survival Impact 采用 Shapley 值对全组合的「额外依赖风险」做公平归因。价值函数定义为当前激活边集的 copula 额外风险总量 Σ(qCopula - qInd)，通过 Monte Carlo 置换采样（192–960 次确定性置换）逼近各边的 Shapley 值。</p>
+          <p><strong>62. 确定性置换</strong>：置换序列由组合赔率的哈希种子生成（Fisher-Yates + 线性同余），确保同一组合多次计算结果完全一致，消除随机性导致的 UI 抖动。</p>
+
+          <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 脆弱性评分与可视化</p>
+          <p><strong>63. 复合脆弱性评分</strong>：依赖风险溢价（premium）、统计显著性（p-value）、ESS 置信度三维信号经加权融合为 0–100 脆弱性评分。评分驱动四级风险标签（Low / Moderate / Elevated / High）与 10 段色谱渐变（翡翠 → 薄荷 → 青绿 → 天蓝 → 钴蓝 → 靛蓝 → 紫罗兰 → 香槟金 → 银灰 → 深岩）。</p>
+          <p><strong>64. Sigmoid 映射增强</strong>：原始脆弱性评分经 Sigmoid 函数 <code>score = 89 / (1 + e^(-k(x - anchor)))</code> 重映射至 [0, 89] 区间。锚点取当前矩阵中位数，斜率 k = 2/IQR 自适应——IQR 越大曲线越平缓，IQR 越小区分度越高。消除线性归一化导致的两极堆积。</p>
+          <p><strong>65. 三维结果分解</strong>：每对配对的历史结果拆解为 Full Hit（双腿命中）、Partial Miss（一对一错）、Bust（双腿失败）三个加权计数，共享同一套核权重与时间衰减体系，提供结构化的结果分布视图。</p>
+
+          <p className="text-[11px] text-stone-400 mt-3 pt-2 border-t border-stone-100">DuGou Portfolio Optimization Engine v4.9 · Composite Calibration · PAV Isotonic · Learned Context Factors · Walk-Forward Feedback · Entry Correlation (Multiplicative) · Conf-Surplus · Anchor Diversification · Portfolio Allocation (Cosine Annealing) · Correlated Monte Carlo · Full-Spectrum WF Hyperparameter Calibration · Adaptive Weight Auto-Apply · Combo Retrospective Learning · Dependency Risk Matrix (Kernel Regression · FGM Copula · Shapley MSI · Sigmoid Mapping)</p>
         </div>
       ),
     })
