@@ -578,7 +578,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                   今日矩阵中位 {Number.isFinite(matrixFullHitMedianPct) ? `${matrixFullHitMedianPct.toFixed(1)}%` : '—'}
                 </p>
                 <span className="absolute right-3.5 bottom-2 text-[10px] font-semibold tabular-nums text-sky-500/80 bg-sky-50/70 px-1.5 py-0.5 rounded-full">
-                  {Number.isFinite(fullHitRatePct) ? fullHitRatePct.toFixed(0) : '—'}%
+                  {Number.isFinite(fullHitRatePct) ? fullHitRatePct.toFixed(1) : '—'}%
                 </span>
               </div>
 
@@ -593,7 +593,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                   今日矩阵中位 {Number.isFinite(matrixBustMedianPct) ? `${matrixBustMedianPct.toFixed(1)}%` : '—'}
                 </p>
                 <span className="absolute right-3.5 bottom-2 text-[10px] font-semibold tabular-nums text-sky-500/80 bg-sky-50/70 px-1.5 py-0.5 rounded-full">
-                  {Number.isFinite(bustRatePct) ? bustRatePct.toFixed(0) : '—'}%
+                  {Number.isFinite(bustRatePct) ? bustRatePct.toFixed(1) : '—'}%
                 </span>
               </div>
             </div>
@@ -617,7 +617,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                                   <span className="text-[9px] text-stone-400 uppercase tracking-wide font-medium">Exact</span>
                                   <span className="text-[8px] text-stone-300/80 tabular-nums">({bandA}×{bandB})</span>
                                 </div>
-                                <span className="text-[10px] font-semibold tabular-nums text-sky-500/80 bg-sky-50/70 px-1.5 py-0.5 rounded-full">{Number.isFinite(exactHalfHitRatePct) ? exactHalfHitRatePct.toFixed(0) : '—'}%</span>
+                                <span className="text-[10px] font-semibold tabular-nums text-sky-500/80 bg-sky-50/70 px-1.5 py-0.5 rounded-full">{Number.isFinite(exactHalfHitRatePct) ? exactHalfHitRatePct.toFixed(1) : '—'}%</span>
                               </div>
                               <div className="flex items-end gap-2.5">
                                 <div className="flex flex-col items-center">
@@ -636,7 +636,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                             <div>
                               <div className="flex items-center justify-between mb-1.5">
                                 <span className="text-[9px] text-stone-400 uppercase tracking-wide font-medium">Neighbor</span>
-                                <span className="text-[10px] font-semibold tabular-nums text-sky-500/80 bg-sky-50/70 px-1.5 py-0.5 rounded-full">{Number.isFinite(neighborHalfHitRatePct) ? neighborHalfHitRatePct.toFixed(0) : '—'}%</span>
+                                <span className="text-[10px] font-semibold tabular-nums text-sky-500/80 bg-sky-50/70 px-1.5 py-0.5 rounded-full">{Number.isFinite(neighborHalfHitRatePct) ? neighborHalfHitRatePct.toFixed(1) : '—'}%</span>
                               </div>
                               <div className="flex items-end gap-2.5">
                                 <div className="flex flex-col items-center">
