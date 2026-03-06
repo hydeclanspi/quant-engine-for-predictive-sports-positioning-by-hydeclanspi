@@ -185,6 +185,10 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
     return new Set([i, j])
   }, [resolvedExpandedPair])
 
+  // 行标题高亮 pair.i, 列标题高亮 pair.j
+  const selectedRowIdx = resolvedExpandedPair != null ? Number(resolvedExpandedPair.i) : null
+  const selectedColIdx = resolvedExpandedPair != null ? Number(resolvedExpandedPair.j) : null
+
   // ─── 品牌色系 — 10段细分光谱 ───
   // 翡翠 → 薄荷 → 青绿 → 天蓝 → 钴蓝 → 靛蓝 → 紫罗兰 → 香槟金 → 银灰 → 深岩
   const getHeatStyle = (score) => {
@@ -804,10 +808,12 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                   <th
                     key={`col-${idx}`}
                     className={`px-1.5 py-2.5 text-[11px] font-medium tracking-wide text-center whitespace-nowrap transition-colors duration-200 ${
-                      selectedAxisSet?.has(idx) ? 'text-amber-600/90' : 'text-stone-400'
+                      idx === selectedColIdx ? 'text-amber-600/90' : 'text-stone-400'
                     }`}
                   >
-                    {formatTeamName(match, idx)}
+                    {idx === selectedColIdx ? (
+                      <span className="bg-sky-100/50 px-1 py-0.5">{formatTeamName(match, idx)}</span>
+                    ) : formatTeamName(match, idx)}
                   </th>
                 ))}
               </tr>
@@ -817,9 +823,11 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                 <tr key={`row-${rowIdx}`}>
                   {/* 行标题 */}
                   <td className={`pr-3 py-1.5 text-[11px] font-medium tracking-wide text-right whitespace-nowrap align-middle transition-colors duration-200 ${
-                    selectedAxisSet?.has(rowIdx) ? 'text-amber-600/90' : 'text-stone-400'
+                    rowIdx === selectedRowIdx ? 'text-amber-600/90' : 'text-stone-400'
                   }`}>
-                    {formatTeamName(rowMatch, rowIdx)}
+                    {rowIdx === selectedRowIdx ? (
+                      <span className="bg-sky-100/50 px-1 py-0.5">{formatTeamName(rowMatch, rowIdx)}</span>
+                    ) : formatTeamName(rowMatch, rowIdx)}
                   </td>
 
                   {/* 单元格 */}
