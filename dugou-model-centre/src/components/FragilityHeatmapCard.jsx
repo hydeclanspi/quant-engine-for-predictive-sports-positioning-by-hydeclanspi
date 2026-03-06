@@ -812,7 +812,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                     }`}
                   >
                     {idx === selectedColIdx ? (
-                      <span className="bg-sky-100/50 px-1 py-0.5">{formatTeamName(match, idx)}</span>
+                      <span className="bg-sky-100/50 px-1 py-0.5 font-semibold text-amber-600">{formatTeamName(match, idx)}</span>
                     ) : formatTeamName(match, idx)}
                   </th>
                 ))}
@@ -826,7 +826,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                     rowIdx === selectedRowIdx ? 'text-amber-600/90' : 'text-stone-400'
                   }`}>
                     {rowIdx === selectedRowIdx ? (
-                      <span className="bg-sky-100/50 px-1 py-0.5">{formatTeamName(rowMatch, rowIdx)}</span>
+                      <span className="bg-sky-100/50 px-1 py-0.5 font-semibold text-amber-600">{formatTeamName(rowMatch, rowIdx)}</span>
                     ) : formatTeamName(rowMatch, rowIdx)}
                   </td>
 
