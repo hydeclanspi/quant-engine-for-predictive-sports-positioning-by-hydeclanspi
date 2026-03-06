@@ -495,7 +495,7 @@ export default function TeamsPage() {
                           {tickYs.map((tickY, idx) => (
                             <text
                               key={`roi-tick-label-${idx}`}
-                              x="6.5"
+                              x="5.9"
                               y={tickY + 0.9}
                               fontSize="2.5"
                               textAnchor="end"
