@@ -711,7 +711,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                             <span className="text-sm font-semibold text-stone-500 tracking-wide">Premium (%)</span>
                           </div>
                           <span className={`min-w-[88px] text-right whitespace-nowrap text-[18px] leading-none font-semibold tabular-nums tracking-[0.012em] ${
-                            premiumValue > 0 ? 'text-indigo-500' : 'text-emerald-500'
+                            premiumValue > 0 ? 'text-rose-500' : 'text-sky-500'
                           }`}>
                             {premiumValue > 0 ? '+' : ''}{(premiumValue * 100).toFixed(2)}
                           </span>
@@ -719,7 +719,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                         <div className="flex items-center justify-between rounded-lg border border-sky-100/60 bg-sky-50/35 px-3.5 py-2.5">
                           <span className="text-xs font-semibold text-stone-500 tracking-wide">Marginal Survival Impact (pp)</span>
                           <span className={`min-w-[88px] text-right whitespace-nowrap text-[16px] leading-none font-semibold tabular-nums tracking-[0.012em] ${
-                            Number(deltaSurvivalPair) >= 0 ? 'text-emerald-500' : 'text-rose-400'
+                            Number(deltaSurvivalPair) >= 0 ? 'text-emerald-500' : 'text-amber-500'
                           }`}>
                             {formatSigned(Number(deltaSurvivalPair) * 100, 2)}
                           </span>
