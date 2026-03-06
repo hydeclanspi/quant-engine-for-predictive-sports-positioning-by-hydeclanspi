@@ -68,7 +68,7 @@ const getRiskLevelByScore = (score) => {
  * 全幅矩阵 · 品牌色系 · 模块化详情面板
  */
 export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSelectPair = null }) {
-  const [mappedViewEnabled, setMappedViewEnabled] = useState(false)
+  const [mappedViewEnabled, setMappedViewEnabled] = useState(true)
 
   // 历史数据缓存
   const historicalData = useMemo(() => {
