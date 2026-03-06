@@ -803,11 +803,17 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                 {matches.map((match, idx) => (
                   <th
                     key={`col-${idx}`}
-                    className={`px-1.5 py-2.5 text-[11px] font-medium tracking-wide text-center whitespace-nowrap transition-colors duration-200 ${
-                      selectedAxisSet?.has(idx) ? 'text-amber-600/90' : 'text-stone-400'
-                    }`}
+                    className="px-1.5 py-2.5 text-[11px] font-medium tracking-wide text-center whitespace-nowrap text-stone-400 transition-colors duration-200"
                   >
-                    {formatTeamName(match, idx)}
+                    <span
+                      className={`inline-block px-1.5 py-0.5 transition-all duration-200 ${
+                        selectedAxisSet?.has(idx)
+                          ? 'text-amber-700 bg-[linear-gradient(180deg,rgba(254,243,199,0.14),rgba(253,230,138,0.52))] shadow-[inset_0_-1px_0_rgba(217,119,6,0.22)]'
+                          : ''
+                      }`}
+                    >
+                      {formatTeamName(match, idx)}
+                    </span>
                   </th>
                 ))}
               </tr>
@@ -816,9 +822,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
               {matches.map((rowMatch, rowIdx) => (
                 <tr key={`row-${rowIdx}`}>
                   {/* 行标题 */}
-                  <td className={`pr-3 py-1.5 text-[11px] font-medium tracking-wide text-right whitespace-nowrap align-middle transition-colors duration-200 ${
-                    selectedAxisSet?.has(rowIdx) ? 'text-amber-600/90' : 'text-stone-400'
-                  }`}>
+                  <td className="pr-3 py-1.5 text-[11px] font-medium tracking-wide text-right whitespace-nowrap align-middle text-stone-400 transition-colors duration-200">
                     {formatTeamName(rowMatch, rowIdx)}
                   </td>
 

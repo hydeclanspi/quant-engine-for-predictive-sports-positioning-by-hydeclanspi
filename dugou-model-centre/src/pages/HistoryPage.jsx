@@ -220,7 +220,7 @@ const hasNoteContent = (value) => {
   return Boolean(plain && plain !== '-')
 }
 
-const buildMatchNotePopupPayload = (preNote, postNote) => {
+const buildMatchNoteDisplayPayload = (preNote, postNote, previewLimit = 12) => {
   const pre = String(preNote || '').trim()
   const post = String(postNote || '').trim()
   const hasPre = hasNoteContent(pre)
@@ -228,24 +228,24 @@ const buildMatchNotePopupPayload = (preNote, postNote) => {
 
   if (hasPre && hasPost) {
     return {
-      trigger: '赛前 | 赛后',
+      type: 'dual',
       label: '赛前 | 赛后备注',
       note: `【赛前】\n${pre}\n\n【赛后】\n${post}`,
+      prePreview: getNotePreview(pre, previewLimit),
+      postPreview: getNotePreview(post, previewLimit),
     }
   }
 
   if (hasPre) {
     return {
-      trigger: '赛前',
-      label: '赛前备注',
+      type: 'single',
       note: pre,
     }
   }
 
   if (hasPost) {
     return {
-      trigger: '赛后',
-      label: '赛后备注',
+      type: 'single',
       note: post,
     }
   }
@@ -953,7 +953,7 @@ export default function HistoryPage() {
                         <div className="history-expand-content rounded-xl border border-stone-200 bg-white p-4" style={{ '--history-expand-delay': expandDelay }}>
                           <div className="space-y-2">
                             {row.matchRows.map((matchRow, matchIndex) => {
-                              const notePayload = buildMatchNotePopupPayload(matchRow.preNote, matchRow.postNote)
+                              const notePayload = buildMatchNoteDisplayPayload(matchRow.preNote, matchRow.postNote)
                               return (
                                 <div
                                   key={matchRow.id}
@@ -1001,15 +1001,26 @@ export default function HistoryPage() {
                                     </div>
                                     <div>
                                       <p className="text-[10px] text-stone-400">备注</p>
-                                      {notePayload ? (
+                                      {!notePayload ? (
+                                        <p className="mt-0.5 text-stone-300">-</p>
+                                      ) : notePayload.type === 'single' ? (
+                                        <p className="mt-0.5 text-stone-600 leading-relaxed">
+                                          {renderStyledNote(notePayload.note)}
+                                        </p>
+                                      ) : (
                                         <button
                                           onClick={(event) => showNote(notePayload.note, notePayload.label, event)}
-                                          className="note-cell mt-0.5 inline-flex items-center text-[11px] text-stone-600"
+                                          className="note-cell mt-0.5 inline-flex flex-col items-start gap-0.5 text-[11px] text-left text-stone-600 leading-tight"
                                         >
-                                          {notePayload.trigger}
+                                          <span>
+                                            <span className="text-stone-400">赛前：</span>
+                                            <span className="text-stone-600">{notePayload.prePreview}</span>
+                                          </span>
+                                          <span>
+                                            <span className="text-stone-400">赛后：</span>
+                                            <span className="text-stone-600">{notePayload.postPreview}</span>
+                                          </span>
                                         </button>
-                                      ) : (
-                                        <p className="mt-0.5 text-stone-300">-</p>
                                       )}
                                     </div>
                                   </div>
