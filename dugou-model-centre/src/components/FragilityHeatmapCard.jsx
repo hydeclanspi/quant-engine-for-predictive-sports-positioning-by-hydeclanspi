@@ -567,21 +567,6 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                 )
               })()}
 
-              {/* 模块：BUST (Total Miss) */}
-              <div className="relative rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5 pb-7">
-                <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">BUST (Total Miss)</p>
-                <p className="text-sm font-semibold text-stone-700 tabular-nums leading-tight">
-                  {Number.isFinite(observedFailedCount) ? Number(observedFailedCount).toFixed(3) : observedFailedCount}<span className="text-[10px] font-normal text-stone-400"> / {sampleBaseText}</span>
-                </p>
-                <p className="text-[9px] text-stone-400 mt-1">pairs failed</p>
-                <p className="absolute left-3.5 bottom-2 text-[9px] font-medium text-amber-400/90 tabular-nums">
-                  今日矩阵中位 {Number.isFinite(matrixBustMedianPct) ? `${matrixBustMedianPct.toFixed(1)}%` : '—'}
-                </p>
-                <span className="absolute right-3.5 bottom-2 text-[10px] font-semibold tabular-nums text-sky-500/80 bg-sky-50/70 px-1.5 py-0.5 rounded-full">
-                  {Number.isFinite(bustRatePct) ? bustRatePct.toFixed(0) : '—'}%
-                </span>
-              </div>
-
               {/* 模块：Full Hit (Sweep) */}
               <div className="relative rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5 pb-7">
                 <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">Full Hit (Sweep)</p>
@@ -594,6 +579,21 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                 </p>
                 <span className="absolute right-3.5 bottom-2 text-[10px] font-semibold tabular-nums text-sky-500/80 bg-sky-50/70 px-1.5 py-0.5 rounded-full">
                   {Number.isFinite(fullHitRatePct) ? fullHitRatePct.toFixed(0) : '—'}%
+                </span>
+              </div>
+
+              {/* 模块：BUST (Total Miss) */}
+              <div className="relative rounded-xl bg-gradient-to-br from-stone-50/80 to-white border border-stone-100/80 p-3.5 pb-7">
+                <p className="text-[10px] font-medium text-stone-400 tracking-wider uppercase mb-2">BUST (Total Miss)</p>
+                <p className="text-sm font-semibold text-stone-700 tabular-nums leading-tight">
+                  {Number.isFinite(observedFailedCount) ? Number(observedFailedCount).toFixed(3) : observedFailedCount}<span className="text-[10px] font-normal text-stone-400"> / {sampleBaseText}</span>
+                </p>
+                <p className="text-[9px] text-stone-400 mt-1">pairs failed</p>
+                <p className="absolute left-3.5 bottom-2 text-[9px] font-medium text-amber-400/90 tabular-nums">
+                  今日矩阵中位 {Number.isFinite(matrixBustMedianPct) ? `${matrixBustMedianPct.toFixed(1)}%` : '—'}
+                </p>
+                <span className="absolute right-3.5 bottom-2 text-[10px] font-semibold tabular-nums text-sky-500/80 bg-sky-50/70 px-1.5 py-0.5 rounded-full">
+                  {Number.isFinite(bustRatePct) ? bustRatePct.toFixed(0) : '—'}%
                 </span>
               </div>
             </div>
