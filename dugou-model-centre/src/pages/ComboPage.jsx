@@ -5112,8 +5112,8 @@ export default function ComboPage({ openModal }) {
           <p><strong>60. 时变贝叶斯收缩</strong>：联合失败率估计融合三层信号——全局核回归率、近 60 场滚动窗口率、独立先验率。近期窗口可信度 = ESS / (ESS + 10)，自适应控制近期信号的采信程度。后验均值再以先验强度 16 收缩，小样本不偏离独立假设，大样本充分反映观测依赖。</p>
 
           <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ Shapley 公平归因</p>
-          <p><strong>61. MSI Shapley 边际归因</strong>：Marginal Survival Impact 采用 Shapley 值对全组合的「额外依赖风险」做公平归因。价值函数定义为当前激活边集的 copula 额外风险总量 Σ(qCopula - qInd)，通过 Monte Carlo 置换采样（192–960 次确定性置换）逼近各边的 Shapley 值。</p>
-          <p><strong>62. 确定性置换</strong>：置换序列由组合赔率的哈希种子生成（Fisher-Yates + 线性同余），确保同一组合多次计算结果完全一致，消除随机性导致的 UI 抖动。</p>
+          <p><strong>61. MSI Shapley 边际归因（乘法博弈）</strong>：Marginal Survival Impact 采用 Shapley 值对全组合的「依赖性额外翻车风险」做公平归因。价值函数定义为乘法博弈 V(S) = [1 − Π(1 − qCopula_k)] − [1 − Π(1 − qInd_k)]，即激活边集下 copula 联合翻车概率与独立基线的差。乘法结构引入交互效应——边越多，单条边的边际贡献因风险饱和而递减，Shapley 分摊反映真实的组合级边际杀伤力。通过 7500 次确定性置换采样逼近各边的 Shapley 值。</p>
+          <p><strong>62. 确定性 Quasi-Monte Carlo</strong>：置换序列由组合赔率的哈希种子生成（Fisher-Yates + 线性同余 LCG），确保同一组合多次计算结果完全一致，消除随机性导致的 UI 抖动。7500 次采样对 21 条边（7 场串关）的 Shapley 估计精度远超 UI 显示需求（标准误差 ≈ σ/√7500 ≈ σ/87）。</p>
 
           <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 脆弱性评分与可视化</p>
           <p><strong>63. 复合脆弱性评分</strong>：依赖风险溢价（premium）、统计显著性（p-value）、ESS 置信度三维信号经加权融合为 0–100 脆弱性评分。评分驱动四级风险标签（Low / Moderate / Elevated / High）与 10 段色谱渐变（翡翠 → 薄荷 → 青绿 → 天蓝 → 钴蓝 → 靛蓝 → 紫罗兰 → 香槟金 → 银灰 → 深岩）。</p>
