@@ -128,7 +128,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
     }
 
     // ─── Sigmoid 映射增强 ───
-    // 输出范围 ≈ 2~87，自然渐近永远不碰 0 或 89
+    // 输出范围 [0, 89]，可触及边界但不超过89
     // anchor = 中位数（数据驱动），k = 自适应斜率（基于 IQR）
     const rawScores = result
       .map((pair) => Number(pair.score))
@@ -152,9 +152,10 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
       const raw = Number(pair.score)
       if (!Number.isFinite(raw)) return { ...pair, mappedScore: pair.score }
       const sigmoid = 1 / (1 + Math.exp(-k * (raw - anchor)))
+      const mapped = Math.min(Math.max(sigmoid * MAX_OUTPUT, 0), MAX_OUTPUT)
       return {
         ...pair,
-        mappedScore: Number((sigmoid * MAX_OUTPUT).toFixed(2)),
+        mappedScore: Number(mapped.toFixed(2)),
       }
     })
   }, [matches, historicalData])
