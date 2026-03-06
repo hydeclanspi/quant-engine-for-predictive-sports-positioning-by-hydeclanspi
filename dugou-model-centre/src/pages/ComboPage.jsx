@@ -5113,10 +5113,10 @@ export default function ComboPage({ openModal }) {
 
           <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ Shapley 公平归因</p>
           <p><strong>61. MSI Shapley 边际归因（乘法博弈）</strong>：Marginal Survival Impact 采用 Shapley 值对全组合的「依赖性额外翻车风险」做公平归因。价值函数定义为乘法博弈 V(S) = [1 − Π(1 − qCopula_k)] − [1 − Π(1 − qInd_k)]，即激活边集下 copula 联合翻车概率与独立基线的差。乘法结构引入交互效应——边越多，单条边的边际贡献因风险饱和而递减，Shapley 分摊反映真实的组合级边际杀伤力。通过 7500 次确定性置换采样逼近各边的 Shapley 值。</p>
-          <p><strong>62. 确定性 Quasi-Monte Carlo</strong>：7500 次置换序列由组合赔率的哈希种子生成（Fisher-Yates + 线性同余 LCG），确保同一组合多次计算结果完全一致，消除随机性导致的 UI 抖动。</p>
+          <p><strong>62. 确定性 Quasi-Monte Carlo</strong>：7500 次置换序列由组合赔率的确定性哈希种子驱动（Fisher-Yates 洗牌 + 线性同余 LCG，模数 2³¹−1），确保同一组合多次计算结果严格一致。相比精确 Shapley 需枚举 n! 种排列（7 场串关对应 21 条边，21! ≈ 5.1×10¹⁹），Quasi-MC 将计算复杂度从阶乘级降至 O(n²·S)，在非加法博弈下仍保持充分的收敛精度。</p>
 
           <p className="font-medium text-stone-700 text-xs mt-2 mb-1">▸ 脆弱性评分与可视化</p>
-          <p><strong>63. 复合脆弱性评分</strong>：依赖风险溢价（premium）、统计显著性（p-value）、ESS 置信度三维信号经加权融合为 0–100 脆弱性评分。评分驱动四级风险标签（Low / Moderate / Elevated / High）与 10 段色谱渐变（翡翠 → 薄荷 → 青绿 → 天蓝 → 钴蓝 → 靛蓝 → 紫罗兰 → 香槟金 → 银灰 → 深岩）。</p>
+          <p><strong>63. 复合脆弱性评分</strong>：依赖风险溢价（premium）、统计显著性（p-value）、ESS 置信度三维信号经加权融合为 0–100 脆弱性评分。溢价捕捉偏离独立假设的幅度，p-value 过滤随机波动产生的伪信号，ESS 约束低样本区间的置信上限。三者的融合权重经验校准，确保单一维度的极端值不会主导最终评分。评分驱动四级风险标签（Low / Moderate / Elevated / High）与 10 段连续色谱映射。</p>
           <p><strong>64. Sigmoid 映射增强</strong>：原始脆弱性评分经 Sigmoid 函数 <code>score = 89 / (1 + e^(-k(x - anchor)))</code> 重映射至 [0, 89] 区间。锚点取当前矩阵中位数，斜率 k = 2/IQR 自适应——IQR 越大曲线越平缓，IQR 越小区分度越高。消除线性归一化导致的两极堆积。</p>
           <p><strong>65. 三维结果分解</strong>：每对配对的历史结果拆解为 Full Hit（双腿命中）、Partial Miss（一对一错）、Bust（双腿失败）三个加权计数，共享同一套核权重与时间衰减体系，提供结构化的结果分布视图。</p>
 
