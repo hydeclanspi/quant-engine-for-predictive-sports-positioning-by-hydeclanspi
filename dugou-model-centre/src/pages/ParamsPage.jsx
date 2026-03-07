@@ -1334,6 +1334,20 @@ const formatDateTime = (value) => {
   return date.toLocaleString()
 }
 
+const pad2 = (value) => String(value).padStart(2, '0')
+
+const formatTimeMachineDate = (value) => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '--'
+  return `${pad2(date.getDate())}/${pad2(date.getMonth() + 1)}/${date.getFullYear()}`
+}
+
+const formatTimeMachineDateTime = (value) => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '--'
+  return `${formatTimeMachineDate(date)}, ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`
+}
+
 const toSigned = (value, digits = 2, suffix = '') => {
   const num = Number(value || 0)
   const sign = num > 0 ? '+' : ''
@@ -2201,8 +2215,6 @@ export default function ParamsPage({ openModal }) {
   const [tmSnapshots, setTmSnapshots] = useState([])
   const [tmPage, setTmPage] = useState(1)
   const [tmTotalPages, setTmTotalPages] = useState(1)
-  const [tmManualTitle, setTmManualTitle] = useState('')
-  const [tmSaveStatus, setTmSaveStatus] = useState('')
   const [tmIsInMode, setTmIsInMode] = useState(isInTimeMachineMode())
   const [tmSessionInfo, setTmSessionInfo] = useState(() => getTimeMachineSessionInfo())
   const [accessLogPage, setAccessLogPage] = useState(1)
@@ -2231,19 +2243,35 @@ export default function ParamsPage({ openModal }) {
     return () => window.clearInterval(timer)
   }, [])
 
+  const loadTimeMachinePage = async (pageNumber = 1) => {
+    const safePage = Math.max(1, Number(pageNumber) || 1)
+    const result = await listHistoricalSnapshots(safePage, 6)
+    if (result.ok) {
+      const nextTotalPages = Math.max(1, Math.ceil((result.total || 0) / 6))
+      setTmSnapshots(result.rows || [])
+      setTmTotalPages(nextTotalPages)
+      setTmPage(safePage)
+      setTmError('')
+      return {
+        ok: true,
+        rows: result.rows || [],
+        total: result.total || 0,
+        totalPages: nextTotalPages,
+        page: safePage,
+      }
+    }
+
+    const reason = result.reason || 'Failed to load snapshots'
+    setTmError(reason)
+    return { ok: false, reason, rows: [], total: 0, totalPages: 1, page: safePage }
+  }
+
   // Load time machine snapshots
   useEffect(() => {
     const loadSnapshots = async () => {
       setTmLoading(true)
       setTmError('')
-      const result = await listHistoricalSnapshots(tmPage, 6)
-      if (result.ok) {
-        setTmSnapshots(result.rows || [])
-        const totalPages = Math.ceil((result.total || 0) / 6)
-        setTmTotalPages(totalPages)
-      } else {
-        setTmError(result.reason || 'Failed to load snapshots')
-      }
+      await loadTimeMachinePage(tmPage)
       setTmLoading(false)
     }
     loadSnapshots()
@@ -3524,11 +3552,14 @@ export default function ParamsPage({ openModal }) {
         setTmIsInMode(true)
         setTmSessionInfo(result.session)
         setDataVersion((prev) => prev + 1)
+        return result
       } else {
         setTmError(result.reason || 'Failed to enter time machine')
+        return result
       }
     } catch (err) {
       setTmError('Error entering time machine')
+      return { ok: false, reason: 'Error entering time machine' }
     } finally {
       setTmLoading(false)
     }
@@ -3543,48 +3574,34 @@ export default function ParamsPage({ openModal }) {
         setTmSessionInfo(null)
         setDataVersion((prev) => prev + 1)
       }
+      return result
     } finally {
       setTmLoading(false)
     }
   }
 
-  const handleSaveSnapshot = async () => {
-    const title = String(tmManualTitle || '').trim() || `Manual Snapshot ${new Date().toLocaleString()}`
-    setTmLoading(true)
-    setTmSaveStatus('')
+  const handleSaveSnapshot = async (titleInput = '') => {
+    const title = String(titleInput || '').trim() || `Manual Snapshot ${formatTimeMachineDateTime(new Date())}`
     try {
       const result = await saveSnapshot(title, 'manual')
       if (result.ok) {
-        setTmSaveStatus('Snapshot saved successfully')
-        setTmManualTitle('')
-        setTmPage(1) // Reload first page
-      } else {
-        setTmSaveStatus(`Failed to save: ${result.reason}`)
+        setTmPage(1)
       }
+      return result
     } catch (err) {
-      setTmSaveStatus('Error saving snapshot')
-    } finally {
-      setTmLoading(false)
-      setTimeout(() => setTmSaveStatus(''), 2200)
+      return { ok: false, reason: 'Error saving snapshot' }
     }
   }
 
   const handleEnsureMonthly = async () => {
-    setTmLoading(true)
-    setTmSaveStatus('')
     try {
       const result = await ensureCurrentMonthSnapshot()
       if (result.ok) {
-        setTmSaveStatus(result.created ? 'Monthly snapshot created' : 'Monthly snapshot already exists')
-        setTmPage(1) // Reload first page
-      } else {
-        setTmSaveStatus(`Failed: ${result.reason}`)
+        setTmPage(1)
       }
+      return result
     } catch (err) {
-      setTmSaveStatus('Error')
-    } finally {
-      setTmLoading(false)
-      setTimeout(() => setTmSaveStatus(''), 2200)
+      return { ok: false, reason: 'Error creating monthly snapshot' }
     }
   }
 
@@ -3609,14 +3626,11 @@ export default function ParamsPage({ openModal }) {
           totalPages={tmTotalPages}
           loading={tmLoading}
           error={tmError}
-          manualTitle={tmManualTitle}
-          saveStatus={tmSaveStatus}
           onBeginSession={handleBeginTimeMachine}
           onExitSession={handleExitTimeMachine}
           onSaveSnapshot={handleSaveSnapshot}
           onEnsureMonthly={handleEnsureMonthly}
-          onPageChange={setTmPage}
-          onTitleChange={setTmManualTitle}
+          onLoadPage={loadTimeMachinePage}
           onDeleteSnapshot={handleDeleteSnapshot}
         />
       ),
@@ -4399,7 +4413,7 @@ export default function ParamsPage({ openModal }) {
                     {tmSnapshots.slice(0, 2).map((snap, idx) => (
                       <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/50 border border-cyan-100/60">
                         <span className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-500"></span>
-                        {snap.updatedAt ? new Date(snap.updatedAt).toLocaleDateString() : '--'}
+                        {formatTimeMachineDate(snap.updatedAt)}
                       </span>
                     ))}
                     <span className="text-cyan-700 font-medium">现存 {tmSnapshots.length} 份快照</span>
