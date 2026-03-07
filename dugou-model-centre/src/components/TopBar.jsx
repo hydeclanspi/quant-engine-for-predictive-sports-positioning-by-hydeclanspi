@@ -18,7 +18,7 @@ import {
   Download,
 } from 'lucide-react'
 import { exportDataBundle, getInvestments, getSystemConfig, importDataBundle } from '../lib/localData'
-import { exportDataBundleAsExcel } from '../lib/excel'
+import { BACKUP_IMPORT_ACCEPT, exportDataBundleAsExcel, readDataBundleFromImportFile } from '../lib/excel'
 import C15DiamondCutV1Logo from './C15DiamondCutV1Logo'
 
 /* ──────────────────────────────────────────────────
@@ -159,8 +159,7 @@ export default function TopBar() {
     const file = event.target.files?.[0]
     if (!file) return
     try {
-      const text = await file.text()
-      const parsed = JSON.parse(text)
+      const parsed = await readDataBundleFromImportFile(file)
       const shouldMerge = window.confirm('导入模式：点击「确定」= 合并；点击「取消」= 覆盖当前数据。')
       const mode = shouldMerge ? 'merge' : 'replace'
       const ok = importDataBundle(parsed, mode)
@@ -171,7 +170,7 @@ export default function TopBar() {
       window.alert(mode === 'merge' ? '导入成功（合并模式）' : '导入成功（覆盖模式）')
       setDataVersion((prev) => prev + 1)
     } catch {
-      window.alert('导入失败：请确认选择的是 hydecaside 导出的 JSON 文件。')
+      window.alert('导入失败：请确认选择的是 DUGOU 导出的 JSON / Excel 备份文件。')
     } finally {
       event.target.value = ''
     }
@@ -275,7 +274,7 @@ export default function TopBar() {
           <input
             ref={importInputRef}
             type="file"
-            accept="application/json,.json"
+            accept={BACKUP_IMPORT_ACCEPT}
             onChange={handleImportFile}
             className="hidden"
           />
@@ -295,7 +294,7 @@ export default function TopBar() {
                 className="topbar-v2-settings-item"
               >
                 <Upload size={13} strokeWidth={1.5} />
-                <span>导入 JSON</span>
+                <span>导入备份</span>
               </button>
               <button onClick={handleExport} className="topbar-v2-settings-item">
                 <Download size={13} strokeWidth={1.5} />

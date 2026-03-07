@@ -53,7 +53,7 @@ import {
   ensureCurrentMonthSnapshot,
   deleteTimeMachineSnapshot,
 } from '../lib/localData'
-import { getPrimaryEntryMarket, normalizeEntryRecord } from '../lib/entryParsing'
+import { buildDataWorkbook, downloadWorkbook, parseDataBundleFromExcelBuffer } from '../lib/excel'
 import {
   FUTURE_FEATURE_DETAIL_SOURCE,
   FUTURE_FEATURE_DETAIL_TEXT,
@@ -63,7 +63,6 @@ import {
 import { LogoGalleryExplorer, LogoGalleryPreview } from '../components/LogoGalleryExplorer'
 import TimeMachineModalContent from '../components/TimeMachineModalContent'
 import TimeMachineIcon from '../components/TimeMachineIcon'
-import * as XLSX from 'xlsx'
 
 const TYS_BASE_FACTORS = {
   S: 1.08,
@@ -1341,19 +1340,6 @@ const toSigned = (value, digits = 2, suffix = '') => {
   return `${sign}${num.toFixed(digits)}${suffix}`
 }
 
-const parseBoolean = (value) => {
-  if (typeof value === 'boolean') return value
-  const normalized = String(value || '').trim().toLowerCase()
-  if (['true', '1', 'yes', 'y'].includes(normalized)) return true
-  if (['false', '0', 'no', 'n'].includes(normalized)) return false
-  return null
-}
-
-const parseNumber = (value, fallback = 0) => {
-  const parsed = Number.parseFloat(value)
-  return Number.isFinite(parsed) ? parsed : fallback
-}
-
 const formatAccessTime = (value) => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '--'
@@ -1410,225 +1396,41 @@ const formatSessionDuration = (durationMs) => {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
-const parseEntriesJson = (value, entryText = '', oddsValue) => {
-  const fallbackOdds = parseNumber(oddsValue, Number.NaN)
-
-  if (value) {
-    try {
-      const parsed = JSON.parse(value)
-      if (Array.isArray(parsed)) {
-        return parsed.map((entry) => normalizeEntryRecord(entry, fallbackOdds))
-      }
-    } catch {
-      // fall through
-    }
-  }
-
-  try {
-    const parsed = JSON.parse(entryText)
-    if (Array.isArray(parsed)) {
-      return parsed.map((entry) => normalizeEntryRecord(entry, fallbackOdds))
-    }
-  } catch {
-    // fall through
-  }
-
-  const rawText = String(entryText || '').trim()
-  if (!rawText) return []
-  return rawText
-    .split(/[|,]/)
-    .map((token) => token.trim())
-    .filter(Boolean)
-    .map((name) => normalizeEntryRecord({ name, odds: fallbackOdds }, fallbackOdds))
-}
-
-const buildExcelWorkbook = (bundle) => {
+const buildBackupPreview = (bundle) => {
   const investments = Array.isArray(bundle?.investments) ? bundle.investments : []
   const teamProfiles = Array.isArray(bundle?.team_profiles) ? bundle.team_profiles : []
-  const systemConfig = bundle?.system_config || {}
-
-  const investmentRows = investments.map((item) => ({
-    id: item.id,
-    created_at: item.created_at,
-    parlay_size: item.parlay_size,
-    combo_name: item.combo_name,
-    inputs: item.inputs,
-    suggested_amount: item.suggested_amount,
-    expected_rating: item.expected_rating,
-    combined_odds: item.combined_odds,
-    status: item.status,
-    revenues: item.revenues,
-    profit: item.profit,
-    actual_rating: item.actual_rating,
-    rep: item.rep,
-    remarks: item.remarks,
-    is_archived: item.is_archived ? 'true' : 'false',
-  }))
-
-  const matchRows = investments.flatMap((item) =>
-    (item.matches || []).map((match, idx) => ({
+  const sampleMatches = investments.flatMap((item) =>
+    (Array.isArray(item?.matches) ? item.matches : []).map((match) => ({
       investment_id: item.id,
-      match_index: idx + 1,
-      id: match.id,
-      home_team: match.home_team,
-      away_team: match.away_team,
-      entry_text: match.entry_text,
-      entry_market_type: match.entry_market_type,
-      entry_market_label: match.entry_market_label,
-      entry_semantic_key: match.entry_semantic_key,
-      entries_json: JSON.stringify(match.entries || []),
-      odds: match.odds,
-      conf: match.conf,
-      mode: match.mode,
-      tys_home: match.tys_home,
-      tys_away: match.tys_away,
-      fid: match.fid,
-      fse_home: match.fse_home,
-      fse_away: match.fse_away,
-      fse_match: match.fse_match,
-      results: match.results,
-      is_correct: typeof match.is_correct === 'boolean' ? String(match.is_correct) : '',
-      match_rating: match.match_rating,
-      match_rep: match.match_rep,
-      note: match.note,
-      post_note: match.post_note,
+      match: [match?.home_team, match?.away_team].filter(Boolean).join(' vs '),
+      entry_text: match?.entry_text || '',
+      odds: match?.odds ?? '',
     })),
   )
 
-  const teamRows = teamProfiles.map((team) => ({
-    teamId: team.teamId,
-    teamName: team.teamName,
-    abbreviations: Array.isArray(team.abbreviations) ? team.abbreviations.join('|') : '',
-    totalSamples: team.totalSamples,
-    avgRep: team.avgRep,
-  }))
-
-  const configRows = Object.entries(systemConfig).map(([key, value]) => ({
-    key,
-    value,
-  }))
-
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(investmentRows), 'Investments')
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(matchRows), 'Matches')
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(teamRows), 'TeamProfiles')
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(configRows), 'SystemConfig')
-  return workbook
+  return {
+    investmentCount: investments.length,
+    matchCount: sampleMatches.length,
+    teamCount: teamProfiles.length,
+    sampleInvestments: investments.slice(0, 3),
+    sampleMatches: sampleMatches.slice(0, 3),
+  }
 }
 
 const parseExcelFile = async (file) => {
-  const buffer = await file.arrayBuffer()
-  const workbook = XLSX.read(buffer, { type: 'array' })
-  const getSheet = (name) => workbook.Sheets[name]
-  const sheetToJson = (sheet) => (sheet ? XLSX.utils.sheet_to_json(sheet, { defval: '' }) : [])
-
-  const investmentRows = sheetToJson(getSheet('Investments'))
-  const matchRows = sheetToJson(getSheet('Matches'))
-  const teamRows = sheetToJson(getSheet('TeamProfiles'))
-  const configRows = sheetToJson(getSheet('SystemConfig'))
-
-  if (!investmentRows.length || !matchRows.length) {
-    return { error: '未检测到 Investments 或 Matches 表，请确认 Excel 模板正确。' }
+  const bundle = parseDataBundleFromExcelBuffer(await file.arrayBuffer())
+  const safeBundle = {
+    version: bundle?.version ?? 1,
+    exported_at: bundle?.exported_at || new Date().toISOString(),
+    system_config: bundle?.system_config && typeof bundle.system_config === 'object' ? bundle.system_config : {},
+    team_profiles: Array.isArray(bundle?.team_profiles) ? bundle.team_profiles : [],
+    investments: Array.isArray(bundle?.investments) ? bundle.investments : [],
+    access_logs: Array.isArray(bundle?.access_logs) ? bundle.access_logs : [],
   }
 
-  const teamProfiles = teamRows.map((row) => ({
-    teamId: row.teamId || row.team_id || '',
-    teamName: row.teamName || row.team_name || '',
-    abbreviations: String(row.abbreviations || '')
-      .split('|')
-      .map((item) => item.trim())
-      .filter(Boolean),
-    totalSamples: parseNumber(row.totalSamples ?? row.total_samples, 0),
-    avgRep: parseNumber(row.avgRep ?? row.avg_rep, 0.5),
-  }))
-
-  const system_config = configRows.reduce((acc, row) => {
-    const key = String(row.key || row.field || '').trim()
-    if (!key) return acc
-    acc[key] = parseNumber(row.value, row.value)
-    return acc
-  }, {})
-
-  const matchMap = new Map()
-  matchRows.forEach((row) => {
-    const investmentId = String(row.investment_id || row.investmentId || row.investment || '').trim()
-    if (!investmentId) return
-    const entries = parseEntriesJson(row.entries_json, row.entry_text || row.entry || '', row.odds)
-    const entryMarket = getPrimaryEntryMarket(entries, row.entry_text || row.entry || '')
-    const match = {
-      id: row.id || '',
-      home_team: row.home_team || row.homeTeam || '',
-      away_team: row.away_team || row.awayTeam || '',
-      entry_text: row.entry_text || row.entry || '',
-      entries,
-      entry_market_type: row.entry_market_type || entryMarket.marketType,
-      entry_market_label: row.entry_market_label || entryMarket.marketLabel,
-      entry_semantic_key: row.entry_semantic_key || entryMarket.semanticKey,
-      odds: parseNumber(row.odds, 0),
-      conf: parseNumber(row.conf, 0),
-      mode: row.mode || '常规',
-      tys_home: row.tys_home || 'M',
-      tys_away: row.tys_away || 'M',
-      fid: parseNumber(row.fid, 0.4),
-      fse_home: parseNumber(row.fse_home, 0.5),
-      fse_away: parseNumber(row.fse_away, 0.5),
-      fse_match: parseNumber(row.fse_match, 0),
-      results: row.results || '',
-      is_correct: parseBoolean(row.is_correct),
-      match_rating: parseNumber(row.match_rating, NaN),
-      match_rep: parseNumber(row.match_rep, NaN),
-      note: row.note || '',
-      post_note: row.post_note || '',
-    }
-    const list = matchMap.get(investmentId) || []
-    list.push({
-      match_index: parseNumber(row.match_index, list.length + 1),
-      ...match,
-    })
-    matchMap.set(investmentId, list)
-  })
-
-  const investments = investmentRows.map((row) => {
-    const id = String(row.id || '').trim()
-    const matches = (matchMap.get(id) || []).sort((a, b) => a.match_index - b.match_index).map((item) => {
-      const { match_index: _matchIndex, ...match } = item
-      return match
-    })
-    return {
-      id: id || `inv_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      created_at: row.created_at || new Date().toISOString(),
-      parlay_size: parseNumber(row.parlay_size, matches.length || 1),
-      combo_name: row.combo_name || '',
-      inputs: parseNumber(row.inputs, 0),
-      suggested_amount: parseNumber(row.suggested_amount, 0),
-      expected_rating: parseNumber(row.expected_rating, NaN),
-      combined_odds: parseNumber(row.combined_odds, 0),
-      status: row.status || 'pending',
-      revenues: parseNumber(row.revenues, NaN),
-      profit: parseNumber(row.profit, NaN),
-      actual_rating: parseNumber(row.actual_rating, NaN),
-      rep: parseNumber(row.rep, NaN),
-      remarks: row.remarks || '',
-      is_archived: parseBoolean(row.is_archived),
-      matches,
-    }
-  })
-
   return {
-    bundle: {
-      version: 1,
-      exported_at: new Date().toISOString(),
-      system_config,
-      team_profiles: teamProfiles,
-      investments,
-    },
-    preview: {
-      investmentCount: investments.length,
-      matchCount: matchRows.length,
-      teamCount: teamProfiles.length,
-      sampleInvestments: investments.slice(0, 3),
-      sampleMatches: matchRows.slice(0, 3),
-    },
+    bundle: safeBundle,
+    preview: buildBackupPreview(safeBundle),
   }
 }
 
@@ -3598,18 +3400,8 @@ export default function ParamsPage({ openModal }) {
 
   const handleExportExcel = () => {
     const bundle = exportDataBundle()
-    const workbook = buildExcelWorkbook(bundle)
-    const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
-    const blob = new Blob([buffer], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    })
-    const href = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    const dateKey = new Date().toISOString().slice(0, 10)
-    anchor.href = href
-    anchor.download = `dugou-data-${dateKey}.xlsx`
-    anchor.click()
-    URL.revokeObjectURL(href)
+    const workbook = buildDataWorkbook(bundle)
+    downloadWorkbook(workbook, 'dugou-data')
     markBackupExported()
     setExcelStatus('已导出并记录备份时间')
     setTimeout(() => setExcelStatus(''), 1600)
@@ -3630,7 +3422,7 @@ export default function ParamsPage({ openModal }) {
         ...parsed,
       })
     } catch {
-      setExcelError('导入失败：无法解析 Excel 文件，请确认格式正确。')
+      setExcelError('导入失败：无法解析 Excel 备份，请确认选择的是 DUGOU 导出的备份文件。')
     } finally {
       event.target.value = ''
     }
@@ -5365,7 +5157,7 @@ export default function ParamsPage({ openModal }) {
           </h3>
           {excelStatus && <span className="text-xs text-emerald-600">{excelStatus}</span>}
         </div>
-        <p className="text-xs text-stone-400 mb-4">支持多 Sheet 导出（Investments / Matches / TeamProfiles / SystemConfig）与导入预览。</p>
+        <p className="text-xs text-stone-400 mb-4">导出为完整可逆 Excel 备份，导入后可恢复全部历史记录、参数配置与页面所需数据。</p>
 
         <div className="mb-4 rounded-xl border border-stone-200 bg-stone-50 p-3.5">
           <div className="grid grid-cols-3 gap-3 items-end">
@@ -5412,7 +5204,7 @@ export default function ParamsPage({ openModal }) {
           <input
             ref={excelInputRef}
             type="file"
-            accept=".xlsx,.xls"
+            accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
             onChange={handleImportExcel}
             className="hidden"
           />

@@ -7,7 +7,7 @@ import {
   Download,
 } from 'lucide-react'
 import { exportDataBundle, getInvestments, importDataBundle } from '../lib/localData'
-import { exportDataBundleAsExcel } from '../lib/excel'
+import { BACKUP_IMPORT_ACCEPT, exportDataBundleAsExcel, readDataBundleFromImportFile } from '../lib/excel'
 import C15DiamondCutV1Logo from './C15DiamondCutV1Logo'
 
 export default function Sidebar({ collapsed, onToggleCollapse }) {
@@ -98,8 +98,7 @@ export default function Sidebar({ collapsed, onToggleCollapse }) {
     const file = event.target.files?.[0]
     if (!file) return
     try {
-      const text = await file.text()
-      const parsed = JSON.parse(text)
+      const parsed = await readDataBundleFromImportFile(file)
       const shouldMerge = window.confirm('导入模式：点击「确定」= 合并；点击「取消」= 覆盖当前数据。')
       const mode = shouldMerge ? 'merge' : 'replace'
       const ok = importDataBundle(parsed, mode)
@@ -110,7 +109,7 @@ export default function Sidebar({ collapsed, onToggleCollapse }) {
       window.alert(mode === 'merge' ? '导入成功（合并模式）' : '导入成功（覆盖模式）')
       setDataVersion((prev) => prev + 1)
     } catch {
-      window.alert('导入失败：请确认选择的是 hydecaside 导出的 JSON 文件。')
+      window.alert('导入失败：请确认选择的是 DUGOU 导出的 JSON / Excel 备份文件。')
     } finally {
       event.target.value = ''
     }
@@ -224,7 +223,7 @@ export default function Sidebar({ collapsed, onToggleCollapse }) {
             <input
               ref={importInputRef}
               type="file"
-              accept="application/json,.json"
+              accept={BACKUP_IMPORT_ACCEPT}
               onChange={handleImportFile}
               className="hidden"
             />
@@ -244,7 +243,7 @@ export default function Sidebar({ collapsed, onToggleCollapse }) {
                   className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-stone-500 hover:text-amber-600 hover:bg-amber-50 transition-all text-xs"
                 >
                   <Upload size={14} />
-                  <span>导入 JSON</span>
+                  <span>导入备份</span>
                 </button>
                 <button
                   onClick={handleExport}
