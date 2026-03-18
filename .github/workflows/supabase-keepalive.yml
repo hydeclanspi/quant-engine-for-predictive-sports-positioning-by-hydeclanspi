@@ -1,0 +1,54 @@
+name: Supabase Keepalive
+
+# ---------------------------------------------------------------
+# Keeps the free-tier Supabase project alive by sending lightweight
+# SELECT queries at random-ish intervals throughout the week.
+#
+# Cron runs 6 times per day (every 4 hours), but each run sleeps a
+# random 0-90 min before querying, so actual request times are
+# naturally scattered.  ≈ 42 requests / week — well within the
+# 7-day inactivity window and the free-tier API quota.
+# ---------------------------------------------------------------
+
+on:
+  schedule:
+    # Six runs per day, spread across different hours (UTC)
+    - cron: '12 1 * * *'
+    - cron: '37 5 * * *'
+    - cron: '3 9 * * *'
+    - cron: '48 13 * * *'
+    - cron: '22 17 * * *'
+    - cron: '55 21 * * *'
+  workflow_dispatch: # Allow manual trigger for testing
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Random sleep (0-90 min jitter)
+        run: |
+          JITTER=$(( RANDOM % 5400 ))
+          echo "Sleeping ${JITTER}s (~$(( JITTER / 60 ))m) for jitter..."
+          sleep $JITTER
+
+      - name: Ping Supabase with SELECT query
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "Sending keepalive query at $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+
+          HTTP_STATUS=$(curl -s -o /dev/null -w '%{http_code}' \
+            "${SUPABASE_URL}/rest/v1/dugou_sync_snapshots?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+
+          echo "Response status: ${HTTP_STATUS}"
+
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "Keepalive successful."
+          else
+            echo "::warning::Keepalive returned HTTP ${HTTP_STATUS}"
+            exit 1
+          fi
