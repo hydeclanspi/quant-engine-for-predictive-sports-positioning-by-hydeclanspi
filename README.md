@@ -1,1 +1,1 @@
-a personal toy.
+just a personal toy (:
