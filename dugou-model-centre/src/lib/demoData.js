@@ -21,23 +21,44 @@ const STORAGE_KEYS = {
   systemConfig: 'dugou.system_config.v1',
 }
 
-// ── Fictional team roster ──────────────────────────────────────────
-// Sounds plausibly like English football clubs without coinciding
-// with any real team. Each team has a synthetic strength rating in
-// [0,1] used to drive odds and outcome probabilities.
+// ── Real-world team roster ─────────────────────────────────────────
+// English Premier League 20 + European elite clubs. Strength ratings
+// roughly track Elo/club-power signals from the 2023-24 cycle so the
+// generated matchups look credible to anyone who follows football.
 const TEAMS = [
-  { id: 'northgate',   name: 'Northgate FC',         abbr: 'ngt', strength: 0.74 },
-  { id: 'westbridge',  name: 'Westbridge United',    abbr: 'wbu', strength: 0.70 },
-  { id: 'aurora',      name: 'Aurora Rovers',        abbr: 'aur', strength: 0.66 },
-  { id: 'crestmont',   name: 'Crestmont Athletic',   abbr: 'cma', strength: 0.62 },
-  { id: 'halewood',    name: 'Halewood City',        abbr: 'hwc', strength: 0.58 },
-  { id: 'riverdale',   name: 'Riverdale FC',         abbr: 'rvd', strength: 0.54 },
-  { id: 'stonehaven',  name: 'Stonehaven United',    abbr: 'sth', strength: 0.50 },
-  { id: 'kingsbury',   name: 'Kingsbury',            abbr: 'kby', strength: 0.46 },
-  { id: 'eastfield',   name: 'Eastfield United',     abbr: 'efd', strength: 0.42 },
-  { id: 'lockstone',   name: 'Lockstone Athletic',   abbr: 'lsa', strength: 0.38 },
-  { id: 'greythorn',   name: 'Greythorn FC',         abbr: 'gth', strength: 0.34 },
-  { id: 'ashford',     name: 'Ashford Town',         abbr: 'ash', strength: 0.30 },
+  // ── EPL 20 ──
+  { id: 'mancity',     name: '曼城',         abbr: 'mci', strength: 0.86 },
+  { id: 'liverpool',   name: '利物浦',       abbr: 'liv', strength: 0.80 },
+  { id: 'arsenal',     name: '阿森纳',       abbr: 'ars', strength: 0.78 },
+  { id: 'tottenham',   name: '热刺',         abbr: 'tot', strength: 0.68 },
+  { id: 'astonvilla',  name: '维拉',         abbr: 'avl', strength: 0.66 },
+  { id: 'newcastle',   name: '纽卡斯尔',     abbr: 'new', strength: 0.66 },
+  { id: 'chelsea',     name: '切尔西',       abbr: 'che', strength: 0.64 },
+  { id: 'manutd',      name: '曼联',         abbr: 'mun', strength: 0.62 },
+  { id: 'westham',     name: '西汉姆',       abbr: 'whu', strength: 0.56 },
+  { id: 'brighton',    name: '布莱顿',       abbr: 'bha', strength: 0.55 },
+  { id: 'crystalpalace', name: '水晶宫',     abbr: 'cry', strength: 0.50 },
+  { id: 'brentford',   name: '布伦特福德',   abbr: 'bre', strength: 0.50 },
+  { id: 'fulham',      name: '富勒姆',       abbr: 'ful', strength: 0.48 },
+  { id: 'wolves',      name: '狼队',         abbr: 'wol', strength: 0.47 },
+  { id: 'bournemouth', name: '伯恩茅斯',     abbr: 'bou', strength: 0.45 },
+  { id: 'everton',     name: '埃弗顿',       abbr: 'eve', strength: 0.43 },
+  { id: 'nottingham',  name: '诺丁汉森林',   abbr: 'nfo', strength: 0.41 },
+  { id: 'burnley',     name: '伯恩利',       abbr: 'bur', strength: 0.34 },
+  { id: 'sheffield',   name: '谢菲尔德联',   abbr: 'shu', strength: 0.32 },
+  { id: 'luton',       name: '卢顿',         abbr: 'lut', strength: 0.30 },
+
+  // ── European elites ──
+  { id: 'realmadrid',  name: '皇马',         abbr: 'rma', strength: 0.84 },
+  { id: 'bayern',      name: '拜仁',         abbr: 'bay', strength: 0.82 },
+  { id: 'barcelona',   name: '巴萨',         abbr: 'bar', strength: 0.76 },
+  { id: 'psg',         name: '巴黎圣日耳曼', abbr: 'psg', strength: 0.76 },
+  { id: 'inter',       name: '国际米兰',     abbr: 'int', strength: 0.72 },
+  { id: 'atletico',    name: '马竞',         abbr: 'atm', strength: 0.70 },
+  { id: 'dortmund',    name: '多特蒙德',     abbr: 'bvb', strength: 0.66 },
+  { id: 'juventus',    name: '尤文图斯',     abbr: 'juv', strength: 0.66 },
+  { id: 'milan',       name: 'AC米兰',       abbr: 'acm', strength: 0.64 },
+  { id: 'leverkusen',  name: '勒沃库森',     abbr: 'b04', strength: 0.62 },
 ]
 
 const MODES = ['常规', '常规-稳', '常规-杠杆', '半彩票半保险', '保险产品', '赌一把']
@@ -206,7 +227,7 @@ const synthesiseScore = (trueResult, homeStrength, awayStrength) => {
 }
 
 // ── Investment timeline ────────────────────────────────────────────
-const START_TS = new Date('2025-10-01T12:00:00.000Z').getTime()
+const START_TS = new Date('2025-09-01T12:00:00.000Z').getTime()
 const END_TS = new Date('2025-12-31T20:00:00.000Z').getTime()
 
 // Distribution of parlay sizes — single matches dominate, then 2-leg,
@@ -312,8 +333,8 @@ const buildShowcaseSamples = () => {
     remarks: 'High Conf-Surplus signal: model conviction far above market implied',
     matches: [{
       id: 'demo_match_showcase_a_1',
-      home_team: 'Aurora Rovers',
-      away_team: 'Northgate FC',
+      home_team: '维拉',
+      away_team: '曼城',
       entries: [{ name: '主胜', odds: 5.20 }],
       entry_text: '主胜',
       odds: 5.20,
@@ -353,30 +374,30 @@ const buildShowcaseSamples = () => {
     matches: [
       {
         id: 'demo_match_showcase_b_1',
-        home_team: 'Northgate FC', away_team: 'Greythorn FC',
-        entries: [{ name: '主胜', odds: 1.65 }], entry_text: '主胜', odds: 1.65,
-        conf: 0.72, mode: '常规', tys_home: 'H', tys_away: 'M',
+        home_team: '曼城', away_team: '布伦特福德',
+        entries: [{ name: '主胜', odds: 1.55 }], entry_text: '主胜', odds: 1.55,
+        conf: 0.78, mode: '常规', tys_home: 'H', tys_away: 'S',
         fid: 0.5, fse_home: 0.72, fse_away: 0.48, fse_match: 0.59,
-        note: '', results: '3-0', is_correct: true, match_rating: 0.74,
+        note: '', results: '3-0', is_correct: true, match_rating: 0.78,
         match_rep: null, post_note: '',
       },
       {
         id: 'demo_match_showcase_b_2',
-        home_team: 'Crestmont Athletic', away_team: 'Halewood City',
-        entries: [{ name: '主胜', odds: 2.20 }], entry_text: '主胜', odds: 2.20,
-        conf: 0.62, mode: '常规', tys_home: 'L', tys_away: 'L',
-        fid: 0.4, fse_home: 0.62, fse_away: 0.58, fse_match: 0.60,
+        home_team: '阿森纳', away_team: '富勒姆',
+        entries: [{ name: '主胜', odds: 1.85 }], entry_text: '主胜', odds: 1.85,
+        conf: 0.70, mode: '常规', tys_home: 'H', tys_away: 'M',
+        fid: 0.4, fse_home: 0.66, fse_away: 0.54, fse_match: 0.60,
         note: '', results: '2-1', is_correct: true, match_rating: 0.66,
         match_rep: null, post_note: '',
       },
       {
         id: 'demo_match_showcase_b_3',
-        home_team: 'Westbridge United', away_team: 'Aurora Rovers',
-        entries: [{ name: '主胜', odds: 2.45 }], entry_text: '主胜', odds: 2.45,
+        home_team: '热刺', away_team: '切尔西',
+        entries: [{ name: '主胜', odds: 2.35 }], entry_text: '主胜', odds: 2.35,
         conf: 0.58, mode: '常规', tys_home: 'M', tys_away: 'M',
         fid: 0.6, fse_home: 0.66, fse_away: 0.62, fse_match: 0.64,
         note: '', results: '1-2', is_correct: false, match_rating: 0.18,
-        match_rep: 1.4, post_note: 'Red card 38min — outcome distorted',
+        match_rep: 1.4, post_note: '38分钟红牌——比赛结果被随机事件扭曲',
       },
     ],
   }
@@ -399,38 +420,38 @@ const buildShowcaseSamples = () => {
     matches: [
       {
         id: 'demo_match_showcase_c_1',
-        home_team: 'Stonehaven United', away_team: 'Kingsbury',
-        entries: [{ name: '主胜', odds: 1.80 }], entry_text: '主胜', odds: 1.80,
-        conf: 0.66, mode: '半彩票半保险', tys_home: 'M', tys_away: 'M',
+        home_team: '利物浦', away_team: '诺丁汉森林',
+        entries: [{ name: '主胜', odds: 1.55 }], entry_text: '主胜', odds: 1.55,
+        conf: 0.74, mode: '半彩票半保险', tys_home: 'H', tys_away: 'S',
         fid: 0.5, fse_home: 0.64, fse_away: 0.52, fse_match: 0.58,
-        note: '', results: '2-0', is_correct: true, match_rating: 0.68,
+        note: '', results: '2-0', is_correct: true, match_rating: 0.72,
         match_rep: null, post_note: '',
       },
       {
         id: 'demo_match_showcase_c_2',
-        home_team: 'Riverdale FC', away_team: 'Lockstone Athletic',
+        home_team: '拜仁', away_team: '勒沃库森',
         entries: [{ name: '主胜', odds: 2.10 }], entry_text: '主胜', odds: 2.10,
         conf: 0.60, mode: '半彩票半保险', tys_home: 'L', tys_away: 'M',
         fid: 0.4, fse_home: 0.60, fse_away: 0.50, fse_match: 0.55,
-        note: '', results: '1-0', is_correct: true, match_rating: 0.62,
+        note: '', results: '3-1', is_correct: true, match_rating: 0.66,
         match_rep: null, post_note: '',
       },
       {
         id: 'demo_match_showcase_c_3',
-        home_team: 'Eastfield United', away_team: 'Ashford Town',
+        home_team: '国际米兰', away_team: '尤文图斯',
         entries: [{ name: '主胜', odds: 2.40 }], entry_text: '主胜', odds: 2.40,
-        conf: 0.56, mode: '半彩票半保险', tys_home: 'M', tys_away: 'S',
-        fid: 0.5, fse_home: 0.58, fse_away: 0.50, fse_match: 0.54,
-        note: '', results: '2-1', is_correct: true, match_rating: 0.60,
+        conf: 0.58, mode: '半彩票半保险', tys_home: 'M', tys_away: 'M',
+        fid: 0.5, fse_home: 0.58, fse_away: 0.52, fse_match: 0.55,
+        note: '', results: '2-1', is_correct: true, match_rating: 0.62,
         match_rep: null, post_note: '',
       },
       {
         id: 'demo_match_showcase_c_4',
-        home_team: 'Halewood City', away_team: 'Greythorn FC',
+        home_team: '皇马', away_team: '巴萨',
         entries: [{ name: '主胜', odds: 2.03 }], entry_text: '主胜', odds: 2.03,
-        conf: 0.58, mode: '半彩票半保险', tys_home: 'L', tys_away: 'M',
-        fid: 0.4, fse_home: 0.62, fse_away: 0.50, fse_match: 0.55,
-        note: '', results: '2-0', is_correct: true, match_rating: 0.64,
+        conf: 0.58, mode: '半彩票半保险', tys_home: 'H', tys_away: 'H',
+        fid: 0.6, fse_home: 0.72, fse_away: 0.70, fse_match: 0.71,
+        note: '', results: '3-2', is_correct: true, match_rating: 0.70,
         match_rep: null, post_note: '',
       },
     ],
@@ -440,7 +461,7 @@ const buildShowcaseSamples = () => {
 }
 
 // ── Top-level bundle builder ───────────────────────────────────────
-const TOTAL_GENERATED = 37 // + 3 showcase samples = 40 total
+const TOTAL_GENERATED = 72 // + 3 showcase samples = 75 total
 
 const buildBundle = () => {
   // Generate evenly-spaced timestamps across the window with slight jitter.

@@ -62,6 +62,8 @@ import {
 } from '../data/futureFeaturesRoadmap'
 import { LogoGalleryExplorer, LogoGalleryPreview } from '../components/LogoGalleryExplorer'
 import TimeMachineModalContent from '../components/TimeMachineModalContent'
+import { useLabels } from '../lib/labels'
+import { useModeLabelMap } from '../components/ModeLabel'
 import TimeMachineIcon from '../components/TimeMachineIcon'
 
 const TYS_BASE_FACTORS = {
@@ -1766,7 +1768,7 @@ const PaginatedKellyMatrixTable = ({ rows }) => {
         <tbody>
           {pageRows.map((row) => (
             <tr key={`${row.mode}-${row.confBucket}-${row.oddsBucket}`} className="border-b border-stone-100">
-              <td className="py-2">{row.mode}</td>
+              <td className="py-2">{maskMode(row.mode)}</td>
               <td className="py-2">{row.confBucket}</td>
               <td className="py-2">{row.oddsBucket}</td>
               <td className="py-2">{row.samples}</td>
@@ -2175,6 +2177,8 @@ function AdaptiveWeightCard({ config, setConfig, saveSystemConfig, dataVersion }
 }
 
 export default function ParamsPage({ openModal }) {
+  const labels = useLabels()
+  const maskMode = useModeLabelMap()
   const [expandedFactor, setExpandedFactor] = useState(null)
   const [factorRange, setFactorRange] = useState('4w')
   const [config, setConfig] = useState(() => getSystemConfig())
@@ -3288,7 +3292,7 @@ export default function ParamsPage({ openModal }) {
               <tbody>
                 {modeKellyRows.map((row) => (
                   <tr key={row.mode} className="border-b border-stone-100">
-                    <td className="py-2 font-medium">{row.mode}</td>
+                    <td className="py-2 font-medium">{maskMode(row.mode)}</td>
                     <td className="py-2">{row.samples}</td>
                     <td className={`py-2 ${row.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                       {toSigned(row.roi, 1, '%')}
@@ -4804,7 +4808,7 @@ export default function ParamsPage({ openModal }) {
           {kellyBacktest.modeRecommendations.map((row) => (
             <div key={`mode-kelly-${row.mode}`} className="p-3 rounded-xl bg-stone-50 border border-stone-100">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-stone-700">{row.mode}</span>
+                <span className="text-sm font-medium text-stone-700">{maskMode(row.mode)}</span>
                 <button
                   onClick={() => applyKellyDivisor(row.best?.divisor)}
                   disabled={!row.best}

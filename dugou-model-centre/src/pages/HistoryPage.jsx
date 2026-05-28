@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Search, Filter, Trash2, Archive, Undo2, ChevronRight, ChevronDown, SquarePen } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { deleteInvestment, getInvestments, saveInvestment, setInvestmentArchived, updateInvestment } from '../lib/localData'
+import { useLabels } from '../lib/labels'
 
 const LEAGUE_ORDER = ['英超', '西甲', '意甲', '德甲', '法甲', '荷甲', '葡超', '土超', '沙特联', '国际赛', '其他']
 const TEAM_LEAGUE_MAP = {
@@ -483,6 +484,7 @@ const buildDataRows = (investments) => {
 
 export default function HistoryPage() {
   const navigate = useNavigate()
+  const labels = useLabels()
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('全部')
   const [layoutMode, setLayoutMode] = useState('modern')
@@ -931,7 +933,7 @@ export default function HistoryPage() {
                             <span className="font-semibold italic text-violet-600">{row.odds}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span className="text-stone-400">Conf</span>
+                            <span className="text-stone-400">{labels.conf.short}</span>
                             <span className={`font-semibold ${getConfColor(row.conf)}`}>{row.conf}</span>
                           </div>
                           <div className="max-w-[280px]">
@@ -980,7 +982,7 @@ export default function HistoryPage() {
                                       <p className="mt-0.5 font-semibold italic text-violet-600">{matchRow.odds}</p>
                                     </div>
                                     <div>
-                                      <p className="text-[10px] text-stone-400">Conf / AJR</p>
+                                      <p className="text-[10px] text-stone-400">{labels.conf.short} / AJR</p>
                                       <p className="mt-0.5 font-semibold">
                                         <span className={matchRow.conf === '-' ? 'text-stone-300' : getConfColor(matchRow.conf)}>
                                           {matchRow.conf === '-' ? '—' : matchRow.conf}
@@ -1047,7 +1049,7 @@ export default function HistoryPage() {
                               <p className="mt-1 font-semibold italic text-violet-600">{row.odds}</p>
                             </div>
                             <div className="rounded-lg border border-stone-100 bg-stone-50 px-3 py-2">
-                              <p className="text-[10px] text-stone-400">Conf</p>
+                              <p className="text-[10px] text-stone-400">{labels.conf.short}</p>
                               <p className="mt-1 font-semibold text-stone-300">—</p>
                             </div>
                           </div>
@@ -1079,7 +1081,7 @@ export default function HistoryPage() {
                   <th className="px-2 py-3 text-left font-medium">Entries</th>
                   <th className="px-2 py-3 text-left font-medium">Results</th>
                   <th className="px-2 py-3 text-left font-medium">Odds</th>
-                  <th className="px-2 py-3 text-left font-medium">Conf</th>
+                  <th className="px-2 py-3 text-left font-medium">{labels.conf.short}</th>
                   <th className="px-2 py-3 text-left font-medium">AJR</th>
                   <th className="px-2 py-3 text-left font-medium">Inputs</th>
                   <th className="px-2 py-3 text-left font-medium">状态</th>

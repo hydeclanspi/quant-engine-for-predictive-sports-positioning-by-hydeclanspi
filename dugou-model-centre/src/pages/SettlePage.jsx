@@ -5,6 +5,7 @@ import { autoApplyAdaptiveWeights } from '../lib/analytics'
 import { handleNoteShortcut } from '../lib/noteFormatting'
 import { normalizeEntryName } from '../lib/entryParsing'
 import WaxSealStampOverlay, { getWaxSealStampPoint } from '../components/WaxSealStampOverlay'
+import { useLabels } from '../lib/labels'
 
 const formatDate = (isoString) => {
   const date = new Date(isoString)
@@ -131,6 +132,7 @@ const sanitizeDecimalInputText = (value, { maxDecimals = null } = {}) => {
 }
 
 export default function SettlePage() {
+  const labels = useLabels()
   const [pendingCombos, setPendingCombos] = useState(() => createPendingCombos())
   // 默认展开第一条待结算记录
   const [expandedCombo, setExpandedCombo] = useState(() => {
@@ -593,7 +595,7 @@ export default function SettlePage() {
             <input
               type="text"
               inputMode="decimal"
-              placeholder="批量 REP"
+              placeholder={`批量 ${labels.rep.short}`}
               value={batchRep}
               onChange={(event) => setBatchRep(sanitizeDecimalInputText(event.target.value, { maxDecimals: 2 }))}
               className="w-24 sm:w-28 px-2 py-1.5 rounded-lg border border-stone-200 text-xs text-right"
@@ -768,8 +770,8 @@ export default function SettlePage() {
                       </div>
                       <div className="relative group">
                         <label className="text-xs text-stone-400 mb-1.5 block">
-                          REP 随机事件
-                          <span className="ml-1 text-stone-300 cursor-help" title="Random Events Parameter">?</span>
+                          {labels.rep.long}
+                          <span className="ml-1 text-stone-300 cursor-help" title={labels.rep.long}>?</span>
                         </label>
                         <input
                           type="text"
@@ -780,7 +782,7 @@ export default function SettlePage() {
                           className="input-glow w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm"
                         />
                         <div className="absolute left-0 top-full mt-1 z-10 hidden group-hover:block w-64 p-2 bg-stone-800 text-white text-[10px] rounded-lg shadow-lg">
-                          <p className="font-medium mb-1">随机事件参数 (0-1.8)</p>
+                          <p className="font-medium mb-1">{labels.rep.long} (0-1.8)</p>
                           <p className="text-stone-300 mb-1">0: 没有随机事件</p>
                           <p className="text-stone-300 mb-1">0.2-0.8: 有随机事件但未影响结果</p>
                           <p className="text-amber-300 font-medium mt-1">以下为影响结果的随机事件:</p>

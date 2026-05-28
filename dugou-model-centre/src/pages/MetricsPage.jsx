@@ -17,6 +17,8 @@ import {
 } from 'lucide-react'
 import { getMetricsSnapshot } from '../lib/analytics'
 import TimeRangePicker from '../components/TimeRangePicker'
+import { useLabels } from '../lib/labels'
+import { useModeLabelMap } from '../components/ModeLabel'
 
 const PERIOD_LABELS = {
   '1w': '近一周',
@@ -26,11 +28,17 @@ const PERIOD_LABELS = {
 }
 
 const MATRIX_TABS = [
-  { id: 'mode', label: 'Mode 矩阵' },
-  { id: 'conf', label: 'Conf 矩阵' },
-  { id: 'odds', label: 'Odds 矩阵' },
-  { id: 'entries', label: 'Entries 矩阵' },
+  { id: 'mode', label: 'Mode 矩阵', labelKey: 'mode' },
+  { id: 'conf', label: 'Conf 矩阵', labelKey: 'conf' },
+  { id: 'odds', label: 'Odds 矩阵', labelKey: 'odds' },
+  { id: 'entries', label: 'Entries 矩阵', labelKey: 'entries' },
 ]
+const MATRIX_TAB_LABEL_OVERRIDES = {
+  mode: 'Strategy 矩阵',
+  conf: 'α 矩阵',
+  odds: 'Odds 矩阵',
+  entries: 'Entries 矩阵',
+}
 
 const signed = (value, digits = 2, suffix = '') => {
   const num = Number(value || 0)
@@ -130,10 +138,10 @@ const PaginatedMatchTable = ({ rows }) => {
             <th className="py-2">比赛</th>
             <th className="py-2">Entries</th>
             <th className="py-2">Mode</th>
-            <th className="py-2">Conf</th>
+            <th className="py-2">{labels.conf.short}</th>
             <th className="py-2">AJR</th>
             <th className="py-2">赔率</th>
-            <th className="py-2">REP</th>
+            <th className="py-2">{labels.rep.short}</th>
             <th className="py-2">ROI</th>
           </tr>
         </thead>
@@ -250,6 +258,8 @@ const MetricDetailHistoryTable = ({ rows, columns, pageSize = 10 }) => {
 
 export default function MetricsPage({ openModal }) {
   const navigate = useNavigate()
+  const labels = useLabels()
+  const maskMode = useModeLabelMap()
   const [timePeriod, setTimePeriod] = useState('all')
   const [matrixTab, setMatrixTab] = useState('mode')
   const snapshot = useMemo(() => getMetricsSnapshot(timePeriod), [timePeriod])
@@ -931,17 +941,21 @@ export default function MetricsPage({ openModal }) {
               参数表现矩阵
             </h3>
             <div className="flex gap-2">
-              {MATRIX_TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setMatrixTab(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
-                    matrixTab === tab.id ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+              {MATRIX_TABS.map((tab) => {
+                const isPreview = labels.modes?.['常规'] === 'Baseline-Drift'
+                const display = isPreview ? (MATRIX_TAB_LABEL_OVERRIDES[tab.id] || tab.label) : tab.label
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setMatrixTab(tab.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                      matrixTab === tab.id ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+                    }`}
+                  >
+                    {display}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
@@ -1003,7 +1017,7 @@ export default function MetricsPage({ openModal }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-stone-200 text-left text-stone-500">
-                  <th className="py-2">Conf 区间</th>
+                  <th className="py-2">{labels.conf.short} 区间</th>
                   <th className="py-2">样本</th>
                   <th className="py-2">预期</th>
                   <th className="py-2">实际</th>
@@ -1036,7 +1050,7 @@ export default function MetricsPage({ openModal }) {
                   <th className="py-2">样本</th>
                   <th className="py-2">命中率</th>
                   <th className="py-2">ROI</th>
-                  <th className="py-2">Avg Conf</th>
+                  <th className="py-2">Avg {labels.conf.short}</th>
                   <th className="py-2">Avg AJR</th>
                   <th className="py-2">偏差</th>
                 </tr>
@@ -1066,7 +1080,7 @@ export default function MetricsPage({ openModal }) {
                   <th className="py-2">命中率</th>
                   <th className="py-2">ROI</th>
                   <th className="py-2">Avg Odds</th>
-                  <th className="py-2">Avg Conf</th>
+                  <th className="py-2">Avg {labels.conf.short}</th>
                   <th className="py-2">偏差</th>
                 </tr>
               </thead>
@@ -1136,7 +1150,7 @@ export default function MetricsPage({ openModal }) {
               <th className="py-2">日期</th>
               <th className="py-2">比赛</th>
               <th className="py-2">Mode</th>
-              <th className="py-2">Conf</th>
+              <th className="py-2">{labels.conf.short}</th>
               <th className="py-2">AJR</th>
               <th className="py-2">赔率</th>
               <th className="py-2">ROI</th>

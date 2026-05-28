@@ -9,6 +9,8 @@ import {
   estimateEntryAnchorOdds,
 } from '../lib/atomicParlay'
 import { FragilityHeatmapCard } from '../components/FragilityHeatmapCard'
+import { useLabels } from '../lib/labels'
+import { useModeLabelMap } from '../components/ModeLabel'
 
 const MODE_FACTOR_MAP = {
   常规: 1.0,
@@ -3786,6 +3788,8 @@ const generateRecommendations = (
 
 export default function ComboPage({ openModal }) {
   const navigate = useNavigate()
+  const labels = useLabels()
+  const maskMode = useModeLabelMap()
   const restoreCheckedKeysRef = useRef(null)
   const [dataVersion, setDataVersion] = useState(0)
   const [dismissedCount, setDismissedCount] = useState(() => readDismissedCandidateKeys().size)
@@ -5166,7 +5170,7 @@ export default function ComboPage({ openModal }) {
           {!leftPanelCollapsed && analysisFilter && (
             <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs">
               <span className="text-stone-600">
-                分析联动过滤：{analysisFilter.mode} · Conf {analysisFilter.confBucket} · Odds {analysisFilter.oddsBucket}
+                分析联动过滤：{maskMode(analysisFilter.mode)} · {labels.conf.short} {analysisFilter.confBucket} · Odds {analysisFilter.oddsBucket}
               </span>
               <button
                 onClick={() => {
@@ -5230,7 +5234,7 @@ export default function ComboPage({ openModal }) {
                       })()}
                     </div>
                     <div className="flex items-center gap-3 mt-0.5 text-xs text-stone-400">
-                      <span>Conf <span className="font-medium text-stone-500">{item.conf.toFixed(2)}</span></span>
+                      <span>{labels.conf.short} <span className="font-medium text-stone-500">{item.conf.toFixed(2)}</span></span>
                       <span>Odds <span className="font-medium italic text-stone-500">{item.odds.toFixed(2)}</span></span>
                       <span className={`font-medium ${item.adjustedEvPercent >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                         EV {formatPercent(item.adjustedEvPercent)}
@@ -6398,7 +6402,7 @@ export default function ComboPage({ openModal }) {
                         </div>
                         <div className="mt-2 flex flex-wrap gap-1.5 text-[9px]">
                           <span className="px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-500">相关 {item.explain.corr.toFixed(2)}</span>
-                          <span className="px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-500">Conf均 {item.explain.confAvg.toFixed(2)}</span>
+                          <span className="px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-500">{labels.conf.short}均 {item.explain.confAvg.toFixed(2)}</span>
                           {item.explain.avgSurplus != null && (
                             <span className={`px-1.5 py-0.5 rounded-md ${item.explain.avgSurplus >= 0.04 ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500'}`}>
                               边际 {item.explain.avgSurplus >= 0 ? '+' : ''}{(item.explain.avgSurplus * 100).toFixed(1)}pp
@@ -6579,7 +6583,7 @@ export default function ComboPage({ openModal }) {
                     <span>Sharpe: <span className="font-semibold text-violet-600">{item.sharpe}</span></span>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]">
-                    <span className="px-1.5 py-0.5 rounded-full bg-stone-200/70 text-stone-600">Conf {item.explain.confAvg.toFixed(2)}</span>
+                    <span className="px-1.5 py-0.5 rounded-full bg-stone-200/70 text-stone-600">{labels.conf.short} {item.explain.confAvg.toFixed(2)}</span>
                     <span className="px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">盈利 {item.explain.profitWinPct.toFixed(1)}%</span>
                     <span className={`px-1.5 py-0.5 rounded-full ${item.explain.calibGainPp >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-600'}`}>
                       校准 {item.explain.calibGainPp >= 0 ? '+' : ''}{item.explain.calibGainPp.toFixed(1)}pp

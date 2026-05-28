@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { getAnalysisSnapshot, getDashboardSnapshot, getMetricsSnapshot } from '../lib/analytics'
 import { getInvestments } from '../lib/localData'
 import TimeRangePicker from '../components/TimeRangePicker'
+import { useLabels } from '../lib/labels'
+import { useModeLabelMap } from '../components/ModeLabel'
 
 const PERIOD_LABELS = {
   '1w': '近一周',
@@ -634,10 +636,10 @@ const PaginatedMatchTable = ({ rows }) => {
             <th className="py-2">日期</th>
             <th className="py-2">比赛</th>
             <th className="py-2">Mode</th>
-            <th className="py-2">Conf</th>
+            <th className="py-2">{labels.conf.short}</th>
             <th className="py-2">AJR</th>
             <th className="py-2">赔率</th>
-            <th className="py-2">REP</th>
+            <th className="py-2">{labels.rep.short}</th>
             <th className="py-2">ROI</th>
           </tr>
         </thead>
@@ -646,7 +648,7 @@ const PaginatedMatchTable = ({ rows }) => {
             <tr key={row.id} className="border-b border-stone-100">
               <td className="py-2 text-stone-500">{row.dateLabel}</td>
               <td className="py-2 text-stone-700">{row.match}</td>
-              <td className="py-2 text-stone-600">{row.mode}</td>
+              <td className="py-2 text-stone-600">{maskMode(row.mode)}</td>
               <td className={`py-2 font-medium ${getConfColor(row.conf)}`}>{Number.isFinite(row.conf) ? row.conf.toFixed(2) : '-'}</td>
               <td className={`py-2 font-medium ${getAJRColor(row.ajr)}`}>{Number.isFinite(row.ajr) ? row.ajr.toFixed(2) : '-'}</td>
               <td className="py-2 text-violet-600 italic font-semibold">{Number.isFinite(row.odds) ? row.odds.toFixed(2) : '-'}</td>
@@ -708,6 +710,8 @@ const BundleUnitCards = ({ records }) => (
 
 export default function AnalysisPage({ openModal }) {
   const navigate = useNavigate()
+  const labels = useLabels()
+  const maskMode = useModeLabelMap()
   const [analysisTab, setAnalysisTab] = useState('combo')
   const [expandedLeague, setExpandedLeague] = useState(null)
   const [leaguePages, setLeaguePages] = useState({})
@@ -1039,7 +1043,7 @@ export default function AnalysisPage({ openModal }) {
       return (
         <div className="space-y-4">
           <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-200">
-            <span className="text-sm font-medium text-stone-700">Conf 区间 {confRange}</span>
+            <span className="text-sm font-medium text-stone-700">{labels.conf.short} 区间 {confRange}</span>
             <span className="text-xs text-stone-500">{rows.length} 条样本</span>
           </div>
           <table className="w-full text-sm">
@@ -1049,7 +1053,7 @@ export default function AnalysisPage({ openModal }) {
                 <th className="py-2">比赛</th>
                 <th className="py-2">entry</th>
                 <th className="py-2">result</th>
-                <th className="py-2">Conf</th>
+                <th className="py-2">{labels.conf.short}</th>
                 <th className="py-2">AJR</th>
                 <th className="py-2">ROI</th>
               </tr>
@@ -1103,10 +1107,10 @@ export default function AnalysisPage({ openModal }) {
               <tr className="border-b border-stone-200 text-left text-stone-500">
                 <th className="py-2">日期</th>
                 <th className="py-2">比赛</th>
-                <th className="py-2">Conf</th>
+                <th className="py-2">{labels.conf.short}</th>
                 <th className="py-2">AJR</th>
                 <th className="py-2">Odds</th>
-                <th className="py-2">REP</th>
+                <th className="py-2">{labels.rep.short}</th>
                 <th className="py-2">ROI</th>
               </tr>
             </thead>
@@ -1381,7 +1385,7 @@ export default function AnalysisPage({ openModal }) {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-stone-200 text-left text-stone-500">
-                    <th className="py-2 pr-3 min-w-[80px]">Conf</th>
+                    <th className="py-2 pr-3 min-w-[80px]">{labels.conf.short}</th>
                     {ADVANTAGE_ODDS_BUCKETS.map((bucket) => (
                       <th key={`adv-odds-${bucket}`} className="py-2 px-1 min-w-[90px] text-center font-medium">
                         {bucket}
@@ -1684,7 +1688,7 @@ export default function AnalysisPage({ openModal }) {
                   onClick={() => openModeHistoryDetail(row.mode)}
                   className="motion-v2-row motion-v2-selectable border-b border-stone-100 hover:bg-stone-50 cursor-pointer"
                 >
-                  <td className="py-3 font-medium text-stone-700">{row.mode}</td>
+                  <td className="py-3 font-medium text-stone-700">{maskMode(row.mode)}</td>
                   <td className="py-3 text-stone-600">{row.samples}</td>
                   <td className={`py-3 font-medium ${row.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>{signed(row.roi, 1, '%')}</td>
                   <td className="py-3 text-stone-600">{row.hitRate.toFixed(1)}%</td>
@@ -1736,7 +1740,7 @@ export default function AnalysisPage({ openModal }) {
       {analysisTab === 'conf' && (
         <div className="motion-v2-surface glow-card bg-white rounded-2xl p-6 border border-stone-100">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium text-stone-700">Conf 区间分析</h3>
+            <h3 className="font-medium text-stone-700">{labels.conf.short} 区间分析</h3>
             <span className="text-xs text-stone-400">点击区间查看样本历史</span>
           </div>
           <div className="grid grid-cols-6 gap-3">
@@ -1782,7 +1786,7 @@ export default function AnalysisPage({ openModal }) {
                     S5/S6
                   </span>
                 </div>
-                <p className="text-sm text-stone-500 mt-1.5">Conf、FSE 等参数按时序衰减加权，近期样本优先影响最终评分。</p>
+                <p className="text-sm text-stone-500 mt-1.5">{labels.conf.short}、{labels.fse.short} 等参数按时序衰减加权，近期样本优先影响最终评分。</p>
               </div>
               <div className={`min-w-[150px] rounded-xl border px-3 py-2.5 backdrop-blur-sm shadow-[0_8px_18px_rgba(14,165,233,0.1)] ${recencyRegime.panelClass}`}>
                 <p className="text-[10px] text-stone-400 uppercase tracking-[0.12em]">Regime</p>
@@ -1899,7 +1903,7 @@ export default function AnalysisPage({ openModal }) {
               <p className="text-lg font-semibold text-stone-800">{deepData.leagueRows.length} 个联赛</p>
             </div>
             <div className="motion-v2-row p-3 rounded-xl bg-stone-50">
-              <p className="text-xs text-stone-400">Conf 分层样本</p>
+              <p className="text-xs text-stone-400">{labels.conf.short} 分层样本</p>
               <p className="text-lg font-semibold text-stone-800">{deepData.confRows.reduce((sum, row) => sum + row.samples, 0)}</p>
             </div>
             <div className="motion-v2-row p-3 rounded-xl bg-stone-50">
