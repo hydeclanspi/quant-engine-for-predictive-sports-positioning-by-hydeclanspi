@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ShieldCheck, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { issueMockUnlockToken, unlockWithToken } from '../lib/displayMode'
 
 /**
@@ -92,12 +92,14 @@ export default function UnlockModal({ open, onClose, onUnlock }) {
     onClose?.()
   }
 
+  const handleBackdropClick = (event) => {
+    if (event.target === event.currentTarget) onClose?.()
+  }
+
   return (
     <div
       className="unlock-modal-backdrop"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose?.()
-      }}
+      onClick={handleBackdropClick}
     >
       <form
         onSubmit={handleSubmit}
@@ -109,17 +111,16 @@ export default function UnlockModal({ open, onClose, onUnlock }) {
           className="unlock-modal-close"
           aria-label="关闭"
         >
-          <X size={14} strokeWidth={2} />
+          <X size={15} strokeWidth={1.8} />
         </button>
 
-        <div className="unlock-modal-icon-wrap">
-          <ShieldCheck size={22} strokeWidth={1.6} />
-        </div>
-
-        <div className="unlock-modal-heading">
-          <h2 className="unlock-modal-title">Unlock Full Mode</h2>
-          <p className="unlock-modal-subtitle">
-            输入密码以解锁完整产品。预览模式下展示的是脱敏样例数据。
+        <div className="unlock-modal-intro">
+          <div className="unlock-modal-eyebrow">Demo Mode · Preview</div>
+          <p className="unlock-modal-copy">
+            你正在浏览预览版本。模型参数与历史记录均已脱敏化处理，仅用于展示产品形态与算法能力。
+          </p>
+          <p className="unlock-modal-copy unlock-modal-copy-muted">
+            输入密码可解锁完整产品，访问真实数据与全部参数命名。
           </p>
         </div>
 
@@ -150,11 +151,6 @@ export default function UnlockModal({ open, onClose, onUnlock }) {
             </>
           )}
         </button>
-
-        <div className="unlock-modal-foot">
-          <span className="unlock-modal-foot-dot" />
-          <span>本次会话有效 · 关闭浏览器自动恢复预览模式</span>
-        </div>
       </form>
     </div>
   )

@@ -3077,8 +3077,8 @@
 .unlock-modal-card {
   position: relative;
   width: 100%;
-  max-width: 360px;
-  padding: 30px 28px 24px;
+  max-width: 380px;
+  padding: 36px 30px 26px;
   border-radius: 18px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(252, 252, 254, 0.98) 100%);
   border: 1px solid rgba(229, 231, 235, 0.92);
@@ -3089,71 +3089,69 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  text-align: center;
+  text-align: left;
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   animation: pmModalCardEnter 360ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .unlock-modal-close {
   position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 26px;
-  height: 26px;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  color: #a3a3a3;
+  color: #737373;
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: background 180ms ease, color 180ms ease;
+  transition: background 180ms ease, color 180ms ease, border-color 180ms ease;
 }
 
 .unlock-modal-close:hover {
   background: #f5f5f5;
-  color: #525252;
-}
-
-.unlock-modal-icon-wrap {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  margin: 0 auto 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 45%, #cffafe 100%);
-  color: #0d9488;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    0 6px 18px -8px rgba(20, 184, 166, 0.4);
-}
-
-.unlock-modal-heading {
-  margin-bottom: 20px;
-}
-
-.unlock-modal-title {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.2px;
   color: #171717;
-  margin: 0 0 6px;
+  border-color: #e5e7eb;
 }
 
-.unlock-modal-subtitle {
-  font-size: 12px;
+.unlock-modal-intro {
+  margin-bottom: 22px;
+}
+
+.unlock-modal-eyebrow {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #0d9488;
+  margin-bottom: 12px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 1px solid rgba(20, 184, 166, 0.22);
+}
+
+.unlock-modal-copy {
+  font-size: 12.5px;
   font-weight: 400;
+  color: #404040;
+  line-height: 1.6;
+  margin: 0 0 8px;
+  letter-spacing: 0.1px;
+}
+
+.unlock-modal-copy-muted {
   color: #737373;
-  line-height: 1.55;
-  margin: 0;
-  padding: 0 6px;
+  font-size: 11.5px;
+  margin-bottom: 0;
 }
 
 .unlock-modal-field {
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   text-align: left;
 }
 
@@ -3246,25 +3244,6 @@
   border: 2px solid rgba(255, 255, 255, 0.25);
   border-top-color: rgba(255, 255, 255, 0.9);
   animation: pmSpin 720ms linear infinite;
-}
-
-.unlock-modal-foot {
-  margin-top: 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.2px;
-  color: #a3a3a3;
-}
-
-.unlock-modal-foot-dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #d4d4d8;
 }
 
 .unlock-modal-shake {
