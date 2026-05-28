@@ -16,6 +16,7 @@ import {
 import { parseNaturalInput } from '../lib/naturalInputParser'
 import { useLabels } from '../lib/labels'
 import { useModeLabelMap } from '../components/ModeLabel'
+import { useDisplayMode, PREVIEW_MODE } from '../lib/displayMode'
 
 const MODE_OPTIONS = ['常规', '常规-稳', '常规-杠杆', '半彩票半保险', '保险产品', '赌一把']
 
@@ -233,6 +234,8 @@ export default function NewInvestmentPage() {
   const navigate = useNavigate()
   const labels = useLabels()
   const maskMode = useModeLabelMap()
+  const displayMode = useDisplayMode()
+  const isPreview = displayMode === PREVIEW_MODE
   const [dataVersion, setDataVersion] = useState(0)
   const [parlaySize, setParlaySize] = useState(1)
   const [matches, setMatches] = useState([createEmptyMatch()])
@@ -980,6 +983,7 @@ export default function NewInvestmentPage() {
         <p className="text-stone-400 text-sm mt-1.5 leading-relaxed">录入比赛信息与预测参数 · Record match predictions & calibration parameters</p>
       </div>
 
+      {!isPreview && (
       <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 p-4 mb-5">
         <button
           onClick={() => setQuickInputOpen((prev) => !prev)}
@@ -1041,6 +1045,7 @@ export default function NewInvestmentPage() {
           </div>
         )}
       </div>
+      )}
 
       <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden">
         <div className="px-6 py-5 border-b border-stone-100 bg-stone-50/50">

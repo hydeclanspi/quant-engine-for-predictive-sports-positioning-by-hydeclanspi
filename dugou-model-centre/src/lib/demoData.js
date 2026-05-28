@@ -460,18 +460,47 @@ const buildShowcaseSamples = () => {
   return [sampleA, sampleB, sampleC]
 }
 
-// ── Pending preset bundles ─────────────────────────────────────────
-// Three pending investments featuring high-profile fixtures so the
-// preview Portfolio / Settle / History pages have something curated
-// and recognisable waiting in the queue. The 4-leg bundle becomes
-// the ComboPage candidate pool (provides four match candidates); the
-// two 2-leg bundles add depth to the Settle list and to the
-// "expandable first row" of History.
-const buildPendingPresets = () => {
-  const dateIso = '2025-12-30T19:00:00.000Z'
+// ── Marquee fixtures ───────────────────────────────────────────────
+// The four highlight matchups (Arsenal-Liverpool, Man City-Chelsea,
+// Barca-Real, Bayern-PSG) appear in two places:
+//   1) Three SETTLED bundles in History, with realistic results — the
+//      4-leg combo demonstrates the canonical "3-correct-1-incorrect
+//      anchor failure" pattern that motivates the fragility heatmap.
+//   2) FOUR fresh PENDING single-match investments — these are the
+//      "upcoming gameweek" candidates that populate the ComboPage
+//      portfolio surface in preview mode.
 
-  const makePendingMatch = (idSuffix, fields) => ({
-    id: `demo_inv_pending_${idSuffix}`,
+const MARQUEE_FIXTURES = {
+  arsenalLiverpool: {
+    home: '阿森纳', away: '利物浦', entry: '主胜', odds: 2.45,
+    conf: 0.58, mode: '常规',
+    tysHome: 'M', tysAway: 'H', fid: 0.5, fseHome: 0.64, fseAway: 0.68,
+    note: '伦敦德比红军客场',
+  },
+  mancityChelsea: {
+    home: '曼城', away: '切尔西', entry: '主胜', odds: 1.85,
+    conf: 0.68, mode: '常规-杠杆',
+    tysHome: 'H', tysAway: 'M', fid: 0.6, fseHome: 0.74, fseAway: 0.62,
+    note: '伊蒂哈德主场强度差距明显',
+  },
+  barcaReal: {
+    home: '巴萨', away: '皇马', entry: '主胜', odds: 2.80,
+    conf: 0.52, mode: '半彩票半保险',
+    tysHome: 'L', tysAway: 'H', fid: 0.5, fseHome: 0.66, fseAway: 0.72,
+    note: '国家德比 · 历史相互克制',
+  },
+  bayernPsg: {
+    home: '拜仁', away: '巴黎圣日耳曼', entry: '主胜', odds: 2.20,
+    conf: 0.62, mode: '常规',
+    tysHome: 'H', tysAway: 'L', fid: 0.5, fseHome: 0.70, fseAway: 0.60,
+    note: '欧冠淘汰赛 · 安联球场主场加成',
+  },
+}
+
+const makeMarqueeMatch = (idSuffix, fields, outcome) => {
+  // outcome: { results, isCorrect, matchRating, matchRep?, postNote? }
+  return {
+    id: `demo_inv_marquee_${idSuffix}`,
     home_team: fields.home,
     away_team: fields.away,
     entries: [{ name: fields.entry, odds: fields.odds }],
@@ -486,108 +515,155 @@ const buildPendingPresets = () => {
     fse_away: fields.fseAway,
     fse_match: round2(Math.sqrt(fields.fseHome * fields.fseAway)),
     note: fields.note || '',
-    results: '',
-    is_correct: null,
-    match_rating: 0,
-    match_rep: null,
-    post_note: '',
-  })
+    results: outcome.results,
+    is_correct: outcome.isCorrect,
+    match_rating: outcome.matchRating,
+    match_rep: outcome.matchRep ?? null,
+    post_note: outcome.postNote || '',
+  }
+}
 
-  const arsenalLiverpool = {
-    home: '阿森纳', away: '利物浦', entry: '主胜', odds: 2.45,
-    conf: 0.58, mode: '常规',
-    tysHome: 'M', tysAway: 'H', fid: 0.5, fseHome: 0.64, fseAway: 0.68,
-    note: '伦敦德比红军客场',
+// ── Settled marquee bundles (History) ──────────────────────────────
+const buildMarqueeSettled = () => {
+  const dateIso = '2025-12-30T19:00:00.000Z'
+
+  // Outcomes — designed so the 4-leg follows the "anchor-failure"
+  // narrative: three legs hit, one fails on a high-variance result.
+  // 阿森纳 vs 利物浦 → 主胜 (correct)
+  // 曼城 vs 切尔西 → 主胜 (correct)
+  // 巴萨 vs 皇马 → 客胜 (INCORRECT — Real Madrid stole the derby)
+  // 拜仁 vs 巴黎 → 主胜 (correct)
+  const arsenalLiverpoolOutcome = {
+    results: '2-1', isCorrect: true, matchRating: 0.66, postNote: '萨利巴关键解围',
   }
-  const mancityChelsea = {
-    home: '曼城', away: '切尔西', entry: '主胜', odds: 1.85,
-    conf: 0.68, mode: '常规-杠杆',
-    tysHome: 'H', tysAway: 'M', fid: 0.6, fseHome: 0.74, fseAway: 0.62,
-    note: '伊蒂哈德主场强度差距明显',
+  const mancityChelseaOutcome = {
+    results: '3-1', isCorrect: true, matchRating: 0.72, postNote: '哈兰德梅开二度',
   }
-  const barcaReal = {
-    home: '巴萨', away: '皇马', entry: '主胜', odds: 2.80,
-    conf: 0.52, mode: '半彩票半保险',
-    tysHome: 'L', tysAway: 'H', fid: 0.5, fseHome: 0.66, fseAway: 0.72,
-    note: '国家德比 · 历史相互克制',
+  const barcaRealOutcome = {
+    results: '1-2', isCorrect: false, matchRating: 0.22, matchRep: 1.4,
+    postNote: '维尼修斯 89 分钟绝杀 · 模型置信度 0.52 显然偏低',
   }
-  const bayernPsg = {
-    home: '拜仁', away: '巴黎圣日耳曼', entry: '主胜', odds: 2.20,
-    conf: 0.62, mode: '常规',
-    tysHome: 'H', tysAway: 'L', fid: 0.5, fseHome: 0.70, fseAway: 0.60,
-    note: '欧冠淘汰赛 · 安联球场主场加成',
+  const bayernPsgOutcome = {
+    results: '2-0', isCorrect: true, matchRating: 0.70, postNote: '凯恩 + 穆夏拉锁定胜局',
   }
 
-  // #1 — Four-leg "Marquee Week" bundle (drives ComboPage candidates)
+  // #1 — 4-leg Marquee Week: anchor failure (3 win, 1 loss → overall lose)
   const fourLeg = {
-    id: 'demo_inv_pending_marquee',
+    id: 'demo_inv_marquee_4leg',
     created_at: dateIso,
     parlay_size: 4,
     inputs: 6,
     suggested_amount: 6,
     expected_rating: 0.60,
     combined_odds: roundOdds(2.45 * 1.85 * 2.80 * 2.20),
-    status: 'pending',
+    status: 'lose',
     revenues: 0,
-    profit: 0,
-    actual_rating: 0,
-    rep: null,
-    remarks: '本周豪门重头戏 · 四场一并打包',
+    profit: -6,
+    actual_rating: round2((0.66 + 0.72 + 0.22 + 0.70) / 4),
+    rep: 1.4,
+    remarks: '四中三 · 巴萨翻车导致全军覆没 · 锚定失败典型案例',
     matches: [
-      makePendingMatch('marquee_m1', arsenalLiverpool),
-      makePendingMatch('marquee_m2', mancityChelsea),
-      makePendingMatch('marquee_m3', barcaReal),
-      makePendingMatch('marquee_m4', bayernPsg),
+      makeMarqueeMatch('4leg_m1', MARQUEE_FIXTURES.arsenalLiverpool, arsenalLiverpoolOutcome),
+      makeMarqueeMatch('4leg_m2', MARQUEE_FIXTURES.mancityChelsea, mancityChelseaOutcome),
+      makeMarqueeMatch('4leg_m3', MARQUEE_FIXTURES.barcaReal, barcaRealOutcome),
+      makeMarqueeMatch('4leg_m4', MARQUEE_FIXTURES.bayernPsg, bayernPsgOutcome),
     ],
   }
 
-  // #2 — 2-leg English subset
+  // #2 — 2-leg English: both hit → win
+  const englishWinPnL = roundOdds(12 * (2.45 * 1.85) - 12)
   const twoLegEnglish = {
-    id: 'demo_inv_pending_english',
+    id: 'demo_inv_marquee_2leg_eng',
     created_at: dateIso,
     parlay_size: 2,
     inputs: 12,
     suggested_amount: 12,
     expected_rating: 0.63,
     combined_odds: roundOdds(2.45 * 1.85),
-    status: 'pending',
-    revenues: 0,
-    profit: 0,
-    actual_rating: 0,
+    status: 'win',
+    revenues: roundOdds(12 * 2.45 * 1.85),
+    profit: englishWinPnL,
+    actual_rating: 0.69,
     rep: null,
-    remarks: '英超双串 · 主场优势叠加',
+    remarks: '英超双串完美收割 · 主场优势叠加',
     matches: [
-      makePendingMatch('english_m1', arsenalLiverpool),
-      makePendingMatch('english_m2', mancityChelsea),
+      makeMarqueeMatch('2leg_eng_m1', MARQUEE_FIXTURES.arsenalLiverpool, arsenalLiverpoolOutcome),
+      makeMarqueeMatch('2leg_eng_m2', MARQUEE_FIXTURES.mancityChelsea, mancityChelseaOutcome),
     ],
   }
 
-  // #3 — 2-leg Continental subset
+  // #3 — 2-leg Continental: 1 win 1 lose → overall lose
   const twoLegContinental = {
-    id: 'demo_inv_pending_continental',
+    id: 'demo_inv_marquee_2leg_eu',
     created_at: dateIso,
     parlay_size: 2,
     inputs: 8,
     suggested_amount: 8,
     expected_rating: 0.57,
     combined_odds: roundOdds(2.80 * 2.20),
-    status: 'pending',
+    status: 'lose',
     revenues: 0,
-    profit: 0,
-    actual_rating: 0,
-    rep: null,
-    remarks: '欧陆经典 · 国家德比 × 欧冠对决',
+    profit: -8,
+    actual_rating: round2((0.22 + 0.70) / 2),
+    rep: 1.4,
+    remarks: '欧陆经典 · 拜仁赢球 / 巴萨被绝杀 · 串联失败',
     matches: [
-      makePendingMatch('continental_m1', barcaReal),
-      makePendingMatch('continental_m2', bayernPsg),
+      makeMarqueeMatch('2leg_eu_m1', MARQUEE_FIXTURES.barcaReal, barcaRealOutcome),
+      makeMarqueeMatch('2leg_eu_m2', MARQUEE_FIXTURES.bayernPsg, bayernPsgOutcome),
     ],
   }
 
   return [fourLeg, twoLegEnglish, twoLegContinental]
 }
 
+// ── Pending marquee singles (Portfolio candidates) ─────────────────
+// Four fresh single-match pending investments featuring the same
+// matchups for "next gameweek". These provide ComboPage with exactly
+// four candidate matches and Settle with four entries waiting to be
+// recorded. By keeping them as separate single-match investments
+// (rather than one bundle), the ComboPage candidate list is exactly
+// these four — no extras, no dedup issues.
+const buildPendingPresets = () => {
+  const dateIso = '2026-01-04T19:00:00.000Z'
+
+  const pendingFields = (fields) => ({
+    home: fields.home, away: fields.away, entry: fields.entry, odds: fields.odds,
+    conf: fields.conf, mode: fields.mode,
+    tysHome: fields.tysHome, tysAway: fields.tysAway, fid: fields.fid,
+    fseHome: fields.fseHome, fseAway: fields.fseAway, note: fields.note,
+  })
+
+  const pendingOutcome = {
+    results: '', isCorrect: null, matchRating: 0, matchRep: null, postNote: '',
+  }
+
+  const buildSingle = (id, fields, suggested) => ({
+    id,
+    created_at: dateIso,
+    parlay_size: 1,
+    inputs: suggested,
+    suggested_amount: suggested,
+    expected_rating: round2(fields.conf * 0.85),
+    combined_odds: fields.odds,
+    status: 'pending',
+    revenues: 0,
+    profit: 0,
+    actual_rating: 0,
+    rep: null,
+    remarks: fields.note,
+    matches: [makeMarqueeMatch(`${id}_m1`, fields, pendingOutcome)],
+  })
+
+  return [
+    buildSingle('demo_inv_pending_arsliv', pendingFields(MARQUEE_FIXTURES.arsenalLiverpool), 10),
+    buildSingle('demo_inv_pending_mcich', pendingFields(MARQUEE_FIXTURES.mancityChelsea), 14),
+    buildSingle('demo_inv_pending_barrm', pendingFields(MARQUEE_FIXTURES.barcaReal), 8),
+    buildSingle('demo_inv_pending_baypsg', pendingFields(MARQUEE_FIXTURES.bayernPsg), 12),
+  ]
+}
+
 // ── Top-level bundle builder ───────────────────────────────────────
-const TOTAL_GENERATED = 72 // + 3 showcase + 3 pending presets = 78 total
+const TOTAL_GENERATED = 72 // + 3 showcase + 3 settled marquee + 4 pending singles = 82 total
 
 const buildBundle = () => {
   // Generate evenly-spaced timestamps across the window with slight jitter.
@@ -604,9 +680,13 @@ const buildBundle = () => {
   // them in the right chronological slot).
   investments.push(...buildShowcaseSamples())
 
-  // Inject pending presets — these are the curated "upcoming fixtures"
-  // (Arsenal-Liverpool, Man City-Chelsea, Barca-Real, Bayern-PSG) that
-  // populate Portfolio candidates and Settle queue in preview mode.
+  // Inject settled marquee bundles — Arsenal-Liverpool / Man City-
+  // Chelsea / Barca-Real / Bayern-PSG fixtures with realistic results,
+  // including the 4-leg anchor-failure showcase.
+  investments.push(...buildMarqueeSettled())
+
+  // Inject pending singles for the next gameweek — these become the
+  // four ComboPage portfolio candidates and the four Settle entries.
   investments.push(...buildPendingPresets())
 
   // Sort chronologically.

@@ -494,18 +494,24 @@ export default function HistoryPage() {
   const [ajrFilter, setAjrFilter] = useState('all')
   const [refreshKey, setRefreshKey] = useState(0)
   const [pendingUndo, setPendingUndo] = useState(null)
-  // In preview mode, pre-expand the most recent investment so visitors
-  // can immediately see a fully-populated row without having to click.
+  // In preview mode, pre-expand the most recent *settled combo* so
+  // visitors land on a fully-populated row showing real match results.
+  // Falls back to the most recent investment of any kind if no combo
+  // is present in the dataset.
   const previewInitialExpansion = useMemo(() => {
     if (!isPreviewMode()) return { combo: {}, solo: {} }
     const investments = getInvestments()
     if (!investments || investments.length === 0) return { combo: {}, solo: {} }
-    const mostRecent = [...investments].sort(
+    const sorted = [...investments].sort(
       (a, b) => new Date(b.created_at) - new Date(a.created_at),
-    )[0]
-    if (!mostRecent) return { combo: {}, solo: {} }
-    if ((mostRecent.parlay_size || 1) > 1) return { combo: { [mostRecent.id]: true }, solo: {} }
-    return { combo: {}, solo: { [mostRecent.id]: true } }
+    )
+    const settledCombo = sorted.find(
+      (i) => (i.parlay_size || 1) > 1 && i.status !== 'pending',
+    )
+    const target = settledCombo || sorted[0]
+    if (!target) return { combo: {}, solo: {} }
+    if ((target.parlay_size || 1) > 1) return { combo: { [target.id]: true }, solo: {} }
+    return { combo: {}, solo: { [target.id]: true } }
   }, [])
   const [expandedComboIds, setExpandedComboIds] = useState(previewInitialExpansion.combo)
   const [expandedSoloIds, setExpandedSoloIds] = useState(previewInitialExpansion.solo)
