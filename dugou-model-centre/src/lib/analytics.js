@@ -1,4 +1,75 @@
-import { findTeamProfile, getInvestments, getSystemConfig, getTeamProfiles } from './localData'
+/**
+ * ============================================================================
+ *  analytics.js — DuGou 量化分析引擎（Quantitative Analytics Engine）
+ * ============================================================================
+ *
+ * 本模块是整套系统的"大脑"：把每一笔历史投注（matches / combos）转换成
+ * 可决策的量化指标，并为各页面（看板 / 分析 / 指标 / 参数标定 / 组合构建）
+ * 提供统一的派生数据源。所有函数均为纯函数式：输入历史数据，输出结构化结果，
+ * 不产生副作用（缓存除外，见下文）。
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ *  计算管线（Pipeline）—— 数据自上而下流动
+ * ────────────────────────────────────────────────────────────────────────
+ *  1. 归一化 (Normalize)
+ *     - 清洗赔率 / 期望 / 模式标签，统一盘口语义（见 entryParsing.js）。
+ *     - normalizeAjrForModel / toNumber / clamp 等原语保证数值健壮性。
+ *
+ *  2. 加权统计 (Weighted Aggregation)
+ *     - 样本量信心权重（对数曲线）、近因时间衰减（4 档）、市场隐含失败率。
+ *     - 输出命中率、ROI、期望-实际偏差等基础聚合量。
+ *
+ *  3. 凯利与仓位 (Kelly Staking)
+ *     - calcKellyStake：分数凯利 + 风险上限夹逼，与 ComboPage 生产公式对齐。
+ *     - 按模式（保守 / 杠杆 …）分桶给出建议注码矩阵。
+ *
+ *  4. 蒙特卡洛仿真 (Monte-Carlo Simulation)
+ *     - buildMonteCarloSeed → createSeededRng：可复现的 mulberry32 RNG，
+ *       同一份历史数据每次得到完全一致的随机序列（便于回归与对照）。
+ *     - resolveMonteCarloRuns：按样本量在运算预算内动态决定运行次数。
+ *
+ *  5. 模型校验 (Validation & Calibration)
+ *     - 预测序贯（prequential）切分回测、校准回归（拟合度 R²）、
+ *       依赖风险溢价 / 脆弱性评分（二项检验 + 互补误差函数 erfc）。
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ *  记忆化缓存系统（Memoization）—— 见下方 analyticsMemo
+ * ────────────────────────────────────────────────────────────────────────
+ *  分析计算偏重 CPU（蒙特卡洛、矩阵、回归），页面间又会重复请求同一结果。
+ *  为此采用三段式缓存：
+ *    (a) 修订号失效：任何写操作触发 bumpAnalyticsRevision()，revision++ 即
+ *        让所有旧缓存键自然作废（缓存键以 revision 为前缀）。
+ *    (b) 领域事件驱动：监听 window 上的 'dugou:data-changed' 事件，数据一旦
+ *        变化即清空缓存——跨标签页 / 跨组件解耦。
+ *    (c) 作用域分桶：每个计算域（dashboard / analysis / kellyMatrix …）各自
+ *        一个 Map，键由 getRevisionCacheKey(scope, suffix) 生成，互不污染。
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ *  共享类型（JSDoc typedefs）
+ * ────────────────────────────────────────────────────────────────────────
+ *
+ * @typedef {Object} MatchRecord 单场比赛记录（组合的一条腿）
+ * @property {number}  odds         赔率（>1）
+ * @property {boolean} [result]     是否命中（undefined = 尚未结算）
+ * @property {number}  [expected]   模型期望胜率 [0,1]
+ * @property {string}  [createdAt]  ISO 时间戳
+ *
+ * @typedef {Object} ComboRecord 一笔投注组合（可含多腿，即"串关"）
+ * @property {MatchRecord[]} matches     组合内各腿
+ * @property {boolean}       [succeeded] 整串是否兑付
+ * @property {number}        [inputs]    本金
+ * @property {number}        [profit]    盈亏
+ * @property {string}        [createdAt] ISO 时间戳
+ *
+ * @typedef {Object} KellyConfig 凯利仿真配置
+ * @property {number} initialCapital 起始资金
+ * @property {number} riskCapRatio   单笔风险上限占比 [0,1]
+ * @property {number} [defaultOdds]  缺省赔率
+ *
+ * @module analytics
+ */
+
+import { findTeamProfile, getInvestments, getSystemConfig, getTeamProfiles, saveSystemConfig } from './localData'
 import { getPrimaryEntryMarket } from './entryParsing'
 import { lookupTeam } from './teamDatabase'
 
@@ -23,6 +94,16 @@ const PREQUENTIAL_MIN_TEST_MATCHES = 7
 const ANALYTICS_CACHE_EVENT = 'dugou:data-changed'
 const ANALYTICS_CACHE_HANDLER_KEY = '__dugouAnalyticsCacheInvalidator__'
 
+/**
+ * 全局记忆化缓存。每个字段是一个独立的"计算域"Map，缓存键统一由
+ * getRevisionCacheKey(scope, suffix) 生成（含 revision 前缀）。
+ *
+ * 失效策略见文件顶部 Banner：
+ *   - revision++（bumpAnalyticsRevision）让所有旧键一次性作废；
+ *   - 'dugou:data-changed' 事件触发清空（clearAnalyticsMemo）。
+ *
+ * @type {{ revision: number } & Record<string, Map<string, unknown>>}
+ */
 const analyticsMemo = {
   revision: 0,
   modeKelly: new Map(),
@@ -82,7 +163,7 @@ const formatDate = (value) => {
 
 const normalize = (value) => String(value || '').trim().toLowerCase()
 const normalizeMode = (mode) => MODE_ALIAS[mode] || mode
-const isActiveInvestment = (item) => !Boolean(item?.is_archived)
+const isActiveInvestment = (item) => !item?.is_archived
 const getActiveInvestments = () => getInvestments().filter(isActiveInvestment)
 const getWeightFactor = (value, fallback = 0.06) => clamp(toNumber(value, fallback), 0.01, 1.5)
 
@@ -5628,10 +5709,14 @@ export const calculateBinomialPValue = (observedFailures, totalTrials, expectedP
 }
 
 /**
- * 互补误差函数（Complementary Error Function）简化计算
+ * 互补误差函数（Complementary Error Function）。
+ *
+ * 使用 Abramowitz & Stegun 公式 7.1.26 的多项式近似（最大绝对误差 ≈ 1.5e-7）。
+ * 对于 x ≥ 0：erfc(x) = (a1·t + … + a5·t⁵)·e^(−x²)，其中 t = 1/(1+p·x)。
+ * 对于 x < 0：利用对称性 erfc(−x) = 2 − erfc(x)。
  *
  * @param {number} x
- * @returns {number}
+ * @returns {number} erfc(x)，取值范围 [0, 2]
  */
 const erfc = (x) => {
   const a1 = 0.254829592
@@ -5641,13 +5726,12 @@ const erfc = (x) => {
   const a5 = 1.061405429
   const p = 0.3275911
 
-  const sign = x < 0 ? 1 : -1
-  const absx = Math.abs(x)
+  const z = Math.abs(x)
+  const t = 1.0 / (1.0 + p * z)
+  // erfc(|x|) —— 注意这里直接得到的是互补误差函数本身，而非 erf。
+  const erfcAbs = ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-z * z)
 
-  const t = 1.0 / (1.0 + p * absx)
-  const y = 1.0 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-absx * absx)
-
-  return sign === 1 ? y : 2.0 - y
+  return x >= 0 ? erfcAbs : 2.0 - erfcAbs
 }
 
 /**
@@ -6255,4 +6339,22 @@ export const generateFragilityRecommendations = (matchGroup = [], pairAnalysis =
   }
 
   return recommendations
+}
+
+/**
+ * 内部纯函数测试钩子（test-only）。
+ *
+ * 这些函数是仿真引擎的核心数值原语（Kelly 注码、蒙特卡洛种子与
+ * 可复现 RNG、运行次数预算），属于模块私有实现，不应在业务代码中
+ * 直接引用。此处集中导出仅供单元测试针对纯数学逻辑做白盒验证，
+ * 从而锁定回归。请勿在 UI / 页面层 import 本对象。
+ */
+export const __testables = {
+  calcKellyStake,
+  resolveMonteCarloRuns,
+  createSeededRng,
+  buildMonteCarloSeed,
+  MONTE_CARLO_TARGET_RUNS,
+  MONTE_CARLO_MIN_RUNS,
+  MONTE_CARLO_OP_BUDGET,
 }

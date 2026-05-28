@@ -90,7 +90,7 @@ const parseHalfFullEntry = (value) => {
   if (!raw) return null
 
   const dashed = raw
-    .replace(/[\/|>→]/g, '-')
+    .replace(/[/|>→]/g, '-')
     .replace(/\s*-\s*/g, '-')
     .trim()
   const dashedMatch = dashed.match(/^([a-zA-Z\u4e00-\u9fa5]+)-([a-zA-Z\u4e00-\u9fa5]+)$/)

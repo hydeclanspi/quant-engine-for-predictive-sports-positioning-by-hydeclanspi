@@ -24,3 +24,14 @@ yarn-error.log*
 
 # Vite
 .vite-config-timestamp*
+
+# Test / coverage output
+coverage/
+.vitest/
+
+# Backup & scratch files (never commit these)
+*.bak
+*.backup
+*.orig
+temp_*.js
+*.tmp

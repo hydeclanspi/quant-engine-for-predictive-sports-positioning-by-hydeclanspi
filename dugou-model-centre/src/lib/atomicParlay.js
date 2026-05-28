@@ -103,7 +103,7 @@ const parseOutcomeSetFromText = (rawValue) => {
   const tokenized = String(text)
     .toLowerCase()
     .replace(/[()]/g, ' ')
-    .replace(/[，,\/|+&;、]/g, ' ')
+    .replace(/[，,/|+&;、]/g, ' ')
     .replace(/或/g, ' ')
     .replace(/和/g, ' ')
     .replace(/or/gi, ' ')

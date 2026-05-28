@@ -25,15 +25,18 @@ describe('Dependency Risk Premium Analysis', () => {
   // ==========================================================================
 
   describe('getMarketImpliedFailureRate', () => {
-    it('应该从赔率计算隐含失败率 (1/odds)', () => {
+    it('应该从赔率计算隐含失败率 (1 - 1/odds)', () => {
+      // 失败率 = 1 − 隐含胜率 = 1 − 1/odds
       expect(getMarketImpliedFailureRate(2.0)).toBeCloseTo(0.5, 2)
-      expect(getMarketImpliedFailureRate(3.5)).toBeCloseTo(0.286, 2)
-      expect(getMarketImpliedFailureRate(1.5)).toBeCloseTo(0.667, 2)
+      expect(getMarketImpliedFailureRate(3.5)).toBeCloseTo(0.714, 2)
+      expect(getMarketImpliedFailureRate(1.5)).toBeCloseTo(0.333, 2)
     })
 
-    it('应该处理边界情况', () => {
-      expect(getMarketImpliedFailureRate(1.01)).toBeGreaterThan(0.97)
-      expect(getMarketImpliedFailureRate(100)).toBeLessThan(0.02)
+    it('应该把失败率夹逼到 0.02 - 0.98', () => {
+      // 1.01 超级大热门 → 失败率极低，夹逼到下限 0.02
+      expect(getMarketImpliedFailureRate(1.01)).toBeLessThan(0.03)
+      // 100 超级大冷门 → 失败率极高，夹逼到上限 0.98
+      expect(getMarketImpliedFailureRate(100)).toBeGreaterThan(0.97)
     })
 
     it('应该返回NaN对于无效赔率', () => {
@@ -48,23 +51,24 @@ describe('Dependency Risk Premium Analysis', () => {
   // ==========================================================================
 
   describe('getConfidenceWeight', () => {
-    it('应该根据样本量返回正确的权重', () => {
-      expect(getConfidenceWeight(3)).toBe(0.1)
-      expect(getConfidenceWeight(8)).toBe(0.3)
-      expect(getConfidenceWeight(15)).toBe(0.6)
-      expect(getConfidenceWeight(25)).toBe(0.85)
-      expect(getConfidenceWeight(50)).toBe(1.0)
+    it('应该根据样本量返回对数曲线权重', () => {
+      // clamp(ln(1 + size) / ln(31), 0.05, 1.0)
+      expect(getConfidenceWeight(3)).toBeCloseTo(0.404, 2)
+      expect(getConfidenceWeight(8)).toBeCloseTo(0.64, 2)
+      expect(getConfidenceWeight(15)).toBeCloseTo(0.807, 2)
+      expect(getConfidenceWeight(25)).toBeCloseTo(0.949, 2)
+      expect(getConfidenceWeight(50)).toBe(1.0) // 夹逼到上限
     })
 
     it('应该处理边界值', () => {
-      expect(getConfidenceWeight(0)).toBe(0.1)
-      expect(getConfidenceWeight(5)).toBe(0.1) // < 5
-      expect(getConfidenceWeight(10)).toBe(0.3) // >= 10
+      expect(getConfidenceWeight(0)).toBe(0.05) // 夹逼到下限
+      expect(getConfidenceWeight(5)).toBeCloseTo(0.522, 2)
+      expect(getConfidenceWeight(10)).toBeCloseTo(0.698, 2)
     })
 
     it('应该处理非数字输入', () => {
-      expect(getConfidenceWeight('abc')).toBe(0.1)
-      expect(getConfidenceWeight(null)).toBe(0.1)
+      expect(getConfidenceWeight('abc')).toBe(0.05)
+      expect(getConfidenceWeight(null)).toBe(0.05)
     })
   })
 
@@ -73,16 +77,30 @@ describe('Dependency Risk Premium Analysis', () => {
   // ==========================================================================
 
   describe('getTemporalWeight', () => {
-    it('应该给最近60天的数据返回1.15倍权重', () => {
+    it('最近30天的数据返回1.45倍权重', () => {
       const today = new Date()
-      const recentDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000) // 30天前
+      const recentDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
 
-      expect(getTemporalWeight(recentDate, today)).toBe(1.15)
+      expect(getTemporalWeight(recentDate, today)).toBe(1.45)
     })
 
-    it('应该给60天前的数据返回1.0倍权重', () => {
+    it('31-90天的数据返回1.28倍权重', () => {
       const today = new Date()
-      const oldDate = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000) // 90天前
+      const midDate = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000)
+
+      expect(getTemporalWeight(midDate, today)).toBe(1.28)
+    })
+
+    it('91-180天的数据返回1.15倍权重', () => {
+      const today = new Date()
+      const olderDate = new Date(today.getTime() - 180 * 24 * 60 * 60 * 1000)
+
+      expect(getTemporalWeight(olderDate, today)).toBe(1.15)
+    })
+
+    it('超过180天的数据返回1.0倍权重', () => {
+      const today = new Date()
+      const oldDate = new Date(today.getTime() - 200 * 24 * 60 * 60 * 1000)
 
       expect(getTemporalWeight(oldDate, today)).toBe(1.0)
     })
@@ -92,18 +110,11 @@ describe('Dependency Risk Premium Analysis', () => {
       expect(getTemporalWeight(null)).toBe(1.0)
     })
 
-    it('边界：60天应该返回1.15', () => {
+    it('边界：恰好60天落在 31-90 档，返回1.28', () => {
       const today = new Date()
       const boundaryDate = new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000)
 
-      expect(getTemporalWeight(boundaryDate, today)).toBe(1.15)
-    })
-
-    it('边界：61天应该返回1.0', () => {
-      const today = new Date()
-      const justOldDate = new Date(today.getTime() - 61 * 24 * 60 * 60 * 1000)
-
-      expect(getTemporalWeight(justOldDate, today)).toBe(1.0)
+      expect(getTemporalWeight(boundaryDate, today)).toBe(1.28)
     })
   })
 
@@ -371,15 +382,14 @@ describe('Dependency Risk Premium Analysis', () => {
 
   describe('adjustForBaseRate', () => {
     it('应该对正溢价应用保守系数0.8', () => {
-      const premium = 0.1
-      const result = adjustForBaseRate(premium, [], 0.2)
+      // 空历史会原样返回 premium，故需提供非空数据以触发调整
+      const result = adjustForBaseRate(0.1, [{ succeeded: true, matches: [] }], 0.2)
 
       expect(result.adjustedPremium).toBeCloseTo(0.08, 2)
     })
 
     it('应该对负溢价应用保守系数1.2', () => {
-      const premium = -0.1
-      const result = adjustForBaseRate(premium, [], 0.2)
+      const result = adjustForBaseRate(-0.1, [{ succeeded: true, matches: [] }], 0.2)
 
       expect(result.adjustedPremium).toBeCloseTo(-0.12, 2)
     })

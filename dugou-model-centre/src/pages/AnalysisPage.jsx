@@ -622,6 +622,8 @@ const ModalPagination = ({ page, totalPages, onChange }) => (
 )
 
 const PaginatedMatchTable = ({ rows }) => {
+  const labels = useLabels()
+  const maskMode = useModeLabelMap()
   const [page, setPage] = useState(1)
   const pageSize = 10
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize))

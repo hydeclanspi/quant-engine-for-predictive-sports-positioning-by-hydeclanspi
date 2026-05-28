@@ -1682,6 +1682,7 @@ const collectModeAndOddsPoints = (settledInvestments, modeKellyRows, kellyMatrix
 }
 
 const PaginatedKellyMatrixTable = ({ rows }) => {
+  const maskMode = useModeLabelMap()
   const [modeFilter, setModeFilter] = useState('all')
   const [confFilter, setConfFilter] = useState('all')
   const [oddsFilter, setOddsFilter] = useState('all')
