@@ -241,7 +241,7 @@ export default function NewInvestmentPage() {
   const [matches, setMatches] = useState([createEmptyMatch()])
   const [comboName, setComboName] = useState('')
   const [showModeDropdown, setShowModeDropdown] = useState({})
-  const [actualInput, setActualInput] = useState('180')
+  const [actualInput, setActualInput] = useState('150')
   const [activeTeamInput, setActiveTeamInput] = useState(null)
   const [profilesVersion, setProfilesVersion] = useState(0)
   const [historyPrefillApplied, setHistoryPrefillApplied] = useState({})
@@ -411,7 +411,7 @@ export default function NewInvestmentPage() {
         }
       }),
     )
-    setActualInput(parlaySize > 1 ? '80' : '180')
+    setActualInput(parlaySize > 1 ? '80' : '150')
   }, [parlaySize])
 
   useEffect(() => {
@@ -897,7 +897,7 @@ export default function NewInvestmentPage() {
       })),
     )
     const parsedInput = Number.parseInt(String(result.actualInput || ''), 10)
-    setActualInput(Number.isFinite(parsedInput) && parsedInput > 0 ? String(parsedInput) : (newSize === 1 ? '180' : '80'))
+    setActualInput(Number.isFinite(parsedInput) && parsedInput > 0 ? String(parsedInput) : (newSize === 1 ? '150' : '80'))
     setHistoryPrefillApplied({})
     setHistoryFloatDismissed({})
   }
@@ -983,7 +983,6 @@ export default function NewInvestmentPage() {
         <p className="text-stone-400 text-sm mt-1.5 leading-relaxed">录入比赛信息与预测参数 · Record match predictions & calibration parameters</p>
       </div>
 
-      {!isPreview && (
       <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 p-4 mb-5">
         <button
           onClick={() => setQuickInputOpen((prev) => !prev)}
@@ -1000,7 +999,9 @@ export default function NewInvestmentPage() {
             <textarea
               value={quickInputText}
               onChange={(e) => setQuickInputText(e.target.value)}
-              placeholder={'示例：利兹联 win/平 拜仁, conf 3.5, odds 7.4, fse 0.72, mode 半, input 180\n或：arsenal W, chelsea D, conf 55 60, odds 1.8 3.2, mode 常规-稳'}
+              placeholder={isPreview
+                ? '欢迎体验 · 在此粘贴一句话即可自动解析为结构化投资单\n例如：曼城 主胜, 赔率 1.85, 仓位 150'
+                : '示例：利兹联 win/平 拜仁, conf 3.5, odds 7.4, fse 0.72, mode 半, input 180\n或：arsenal W, chelsea D, conf 55 60, odds 1.8 3.2, mode 常规-稳'}
               rows={3}
               className="input-glow w-full px-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400 resize-none"
             />
@@ -1045,7 +1046,6 @@ export default function NewInvestmentPage() {
           </div>
         )}
       </div>
-      )}
 
       <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden">
         <div className="px-6 py-5 border-b border-stone-100 bg-stone-50/50">

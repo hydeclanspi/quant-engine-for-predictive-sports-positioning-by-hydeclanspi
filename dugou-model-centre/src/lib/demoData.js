@@ -516,6 +516,12 @@ const MARQUEE_FIXTURES = {
     tysHome: 'M', tysAway: 'M', fid: 0.4, fseHome: 0.54, fseAway: 0.52,
     note: '埃兰路主场 · 双方近期状态相近 · 信息深度偏低',
   },
+  dortmundLeverkusen: {
+    home: '多特蒙德', away: '勒沃库森', entry: '主胜', odds: 2.35,
+    conf: 0.55, mode: '常规-杠杆',
+    tysHome: 'M', tysAway: 'M', fid: 0.5, fseHome: 0.64, fseAway: 0.62,
+    note: '德甲焦点 · 威斯特法伦主场 · 进攻对攻倾向',
+  },
 }
 
 const makeMarqueeMatch = (idSuffix, fields, outcome) => {
@@ -637,61 +643,81 @@ const buildMarqueeSettled = () => {
   return [fourLeg, twoLegEnglish, twoLegContinental]
 }
 
-// ── Pending marquee singles (Portfolio candidates) ─────────────────
-// Four fresh single-match pending investments featuring the same
-// matchups for "next gameweek". These provide ComboPage with exactly
-// four candidate matches and Settle with four entries waiting to be
-// recorded. By keeping them as separate single-match investments
-// (rather than one bundle), the ComboPage candidate list is exactly
-// these four — no extras, no dedup issues.
+// ── Pending marquee bundles (Settle + Portfolio candidates) ────────
+// Exactly three fresh pending parlays for the "next gameweek":
+//   #1 — a 4-leg combo (the four marquee fixtures)
+//   #2 — a 2-leg English combo
+//   #3 — a 2-leg Continental combo
+// These three bundles are what Settle shows (3 rows, first expanded
+// by default) and they flatten into ComboPage's candidate leg pool
+// (8 distinct matches). They are tagged __demo_seed_pending so the
+// HistoryPage filters them out in preview — they belong in Portfolio
+// + Settle, not pre-populated History. Everything is ephemeral
+// (previewStore only) and identical on every visit.
 const buildPendingPresets = () => {
-  const dateIso = '2026-01-04T19:00:00.000Z'
-
-  const pendingFields = (fields) => ({
-    home: fields.home, away: fields.away, entry: fields.entry, odds: fields.odds,
-    conf: fields.conf, mode: fields.mode,
-    tysHome: fields.tysHome, tysAway: fields.tysAway, fid: fields.fid,
-    fseHome: fields.fseHome, fseAway: fields.fseAway, note: fields.note,
-  })
-
   const pendingOutcome = {
     results: '', isCorrect: null, matchRating: 0, matchRep: null, postNote: '',
   }
 
-  const buildSingle = (id, fields, suggested) => ({
-    id,
-    created_at: dateIso,
-    parlay_size: 1,
-    inputs: suggested,
-    suggested_amount: suggested,
-    expected_rating: round2(fields.conf * 0.85),
-    combined_odds: fields.odds,
-    status: 'pending',
-    revenues: 0,
-    profit: 0,
-    actual_rating: 0,
-    rep: null,
-    remarks: fields.note,
-    // Tag this investment as a demo-seed pending so HistoryPage in
-    // preview mode can filter it out — these matches are meant to
-    // surface in Portfolio + Settle, not pre-populate History.
-    __demo_seed_pending: true,
-    matches: [makeMarqueeMatch(`${id}_m1`, fields, pendingOutcome)],
-  })
+  // The 4-leg gets the earliest timestamp so it sorts first in Settle
+  // (which default-expands the first pending row).
+  const buildBundle = (id, idPrefix, fixtures, suggested, dateIso, remarks) => {
+    const combinedOdds = roundOdds(fixtures.reduce((acc, f) => acc * f.odds, 1))
+    const avgConf = round2(fixtures.reduce((acc, f) => acc + f.conf, 0) / fixtures.length)
+    return {
+      id,
+      created_at: dateIso,
+      parlay_size: fixtures.length,
+      inputs: suggested,
+      suggested_amount: suggested,
+      expected_rating: round2(avgConf * 0.92),
+      combined_odds: combinedOdds,
+      status: 'pending',
+      revenues: 0,
+      profit: 0,
+      actual_rating: 0,
+      rep: null,
+      remarks,
+      __demo_seed_pending: true,
+      matches: fixtures.map((f, i) => makeMarqueeMatch(`${idPrefix}_m${i + 1}`, f, pendingOutcome)),
+    }
+  }
 
   return [
-    buildSingle('demo_inv_pending_arsliv', pendingFields(MARQUEE_FIXTURES.arsenalLiverpool), 10),
-    buildSingle('demo_inv_pending_mcich', pendingFields(MARQUEE_FIXTURES.mancityChelsea), 14),
-    buildSingle('demo_inv_pending_barrm', pendingFields(MARQUEE_FIXTURES.barcaReal), 8),
-    buildSingle('demo_inv_pending_baypsg', pendingFields(MARQUEE_FIXTURES.bayernPsg), 12),
-    buildSingle('demo_inv_pending_milint', pendingFields(MARQUEE_FIXTURES.milanInter), 6),
-    buildSingle('demo_inv_pending_muneve', pendingFields(MARQUEE_FIXTURES.manutdEverton), 16),
-    buildSingle('demo_inv_pending_leenfo', pendingFields(MARQUEE_FIXTURES.leedsNottingham), 9),
+    buildBundle(
+      'demo_inv_pending_4leg',
+      'pending_4leg',
+      [
+        MARQUEE_FIXTURES.arsenalLiverpool,
+        MARQUEE_FIXTURES.mancityChelsea,
+        MARQUEE_FIXTURES.barcaReal,
+        MARQUEE_FIXTURES.bayernPsg,
+      ],
+      8,
+      '2026-01-04T19:00:00.000Z',
+      '本周主推四串 · 英超双德比叠加欧陆豪门',
+    ),
+    buildBundle(
+      'demo_inv_pending_2leg_eng',
+      'pending_2leg_eng',
+      [MARQUEE_FIXTURES.manutdEverton, MARQUEE_FIXTURES.leedsNottingham],
+      12,
+      '2026-01-04T20:00:00.000Z',
+      '英超双串 · 主场稳态组合',
+    ),
+    buildBundle(
+      'demo_inv_pending_2leg_eu',
+      'pending_2leg_eu',
+      [MARQUEE_FIXTURES.milanInter, MARQUEE_FIXTURES.dortmundLeverkusen],
+      10,
+      '2026-01-04T21:00:00.000Z',
+      '欧陆双串 · 德比 + 德甲攻防对决',
+    ),
   ]
 }
 
 // ── Top-level bundle builder ───────────────────────────────────────
-const TOTAL_GENERATED = 72 // + 3 showcase + 3 settled marquee + 4 pending singles = 82 total
+const TOTAL_GENERATED = 72 // + 3 showcase + 3 settled marquee + 3 pending bundles = 81 total
 
 const buildBundle = () => {
   // Generate evenly-spaced timestamps across the window with slight jitter.
@@ -713,8 +739,9 @@ const buildBundle = () => {
   // including the 4-leg anchor-failure showcase.
   investments.push(...buildMarqueeSettled())
 
-  // Inject pending singles for the next gameweek — these become the
-  // four ComboPage portfolio candidates and the four Settle entries.
+  // Inject the three pending bundles for the next gameweek — these
+  // become the three Settle rows (4-leg first, then two 2-legs) and
+  // flatten into ComboPage's candidate leg pool.
   investments.push(...buildPendingPresets())
 
   // Sort chronologically.
