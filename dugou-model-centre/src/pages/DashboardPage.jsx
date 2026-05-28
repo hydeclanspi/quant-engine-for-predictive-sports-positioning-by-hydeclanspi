@@ -7,6 +7,7 @@ import { downloadWorkbook } from '../lib/excel'
 import * as XLSX from 'xlsx'
 import { Wallet, TrendingUp, BarChart3 } from 'lucide-react'
 import { useModeLabelMap } from '../components/ModeLabel'
+import { isPreviewMode } from '../lib/displayMode'
 
 const PERIOD_LABELS = {
   '1w': '近一周',
@@ -249,7 +250,11 @@ const shouldShowEvidenceBriefThisVisit = () => {
 export default function DashboardPage({ openModal }) {
   const navigate = useNavigate()
   const maskMode = useModeLabelMap()
-  const [timePeriod, setTimePeriod] = useState('2w')
+  // In preview mode, default to 'all' so visitors immediately see the
+  // full 4-month equity curve trajectory rather than just the last 2
+  // weeks. Owner experience (full mode) keeps the conservative 2-week
+  // default they're used to.
+  const [timePeriod, setTimePeriod] = useState(() => isPreviewMode() ? 'all' : '2w')
   const [showChartPicker, setShowChartPicker] = useState(false)
   const [showExportPicker, setShowExportPicker] = useState(false)
   const [chartKey, setChartKey] = useState('rating')

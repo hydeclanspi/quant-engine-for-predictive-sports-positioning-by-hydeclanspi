@@ -45,7 +45,7 @@ export default function PreviewModeToggle() {
         ) : (
           <>
             <span className="pm-toggle-preview-dot" aria-hidden="true" />
-            <span className="pm-toggle-preview-text">PREVIEW</span>
+            <span className="pm-toggle-preview-text">demo · preview</span>
             <span className="pm-toggle-preview-hint" aria-hidden="true">unlock</span>
           </>
         )}

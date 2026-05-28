@@ -3,6 +3,7 @@ import { Search, Filter, Trash2, Archive, Undo2, ChevronRight, ChevronDown, Squa
 import { useNavigate } from 'react-router-dom'
 import { deleteInvestment, getInvestments, saveInvestment, setInvestmentArchived, updateInvestment } from '../lib/localData'
 import { useLabels } from '../lib/labels'
+import { isPreviewMode } from '../lib/displayMode'
 
 const LEAGUE_ORDER = ['英超', '西甲', '意甲', '德甲', '法甲', '荷甲', '葡超', '土超', '沙特联', '国际赛', '其他']
 const TEAM_LEAGUE_MAP = {
@@ -493,8 +494,21 @@ export default function HistoryPage() {
   const [ajrFilter, setAjrFilter] = useState('all')
   const [refreshKey, setRefreshKey] = useState(0)
   const [pendingUndo, setPendingUndo] = useState(null)
-  const [expandedComboIds, setExpandedComboIds] = useState({})
-  const [expandedSoloIds, setExpandedSoloIds] = useState({})
+  // In preview mode, pre-expand the most recent investment so visitors
+  // can immediately see a fully-populated row without having to click.
+  const previewInitialExpansion = useMemo(() => {
+    if (!isPreviewMode()) return { combo: {}, solo: {} }
+    const investments = getInvestments()
+    if (!investments || investments.length === 0) return { combo: {}, solo: {} }
+    const mostRecent = [...investments].sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at),
+    )[0]
+    if (!mostRecent) return { combo: {}, solo: {} }
+    if ((mostRecent.parlay_size || 1) > 1) return { combo: { [mostRecent.id]: true }, solo: {} }
+    return { combo: {}, solo: { [mostRecent.id]: true } }
+  }, [])
+  const [expandedComboIds, setExpandedComboIds] = useState(previewInitialExpansion.combo)
+  const [expandedSoloIds, setExpandedSoloIds] = useState(previewInitialExpansion.solo)
   const [notePopup, setNotePopup] = useState(null)
 
   const filters = ['全部', '待结算', '已中', '未中', 'Solo', 'Combo', '已归档']

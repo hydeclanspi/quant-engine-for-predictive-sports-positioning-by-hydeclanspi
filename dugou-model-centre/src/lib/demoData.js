@@ -460,8 +460,134 @@ const buildShowcaseSamples = () => {
   return [sampleA, sampleB, sampleC]
 }
 
+// ── Pending preset bundles ─────────────────────────────────────────
+// Three pending investments featuring high-profile fixtures so the
+// preview Portfolio / Settle / History pages have something curated
+// and recognisable waiting in the queue. The 4-leg bundle becomes
+// the ComboPage candidate pool (provides four match candidates); the
+// two 2-leg bundles add depth to the Settle list and to the
+// "expandable first row" of History.
+const buildPendingPresets = () => {
+  const dateIso = '2025-12-30T19:00:00.000Z'
+
+  const makePendingMatch = (idSuffix, fields) => ({
+    id: `demo_inv_pending_${idSuffix}`,
+    home_team: fields.home,
+    away_team: fields.away,
+    entries: [{ name: fields.entry, odds: fields.odds }],
+    entry_text: fields.entry,
+    odds: fields.odds,
+    conf: fields.conf,
+    mode: fields.mode,
+    tys_home: fields.tysHome,
+    tys_away: fields.tysAway,
+    fid: fields.fid,
+    fse_home: fields.fseHome,
+    fse_away: fields.fseAway,
+    fse_match: round2(Math.sqrt(fields.fseHome * fields.fseAway)),
+    note: fields.note || '',
+    results: '',
+    is_correct: null,
+    match_rating: 0,
+    match_rep: null,
+    post_note: '',
+  })
+
+  const arsenalLiverpool = {
+    home: '阿森纳', away: '利物浦', entry: '主胜', odds: 2.45,
+    conf: 0.58, mode: '常规',
+    tysHome: 'M', tysAway: 'H', fid: 0.5, fseHome: 0.64, fseAway: 0.68,
+    note: '伦敦德比红军客场',
+  }
+  const mancityChelsea = {
+    home: '曼城', away: '切尔西', entry: '主胜', odds: 1.85,
+    conf: 0.68, mode: '常规-杠杆',
+    tysHome: 'H', tysAway: 'M', fid: 0.6, fseHome: 0.74, fseAway: 0.62,
+    note: '伊蒂哈德主场强度差距明显',
+  }
+  const barcaReal = {
+    home: '巴萨', away: '皇马', entry: '主胜', odds: 2.80,
+    conf: 0.52, mode: '半彩票半保险',
+    tysHome: 'L', tysAway: 'H', fid: 0.5, fseHome: 0.66, fseAway: 0.72,
+    note: '国家德比 · 历史相互克制',
+  }
+  const bayernPsg = {
+    home: '拜仁', away: '巴黎圣日耳曼', entry: '主胜', odds: 2.20,
+    conf: 0.62, mode: '常规',
+    tysHome: 'H', tysAway: 'L', fid: 0.5, fseHome: 0.70, fseAway: 0.60,
+    note: '欧冠淘汰赛 · 安联球场主场加成',
+  }
+
+  // #1 — Four-leg "Marquee Week" bundle (drives ComboPage candidates)
+  const fourLeg = {
+    id: 'demo_inv_pending_marquee',
+    created_at: dateIso,
+    parlay_size: 4,
+    inputs: 6,
+    suggested_amount: 6,
+    expected_rating: 0.60,
+    combined_odds: roundOdds(2.45 * 1.85 * 2.80 * 2.20),
+    status: 'pending',
+    revenues: 0,
+    profit: 0,
+    actual_rating: 0,
+    rep: null,
+    remarks: '本周豪门重头戏 · 四场一并打包',
+    matches: [
+      makePendingMatch('marquee_m1', arsenalLiverpool),
+      makePendingMatch('marquee_m2', mancityChelsea),
+      makePendingMatch('marquee_m3', barcaReal),
+      makePendingMatch('marquee_m4', bayernPsg),
+    ],
+  }
+
+  // #2 — 2-leg English subset
+  const twoLegEnglish = {
+    id: 'demo_inv_pending_english',
+    created_at: dateIso,
+    parlay_size: 2,
+    inputs: 12,
+    suggested_amount: 12,
+    expected_rating: 0.63,
+    combined_odds: roundOdds(2.45 * 1.85),
+    status: 'pending',
+    revenues: 0,
+    profit: 0,
+    actual_rating: 0,
+    rep: null,
+    remarks: '英超双串 · 主场优势叠加',
+    matches: [
+      makePendingMatch('english_m1', arsenalLiverpool),
+      makePendingMatch('english_m2', mancityChelsea),
+    ],
+  }
+
+  // #3 — 2-leg Continental subset
+  const twoLegContinental = {
+    id: 'demo_inv_pending_continental',
+    created_at: dateIso,
+    parlay_size: 2,
+    inputs: 8,
+    suggested_amount: 8,
+    expected_rating: 0.57,
+    combined_odds: roundOdds(2.80 * 2.20),
+    status: 'pending',
+    revenues: 0,
+    profit: 0,
+    actual_rating: 0,
+    rep: null,
+    remarks: '欧陆经典 · 国家德比 × 欧冠对决',
+    matches: [
+      makePendingMatch('continental_m1', barcaReal),
+      makePendingMatch('continental_m2', bayernPsg),
+    ],
+  }
+
+  return [fourLeg, twoLegEnglish, twoLegContinental]
+}
+
 // ── Top-level bundle builder ───────────────────────────────────────
-const TOTAL_GENERATED = 72 // + 3 showcase samples = 75 total
+const TOTAL_GENERATED = 72 // + 3 showcase + 3 pending presets = 78 total
 
 const buildBundle = () => {
   // Generate evenly-spaced timestamps across the window with slight jitter.
@@ -477,6 +603,11 @@ const buildBundle = () => {
   // Inject showcase samples (their hardcoded created_at already places
   // them in the right chronological slot).
   investments.push(...buildShowcaseSamples())
+
+  // Inject pending presets — these are the curated "upcoming fixtures"
+  // (Arsenal-Liverpool, Man City-Chelsea, Barca-Real, Bayern-PSG) that
+  // populate Portfolio candidates and Settle queue in preview mode.
+  investments.push(...buildPendingPresets())
 
   // Sort chronologically.
   investments.sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
