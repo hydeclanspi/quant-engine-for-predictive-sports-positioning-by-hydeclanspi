@@ -6,6 +6,7 @@ import { getSystemConfig, saveSystemConfig, addCapitalInjection } from '../lib/l
 import { downloadWorkbook } from '../lib/excel'
 import * as XLSX from 'xlsx'
 import { Wallet, TrendingUp, BarChart3 } from 'lucide-react'
+import { useModeLabelMap } from '../components/ModeLabel'
 
 const PERIOD_LABELS = {
   '1w': '近一周',
@@ -247,6 +248,7 @@ const shouldShowEvidenceBriefThisVisit = () => {
 
 export default function DashboardPage({ openModal }) {
   const navigate = useNavigate()
+  const maskMode = useModeLabelMap()
   const [timePeriod, setTimePeriod] = useState('2w')
   const [showChartPicker, setShowChartPicker] = useState(false)
   const [showExportPicker, setShowExportPicker] = useState(false)
@@ -1003,7 +1005,7 @@ export default function DashboardPage({ openModal }) {
             <tbody>
               {snapshot.modeBreakdown.map((row) => (
                 <tr key={row.mode} className="border-b border-stone-100">
-                  <td className="py-2 font-medium">{row.mode}</td>
+                  <td className="py-2 font-medium">{maskMode(row.mode)}</td>
                   <td className="py-2">{row.samples}</td>
                   <td className={`py-2 font-medium ${row.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                     {toSigned(row.roi, 1, '%')}

@@ -47,6 +47,16 @@ const FULL_LABELS = {
     保险产品: '保险产品',
     赌一把: '赌一把',
   },
+  formLabel: {
+    mode: 'Mode 模式',
+    conf: 'Conf. 主观置信度',
+    tysHome: 'TYS-base (主)',
+    tysAway: 'TYS-base (客)',
+    fid: 'FID 信息深度',
+    fseHome: 'FSE (主) Feature Sensor Beta',
+    fseAway: 'FSE (客) Feature Sensor Beta',
+    calibrationGroup: '校准参数（TYS / FID / FSE）',
+  },
 }
 
 const PREVIEW_LABELS = {
@@ -79,6 +89,16 @@ const PREVIEW_LABELS = {
     半彩票半保险: 'Φ',
     保险产品: 'Ω',
     赌一把: 'Θ',
+  },
+  formLabel: {
+    mode: 'Strategy 策略类型',
+    conf: 'α · 主观置信度',
+    tysHome: 'β · 强度 (主)',
+    tysAway: 'β · 强度 (客)',
+    fid: 'γ · 信息深度',
+    fseHome: 'δ (主) · 感知度',
+    fseAway: 'δ (客) · 感知度',
+    calibrationGroup: '校准参数（β / γ / δ）',
   },
 }
 

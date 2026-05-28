@@ -14,6 +14,8 @@ import {
   solveKellyFractionByAtomicDistribution,
 } from '../lib/atomicParlay'
 import { parseNaturalInput } from '../lib/naturalInputParser'
+import { useLabels } from '../lib/labels'
+import { useModeLabelMap } from '../components/ModeLabel'
 
 const MODE_OPTIONS = ['常规', '常规-稳', '常规-杠杆', '半彩票半保险', '保险产品', '赌一把']
 
@@ -229,6 +231,8 @@ const getHistoryOddsLabel = (match, entries) => {
 
 export default function NewInvestmentPage() {
   const navigate = useNavigate()
+  const labels = useLabels()
+  const maskMode = useModeLabelMap()
   const [dataVersion, setDataVersion] = useState(0)
   const [parlaySize, setParlaySize] = useState(1)
   const [matches, setMatches] = useState([createEmptyMatch()])
@@ -1146,7 +1150,7 @@ export default function NewInvestmentPage() {
                                 <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/70 text-stone-600 border border-stone-200/80">
                                   {historyItem.dateLabel}
                                 </span>
-                                <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${getModeBadgeClass(historyItem.mode)}`}>{historyItem.mode}</span>
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${getModeBadgeClass(historyItem.mode)}`}>{maskMode(historyItem.mode)}</span>
                                 <span className={`text-[10px] font-semibold ${getConfBadgeClass(historyItem.confPercent)}`}>
                                   Conf {(historyItem.confPercent / 100).toFixed(2)}
                                 </span>
@@ -1327,12 +1331,12 @@ export default function NewInvestmentPage() {
 
                 <div className="grid grid-cols-3 gap-4 mb-4">
                   <div className="relative">
-                    <label className="text-xs text-stone-400 mb-1.5 block">Mode 模式</label>
+                    <label className="text-xs text-stone-400 mb-1.5 block">{labels.formLabel.mode}</label>
                     <button
                       onClick={() => setShowModeDropdown((prev) => ({ ...prev, [idx]: !prev[idx] }))}
                       className="input-glow w-full px-4 py-3 rounded-xl border border-stone-200 text-sm text-left bg-white flex items-center justify-between hover:border-amber-300 transition-colors"
                     >
-                      <span>{match.mode}</span>
+                      <span>{maskMode(match.mode)}</span>
                       <ChevronDown size={14} className="text-stone-400" />
                     </button>
                     {showModeDropdown[idx] && (
@@ -1349,7 +1353,7 @@ export default function NewInvestmentPage() {
                               match.mode === opt ? 'bg-amber-50 text-amber-700' : 'hover:bg-stone-50'
                             }`}
                           >
-                            {opt}
+                            {maskMode(opt)}
                           </button>
                         ))}
                       </div>
@@ -1357,7 +1361,7 @@ export default function NewInvestmentPage() {
                   </div>
 
                   <div className="col-span-2">
-                    <label className="text-xs text-stone-400 mb-1.5 block">Conf. 主观置信度</label>
+                    <label className="text-xs text-stone-400 mb-1.5 block">{labels.formLabel.conf}</label>
                     <div className="flex items-center gap-3">
                       <input
                         type="range"
@@ -1392,12 +1396,12 @@ export default function NewInvestmentPage() {
                 <details className="group" open>
                   <summary className="flex items-center gap-2 cursor-pointer text-sm text-stone-500 hover:text-stone-700 mb-3 select-none">
                     <ChevronRight size={12} className="group-open:rotate-90 transition-transform" />
-                    <span>校准参数（TYS / FID / FSE）</span>
+                    <span>{labels.formLabel.calibrationGroup}</span>
                   </summary>
                   <div className="pl-4 border-l-2 border-amber-100">
                     <div className="grid grid-cols-4 gap-4 mb-3">
                       <div>
-                        <label className="text-xs text-stone-400 mb-1.5 block">TYS-base (主)</label>
+                        <label className="text-xs text-stone-400 mb-1.5 block">{labels.formLabel.tysHome}</label>
                         <div className="flex gap-1">
                           {TYS_OPTIONS.map((value) => (
                             <button
@@ -1415,7 +1419,7 @@ export default function NewInvestmentPage() {
                         </div>
                       </div>
                       <div>
-                        <label className="text-xs text-stone-400 mb-1.5 block">TYS-base (客)</label>
+                        <label className="text-xs text-stone-400 mb-1.5 block">{labels.formLabel.tysAway}</label>
                         <div className="flex gap-1">
                           {TYS_OPTIONS.map((value) => (
                             <button
@@ -1433,7 +1437,7 @@ export default function NewInvestmentPage() {
                         </div>
                       </div>
                       <div className="col-span-2">
-                        <label className="text-xs text-stone-400 mb-1.5 block">FID 信息深度</label>
+                        <label className="text-xs text-stone-400 mb-1.5 block">{labels.formLabel.fid}</label>
                         <div className="flex gap-1">
                           {FID_OPTIONS.map((value) => (
                             <button
@@ -1455,7 +1459,7 @@ export default function NewInvestmentPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <div className="mb-1.5 flex items-center justify-between gap-2">
-                          <label className="text-xs text-stone-400 block">FSE (主) Feature Sensor Beta</label>
+                          <label className="text-xs text-stone-400 block">{labels.formLabel.fseHome}</label>
                           {homeFseHistorySuggestion && (
                             <button
                               type="button"
@@ -1500,7 +1504,7 @@ export default function NewInvestmentPage() {
                       </div>
                       <div>
                         <div className="mb-1.5 flex items-center justify-between gap-2">
-                          <label className="text-xs text-stone-400 block">FSE (客) Feature Sensor Beta</label>
+                          <label className="text-xs text-stone-400 block">{labels.formLabel.fseAway}</label>
                           {awayFseHistorySuggestion && (
                             <button
                               type="button"
