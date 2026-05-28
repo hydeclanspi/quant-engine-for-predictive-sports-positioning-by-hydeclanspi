@@ -9,6 +9,7 @@ import {
 import { exportDataBundle, getInvestments, importDataBundle } from '../lib/localData'
 import { BACKUP_IMPORT_ACCEPT, exportDataBundleAsExcel, readDataBundleFromImportFile } from '../lib/excel'
 import C15DiamondCutV1Logo from './C15DiamondCutV1Logo'
+import PreviewModeToggle from './PreviewModeToggle'
 
 export default function Sidebar({ collapsed, onToggleCollapse }) {
   const [showDataMenu, setShowDataMenu] = useState(false)
@@ -121,6 +122,13 @@ export default function Sidebar({ collapsed, onToggleCollapse }) {
       <div className="sidebar-brand-solo">
         <C15DiamondCutV1Logo size="md" />
       </div>
+
+      {/* Preview / Full toggle */}
+      {!collapsed && (
+        <div className="px-3 pb-2 flex justify-center">
+          <PreviewModeToggle />
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto custom-scrollbar">

@@ -20,6 +20,7 @@ import {
 import { exportDataBundle, getInvestments, getSystemConfig, importDataBundle } from '../lib/localData'
 import { BACKUP_IMPORT_ACCEPT, exportDataBundleAsExcel, readDataBundleFromImportFile } from '../lib/excel'
 import C15DiamondCutV1Logo from './C15DiamondCutV1Logo'
+import PreviewModeToggle from './PreviewModeToggle'
 
 /* ──────────────────────────────────────────────────
    Navigation structure with Lucide icons
@@ -185,6 +186,9 @@ export default function TopBar() {
           <span className="topbar-v2-brand-name">dugou</span>
         </div>
       </div>
+
+      {/* ── Preview / Full mode toggle ── */}
+      <PreviewModeToggle />
 
       {/* ── Subtle vertical divider ── */}
       <div className="topbar-v2-divider" />
