@@ -24,7 +24,7 @@ import UnlockModal from './UnlockModal'
  */
 
 const SESSION_SHOWN_KEY = 'dugou.demo_bubble_shown.v1'
-const APPEAR_DELAY_MS = 1500
+const APPEAR_DELAY_MS = 2770
 const AUTO_FADE_MS = 6000
 const ENTER_MS = 660 // ~demoBubbleIn (640ms) + small buffer
 const LEAVE_MS = 400 // ~demoBubbleOut (380ms) + small buffer
