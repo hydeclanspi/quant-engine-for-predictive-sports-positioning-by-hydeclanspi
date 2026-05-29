@@ -7,6 +7,7 @@ import { downloadWorkbook } from '../lib/excel'
 import * as XLSX from 'xlsx'
 import { Wallet, TrendingUp, BarChart3 } from 'lucide-react'
 import { useModeLabelMap } from '../components/ModeLabel'
+import { usePreviewTextMask } from '../lib/labels'
 import { isPreviewMode } from '../lib/displayMode'
 
 const PERIOD_LABELS = {
@@ -250,6 +251,7 @@ const shouldShowEvidenceBriefThisVisit = () => {
 export default function DashboardPage({ openModal }) {
   const navigate = useNavigate()
   const maskMode = useModeLabelMap()
+  const maskText = usePreviewTextMask()
   // In preview mode, default to 'all' so visitors immediately see the
   // full 4-month equity curve trajectory rather than just the last 2
   // weeks. Owner experience (full mode) keeps the conservative 2-week
@@ -1064,7 +1066,7 @@ export default function DashboardPage({ openModal }) {
 
   const openRatingModal = () => {
     openModal({
-      title: `${PERIOD_LABELS[timePeriod]} Conf vs AJR · 历史记录`,
+      title: maskText(`${PERIOD_LABELS[timePeriod]} Conf vs AJR · 历史记录`),
       content: (
         <div className="space-y-4">
           <div className="p-4 bg-stone-50 rounded-xl">
@@ -1076,7 +1078,7 @@ export default function DashboardPage({ openModal }) {
               <tr className="border-b border-stone-200 text-left text-stone-500">
                 <th className="py-2">日期</th>
                 <th className="py-2">比赛</th>
-                <th className="py-2">Conf</th>
+                <th className="py-2">{maskText('Conf')}</th>
                 <th className="py-2">AJR</th>
                 <th className="py-2">差值</th>
               </tr>
@@ -1115,7 +1117,7 @@ export default function DashboardPage({ openModal }) {
     }, [activeKey])
 
     if (repCards.length === 0) {
-      return <p className="text-sm text-stone-500">当前窗口暂无 REP 样本。</p>
+      return <p className="text-sm text-stone-500">{maskText('当前窗口暂无 REP 样本。')}</p>
     }
 
     const activeBucket = repCards.find((bucket) => bucket.key === activeKey) || repCards[0]
@@ -1148,7 +1150,7 @@ export default function DashboardPage({ openModal }) {
               <th className="py-2">日期</th>
               <th className="py-2">比赛</th>
               <th className="py-2">entry</th>
-              <th className="py-2">REP</th>
+              <th className="py-2">{maskText('REP')}</th>
               <th className="py-2">AJR</th>
               <th className="py-2">状态</th>
               <th className="py-2">ROI</th>
@@ -1211,7 +1213,7 @@ export default function DashboardPage({ openModal }) {
     }, [activeRange])
 
     if (confDetailRows.length === 0) {
-      return <p className="text-sm text-stone-500">当前窗口暂无可用的 Conf/AJR 样本。</p>
+      return <p className="text-sm text-stone-500">{maskText('当前窗口暂无可用的 Conf/AJR 样本。')}</p>
     }
 
     const selected = confDetailRows.find((row) => row.label === activeRange) || confDetailRows[0]
@@ -1225,7 +1227,7 @@ export default function DashboardPage({ openModal }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-stone-200 text-left text-stone-500">
-              <th className="py-2">Conf 区间</th>
+              <th className="py-2">{maskText('Conf 区间')}</th>
               <th className="py-2">预期</th>
               <th className="py-2">实际</th>
               <th className="py-2">偏差</th>
@@ -1255,7 +1257,7 @@ export default function DashboardPage({ openModal }) {
 
         <div className="border-t border-stone-200 pt-3">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-medium text-stone-700">Conf {selected.label} · 样本历史</h4>
+            <h4 className="text-sm font-medium text-stone-700">{maskText('Conf')} {selected.label} · 样本历史</h4>
             <span className="text-xs text-stone-400">{selected.rows.length} 条</span>
           </div>
           <table className="w-full text-sm">
@@ -1263,7 +1265,7 @@ export default function DashboardPage({ openModal }) {
               <tr className="border-b border-stone-200 text-left text-stone-500">
                 <th className="py-2">日期</th>
                 <th className="py-2">比赛</th>
-                <th className="py-2">Conf</th>
+                <th className="py-2">{maskText('Conf')}</th>
                 <th className="py-2">AJR</th>
                 <th className="py-2">状态</th>
                 <th className="py-2">ROI</th>
@@ -1364,14 +1366,14 @@ export default function DashboardPage({ openModal }) {
 
   const openRepModal = () => {
     openModal({
-      title: `${PERIOD_LABELS[timePeriod]} REP (噪音过滤) Beta · 详细分析`,
+      title: maskText(`${PERIOD_LABELS[timePeriod]} REP (噪音过滤) Beta · 详细分析`),
       content: <RepDetailContent />,
     })
   }
 
   const openConfModal = () => {
     openModal({
-      title: `${PERIOD_LABELS[timePeriod]} Conf 校准曲线 · 详细数据`,
+      title: maskText(`${PERIOD_LABELS[timePeriod]} Conf 校准曲线 · 详细数据`),
       content: <ConfDetailContent />,
     })
   }
@@ -1505,7 +1507,7 @@ export default function DashboardPage({ openModal }) {
             onClick: openHitRateModal,
           },
           {
-            label: 'Conf. vs AJR',
+            label: maskText('Conf. vs AJR'),
             value: snapshot.ratingFit.toFixed(2),
             change: `${toSigned(snapshot.ratingFitDelta, 2)} vs 上周期`,
             positive: snapshot.ratingFitDelta >= 0,
@@ -1555,7 +1557,7 @@ export default function DashboardPage({ openModal }) {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-[15px] font-semibold text-stone-800 tracking-[0.01em]">REP (噪音过滤)</h3>
+                    <h3 className="text-[15px] font-semibold text-stone-800 tracking-[0.01em]">{maskText('REP (噪音过滤)')}</h3>
                     <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50/85 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] text-sky-700">
                       Beta
                     </span>
@@ -1630,7 +1632,7 @@ export default function DashboardPage({ openModal }) {
                     <p className="mt-2 text-[10px] leading-4 text-stone-600 whitespace-nowrap overflow-hidden text-ellipsis">{repInsightText}</p>
                   </>
                 ) : (
-                  <p className="text-[11px] text-stone-400">{periodInsightLabel}暂无 REP 细分样本。</p>
+                  <p className="text-[11px] text-stone-400">{periodInsightLabel}{maskText('暂无 REP 细分样本。')}</p>
                 )}
               </div>
 
@@ -1708,7 +1710,7 @@ export default function DashboardPage({ openModal }) {
             onClick={openConfModal}
             className="motion-v2-surface glow-card bg-white rounded-2xl p-5 border border-stone-100 cursor-pointer h-full flex flex-col"
           >
-            <h3 className="font-medium text-stone-700 mb-4">Conf 校准曲线</h3>
+            <h3 className="font-medium text-stone-700 mb-4">{maskText('Conf 校准曲线')}</h3>
             <div className="space-y-2.5">
               {snapshot.confCalibration.map((row) => (
                 <div key={row.label} className="flex items-center gap-3">
@@ -1739,7 +1741,7 @@ export default function DashboardPage({ openModal }) {
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-stone-500">
-                    <span>整体偏差 (AJR-Conf)</span>
+                    <span>{maskText('整体偏差 (AJR-Conf)')}</span>
                     <span className={`font-medium ${confSummary.weightedDiff >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                       {toSigned(confSummary.weightedDiff * 100, 1, 'pp')}
                     </span>
@@ -1749,11 +1751,11 @@ export default function DashboardPage({ openModal }) {
                     <span className="font-medium text-stone-700">{(confSummary.mae * 100).toFixed(1)}pp</span>
                   </div>
                   <p className="text-[11px] text-stone-500 leading-5">
-                    {confSummary.note} 最优收益区间：{confSummary.bestEdge.label}（ROI {toSigned(confSummary.bestEdge.roi, 1, '%')}）。
+                    {maskText(confSummary.note)} 最优收益区间：{confSummary.bestEdge.label}（ROI {toSigned(confSummary.bestEdge.roi, 1, '%')}）。
                   </p>
                 </>
               ) : (
-                <p className="text-[11px] text-stone-400">当前窗口暂无 Conf 校准样本。</p>
+                <p className="text-[11px] text-stone-400">{maskText('当前窗口暂无 Conf 校准样本。')}</p>
               )}
               {confPriorityRows.length > 0 && (
                 <div className="mt-1.5 rounded-xl border border-stone-100 bg-stone-50/70 p-2.5 space-y-2">
@@ -1785,7 +1787,7 @@ export default function DashboardPage({ openModal }) {
                 </div>
               )}
             </div>
-            <p className="text-xs text-stone-400 mt-3 text-center">定义：比较赛前 Conf 与赛后 AJR 的长期偏差。</p>
+            <p className="text-xs text-stone-400 mt-3 text-center">{maskText('定义：比较赛前 Conf 与赛后 AJR 的长期偏差。')}</p>
           </div>
         </div>
       </div>
@@ -1797,7 +1799,7 @@ export default function DashboardPage({ openModal }) {
               onClick={() => setShowChartPicker((prev) => !prev)}
               className="motion-v2-ghost-btn font-medium text-stone-700 flex items-center gap-2 hover:text-amber-600 rounded-md px-2 py-1"
             >
-              {CHART_OPTIONS.find((item) => item.key === chartKey)?.label}
+              {maskText(CHART_OPTIONS.find((item) => item.key === chartKey)?.label)}
               <span className="text-xs">▼</span>
             </button>
             {showChartPicker && (
@@ -1813,7 +1815,7 @@ export default function DashboardPage({ openModal }) {
                       chartKey === item.key ? 'bg-amber-50 text-amber-700' : 'text-stone-600 hover:bg-stone-50'
                     }`}
                   >
-                    {item.label}
+                    {maskText(item.label)}
                   </button>
                 ))}
               </div>
@@ -1953,8 +1955,8 @@ export default function DashboardPage({ openModal }) {
           </div>
         </div>
         <div className="mt-5 px-2">
-          <p className="text-[11px] text-stone-600 leading-5">{chartNarrative.title}</p>
-          <p className="text-[10px] text-stone-400 leading-5 mt-1">{chartNarrative.subtitle}</p>
+          <p className="text-[11px] text-stone-600 leading-5">{maskText(chartNarrative.title)}</p>
+          <p className="text-[10px] text-stone-400 leading-5 mt-1">{maskText(chartNarrative.subtitle)}</p>
           {chartSecondarySeries.length > 0 && (
             <div className="mt-2.5 flex items-center gap-3 text-[10px] text-stone-500">
               <span className="inline-flex items-center gap-1">

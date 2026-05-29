@@ -14,7 +14,7 @@ import {
   solveKellyFractionByAtomicDistribution,
 } from '../lib/atomicParlay'
 import { parseNaturalInput } from '../lib/naturalInputParser'
-import { useLabels } from '../lib/labels'
+import { useLabels, usePreviewTextMask } from '../lib/labels'
 import { useModeLabelMap } from '../components/ModeLabel'
 import { useDisplayMode, PREVIEW_MODE } from '../lib/displayMode'
 
@@ -234,6 +234,7 @@ export default function NewInvestmentPage() {
   const navigate = useNavigate()
   const labels = useLabels()
   const maskMode = useModeLabelMap()
+  const maskText = usePreviewTextMask()
   const displayMode = useDisplayMode()
   const isPreview = displayMode === PREVIEW_MODE
   const [dataVersion, setDataVersion] = useState(0)
@@ -669,7 +670,7 @@ export default function NewInvestmentPage() {
     if (clean && clean !== profile.teamName) {
       return `将自动规范为 ${profile.teamName}`
     }
-    return `${profile.totalSamples}场 · REP ${profile.avgRep.toFixed(2)}`
+    return maskText(`${profile.totalSamples}场 · REP ${profile.avgRep.toFixed(2)}`)
   }
 
   const canonicalizeTeamName = (name) => {
@@ -1111,9 +1112,9 @@ export default function NewInvestmentPage() {
                             <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/65 text-stone-600 border border-white/70">
                               {appliedHistory.dateLabel}
                             </span>
-                            <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${getModeBadgeClass(appliedHistory.mode)}`}>{appliedHistory.mode}</span>
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${getModeBadgeClass(appliedHistory.mode)}`}>{maskMode(appliedHistory.mode)}</span>
                             <span className={`text-[10px] font-semibold ${getConfBadgeClass(appliedHistory.confPercent)}`}>
-                              Conf {(appliedHistory.confPercent / 100).toFixed(2)}
+                              {maskText('Conf')} {(appliedHistory.confPercent / 100).toFixed(2)}
                             </span>
                           </div>
                         </div>
@@ -1157,7 +1158,7 @@ export default function NewInvestmentPage() {
                                 </span>
                                 <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${getModeBadgeClass(historyItem.mode)}`}>{maskMode(historyItem.mode)}</span>
                                 <span className={`text-[10px] font-semibold ${getConfBadgeClass(historyItem.confPercent)}`}>
-                                  Conf {(historyItem.confPercent / 100).toFixed(2)}
+                                  {maskText('Conf')} {(historyItem.confPercent / 100).toFixed(2)}
                                 </span>
                               </div>
                               <p className="mt-1 text-[10px] text-stone-500 truncate">
@@ -1225,7 +1226,7 @@ export default function NewInvestmentPage() {
                           >
                             <div className="text-sm text-stone-700">{team.teamName}</div>
                             <div className="text-[11px] text-stone-400">
-                              {team.totalSamples} 场 · REP {team.avgRep.toFixed(2)}
+                              {team.totalSamples} 场 · {maskText('REP')} {team.avgRep.toFixed(2)}
                             </div>
                           </button>
                         ))}
@@ -1268,7 +1269,7 @@ export default function NewInvestmentPage() {
                           >
                             <div className="text-sm text-stone-700">{team.teamName}</div>
                             <div className="text-[11px] text-stone-400">
-                              {team.totalSamples} 场 · REP {team.avgRep.toFixed(2)}
+                              {team.totalSamples} 场 · {maskText('REP')} {team.avgRep.toFixed(2)}
                             </div>
                           </button>
                         ))}
@@ -1469,7 +1470,7 @@ export default function NewInvestmentPage() {
                             <button
                               type="button"
                               onClick={() => updateMatch(idx, 'fse_home', homeFseHistorySuggestion.value)}
-                              title={`${match.homeTeam || '主队'} 最近历史 FSE ${homeFseHistorySuggestion.dateLabel}`}
+                              title={maskText(`${match.homeTeam || '主队'} 最近历史 FSE ${homeFseHistorySuggestion.dateLabel}`)}
                               className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all ${
                                 match.fse_home === homeFseHistorySuggestion.value
                                   ? 'border-sky-300 bg-sky-100 text-sky-700 shadow-[0_6px_14px_rgba(56,189,248,0.22)]'
@@ -1514,7 +1515,7 @@ export default function NewInvestmentPage() {
                             <button
                               type="button"
                               onClick={() => updateMatch(idx, 'fse_away', awayFseHistorySuggestion.value)}
-                              title={`${match.awayTeam || '客队'} 最近历史 FSE ${awayFseHistorySuggestion.dateLabel}`}
+                              title={maskText(`${match.awayTeam || '客队'} 最近历史 FSE ${awayFseHistorySuggestion.dateLabel}`)}
                               className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all ${
                                 match.fse_away === awayFseHistorySuggestion.value
                                   ? 'border-sky-300 bg-sky-100 text-sky-700 shadow-[0_6px_14px_rgba(56,189,248,0.22)]'

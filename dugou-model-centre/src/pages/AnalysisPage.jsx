@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getAnalysisSnapshot, getDashboardSnapshot, getMetricsSnapshot } from '../lib/analytics'
 import { getInvestments } from '../lib/localData'
 import TimeRangePicker from '../components/TimeRangePicker'
-import { useLabels } from '../lib/labels'
+import { useLabels, usePreviewTextMask } from '../lib/labels'
 import { useModeLabelMap } from '../components/ModeLabel'
 
 const PERIOD_LABELS = {
@@ -714,6 +714,14 @@ export default function AnalysisPage({ openModal }) {
   const navigate = useNavigate()
   const labels = useLabels()
   const maskMode = useModeLabelMap()
+  const maskText = usePreviewTextMask()
+  // comboKey 形如 `${type} × ${mode} × Conf ${range}` 同时含模式名与参数码；
+  // 按 ' × ' 切段后对模式段做精确映射，再整体跑文本替换处理 Conf。
+  // 全量模式下两层映射都是恒等，输出与原串完全一致。
+  const maskCombo = (combo) =>
+    typeof combo === 'string'
+      ? maskText(combo.split(' × ').map((seg) => maskMode(seg)).join(' × '))
+      : combo
   const [analysisTab, setAnalysisTab] = useState('combo')
   const [expandedLeague, setExpandedLeague] = useState(null)
   const [leaguePages, setLeaguePages] = useState({})
@@ -969,7 +977,7 @@ export default function AnalysisPage({ openModal }) {
     }
 
     openModal({
-      title: `${comboKey} · 配置历史明细`,
+      title: `${maskCombo(comboKey)} · 配置历史明细`,
       content: <ComboHistoryDetailContent />,
     })
   }
@@ -980,7 +988,7 @@ export default function AnalysisPage({ openModal }) {
       (row) => row.mode === cell.mode && row.confBucket === cell.confBucket && row.oddsBucket === cell.oddsBucket,
     )
     openModal({
-      title: `${cell.mode} · Conf ${cell.confBucket} × Odds ${cell.oddsBucket}`,
+      title: `${maskMode(cell.mode)} · ${maskText(`Conf ${cell.confBucket}`)} × Odds ${cell.oddsBucket}`,
       content: <PaginatedMatchTable rows={rows} />,
     })
   }
@@ -1013,7 +1021,7 @@ export default function AnalysisPage({ openModal }) {
         <div className="space-y-4">
           <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-between">
             <span className="text-sm text-stone-700">
-              {cell.sizeBucket} × {cell.mode}
+              {cell.sizeBucket} × {maskMode(cell.mode)}
             </span>
             <span className="text-xs text-stone-500">
               {cell.samples} 样本 · ROI {signed(cell.roi, 1, '%')} · 命中率 {cell.hitRate.toFixed(1)}%
@@ -1026,7 +1034,7 @@ export default function AnalysisPage({ openModal }) {
     }
 
     openModal({
-      title: `${cell.sizeBucket} × ${cell.mode} · 串关配置历史`,
+      title: `${cell.sizeBucket} × ${maskMode(cell.mode)} · 串关配置历史`,
       content: <ComboMatrixDetailContent />,
     })
   }
@@ -1080,7 +1088,7 @@ export default function AnalysisPage({ openModal }) {
     }
 
     openModal({
-      title: `Conf ${confRange} · 样本历史明细`,
+      title: maskText(`Conf ${confRange} · 样本历史明细`),
       content: <ConfRangeHistoryDetailContent />,
     })
   }
@@ -1136,7 +1144,7 @@ export default function AnalysisPage({ openModal }) {
     }
 
     openModal({
-      title: `${mode} · 历史样本明细`,
+      title: `${maskMode(mode)} · 历史样本明细`,
       content: <ModeHistoryDetailContent />,
     })
   }
@@ -1154,7 +1162,7 @@ export default function AnalysisPage({ openModal }) {
       {!hasAnyData && (
         <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-4">
           <h3 className="text-lg font-semibold text-stone-800 mb-2">当前时间窗口暂无可分析样本</h3>
-          <p className="text-sm text-stone-500 mb-4">先新建投资并完成结算，系统会自动生成组合、联赛、Mode 与 Conf 的分析层。</p>
+          <p className="text-sm text-stone-500 mb-4">{maskText('先新建投资并完成结算，系统会自动生成组合、联赛、Mode 与 Conf 的分析层。')}</p>
           <div className="flex items-center gap-3">
             <button onClick={() => navigate('/new')} className="btn-primary btn-hover motion-v2-ghost-btn">
               去新建投资
@@ -1175,7 +1183,7 @@ export default function AnalysisPage({ openModal }) {
               analysisTab === tab.id ? 'bg-amber-100 text-amber-700 font-medium' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
             }`}
           >
-            {tab.label}
+            {maskText(tab.label)}
           </button>
         ))}
       </div>
@@ -1264,7 +1272,7 @@ export default function AnalysisPage({ openModal }) {
                               {profileMeta.label}
                             </span>
                           </div>
-                          <p className="text-sm font-medium text-stone-700 truncate">{row.combo}</p>
+                          <p className="text-sm font-medium text-stone-700 truncate">{maskCombo(row.combo)}</p>
                         </div>
                         <span className={`text-lg font-semibold ${isPositive ? '' : profileMeta.roiTone}`} style={roiColorStyle}>
                           {signed(row.roi, 1, '%')}
@@ -1292,7 +1300,7 @@ export default function AnalysisPage({ openModal }) {
           <div className="motion-v2-surface glow-card bg-white rounded-2xl p-6 border border-stone-100">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium text-stone-700">优势领域分析 2.0</h3>
-              <span className="text-xs text-stone-400">Mode × Conf × Odds · 点击单元格查看样本明细</span>
+              <span className="text-xs text-stone-400">{maskText('Mode × Conf × Odds · 点击单元格查看样本明细')}</span>
             </div>
             <div className="flex flex-wrap items-center gap-2 mb-4">
               {advantageModes.map((mode) => (
@@ -1303,7 +1311,7 @@ export default function AnalysisPage({ openModal }) {
                     advantageMode === mode ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
                   }`}
                 >
-                  {mode}
+                  {maskMode(mode)}
                 </button>
               ))}
               <div className="ml-auto flex items-center gap-2">
@@ -1444,7 +1452,7 @@ export default function AnalysisPage({ openModal }) {
                     <th className="py-2 pr-3 min-w-[72px]">规模</th>
                     {MODE_ORDER.map((mode) => (
                       <th key={`head-${mode}`} className="py-2 px-1 min-w-[96px] text-center font-medium">
-                        {mode}
+                        {maskMode(mode)}
                       </th>
                     ))}
                   </tr>
@@ -1678,7 +1686,7 @@ export default function AnalysisPage({ openModal }) {
                 <th className="py-2 font-medium">样本数</th>
                 <th className="py-2 font-medium">ROI</th>
                 <th className="py-2 font-medium">命中率</th>
-                <th className="py-2 font-medium">Avg(Act-Conf)</th>
+                <th className="py-2 font-medium">{maskText('Avg(Act-Conf)')}</th>
                 <th className="py-2 font-medium">平均 Odds</th>
                 <th className="py-2 font-medium">建议 Kelly</th>
               </tr>

@@ -4,6 +4,7 @@ import { getTeamsSnapshot } from '../lib/analytics'
 import { getInvestments, getTeamProfiles } from '../lib/localData'
 import { lookupTeam, LEAGUE_TAGS } from '../lib/teamDatabase'
 import TimeRangePicker from '../components/TimeRangePicker'
+import { usePreviewTextMask } from '../lib/labels'
 
 const PERIOD_LABELS = {
   '1w': '近一周',
@@ -225,6 +226,7 @@ const buildTeamHistoryRowsMap = (periodKey) => {
 }
 
 export default function TeamsPage() {
+  const maskText = usePreviewTextMask()
   const [selectedTeamName, setSelectedTeamName] = useState('阿森纳')
   const [searchQuery, setSearchQuery] = useState('')
   const [timePeriod, setTimePeriod] = useState('all')
@@ -397,7 +399,7 @@ export default function TeamsPage() {
                 <span className="text-sm font-medium text-stone-700">{Number(team.avgAjr || 0).toFixed(2)}</span>
               </div>
               <div>
-                <span className="text-xs text-stone-400 block">AJR-Conf</span>
+                <span className="text-xs text-stone-400 block">{maskText('AJR-Conf')}</span>
                 <span className={`text-sm font-medium ${team.ratingDiff >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                   {toSigned(team.ratingDiff, 2)}
                 </span>

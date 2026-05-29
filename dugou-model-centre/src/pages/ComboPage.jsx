@@ -9,7 +9,7 @@ import {
   estimateEntryAnchorOdds,
 } from '../lib/atomicParlay'
 import { FragilityHeatmapCard } from '../components/FragilityHeatmapCard'
-import { useLabels } from '../lib/labels'
+import { maskReactTree, useLabels, usePreviewTextMask } from '../lib/labels'
 import { useModeLabelMap } from '../components/ModeLabel'
 
 const MODE_FACTOR_MAP = {
@@ -3790,6 +3790,7 @@ export default function ComboPage({ openModal }) {
   const navigate = useNavigate()
   const labels = useLabels()
   const maskMode = useModeLabelMap()
+  const maskText = usePreviewTextMask()
   const restoreCheckedKeysRef = useRef(null)
   const [dataVersion, setDataVersion] = useState(0)
   const [dismissedCount, setDismissedCount] = useState(() => readDismissedCandidateKeys().size)
@@ -4999,7 +5000,7 @@ export default function ComboPage({ openModal }) {
   const openAlgoModal = () => {
     openModal({
       title: 'Portfolio Optimization 算法说明 v4.9',
-          content: (
+          content: maskReactTree((
         <div className="text-sm text-stone-600 space-y-4 max-h-[70vh] overflow-y-auto pr-1">
           <p className="font-semibold text-indigo-600 text-xs tracking-wide">— 概率校准与信号提取 —</p>
           <p><strong>1. 输入建模</strong>：接入 n 场比赛的多维特征向量（Conf, Mode, TYS, FID, FSE, Odds），构建候选组合池 ΣC(n,k)（k ≤ 5，受最小关数约束）。</p>
@@ -5126,7 +5127,7 @@ export default function ComboPage({ openModal }) {
 
           <p className="text-[11px] text-stone-400 mt-3 pt-2 border-t border-stone-100">DuGou Portfolio Optimization Engine v4.9 · Composite Calibration · PAV Isotonic · Learned Context Factors · Walk-Forward Feedback · Entry Correlation (Multiplicative) · Conf-Surplus · Anchor Diversification · Portfolio Allocation (Cosine Annealing) · Correlated Monte Carlo · Full-Spectrum WF Hyperparameter Calibration · Adaptive Weight Auto-Apply · Combo Retrospective Learning · Dependency Risk Matrix (Kernel Regression · FGM Copula · Shapley MSI · Sigmoid Mapping)</p>
         </div>
-      ),
+      ), maskText),
     })
   }
 
@@ -5313,9 +5314,9 @@ export default function ComboPage({ openModal }) {
               <span className="text-xs text-stone-400">激进</span>
             </div>
             <p className="text-[11px] text-stone-400 mt-2">
-              近因 n={calibrationContext.n} · Conf×{calibrationContext.multipliers.conf.toFixed(2)} · FSE×
+              近因 n={calibrationContext.n} · {maskText('Conf')}×{calibrationContext.multipliers.conf.toFixed(2)} · {maskText('FSE')}×
               {calibrationContext.multipliers.fse.toFixed(2)} · TeamCal {calibrationContext.teamCalibration?.teamCount || 0}队 ·
-              MarketLean {(calibrationContext.marketBlend?.marketLean || 0).toFixed(2)} · ConfOdds校准 {(calibrationContext.confOddsCalibration?.reliability || 0).toFixed(2)} · 策略 {activeStrategyMeta.label} · 候选组合{' '}
+              MarketLean {(calibrationContext.marketBlend?.marketLean || 0).toFixed(2)} · {maskText('ConfOdds校准')} {(calibrationContext.confOddsCalibration?.reliability || 0).toFixed(2)} · 策略 {activeStrategyMeta.label} · 候选组合{' '}
               {generationSummary.candidateCombos || candidateComboCount}
             </p>
           </div>
@@ -6848,12 +6849,12 @@ export default function ComboPage({ openModal }) {
             </button>
           </div>
           <p className="text-sm text-stone-500 leading-relaxed">
-            基于 Markowitz 均值-方差框架，融合复合概率校准管线（线性回归 + PAV 保序回归自适应混合）、自学习情境因子（Shrinkage K=12）、Walk-Forward 反馈回路（自动调参 Kelly/Odds权重/阈值），构建多资产联合分布并以纯分数 Kelly 准则优化仓位。v4.0 容错引擎实现四级置信度梯度 + C(N,N-1) 容错覆盖 + 边际 Sharpe 门控 + 分层对冲架构。v4.3 引入 Entry 相关性矩阵（Phi 系数修正联合概率）与 Per-Match EJR 追踪。v4.4 新增 Conf-Surplus 反共识信号 + 锚定分散化惩罚 + Portfolio Allocation 优化器 + 50k Monte Carlo。v4.9 全参数自旋转引擎：修复 Kelly 经验因子残留与 Walk-Forward 旁路，新增 backtestComboHyperparams 引擎从结算数据自动校准 20+ 组合生成/评分参数族群（vig、surplus 阈值、分层配额、MMR 惩罚、角色系数、组合优化器、时序权重、软惩罚、覆盖衰减、相关性公式等），可靠度加权混合确保小样本稳健。系统旋转覆盖率从 ~55% 提升至 ~92%。
+            {maskText('基于 Markowitz 均值-方差框架，融合复合概率校准管线（线性回归 + PAV 保序回归自适应混合）、自学习情境因子（Shrinkage K=12）、Walk-Forward 反馈回路（自动调参 Kelly/Odds权重/阈值），构建多资产联合分布并以纯分数 Kelly 准则优化仓位。v4.0 容错引擎实现四级置信度梯度 + C(N,N-1) 容错覆盖 + 边际 Sharpe 门控 + 分层对冲架构。v4.3 引入 Entry 相关性矩阵（Phi 系数修正联合概率）与 Per-Match EJR 追踪。v4.4 新增 Conf-Surplus 反共识信号 + 锚定分散化惩罚 + Portfolio Allocation 优化器 + 50k Monte Carlo。v4.9 全参数自旋转引擎：修复 Kelly 经验因子残留与 Walk-Forward 旁路，新增 backtestComboHyperparams 引擎从结算数据自动校准 20+ 组合生成/评分参数族群（vig、surplus 阈值、分层配额、MMR 惩罚、角色系数、组合优化器、时序权重、软惩罚、覆盖衰减、相关性公式等），可靠度加权混合确保小样本稳健。系统旋转覆盖率从 ~55% 提升至 ~92%。')}
           </p>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {['复合校准','保序回归','自学习因子','Walk-Forward','原子建模','Kelly准则','容错覆盖','Sharpe门控','Conf-Surplus','锚定分散化','Entry相关性','Monte Carlo','Portfolio优化','超参WF校准','自适应权重','全参数自旋转','组合回溯学习'].map(tag => (
               <span key={tag} className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-white/80 text-indigo-500 border border-indigo-100/70 backdrop-blur-[1px]">
-                {tag}
+                {maskText(tag)}
               </span>
             ))}
           </div>

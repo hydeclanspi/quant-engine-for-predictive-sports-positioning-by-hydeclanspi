@@ -1,0 +1,15 @@
+# ── OS / tooling ──
+.DS_Store
+.claude/
+
+# ── Personal notes, design explorations & proprietary docs ──
+# These live at the repo root and are intentionally kept LOCAL only.
+# Root-anchored ("/") so nothing inside dugou-model-centre/ is affected.
+/*.md
+/*.html
+/*.jsx
+/*.txt
+/*.jpg
+/*.png
+/*.pdf
+!/README.md

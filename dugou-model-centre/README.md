@@ -10,8 +10,6 @@
 ![Vitest](https://img.shields.io/badge/tested%20with-Vitest-6E9F18?logo=vitest&logoColor=white)
 ![CI](https://img.shields.io/badge/CI-lint%20·%20test%20·%20build-2088FF?logo=githubactions&logoColor=white)
 
-> ⚠️ **草稿 / Draft** —— 本 README 为初稿，内容与措辞仍在迭代中。
-
 ---
 
 ## 简介 · Overview

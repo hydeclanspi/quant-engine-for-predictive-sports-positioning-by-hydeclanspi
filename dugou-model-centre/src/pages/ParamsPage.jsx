@@ -63,7 +63,7 @@ import {
 import { LogoGalleryExplorer, LogoGalleryPreview } from '../components/LogoGalleryExplorer'
 import TimeMachineModalContent from '../components/TimeMachineModalContent'
 import { isPreviewMode } from '../lib/displayMode'
-import { useLabels } from '../lib/labels'
+import { maskReactTree, useLabels, usePreviewTextMask } from '../lib/labels'
 import { useModeLabelMap } from '../components/ModeLabel'
 import TimeMachineIcon from '../components/TimeMachineIcon'
 
@@ -164,22 +164,23 @@ const ConsoleCardIcon = ({ IconComp }) => (
 )
 
 const ExplainHover = ({ card, align = 'left', children }) => {
+  const maskText = usePreviewTextMask()
   if (!card) return children
   const alignClass = align === 'right' ? 'right-0' : 'left-0'
   const lines = [
-    { label: '是什么', value: card.what },
-    { label: '描述', value: card.describes },
-    { label: '当前值', value: card.current },
-    { label: '基准值', value: card.baseline },
-    { label: '当前状态', value: card.status },
-    { label: '其它状态', value: card.others },
+    { label: '是什么', value: maskText(card.what) },
+    { label: '描述', value: maskText(card.describes) },
+    { label: '当前值', value: maskText(card.current) },
+    { label: '基准值', value: maskText(card.baseline) },
+    { label: '当前状态', value: maskText(card.status) },
+    { label: '其它状态', value: maskText(card.others) },
   ].filter((line) => line.value)
 
   return (
     <span className="group/explain relative inline-flex">
       {children}
       <span className={`pointer-events-none absolute ${alignClass} top-full z-[240] mt-2.5 w-[300px] translate-y-1 rounded-xl border border-sky-200/85 bg-[linear-gradient(145deg,rgba(240,249,255,0.95),rgba(255,255,255,0.95)_48%,rgba(238,242,255,0.9))] p-3 text-left opacity-0 shadow-[0_16px_34px_-26px_rgba(56,189,248,0.45),inset_0_1px_0_rgba(255,255,255,0.92)] transition-all duration-180 group-hover/explain:translate-y-0 group-hover/explain:opacity-100 group-hover/explain:shadow-[0_22px_44px_-24px_rgba(56,189,248,0.5),inset_0_1px_0_rgba(255,255,255,0.92)]`}>
-        <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-sky-600">{card.title}</span>
+        <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-sky-600">{maskText(card.title)}</span>
         <span className="mt-1 block h-px w-full bg-gradient-to-r from-sky-200 via-indigo-200/80 to-transparent" />
         <span className="mt-1.5 block space-y-1.5">
           {lines.map((line) => (
@@ -1111,7 +1112,9 @@ const CopulaRemarks = () => (
   </section>
 )
 
-const BayesianRemarks = () => (
+const BayesianRemarks = () => {
+  const maskText = usePreviewTextMask()
+  return maskReactTree((
   <section className="mt-5 rounded-xl border border-stone-200/70 bg-stone-50/65 px-4 py-3">
     <p className="text-[11px] uppercase tracking-[0.14em] text-stone-400 font-medium">Remarks</p>
 
@@ -1194,7 +1197,8 @@ const BayesianRemarks = () => (
 
     <p className="mt-3 text-right text-[12px] font-bold text-stone-500">Feb 16, 2026.</p>
   </section>
-)
+  ), maskText)
+}
 
 const FutureFeaturesExplorer = () => {
   const [activePointId, setActivePointId] = useState(null)
@@ -1683,6 +1687,7 @@ const collectModeAndOddsPoints = (settledInvestments, modeKellyRows, kellyMatrix
 
 const PaginatedKellyMatrixTable = ({ rows }) => {
   const maskMode = useModeLabelMap()
+  const maskText = usePreviewTextMask()
   const [modeFilter, setModeFilter] = useState('all')
   const [confFilter, setConfFilter] = useState('all')
   const [oddsFilter, setOddsFilter] = useState('all')
@@ -1731,7 +1736,7 @@ const PaginatedKellyMatrixTable = ({ rows }) => {
             onChange={(event) => setConfFilter(event.target.value)}
             className="px-2.5 py-1.5 rounded-lg text-xs border border-stone-200 bg-white text-stone-600"
           >
-            <option value="all">全部 Conf 区间</option>
+            <option value="all">{maskText('全部 Conf 区间')}</option>
             {confOptions.map((bucket) => (
               <option key={bucket} value={bucket}>
                 {bucket}
@@ -1760,7 +1765,7 @@ const PaginatedKellyMatrixTable = ({ rows }) => {
         <thead>
           <tr className="border-b border-stone-200 text-left text-stone-500">
             <th className="py-2">Mode</th>
-            <th className="py-2">Conf 区间</th>
+            <th className="py-2">{maskText('Conf 区间')}</th>
             <th className="py-2">Odds 区间</th>
             <th className="py-2">样本</th>
             <th className="py-2">ROI</th>
@@ -1841,6 +1846,7 @@ const DEFAULT_PRIORS = {
 }
 
 function AdaptiveWeightCard({ config, setConfig, saveSystemConfig, dataVersion }) {
+  const maskText = usePreviewTextMask()
   const [showBoundsEditor, setShowBoundsEditor] = useState(false)
   const [editingWeight, setEditingWeight] = useState(null)
   const [tempWeightValue, setTempWeightValue] = useState('')
@@ -1892,7 +1898,7 @@ function AdaptiveWeightCard({ config, setConfig, saveSystemConfig, dataVersion }
     newConfig.adaptiveWeights = newAdaptive
     setConfig(newConfig)
     saveSystemConfig(newConfig)
-    setApplyStatus(`${WEIGHT_LABELS[key]?.label || key} 已更新`)
+    setApplyStatus(`${maskText(WEIGHT_LABELS[key]?.label || key)} 已更新`)
     setTimeout(() => setApplyStatus(''), 1500)
   }
 
@@ -2018,8 +2024,8 @@ function AdaptiveWeightCard({ config, setConfig, saveSystemConfig, dataVersion }
                   return (
                     <tr key={row.key} className="border-b border-stone-100 hover:bg-stone-50/50">
                       <td className="py-2 px-2">
-                        <span className="font-medium">{WEIGHT_LABELS[row.key]?.label || row.label}</span>
-                        <span className="text-[10px] text-stone-400 ml-1">({WEIGHT_LABELS[row.key]?.hint})</span>
+                        <span className="font-medium">{maskText(WEIGHT_LABELS[row.key]?.label || row.label)}</span>
+                        <span className="text-[10px] text-stone-400 ml-1">({maskText(WEIGHT_LABELS[row.key]?.hint)})</span>
                       </td>
                       <td className="py-2 px-2 text-stone-400">{row.prior.toFixed(2)}</td>
                       <td className="py-2 px-2">
@@ -2130,7 +2136,7 @@ function AdaptiveWeightCard({ config, setConfig, saveSystemConfig, dataVersion }
               const [minB, maxB] = tempBounds[key] || bounds[key] || DEFAULT_BOUNDS[key]
               return (
                 <div key={key} className="p-2 bg-white rounded-lg border border-stone-200">
-                  <span className="text-xs font-medium text-stone-600">{WEIGHT_LABELS[key].label}</span>
+                  <span className="text-xs font-medium text-stone-600">{maskText(WEIGHT_LABELS[key].label)}</span>
                   <div className="flex items-center gap-1 mt-1">
                     <input
                       type="number"
@@ -2180,6 +2186,7 @@ function AdaptiveWeightCard({ config, setConfig, saveSystemConfig, dataVersion }
 
 export default function ParamsPage({ openModal }) {
   const labels = useLabels()
+  const maskText = usePreviewTextMask()
   const maskMode = useModeLabelMap()
   const [expandedFactor, setExpandedFactor] = useState(null)
   const [factorRange, setFactorRange] = useState('4w')
@@ -3323,7 +3330,7 @@ export default function ParamsPage({ openModal }) {
           </div>
 
           <div>
-            <p className="text-sm text-stone-500 mb-3">Mode × Conf × Odds 组合分层</p>
+            <p className="text-sm text-stone-500 mb-3">{maskText('Mode × Conf × Odds 组合分层')}</p>
             <PaginatedKellyMatrixTable rows={kellyMatrix} />
           </div>
         </div>
@@ -4478,11 +4485,13 @@ export default function ParamsPage({ openModal }) {
               ×{calibrationContext.regressionMultiplier?.toFixed(3) || '1.000'}
             </div>
             <p className="text-xs text-violet-500 mt-2">
-              {calibrationContext.regressionMultiplier > 1.02
-                ? '你的 Conf 系统性低估实际表现'
-                : calibrationContext.regressionMultiplier < 0.98
-                  ? '你的 Conf 系统性高估实际表现'
-                  : '你的 Conf 校准良好'}
+              {maskText(
+                calibrationContext.regressionMultiplier > 1.02
+                  ? '你的 Conf 系统性低估实际表现'
+                  : calibrationContext.regressionMultiplier < 0.98
+                    ? '你的 Conf 系统性高估实际表现'
+                    : '你的 Conf 校准良好',
+              )}
             </p>
           </div>
 
@@ -4520,7 +4529,7 @@ export default function ParamsPage({ openModal }) {
 
         <div className="p-4 bg-stone-50 rounded-xl border border-stone-200">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-stone-700">Conf vs Actual Rating 散点图</span>
+            <span className="text-sm font-medium text-stone-700">{maskText('Conf vs Actual Rating 散点图')}</span>
             <span className="text-xs text-stone-400">{calibrationContext.scatterData?.length || 0} 个数据点</span>
           </div>
           <div className="h-64 relative">
@@ -4598,7 +4607,7 @@ export default function ParamsPage({ openModal }) {
                     ))}
 
                     <text x={padding.left + width / 2} y={padding.top + height + 28} textAnchor="middle" fill="#78716c" fontSize="11">
-                      Expected (Conf)
+                      {maskText('Expected (Conf)')}
                     </text>
                     <text x={12} y={padding.top + height / 2} textAnchor="middle" fill="#78716c" fontSize="11" transform={`rotate(-90, 12, ${padding.top + height / 2})`}>
                       Actual Rating
@@ -4662,8 +4671,8 @@ export default function ParamsPage({ openModal }) {
               return (
                 <div key={field.key} className={`p-3 rounded-xl border bg-gradient-to-br ${tone}`}>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs text-stone-500 block">{field.label}</label>
-                    <span className="text-[10px] text-stone-400">{field.hint}</span>
+                    <label className="text-xs text-stone-500 block">{maskText(field.label)}</label>
+                    <span className="text-[10px] text-stone-400">{maskText(field.hint)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <input
@@ -4709,11 +4718,11 @@ export default function ParamsPage({ openModal }) {
 
             <div className="grid grid-cols-2 gap-3 mt-3">
               <div className="p-3 bg-amber-50 rounded-xl border border-amber-200">
-                <p className="text-xs text-amber-700">Conf 近因校准</p>
+                <p className="text-xs text-amber-700">{maskText('Conf 近因校准')}</p>
                 <p className="mt-1 text-lg font-semibold text-amber-700">×{calibrationContext.multipliers.conf.toFixed(2)}</p>
               </div>
               <div className="p-3 bg-sky-50 rounded-xl border border-sky-200">
-                <p className="text-xs text-sky-700">FSE 近因校准</p>
+                <p className="text-xs text-sky-700">{maskText('FSE 近因校准')}</p>
                 <p className="mt-1 text-lg font-semibold text-sky-700">×{calibrationContext.multipliers.fse.toFixed(2)}</p>
               </div>
             </div>
@@ -4730,7 +4739,7 @@ export default function ParamsPage({ openModal }) {
             </div>
 
             <p className="text-[11px] text-stone-400 mt-3">
-              已启用 REP 方向性降噪：低随机性样本上调权重，高随机性样本降权，避免“运气样本”放大误导。
+              {maskText('已启用 REP 方向性降噪：低随机性样本上调权重，高随机性样本降权，避免“运气样本”放大误导。')}
             </p>
           </>
         )}
@@ -4908,7 +4917,7 @@ export default function ParamsPage({ openModal }) {
               <div className="p-3 rounded-xl border border-stone-200 bg-white">
                 <ExplainHover card={modelValidationGlossary.kellyRaw}>
                   <p className="cursor-help text-xs text-stone-400 decoration-dotted underline decoration-stone-300/80 underline-offset-[2px]">
-                    Kelly 策略回测（Raw Conf）
+                    {maskText('Kelly 策略回测（Raw Conf）')}
                   </p>
                 </ExplainHover>
                 <p className={`text-sm font-semibold mt-1 ${modelValidation.strategy.raw.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
@@ -4921,7 +4930,7 @@ export default function ParamsPage({ openModal }) {
               <div className="p-3 rounded-xl border border-amber-200 bg-amber-50/40">
                 <ExplainHover card={modelValidationGlossary.kellyCalibrated} align="right">
                   <p className="cursor-help text-xs text-amber-700 decoration-dotted underline decoration-amber-300/80 underline-offset-[2px]">
-                    Kelly 策略回测（Calibrated Conf）
+                    {maskText('Kelly 策略回测（Calibrated Conf）')}
                   </p>
                 </ExplainHover>
                 <p className={`text-sm font-semibold mt-1 ${modelValidation.strategy.calibrated.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
@@ -5023,7 +5032,7 @@ export default function ParamsPage({ openModal }) {
                 expandedFactor === item.label ? 'bg-amber-100 border-2 border-amber-300' : 'bg-stone-50 hover:bg-amber-50/50'
               }`}
             >
-              <span className="text-xs text-stone-400 block">{item.label}</span>
+              <span className="text-xs text-stone-400 block">{maskText(item.label)}</span>
               <div className="flex items-center justify-center gap-1">
                 <span className="text-lg font-semibold text-stone-700">{item.value.toFixed(2)}</span>
                 <span
@@ -5041,7 +5050,7 @@ export default function ParamsPage({ openModal }) {
         {expandedFactor && (
           <div className="mt-6 p-6 bg-stone-50 rounded-xl border border-stone-200 animate-fade-in">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="font-medium text-stone-700">{expandedFactor} Factor · 历史走势</h4>
+              <h4 className="font-medium text-stone-700">{maskText(expandedFactor)} Factor · 历史走势</h4>
               <div className="flex items-center gap-2">
                 {Object.entries(FACTOR_RANGE_CONFIG).map(([key, meta]) => (
                   <button

@@ -124,6 +124,7 @@ const getToneClass = (tone) => {
 
 const PaginatedMatchTable = ({ rows }) => {
   const labels = useLabels()
+  const maskMode = useModeLabelMap()
   const [page, setPage] = useState(1)
   const pageSize = 10
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize))
@@ -152,7 +153,7 @@ const PaginatedMatchTable = ({ rows }) => {
               <td className="py-2 text-stone-500">{row.dateLabel}</td>
               <td className="py-2 text-stone-700">{row.match}</td>
               <td className="py-2 text-stone-500">{row.entryLabel || row.entry || '-'}</td>
-              <td className="py-2 text-stone-600">{row.mode}</td>
+              <td className="py-2 text-stone-600">{maskMode(row.mode)}</td>
               <td className={`py-2 font-medium ${getConfColor(row.conf)}`}>{Number.isFinite(row.conf) ? row.conf.toFixed(2) : '-'}</td>
               <td className={`py-2 font-medium ${getAJRColor(row.ajr)}`}>{Number.isFinite(row.ajr) ? row.ajr.toFixed(2) : '-'}</td>
               <td className="py-2 text-violet-600 italic font-semibold">{Number.isFinite(row.odds) ? row.odds.toFixed(2) : '-'}</td>
@@ -738,7 +739,7 @@ export default function MetricsPage({ openModal }) {
             <div className="grid grid-cols-3 gap-3">
               {rows.map((row) => (
                 <div key={`${metric.id}-${row.label}`} className="rounded-xl border border-stone-100 bg-stone-50/70 px-3 py-2">
-                  <p className="text-[11px] text-stone-400">{row.label}</p>
+                  <p className="text-[11px] text-stone-400">{maskText(row.label)}</p>
                   <p className={`text-sm font-semibold mt-1 ${getToneClass(row.tone)}`}>{row.value}</p>
                 </div>
               ))}
@@ -776,8 +777,8 @@ export default function MetricsPage({ openModal }) {
 
   const openAllMatchesDetail = () => openMatrixDetail('全量样本明细', snapshot.matchRows)
 
-  const openModeDetail = (mode) => openMatrixDetail(`${mode} · 样本明细`, snapshot.matchRows.filter((row) => row.mode === mode))
-  const openConfDetail = (bucket) => openMatrixDetail(`Conf ${bucket} · 样本明细`, snapshot.matchRows.filter((row) => row.confBucket === bucket))
+  const openModeDetail = (mode) => openMatrixDetail(`${maskMode(mode)} · 样本明细`, snapshot.matchRows.filter((row) => row.mode === mode))
+  const openConfDetail = (bucket) => openMatrixDetail(maskText(`Conf ${bucket} · 样本明细`), snapshot.matchRows.filter((row) => row.confBucket === bucket))
   const openOddsDetail = (bucket) => openMatrixDetail(`Odds ${bucket} · 样本明细`, snapshot.matchRows.filter((row) => row.oddsBucket === bucket))
   const openEntryDetail = (marketType, marketLabel) =>
     openMatrixDetail(`${marketLabel} · 样本明细`, snapshot.matchRows.filter((row) => row.entryType === marketType))
@@ -800,7 +801,7 @@ export default function MetricsPage({ openModal }) {
 
   const getMatrixRowLabel = (row) => {
     if (!row) return '-'
-    if (matrixTab === 'mode') return row.mode
+    if (matrixTab === 'mode') return maskMode(row.mode)
     if (matrixTab === 'entries') return row.marketLabel
     return row.bucket
   }
@@ -996,14 +997,14 @@ export default function MetricsPage({ openModal }) {
                   <th className="py-2">ROI</th>
                   <th className="py-2">命中率</th>
                   <th className="py-2">Avg Odds</th>
-                  <th className="py-2">Avg(Act-Conf)</th>
+                  <th className="py-2">{maskText('Avg(Act-Conf)')}</th>
                   <th className="py-2">Kelly</th>
                 </tr>
               </thead>
               <tbody>
                 {snapshot.matrix.mode.map((row) => (
                   <tr key={row.mode} className="border-b border-stone-100 hover:bg-stone-50 cursor-pointer" onClick={() => openModeDetail(row.mode)}>
-                    <td className="py-2 font-medium text-stone-700">{row.mode}</td>
+                    <td className="py-2 font-medium text-stone-700">{maskMode(row.mode)}</td>
                     <td className="py-2 text-stone-600">{row.samples}</td>
                     <td className={`py-2 font-medium ${row.roi >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>{signed(row.roi, 1, '%')}</td>
                     <td className="py-2 text-stone-600">{row.hitRate.toFixed(1)}%</td>
@@ -1164,7 +1165,7 @@ export default function MetricsPage({ openModal }) {
               <tr key={row.id} className="border-b border-stone-100">
                 <td className="py-2 text-stone-500">{row.dateLabel}</td>
                 <td className="py-2 text-stone-700">{row.match}</td>
-                <td className="py-2 text-stone-600">{row.mode}</td>
+                <td className="py-2 text-stone-600">{maskMode(row.mode)}</td>
                 <td className={`py-2 font-medium ${getConfColor(row.conf)}`}>{Number.isFinite(row.conf) ? row.conf.toFixed(2) : '-'}</td>
                 <td className={`py-2 font-medium ${getAJRColor(row.ajr)}`}>{Number.isFinite(row.ajr) ? row.ajr.toFixed(2) : '-'}</td>
                 <td className="py-2 text-violet-600 italic font-semibold">{Number.isFinite(row.odds) ? row.odds.toFixed(2) : '-'}</td>

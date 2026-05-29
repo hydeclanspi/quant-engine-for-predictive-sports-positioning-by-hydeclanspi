@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { cloneElement, isValidElement, useMemo } from 'react'
 import { FULL_MODE, PREVIEW_MODE, useDisplayMode } from './displayMode'
 
 /**
@@ -149,6 +149,25 @@ export const usePreviewTextMask = () => {
       return result
     }
   }, [mode])
+}
+
+/**
+ * Recursively apply a text mask to every string node in a React tree.
+ * Pass-through in FULL mode (maskText is identity), substitutes in PREVIEW.
+ * Lets long methodology essays be masked with a single wrap instead of
+ * hand-wrapping hundreds of <p> nodes. Only call on subtrees verified free
+ * of full words containing a code prefix (eg 'Confidence' / 'Config').
+ */
+export const maskReactTree = (node, maskText) => {
+  if (typeof node === 'string') return maskText(node)
+  if (Array.isArray(node)) return node.map((child) => maskReactTree(child, maskText))
+  if (isValidElement(node)) {
+    const children = node.props?.children
+    if (children == null) return node
+    const masked = maskReactTree(children, maskText)
+    return cloneElement(node, undefined, ...(Array.isArray(masked) ? masked : [masked]))
+  }
+  return node
 }
 
 export const useLabels = () => {
