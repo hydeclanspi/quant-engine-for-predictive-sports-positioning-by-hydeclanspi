@@ -21,6 +21,7 @@ import MetricsPage from './pages/MetricsPage'
 
 import { getSystemConfig, PAGE_AMBIENT_THEME_DEFAULTS, isInTimeMachineMode } from './lib/localData'
 import { trackRouteAccess } from './lib/accessTracking'
+import { useDisplayMode, PREVIEW_MODE } from './lib/displayMode'
 
 const LAYOUT_KEY = 'dugou:layout-mode'
 const VALID_MODES = ['topbar', 'sidebar', 'modern']
@@ -52,6 +53,15 @@ function App() {
   const [readOnlyWarning, setReadOnlyWarning] = useState(() => isInTimeMachineMode() ? '时光穿越中，仅浏览历史快照' : '')
   const mainScrollRef = useRef(null)
   const location = useLocation()
+  const displayMode = useDisplayMode()
+
+  // Demo/preview renders the whole app at 90% (browser-zoom equivalent);
+  // FULL (unlocked) mode stays 100%. Toggle the <html> class reactively so
+  // unlocking/locking at runtime switches the zoom without a reload.
+  useEffect(() => {
+    const root = document.documentElement
+    root.classList.toggle('dugou-preview-zoom', displayMode === PREVIEW_MODE)
+  }, [displayMode])
 
   // Listen for layout mode changes from ParamsPage
   useEffect(() => {
