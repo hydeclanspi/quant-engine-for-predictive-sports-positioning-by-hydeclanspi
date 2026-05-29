@@ -1,4 +1,4 @@
-import { SignJWT } from 'jose'
+import { createHmac } from 'node:crypto'
 
 /**
  * POST /api/unlock — verify the visitor's password and issue a signed
@@ -23,7 +23,30 @@ import { SignJWT } from 'jose'
  * visitor's own browser, so there is no owner data behind the JWT.
  */
 
-const TEXT_ENCODER = new TextEncoder()
+// Base64url-encode a string/Buffer without the trailing '=' padding,
+// per the JWT (JWS) spec.
+const base64url = (input) =>
+  Buffer.from(input)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+
+// Sign a minimal HS256 JWT using Node's built-in crypto — no external
+// dependency, so the function can never fail to boot for a missing
+// package. The frontend only reads the `exp` claim; the signature is
+// here so a server-side verifier could be added later.
+const signHs256Jwt = (payload, secret) => {
+  const header = { alg: 'HS256', typ: 'JWT' }
+  const signingInput = `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(payload))}`
+  const signature = createHmac('sha256', secret)
+    .update(signingInput)
+    .digest('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+  return `${signingInput}.${signature}`
+}
 
 const timingSafeEqual = (a, b) => {
   if (typeof a !== 'string' || typeof b !== 'string') return false
@@ -86,15 +109,13 @@ export default async function handler(req, res) {
 
   const ttlHoursRaw = Number.parseFloat(process.env.UNLOCK_TTL_HOURS || '12')
   const ttlHours = Number.isFinite(ttlHoursRaw) && ttlHoursRaw > 0 ? ttlHoursRaw : 12
-  const expSeconds = Math.floor(Date.now() / 1000) + ttlHours * 3600
+  const nowSeconds = Math.floor(Date.now() / 1000)
+  const expSeconds = Math.floor(nowSeconds + ttlHours * 3600)
 
-  const secret = TEXT_ENCODER.encode(jwtSecret)
-  const token = await new SignJWT({ scope: 'full' })
-    .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
-    .setIssuedAt()
-    .setExpirationTime(expSeconds)
-    .setSubject('dugou-unlock')
-    .sign(secret)
+  const token = signHs256Jwt(
+    { scope: 'full', sub: 'dugou-unlock', iat: nowSeconds, exp: expSeconds },
+    jwtSecret,
+  )
 
   return res.status(200).json({
     ok: true,

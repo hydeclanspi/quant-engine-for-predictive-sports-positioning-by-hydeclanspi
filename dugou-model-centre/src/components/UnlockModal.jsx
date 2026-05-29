@@ -111,9 +111,10 @@ export default function UnlockModal({ open, onClose, onUnlock }) {
       setPassword('')
       window.setTimeout(() => inputRef.current?.focus(), 60)
       return
-    } else {
-      // API is absent (local dev) or network failure — fall back to
-      // the frontend mock so the unlock flow stays demonstrable.
+    } else if (apiResult.reason === 'api_absent') {
+      // Only the genuine "no backend here" case (local `vite dev`, where
+      // /api/unlock 404s) falls back to the frontend mock so the unlock
+      // flow stays demonstrable offline.
       const passesMock = MOCK_DEV_PASSWORD == null ? true : trimmed === MOCK_DEV_PASSWORD
       if (!passesMock) {
         setSubmitting(false)
@@ -124,6 +125,14 @@ export default function UnlockModal({ open, onClose, onUnlock }) {
         return
       }
       token = issueMockUnlockToken()
+    } else {
+      // Backend was reachable but errored (500 / network / unknown) —
+      // never silently grant access on a server failure. Surface an
+      // error and bail so a misconfigured deploy can't fall open.
+      setSubmitting(false)
+      setError('暂时无法验证，请稍后重试')
+      triggerShake()
+      return
     }
 
     const result = unlockWithToken(token)
