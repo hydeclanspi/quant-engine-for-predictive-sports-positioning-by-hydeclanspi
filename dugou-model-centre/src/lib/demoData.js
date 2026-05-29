@@ -509,6 +509,9 @@ const MARQUEE_FIXTURES = {
     conf: 0.70, mode: '常规-稳',
     tysHome: 'H', tysAway: 'S', fid: 0.6, fseHome: 0.60, fseAway: 0.46,
     note: '老特拉福德主场 · 升降级压力下的稳态投注',
+    // Still part of the pending 2-leg English bundle on the Settle page,
+    // but hidden from the Portfolio candidate pool (demo polish).
+    excludeFromPortfolio: true,
   },
   leedsNottingham: {
     home: '利兹联', away: '诺丁汉森林', entry: '主胜', odds: 2.05,
@@ -542,6 +545,7 @@ const makeMarqueeMatch = (idSuffix, fields, outcome) => {
     fse_away: fields.fseAway,
     fse_match: round2(Math.sqrt(fields.fseHome * fields.fseAway)),
     note: fields.note || '',
+    exclude_from_portfolio: fields.excludeFromPortfolio === true,
     results: outcome.results,
     is_correct: outcome.isCorrect,
     match_rating: outcome.matchRating,

@@ -1865,9 +1865,13 @@ const getTodayMatches = () => {
           fseHome: Number(match.fse_home ?? 0.5),
           fseAway: Number(match.fse_away ?? 0.5),
           note: match.note || '',
+          excludeFromPortfolio: match.exclude_from_portfolio === true,
         }
       }),
     )
+    // Hidden from the Portfolio candidate pool but still present in the
+    // source bundle (so the Settle page keeps showing the full parlay).
+    .filter((match) => !match.excludeFromPortfolio)
     .filter((match) => !dismissedKeys.has(match.key))
     .slice(0, 12)
 }
