@@ -5147,7 +5147,7 @@ export default function ComboPage({ openModal }) {
       </div>
 
       <div className={`combo-main-grid mb-6${leftPanelCollapsed ? ' combo-left-collapsed' : ''}`}>
-        <div className={`motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 ${leftPanelCollapsed ? 'px-4 py-4' : 'p-6'} transition-[padding] duration-300`}>
+        <div className={`combo-left-card motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 ${leftPanelCollapsed ? 'px-4 py-4' : 'p-6'} transition-[padding] duration-300`}>
           <div className={`flex items-center justify-between ${leftPanelCollapsed ? 'mb-2' : 'mb-4'}`}>
             <h3 className={`font-medium text-stone-700 ${leftPanelCollapsed ? 'text-[13px]' : ''}`}>今日备选比赛</h3>
             <div className="flex items-center gap-2">

@@ -3516,6 +3516,17 @@
   align-items: center;
 }
 
+/* `.motion-v2-surface` carries `will-change: transform`, so BOTH the left
+   and right cards form stacking contexts at rest. Without intervention the
+   later (right) card paints over the left card, trapping the coachmark +
+   connector inside the left card. While collapsed we lift the left card's
+   whole stacking context above the right card so its intended overflow (the
+   hint nudge) paints over the neighbouring card's empty top strip. The cards
+   never overlap (a column gap separates them), so nothing else is affected. */
+.combo-main-grid.combo-left-collapsed .combo-left-card {
+  z-index: 20;
+}
+
 /* Resting state — reads as a primary affordance, not a gray ghost. */
 .combo-expand-btn {
   position: relative;
@@ -3581,51 +3592,97 @@
   100% { transform: scale(2); opacity: 0; }
 }
 
-/* One-time coachmark — names what's behind the panel. */
+/* One-time coachmark — floats into the neighbouring "智能组合包" card's
+   empty top strip, up-and-right of the button. Anime line-art aesthetic:
+   light frosted paper, hairline ink border, a single soft sparkle —
+   deliberately NOT purple so it doesn't clash with the page accents. */
 .combo-expand-coach {
   position: absolute;
-  right: calc(100% + 9px);
-  top: 50%;
-  transform: translateY(-50%);
+  left: calc(100% + 34px);
+  top: -13px;
   white-space: nowrap;
-  padding: 5px 10px;
-  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 11px;
   font-size: 11.5px;
   font-weight: 500;
+  letter-spacing: 0.01em;
   line-height: 1;
-  color: #3730a3;
-  background: linear-gradient(180deg, rgba(238, 242, 255, 0.97), rgba(224, 231, 255, 0.95));
-  border: 1px solid rgba(99, 102, 241, 0.22);
-  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  color: #475569;
+  background: linear-gradient(180deg, rgba(249, 250, 253, 0.97), rgba(237, 241, 248, 0.94));
+  border: 1px solid rgba(71, 85, 105, 0.32);
+  box-shadow: 0 12px 26px rgba(30, 38, 59, 0.16), 0 2px 6px rgba(30, 38, 59, 0.09), inset 0 1px 0 rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  z-index: 3;
+  z-index: 4;
   pointer-events: none;
-  animation: comboCoachIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: comboCoachIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
 }
 
-.combo-expand-coach::after {
-  content: '';
-  position: absolute;
-  right: -4px;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  transform: translateY(-50%) rotate(45deg);
-  background: rgba(224, 231, 255, 0.95);
-  border-right: 1px solid rgba(99, 102, 241, 0.22);
-  border-top: 1px solid rgba(99, 102, 241, 0.22);
+/* The lone touch of colour — a tiny twinkling sparkle for "灵气". */
+.combo-expand-coach-spark {
+  font-size: 10px;
+  line-height: 1;
+  color: #818cf8;
+  filter: drop-shadow(0 0 3px rgba(129, 140, 248, 0.5));
+  animation: comboCoachSpark 2.4s ease-in-out infinite;
+}
+
+@keyframes comboCoachSpark {
+  0%, 100% { opacity: 0.5; transform: scale(0.88) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.12) rotate(16deg); }
 }
 
 @keyframes comboCoachIn {
-  from { opacity: 0; transform: translateY(-50%) translateX(6px); }
-  to { opacity: 1; transform: translateY(-50%) translateX(0); }
+  from { opacity: 0; transform: translateY(4px) translateX(-4px); }
+  to { opacity: 1; transform: translateY(0) translateX(0); }
+}
+
+/* Ethereal hairline connector (button → coachmark), drawn in on appear. */
+.combo-expand-connector {
+  position: absolute;
+  left: calc(100% - 8px);
+  top: -8px;
+  width: 64px;
+  height: 34px;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.combo-expand-connector-line {
+  fill: none;
+  stroke: url(#comboConnectorStroke);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: comboConnectorDraw 0.72s cubic-bezier(0.65, 0, 0.35, 1) 0.1s forwards;
+}
+
+.combo-expand-connector-dot {
+  fill: #a5b4fc;
+  opacity: 0;
+  animation: comboConnectorDot 0.4s ease 0.72s forwards;
+}
+
+@keyframes comboConnectorDraw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes comboConnectorDot {
+  to { opacity: 0.9; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .combo-expand-ring { display: none; }
   .combo-expand-btn.is-nudging svg { animation: none; }
   .combo-expand-coach { animation: none; }
+  .combo-expand-coach-spark { animation: none; opacity: 0.85; }
+  .combo-expand-connector-line { animation: none; stroke-dashoffset: 0; }
+  .combo-expand-connector-dot { animation: none; opacity: 0.9; }
 }
 
 /* ============================================================

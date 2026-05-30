@@ -128,9 +128,35 @@ export default function ComboExpandHint({ collapsed, onToggle }) {
         <ChevronsRight size={14} />
       </button>
       {coachOpen && (
-        <div className="combo-expand-coach" role="status">
-          展开看更多调参 · 角色设置
-        </div>
+        <>
+          {/* Ethereal anime-style hairline: button → coachmark. The path
+              normalises to pathLength=1 so the draw-in animation is
+              independent of the curve's true length. */}
+          <svg
+            className="combo-expand-connector"
+            viewBox="0 0 64 34"
+            fill="none"
+            aria-hidden="true"
+          >
+            <defs>
+              <linearGradient id="comboConnectorStroke" x1="0" y1="1" x2="1" y2="0">
+                <stop offset="0%" stopColor="#a5b4fc" stopOpacity="0" />
+                <stop offset="40%" stopColor="#a5b4fc" stopOpacity="0.5" />
+                <stop offset="100%" stopColor="#818cf8" stopOpacity="0.85" />
+              </linearGradient>
+            </defs>
+            <path
+              className="combo-expand-connector-line"
+              pathLength={1}
+              d="M4 28 C 20 26, 24 9, 46 7"
+            />
+            <circle className="combo-expand-connector-dot" cx="46" cy="7" r="1.9" />
+          </svg>
+          <div className="combo-expand-coach" role="status">
+            <span className="combo-expand-coach-spark" aria-hidden="true">✦</span>
+            点击可展开更多调参
+          </div>
+        </>
       )}
     </div>
   )
