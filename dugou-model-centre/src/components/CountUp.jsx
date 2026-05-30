@@ -12,6 +12,8 @@ import { useEffect, useRef, useState } from 'react'
  *   value     target number (non-finite values render verbatim)
  *   decimals  fixed decimal places (default 0); ignored when `format` set
  *   duration  tween length in ms (default 900)
+ *   delay     ms to hold at 0 before the tween starts — used to cascade a
+ *             row of figures (stagger each one). Ignored under reduced motion.
  *   runKey    change this to replay the animation
  *   prefix    string before the number (e.g. '+')
  *   suffix    string after the number (e.g. '%')
@@ -31,6 +33,7 @@ export default function CountUp({
   value,
   decimals = 0,
   duration = 900,
+  delay = 0,
   runKey = 0,
   prefix = '',
   suffix = '',
@@ -43,6 +46,7 @@ export default function CountUp({
     prefersReducedMotion() ? Number(value) || 0 : 0,
   )
   const frameRef = useRef(0)
+  const timerRef = useRef(0)
 
   useEffect(() => {
     const target = Number(value)
@@ -66,10 +70,22 @@ export default function CountUp({
         setDisplay(target)
       }
     }
-    frameRef.current = window.requestAnimationFrame(tick)
-    return () => window.cancelAnimationFrame(frameRef.current)
-    // Intentionally keyed only on runKey: `value` is read fresh from the
-    // closure each replay (it always updates in the same batch as runKey).
+    const begin = () => {
+      frameRef.current = window.requestAnimationFrame(tick)
+    }
+    if (delay > 0) {
+      // Hold at 0 through the stagger window, then tween in.
+      setDisplay(0)
+      timerRef.current = window.setTimeout(begin, delay)
+    } else {
+      begin()
+    }
+    return () => {
+      window.clearTimeout(timerRef.current)
+      window.cancelAnimationFrame(frameRef.current)
+    }
+    // Intentionally keyed only on runKey: `value`/`delay` are read fresh from
+    // the closure each replay (they update in the same batch as runKey).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runKey])
 

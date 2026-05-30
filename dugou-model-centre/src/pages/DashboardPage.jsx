@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getDashboardSnapshot } from '../lib/analytics'
 import TimeRangePicker from '../components/TimeRangePicker'
+import CountUp from '../components/CountUp'
 import { getSystemConfig, saveSystemConfig, addCapitalInjection } from '../lib/localData'
 import { downloadWorkbook } from '../lib/excel'
 import * as XLSX from 'xlsx'
@@ -269,6 +270,9 @@ export default function DashboardPage({ openModal }) {
 
   const systemConfig = useMemo(() => getSystemConfig(), [dataVersion])
   const snapshot = useMemo(() => getDashboardSnapshot(timePeriod), [timePeriod, dataVersion])
+  // Replay the hero KPI count-up cascade whenever the underlying figures
+  // change (period switch or a data mutation), and once on landing.
+  const kpiRunKey = `${timePeriod}:${dataVersion}`
 
   const handleInjectCapital = () => {
     const amount = Number(injectAmount)
@@ -1471,7 +1475,9 @@ export default function DashboardPage({ openModal }) {
             <span className="text-stone-400 text-xs uppercase tracking-wide">蓄水池余额</span>
             <Wallet size={18} strokeWidth={1.5} className="text-amber-500" />
           </div>
-          <div className="text-2xl font-semibold text-amber-600 cursor-pointer motion-v2-ghost-btn inline-block" onClick={openBalanceModal}>{toRmb(snapshot.poolBalance)}</div>
+          <div className="text-2xl font-semibold text-amber-600 cursor-pointer motion-v2-ghost-btn inline-block" onClick={openBalanceModal}>
+            <CountUp value={snapshot.poolBalance} format={toRmb} runKey={kpiRunKey} delay={0} />
+          </div>
           <div className="flex items-center justify-between mt-1">
             <span className={`text-xs ${snapshot.roiDelta >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
               {toSigned(snapshot.roiDelta, 1, '%')} vs 上周期
@@ -1492,7 +1498,8 @@ export default function DashboardPage({ openModal }) {
         {[
           {
             label: `${PERIOD_LABELS[timePeriod]} ROI`,
-            value: toSigned(snapshot.roiPeriod, 1, '%'),
+            rawValue: snapshot.roiPeriod,
+            format: (n) => toSigned(n, 1, '%'),
             change: `${toSigned(snapshot.roiDelta, 1, '%')} vs 上周期`,
             positive: snapshot.roiPeriod >= 0,
             IconComp: TrendingUp,
@@ -1500,7 +1507,8 @@ export default function DashboardPage({ openModal }) {
           },
           {
             label: '命中率',
-            value: toPercent(snapshot.hitRatePeriod),
+            rawValue: snapshot.hitRatePeriod,
+            format: (n) => toPercent(n),
             change: `${toSigned(snapshot.hitRateDelta, 1, '%')} vs 上周期`,
             positive: snapshot.hitRateDelta >= 0,
             IconComp: HitRateIcon,
@@ -1508,13 +1516,14 @@ export default function DashboardPage({ openModal }) {
           },
           {
             label: maskText('Conf. vs AJR'),
-            value: snapshot.ratingFit.toFixed(2),
+            rawValue: snapshot.ratingFit,
+            format: (n) => n.toFixed(2),
             change: `${toSigned(snapshot.ratingFitDelta, 2)} vs 上周期`,
             positive: snapshot.ratingFitDelta >= 0,
             IconComp: BarChart3,
             onClick: openRatingModal,
           },
-        ].map((metric) => (
+        ].map((metric, i) => (
           <div
             key={metric.label}
             onClick={metric.onClick}
@@ -1524,7 +1533,9 @@ export default function DashboardPage({ openModal }) {
               <span className="text-stone-400 text-xs uppercase tracking-wide">{metric.label}</span>
               <metric.IconComp size={18} strokeWidth={1.5} className="text-amber-500" />
             </div>
-            <div className={`text-2xl font-semibold ${metric.positive ? 'text-stone-800' : 'text-rose-500'}`}>{metric.value}</div>
+            <div className={`text-2xl font-semibold ${metric.positive ? 'text-stone-800' : 'text-rose-500'}`}>
+              <CountUp value={metric.rawValue} format={metric.format} runKey={kpiRunKey} delay={(i + 1) * 90} />
+            </div>
             <div className={`text-xs mt-1 ${metric.positive ? 'text-emerald-500' : 'text-rose-500'}`}>{metric.change}</div>
           </div>
         ))}
