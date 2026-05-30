@@ -10,6 +10,8 @@ import {
 } from '../lib/atomicParlay'
 import { FragilityHeatmapCard } from '../components/FragilityHeatmapCard'
 import ComboExpandHint from '../components/ComboExpandHint'
+import ComboGenerateReveal from '../components/ComboGenerateReveal'
+import CountUp from '../components/CountUp'
 import { maskReactTree, useLabels, usePreviewTextMask } from '../lib/labels'
 import { useModeLabelMap } from '../components/ModeLabel'
 import { isPreviewMode } from '../lib/displayMode'
@@ -3825,6 +3827,11 @@ export default function ComboPage({ openModal }) {
   const [moreTeams, setMoreTeams] = useState(new Set())
   const [mcSimResult, setMcSimResult] = useState(null)
   const [portfolioAllocations, setPortfolioAllocations] = useState([])
+  // 「算法揭晓」reveal: generateRevealing mounts the choreography curtain
+  // over the hero card; resultsAnimNonce bumps each generate to (re)play
+  // the result count-up + heatmap sweep once the curtain lifts.
+  const [generateRevealing, setGenerateRevealing] = useState(false)
+  const [resultsAnimNonce, setResultsAnimNonce] = useState(0)
   const [expandedComboIdxSet, setExpandedComboIdxSet] = useState(() => new Set())
   const [expandedPortfolioIdxSet, setExpandedPortfolioIdxSet] = useState(() => new Set())
   const [showAllPortfolios, setShowAllPortfolios] = useState(false)
@@ -4494,6 +4501,10 @@ export default function ComboPage({ openModal }) {
     setLeftPanelCollapsed(true)
     setFtCellOverrides({})
     setFtDirtyPortfolios(new Set())
+    // Play the「算法揭晓」curtain over the freshly computed hero card. The
+    // overlay fires onReveal at ~1.1s to start the result count-up while it
+    // dissolves; covers both generate entry points since both route here.
+    setGenerateRevealing(true)
   }
 
   const handleConfirmChecked = () => {
@@ -5773,6 +5784,12 @@ export default function ComboPage({ openModal }) {
 
         {/* ═══ 智能组合包 Hero Card ═══ */}
         <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 p-6 relative">
+          {generateRevealing && (
+            <ComboGenerateReveal
+              onReveal={() => setResultsAnimNonce((n) => n + 1)}
+              onDone={() => setGenerateRevealing(false)}
+            />
+          )}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Sparkles size={16} className="text-indigo-500" />
@@ -6480,32 +6497,57 @@ export default function ComboPage({ openModal }) {
                 <div className="flex justify-between">
                   <span className="text-stone-400">盈利概率</span>
                   <span className={`font-semibold ${mcSimResult.profitProb >= 0.5 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                    {(mcSimResult.profitProb * 100).toFixed(1)}%
+                    <CountUp value={mcSimResult.profitProb * 100} decimals={1} suffix="%" runKey={resultsAnimNonce} />
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-stone-400">中位收益</span>
                   <span className={`font-mono ${mcSimResult.median >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                    {mcSimResult.median >= 0 ? '+' : ''}{mcSimResult.median}
+                    <CountUp
+                      value={mcSimResult.median}
+                      prefix={mcSimResult.median >= 0 ? '+' : ''}
+                      format={(n) => String(Math.round(n * 100) / 100)}
+                      runKey={resultsAnimNonce}
+                    />
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-stone-400">平均收益</span>
                   <span className={`font-mono ${mcSimResult.mean >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                    {mcSimResult.mean >= 0 ? '+' : ''}{mcSimResult.mean}
+                    <CountUp
+                      value={mcSimResult.mean}
+                      prefix={mcSimResult.mean >= 0 ? '+' : ''}
+                      format={(n) => String(Math.round(n * 100) / 100)}
+                      runKey={resultsAnimNonce}
+                    />
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-stone-400">95%VaR</span>
-                  <span className="text-rose-500 font-mono">{mcSimResult.var95}</span>
+                  <span className="text-rose-500 font-mono">
+                    <CountUp
+                      value={mcSimResult.var95}
+                      format={(n) => String(Math.round(n * 100) / 100)}
+                      runKey={resultsAnimNonce}
+                    />
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-stone-400">最大收益</span>
-                  <span className="text-emerald-600 font-mono">+{mcSimResult.maxPnl}</span>
+                  <span className="text-emerald-600 font-mono">
+                    <CountUp
+                      value={mcSimResult.maxPnl}
+                      prefix="+"
+                      format={(n) => String(Math.round(n * 100) / 100)}
+                      runKey={resultsAnimNonce}
+                    />
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-stone-400">全亏概率</span>
-                  <span className="text-rose-500 font-mono">{(mcSimResult.allLoseProb * 100).toFixed(1)}%</span>
+                  <span className="text-rose-500 font-mono">
+                    <CountUp value={mcSimResult.allLoseProb * 100} decimals={1} suffix="%" runKey={resultsAnimNonce} />
+                  </span>
                 </div>
               </div>
               {/* Mini Histogram */}
@@ -6666,7 +6708,7 @@ export default function ComboPage({ openModal }) {
       )}
 
       {/* ═══ 依赖风险矩阵（脆弱性热力图）═══ */}
-      <div className="mb-6">
+      <div className="mb-6 relative">
         <FragilityHeatmapCard
           matches={rankingRows.length > 0 ? selectedMatches.map((m) => ({
             odds: Number(m.odds) || 2.5,
@@ -6676,6 +6718,11 @@ export default function ComboPage({ openModal }) {
           expandedPair={expandedFragilityPair}
           onSelectPair={setExpandedFragilityPair}
         />
+        {/* One-shot light sweep when a fresh package lands (keyed on the
+            results nonce so it replays on every generate). */}
+        {resultsAnimNonce > 0 && (
+          <span key={resultsAnimNonce} className="combo-ft-sweep" aria-hidden="true" />
+        )}
       </div>
 
       <div className="combo-secondary-grid mb-6">
