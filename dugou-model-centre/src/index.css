@@ -3913,6 +3913,239 @@
 }
 
 /* ============================================================
+   AdaptiveLoopDiagram — 「闭环故事」 on the 自适应权重优化 card. A
+   four-stage feedback ring with a one-time flow trace + coachmark.
+   ============================================================ */
+
+.adaptive-loop {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.adaptive-loop-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.adaptive-loop-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  color: #6366f1;
+  background: #eef2ff;
+}
+
+.adaptive-loop-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.adaptive-loop-caption {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.adaptive-loop-track {
+  position: relative;
+  border-radius: 12px;
+}
+
+/* The signature flow trace — a single L→R sheen, played once when the
+   diagram first scrolls into view (mirrors the combo-ft-sweep family for
+   cross-page consistency). */
+.adaptive-loop-sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.adaptive-loop-track.is-tracing .adaptive-loop-sweep {
+  opacity: 1;
+}
+
+.adaptive-loop-track.is-tracing .adaptive-loop-sweep::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 38%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(99, 102, 241, 0.14),
+    transparent
+  );
+  transform: skewX(-12deg);
+  animation: adaptiveLoopSweep 1.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes adaptiveLoopSweep {
+  from {
+    left: -40%;
+  }
+  to {
+    left: 110%;
+  }
+}
+
+.adaptive-loop-nodes {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.adaptive-loop-node {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 8px 4px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border: 1px solid #eef2f7;
+  text-align: center;
+}
+
+.adaptive-loop-node-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  margin-bottom: 3px;
+}
+
+.adaptive-loop-node-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  line-height: 1.2;
+}
+
+.adaptive-loop-node-sub {
+  font-size: 10px;
+  color: #94a3b8;
+  line-height: 1.2;
+}
+
+.adaptive-loop-arrow {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  color: #cbd5e1;
+}
+
+/* The return path — a ⊔ bracket under the row closing stage 4 → stage 1. */
+.adaptive-loop-return {
+  position: relative;
+  display: block;
+  height: 11px;
+  margin: 3px 24px 0;
+  border: 1.5px dashed #d8dee9;
+  border-top: none;
+  border-bottom-left-radius: 11px;
+  border-bottom-right-radius: 11px;
+}
+
+.adaptive-loop-return::before {
+  /* arrowhead at the left end, pointing up into stage 1 */
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 0;
+  width: 6px;
+  height: 6px;
+  border-left: 1.5px solid #cbd5e1;
+  border-top: 1.5px solid #cbd5e1;
+  transform: translate(-50%, -4px) rotate(45deg);
+}
+
+.adaptive-loop-return-label {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translate(-50%, -50%);
+  padding: 0 7px;
+  background: #ffffff;
+  font-size: 10px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+/* One-time coachmark (preview/demo only). */
+.adaptive-loop-coach {
+  position: absolute;
+  left: 6px;
+  bottom: 100%;
+  margin-bottom: 9px;
+  max-width: 300px;
+  padding: 9px 12px;
+  border-radius: 11px;
+  background: #4f46e5;
+  color: #ffffff;
+  font-size: 11px;
+  line-height: 1.55;
+  box-shadow: 0 12px 28px -10px rgba(79, 70, 229, 0.6);
+  cursor: pointer;
+  z-index: 20;
+  animation: adaptiveLoopCoachIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.adaptive-loop-coach::after {
+  /* downward tail pointing at the diagram */
+  content: '';
+  position: absolute;
+  left: 26px;
+  bottom: -4px;
+  width: 10px;
+  height: 10px;
+  background: #4f46e5;
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+
+.adaptive-loop-coach-spark {
+  margin-right: 4px;
+  color: #c7d2fe;
+}
+
+@keyframes adaptiveLoopCoachIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adaptive-loop-track.is-tracing .adaptive-loop-sweep::before {
+    animation: none;
+    display: none;
+  }
+  .adaptive-loop-coach {
+    animation: none;
+  }
+}
+
+/* ============================================================
    Global Bottom Bar — brand micro-touchpoint
    ============================================================ */
 

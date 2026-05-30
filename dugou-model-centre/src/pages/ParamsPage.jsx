@@ -68,6 +68,7 @@ import { useModeLabelMap } from '../components/ModeLabel'
 import TimeMachineIcon from '../components/TimeMachineIcon'
 import ConfidenceRing from '../components/ConfidenceRing'
 import CountUp from '../components/CountUp'
+import AdaptiveLoopDiagram from '../components/AdaptiveLoopDiagram'
 
 const TYS_BASE_FACTORS = {
   S: 1.08,
@@ -1996,6 +1997,11 @@ function AdaptiveWeightCard({ config, setConfig, saveSystemConfig, dataVersion }
         {suggestions.lastUpdateAt && <span className="ml-2">· 上次更新: {new Date(suggestions.lastUpdateAt).toLocaleDateString()}</span>}
         {suggestions.updateCount > 0 && <span className="ml-2">· 累计调整: {suggestions.updateCount} 次</span>}
       </p>
+
+      <AdaptiveLoopDiagram
+        sampleCount={suggestions.sampleCount}
+        updateCount={suggestions.updateCount || 0}
+      />
 
       {!suggestions.ready ? (
         <div className="p-4 bg-stone-50 rounded-xl text-center">
