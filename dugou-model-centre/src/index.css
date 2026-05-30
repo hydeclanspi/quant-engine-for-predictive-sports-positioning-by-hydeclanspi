@@ -5256,6 +5256,107 @@
   }
 }
 
+/* ── History 资金累计曲线：滚动入场描绘一次（B 类，无弹窗）──
+   The line traces on once via stroke-dashoffset (pathLength normalised to 1),
+   then the fill + zero baseline fade in and the endpoint dot pops. Triggered
+   only after the card scrolls into view (.is-revealed); reduced motion snaps
+   everything to its resting state. */
+.capital-curve-plot {
+  position: relative;
+  width: 100%;
+}
+
+.capital-curve-svg {
+  display: block;
+  width: 100%;
+  height: 132px;
+}
+
+.capital-curve-line {
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+
+.capital-curve.is-revealed .capital-curve-line {
+  animation: capitalCurveDraw 1.45s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+@keyframes capitalCurveDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.capital-curve-area {
+  opacity: 0;
+}
+
+.capital-curve.is-revealed .capital-curve-area {
+  animation: capitalCurveFade 0.7s ease forwards;
+  animation-delay: 0.5s;
+}
+
+.capital-curve-zero {
+  stroke: #d6d3d1;
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+  opacity: 0;
+}
+
+.capital-curve.is-revealed .capital-curve-zero {
+  animation: capitalCurveFade 0.6s ease forwards;
+  animation-delay: 0.2s;
+}
+
+@keyframes capitalCurveFade {
+  to {
+    opacity: 1;
+  }
+}
+
+.capital-curve-dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 9999px;
+  opacity: 0;
+  transform: scale(0);
+  pointer-events: none;
+}
+
+.capital-curve.is-revealed .capital-curve-dot {
+  animation: capitalCurveDotPop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation-delay: 1.3s;
+}
+
+@keyframes capitalCurveDotPop {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capital-curve .capital-curve-line {
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+  .capital-curve .capital-curve-area,
+  .capital-curve .capital-curve-zero {
+    opacity: 1;
+    animation: none;
+  }
+  .capital-curve .capital-curve-dot {
+    opacity: 1;
+    transform: scale(1);
+    animation: none;
+  }
+}
+
 /* ── Teams: selected feedback and prism glass glow ── */
 .theme-modern .team-select-card {
   position: relative;
