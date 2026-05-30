@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, X, ChevronDown, ChevronRight, Sparkles } from 'lucide-react'
+import { Plus, X, ChevronDown, ChevronRight } from 'lucide-react'
 import { bumpTeamSamples, findTeamProfile, getInvestments, getSystemConfig, getTeamProfiles, saveInvestment, searchTeamProfiles } from '../lib/localData'
 import { handleNoteShortcut } from '../lib/noteFormatting'
 import { getPredictionCalibrationContext, getModeKellyRecommendations } from '../lib/analytics'
@@ -20,32 +20,6 @@ import { useModeLabelMap } from '../components/ModeLabel'
 import { useDisplayMode, PREVIEW_MODE, isPreviewMode } from '../lib/displayMode'
 
 const MODE_OPTIONS = ['常规', '常规-稳', '常规-杠杆', '半彩票半保险', '保险产品', '赌一把']
-
-// 「空状态变邀请」— Quick Input example chips. Each is verified to parse with
-// 0 errors (see parseNaturalInput). Clicking a chip fills the box AND parses
-// it in one tap, so the empty state becomes a one-click invitation rather than
-// a blank prompt. Preview leads with a 2-leg parlay to show off the signature
-// combo solver; full mode mirrors the documented placeholder syntax.
-const QUICK_INPUT_EXAMPLES_PREVIEW = [
-  {
-    label: '单场 · 曼城',
-    text: '曼城 win, 赔率 1.85, 变量 α 1.3, 变量 δ 0.72, 策略 Baseline-Drift, 仓位 150',
-  },
-  {
-    label: '两场组合',
-    text: '曼城 vs 阿森纳 主胜, 利物浦 vs 切尔西 主胜, 赔率 1.85 2.1, 仓位 100',
-  },
-]
-const QUICK_INPUT_EXAMPLES_FULL = [
-  {
-    label: '单场示例',
-    text: '利兹联 win/平 拜仁, conf 3.5, odds 7.4, fse 0.72, mode 半, input 180',
-  },
-  {
-    label: '双语示例',
-    text: 'arsenal W, chelsea D, conf 55 60, odds 1.8 3.2, mode 常规-稳',
-  },
-]
 
 // 默认 Kelly 分母映射（基于需求文档 S4）
 // 保险产品用较小分母（更激进），赌一把用较大分母（更保守）
@@ -935,13 +909,6 @@ export default function NewInvestmentPage() {
     setHistoryFloatDismissed({})
   }
 
-  // Empty-state invitation: fill the box with the example AND parse it in one
-  // tap so the structured result lands immediately.
-  const handleExampleChip = (text) => {
-    setQuickInputText(text)
-    handleQuickInput(text)
-  }
-
   const persistInvestmentFromPayload = (payload) => {
     if (!payload) return null
     const { newInvestment, normalizedMatches } = payload
@@ -1062,29 +1029,6 @@ export default function NewInvestmentPage() {
                 </button>
               )}
             </div>
-
-            {!quickInputText.trim() && (
-              <div className="qi-invite" key={isPreview ? 'p' : 'f'}>
-                <span className="qi-invite-label">
-                  <Sparkles size={11} />
-                  不知道怎么写？点一下试试
-                </span>
-                {(isPreview ? QUICK_INPUT_EXAMPLES_PREVIEW : QUICK_INPUT_EXAMPLES_FULL).map(
-                  (ex, i) => (
-                    <button
-                      key={ex.label}
-                      type="button"
-                      onClick={() => handleExampleChip(ex.text)}
-                      className="qi-invite-chip"
-                      style={{ '--qi-i': i }}
-                      title={ex.text}
-                    >
-                      {ex.label}
-                    </button>
-                  ),
-                )}
-              </div>
-            )}
 
             {quickInputResult && (
               <div className="mt-2 space-y-1">
