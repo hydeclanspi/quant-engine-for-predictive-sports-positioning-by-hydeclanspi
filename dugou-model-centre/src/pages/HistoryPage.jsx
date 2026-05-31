@@ -5,6 +5,17 @@ import { deleteInvestment, getInvestments, saveInvestment, setInvestmentArchived
 import { useLabels } from '../lib/labels'
 import { isPreviewMode } from '../lib/displayMode'
 
+// 演示态首屏「秀一下」：进入历史记录页 0.9s 后，自动展开最近一条记录（与 Settle
+// 页同理），复用 History 既有的展开揭示动画（historyExpandReveal）——只展开不收回。
+const HISTORY_PEEK_DELAY_MS = 900
+const prefersReducedMotion = () => {
+  try {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  } catch {
+    return false
+  }
+}
+
 const LEAGUE_ORDER = ['英超', '西甲', '意甲', '德甲', '法甲', '荷甲', '葡超', '土超', '沙特联', '国际赛', '其他']
 const TEAM_LEAGUE_MAP = {
   曼城: '英超',
@@ -494,14 +505,14 @@ export default function HistoryPage() {
   const [ajrFilter, setAjrFilter] = useState('all')
   const [refreshKey, setRefreshKey] = useState(0)
   const [pendingUndo, setPendingUndo] = useState(null)
-  // In preview mode, pre-expand the most recent *settled combo* so
-  // visitors land on a fully-populated row showing real match results.
-  // Falls back to the most recent investment of any kind if no combo
-  // is present in the dataset.
-  const previewInitialExpansion = useMemo(() => {
-    if (!isPreviewMode()) return { combo: {}, solo: {} }
+  // In preview mode the首屏 lands fully collapsed; shortly after entry we
+  // auto-reveal the most recent *settled combo* (fallback: most recent
+  // investment of any kind) so visitors see a fully-populated row animate
+  // open — see the peek effect below. The target is remembered here.
+  const previewPeekTarget = useMemo(() => {
+    if (!isPreviewMode()) return null
     const investments = getInvestments().filter((inv) => !inv.__demo_seed_pending)
-    if (!investments || investments.length === 0) return { combo: {}, solo: {} }
+    if (!investments || investments.length === 0) return null
     const sorted = [...investments].sort(
       (a, b) => new Date(b.created_at) - new Date(a.created_at),
     )
@@ -509,13 +520,36 @@ export default function HistoryPage() {
       (i) => (i.parlay_size || 1) > 1 && i.status !== 'pending',
     )
     const target = settledCombo || sorted[0]
-    if (!target) return { combo: {}, solo: {} }
-    if ((target.parlay_size || 1) > 1) return { combo: { [target.id]: true }, solo: {} }
-    return { combo: {}, solo: { [target.id]: true } }
+    if (!target) return null
+    return { id: target.id, isCombo: (target.parlay_size || 1) > 1 }
   }, [])
-  const [expandedComboIds, setExpandedComboIds] = useState(previewInitialExpansion.combo)
-  const [expandedSoloIds, setExpandedSoloIds] = useState(previewInitialExpansion.solo)
+  const [expandedComboIds, setExpandedComboIds] = useState({})
+  const [expandedSoloIds, setExpandedSoloIds] = useState({})
   const [notePopup, setNotePopup] = useState(null)
+
+  // 演示态首屏「秀一下」：默认全部折叠，进入 0.9s 后自动展开最近一条记录，复用
+  // History 既有的展开揭示动画（historyExpandReveal）——只展开、不收回；尊重
+  // prefers-reduced-motion（降级为立即展开、不加动效）。
+  useEffect(() => {
+    if (!previewPeekTarget) return undefined
+    const reveal = () => {
+      if (previewPeekTarget.isCombo) {
+        setExpandedComboIds((prev) =>
+          prev[previewPeekTarget.id] ? prev : { ...prev, [previewPeekTarget.id]: true },
+        )
+      } else {
+        setExpandedSoloIds((prev) =>
+          prev[previewPeekTarget.id] ? prev : { ...prev, [previewPeekTarget.id]: true },
+        )
+      }
+    }
+    if (prefersReducedMotion()) {
+      reveal()
+      return undefined
+    }
+    const timer = window.setTimeout(reveal, HISTORY_PEEK_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [previewPeekTarget])
 
   const filters = ['全部', '待结算', '已中', '未中', 'Solo', 'Combo', '已归档']
   // In preview mode, hide demo-seed pending investments from History.
