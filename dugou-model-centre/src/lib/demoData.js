@@ -73,7 +73,11 @@ const RESULT_ENTRIES = {
 }
 
 // ── Seeded PRNG (Mulberry32) ───────────────────────────────────────
-const SEED = 0x6e4b1f5d
+// Seed chosen for the demo capital curve's *shape*: early gain →
+// oscillating mid-section drawdown (bottoming near +100) → strong
+// recovery climb to ~+960. Front-mid 震荡起伏 yet overall up-and-right,
+// while keeping ROI≈152% / hit≈33% in line with the rest of the demo.
+const SEED = 2510
 const createRng = (seed) => {
   let t = seed >>> 0
   return () => {

@@ -5306,6 +5306,24 @@
    then the fill + zero baseline fade in and the endpoint dot pops. Triggered
    only after the card scrolls into view (.is-revealed); reduced motion snaps
    everything to its resting state. */
+/* The signature net-P&L figure gets a specially-set numeral: Fraunces (the
+   app's editorial serif) at a light weight, in a calmer/lighter accent so it
+   reads as a refined caption to the curve rather than a loud headline. Tabular
+   lining figures keep the width steady while CountUp animates the digits. */
+.capital-curve-figure {
+  font-family: 'Fraunces', 'Cormorant Garamond', Georgia, serif;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  font-optical-sizing: auto;
+  letter-spacing: 0.004em;
+  color: #34a981; /* lighter, less eye-catching emerald (was emerald-600) */
+}
+
+.capital-curve-figure.is-down {
+  color: #ef7186; /* matching lighter rose for a net loss */
+}
+
 .capital-curve-plot {
   position: relative;
   width: 100%;

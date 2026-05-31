@@ -21,7 +21,8 @@ import CountUp from './CountUp'
 
 const W = 640
 const H = 152
-const PAD_X = 8
+const PAD_X = 8 // left inset — the curve starts a hair off the edge
+const PAD_R = 3 // right inset — kept tight so the line reaches close to the edge
 const PAD_Y = 16
 
 const toRmb = (n) => {
@@ -91,7 +92,7 @@ export default function CapitalCurveReveal({ investments, compact = false }) {
   const min = Math.min(...values)
   const max = Math.max(...values)
   const range = max - min || 1
-  const innerW = W - PAD_X * 2
+  const innerW = W - PAD_X - PAD_R
   const innerH = H - PAD_Y * 2
   const xAt = (i) => PAD_X + (i / (points.length - 1)) * innerW
   const yAt = (v) => PAD_Y + (1 - (v - min) / range) * innerH
@@ -119,7 +120,7 @@ export default function CapitalCurveReveal({ investments, compact = false }) {
         compact ? 'is-compact p-4' : 'p-4 md:p-5 mb-4'
       }${revealed ? ' is-revealed' : ''}`}
     >
-      <div className={`flex items-end justify-between gap-3 ${compact ? 'mb-1' : 'mb-1.5'}`}>
+      <div className={`flex items-start justify-between gap-3 ${compact ? 'mb-1' : 'mb-1.5'}`}>
         <div className="min-w-0">
           <div className={`font-medium text-stone-700 ${compact ? 'text-[13px]' : 'text-sm'}`}>
             资金累计曲线
@@ -128,15 +129,15 @@ export default function CapitalCurveReveal({ investments, compact = false }) {
             共 {settledCount} 笔已结算 · 累计净盈亏
           </div>
         </div>
-        <div className="text-right leading-tight">
+        <div className="text-right leading-none">
           <div
-            className={`font-semibold tabular-nums capital-curve-figure ${
+            className={`capital-curve-figure tabular-nums ${
               compact ? 'text-xl' : 'text-2xl'
-            } ${positive ? 'text-emerald-600' : 'text-rose-500'}`}
+            }${positive ? '' : ' is-down'}`}
           >
             {revealed ? <CountUp value={final} format={toRmb} duration={compact ? 1100 : 1400} /> : toRmb(0)}
           </div>
-          {!compact && <div className="text-[11px] text-stone-400 mt-0.5">净盈亏 · 累计</div>}
+          {!compact && <div className="text-[11px] text-stone-400 mt-1.5">净盈亏 · 累计</div>}
         </div>
       </div>
 
@@ -163,7 +164,7 @@ export default function CapitalCurveReveal({ investments, compact = false }) {
               className="capital-curve-zero"
               x1={PAD_X}
               y1={zeroY}
-              x2={W - PAD_X}
+              x2={W - PAD_R}
               y2={zeroY}
               vectorEffect="non-scaling-stroke"
             />
