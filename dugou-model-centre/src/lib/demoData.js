@@ -503,7 +503,7 @@ const MARQUEE_FIXTURES = {
   },
   // Additional pending-only fixtures (next gameweek extras)
   milanInter: {
-    home: 'AC米兰', away: '国际米兰', entry: '主胜', odds: 2.90,
+    home: 'AC米兰', away: '国际米兰', entry: 'win', odds: 2.90,
     conf: 0.48, mode: '半彩票半保险',
     tysHome: 'M', tysAway: 'H', fid: 0.5, fseHome: 0.62, fseAway: 0.68,
     note: '米兰德比 · 经典对抗 · 平局倾向较高',
@@ -524,7 +524,7 @@ const MARQUEE_FIXTURES = {
     note: '埃兰路主场 · 双方近期状态相近 · 信息深度偏低',
   },
   dortmundLeverkusen: {
-    home: '多特蒙德', away: '勒沃库森', entry: '主胜', odds: 2.35,
+    home: '多特蒙德', away: '勒沃库森', entry: '-1 draw', odds: 2.35,
     conf: 0.55, mode: '常规-杠杆',
     tysHome: 'M', tysAway: 'M', fid: 0.5, fseHome: 0.64, fseAway: 0.62,
     note: '德甲焦点 · 威斯特法伦主场 · 进攻对攻倾向',
