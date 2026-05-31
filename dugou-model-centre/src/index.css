@@ -4253,6 +4253,198 @@
 }
 
 /* ============================================================
+   Walk-forward 一致性条带 (模型收口验证 · 时序 diverging bars)
+   每个窗口一根柱：校准让该窗口 Brier 改善则向上(翠绿)，退化则向下(玫红)，
+   时间从左向右推进——把「逐窗 +19.5% / -25.26% …」的文字清单换成一眼看懂
+   的时序一致性图。柱子从零基线生长、依次错峰拉起；悬停聚焦某根(其余淡出)
+   并把上方读数行更新为该窗口明细。prefers-reduced-motion 直接定格。
+   ============================================================ */
+.wf-strip {
+  margin-top: 4px;
+}
+
+/* 动态读数行：默认显示统计概要，悬停某根柱时切换为该窗口明细。高度恒定，避免抖动。 */
+.wf-strip-readout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 18px;
+  font-size: 11px;
+  line-height: 1.2;
+}
+.wf-strip-readout-hint {
+  color: #a8a29e;
+}
+.wf-strip-readout-counts {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.wf-strip-readout-sep {
+  color: #d6d3d1;
+  font-weight: 400;
+}
+.wf-strip-readout .wf-up {
+  color: #059669;
+}
+.wf-strip-readout .wf-down {
+  color: #e11d48;
+}
+.wf-strip-readout-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: #57534e;
+  font-variant-numeric: tabular-nums;
+}
+.wf-strip-readout-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+}
+.wf-strip-readout-dot.wf-up {
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.16);
+}
+.wf-strip-readout-dot.wf-down {
+  background: #f43f5e;
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.16);
+}
+.wf-strip-readout-dot.wf-flat {
+  background: #a8a29e;
+  box-shadow: 0 0 0 3px rgba(168, 162, 158, 0.16);
+}
+.wf-strip-readout-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.wf-strip-readout-value.wf-up {
+  color: #059669;
+}
+.wf-strip-readout-value.wf-down {
+  color: #e11d48;
+}
+.wf-strip-readout-value.wf-flat {
+  color: #78716c;
+}
+.wf-strip-readout-verdict {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.wf-strip-readout-value.wf-up .wf-strip-readout-verdict {
+  background: rgba(16, 185, 129, 0.12);
+}
+.wf-strip-readout-value.wf-down .wf-strip-readout-verdict {
+  background: rgba(244, 63, 94, 0.12);
+}
+.wf-strip-readout-value.wf-flat .wf-strip-readout-verdict {
+  background: rgba(168, 162, 158, 0.18);
+}
+
+/* 绘图区：柱子等宽铺满，零基线居中 */
+.wf-strip-plot {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  height: 104px;
+  margin-top: 9px;
+  padding: 0 1px;
+}
+.wf-strip-zero {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px dashed rgba(168, 162, 158, 0.5);
+  transform: translateY(-0.5px);
+  pointer-events: none;
+}
+.wf-strip-col {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+}
+.wf-strip-bar {
+  position: absolute;
+  left: 50%;
+  width: 56%;
+  max-width: 13px;
+  min-width: 3px;
+  border-radius: 3px;
+  opacity: 1;
+  transition: opacity 0.22s ease, filter 0.22s ease;
+  animation: wfBarRise 0.52s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.wf-strip-bar.is-up {
+  bottom: 50%;
+  transform: translateX(-50%) scaleY(1);
+  transform-origin: 50% 100%;
+  background: linear-gradient(180deg, #6ee7b7 0%, #10b981 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+.wf-strip-bar.is-down {
+  top: 50%;
+  transform: translateX(-50%) scaleY(1);
+  transform-origin: 50% 0%;
+  background: linear-gradient(0deg, #fda4af 0%, #f43f5e 100%);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.4);
+}
+/* 悬停聚焦：其余淡出，被选中的那根保持高亮并外发光 */
+.wf-strip-plot.is-hovering .wf-strip-bar {
+  opacity: 0.38;
+}
+.wf-strip-plot.is-hovering .wf-strip-bar.is-active {
+  opacity: 1;
+}
+.wf-strip-bar.is-up.is-active {
+  filter: drop-shadow(0 3px 8px rgba(16, 185, 129, 0.45));
+}
+.wf-strip-bar.is-down.is-active {
+  filter: drop-shadow(0 3px 8px rgba(244, 63, 94, 0.42));
+}
+
+@keyframes wfBarRise {
+  from {
+    transform: translateX(-50%) scaleY(0);
+  }
+  to {
+    transform: translateX(-50%) scaleY(1);
+  }
+}
+
+/* 时间轴提示：首/尾窗口 + 推进方向，留得很淡 */
+.wf-strip-axis {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 7px;
+  font-size: 10px;
+  color: #c4c1bd;
+  font-variant-numeric: tabular-nums;
+}
+.wf-strip-axis-arrow {
+  letter-spacing: 0.04em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wf-strip-bar {
+    animation: none;
+  }
+}
+
+/* ============================================================
    Quick Input 首屏「秀一下」(展卷 · 收锋)
    首屏 Quick Input 面板静息折叠；首次进入演示态时自动下拉展示再弹回。
    - 展开（展卷）：高度 0fr→1fr 缓出揭开，内容带重力 Q 弹落定，并掠过一道
