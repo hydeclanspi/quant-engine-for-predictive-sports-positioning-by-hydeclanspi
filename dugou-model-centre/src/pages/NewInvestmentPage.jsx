@@ -17,7 +17,21 @@ import {
 import { parseNaturalInput } from '../lib/naturalInputParser'
 import { useLabels, usePreviewTextMask } from '../lib/labels'
 import { useModeLabelMap } from '../components/ModeLabel'
-import { useDisplayMode, PREVIEW_MODE, isPreviewMode } from '../lib/displayMode'
+import { useDisplayMode, PREVIEW_MODE } from '../lib/displayMode'
+
+// Quick Input 首屏「秀一下」：首次进入（演示态）时面板自动下拉展示再收回，
+// 每会话仅一次。静息态保持折叠——克制、精致才是首屏的第一印象。
+const QI_PEEK_KEY = 'dugou.quick_input_peek.v1'
+const QI_PEEK_DELAY_MS = 460 // 让首屏先落定，再让面板「展卷」下拉
+const QI_PEEK_HOLD_MS = 2050 // 充分展示后再「收锋」弹回
+
+const prefersReducedMotion = () => {
+  try {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  } catch {
+    return false
+  }
+}
 
 const MODE_OPTIONS = ['常规', '常规-稳', '常规-杠杆', '半彩票半保险', '保险产品', '赌一把']
 
@@ -249,15 +263,45 @@ export default function NewInvestmentPage() {
   const [historyPrefillApplied, setHistoryPrefillApplied] = useState({})
   const [historyFloatDismissed, setHistoryFloatDismissed] = useState({})
   const [quickInputText, setQuickInputText] = useState('')
-  // Demo visitors meet the natural-language invitation already open; power
-  // users in FULL mode keep the panel tucked away until they reach for it.
-  const [quickInputOpen, setQuickInputOpen] = useState(() => isPreviewMode())
+  // 面板对所有人都静息折叠——收起来才是更精致的首屏第一印象。首次进入的演示访客
+  // 改为获得一次性的「秀一下」（自动下拉再弹回），让功能自我介绍，又不至于把首页
+  // 留在更繁忙的展开态。
+  const [quickInputOpen, setQuickInputOpen] = useState(false)
+  const [quickPeeking, setQuickPeeking] = useState(false)
   const [quickInputResult, setQuickInputResult] = useState(null)
   const [waxSealBurst, setWaxSealBurst] = useState({ active: false, token: 0, x: 0, y: 0 })
   const [confirmPersistPending, setConfirmPersistPending] = useState(false)
   const [systemConfig] = useState(() => getSystemConfig())
   const persistTimerRef = useRef(null)
   const persistIdleRef = useRef(null)
+  const quickPeekTimersRef = useRef([])
+
+  // 首屏「秀一下」：演示态、每会话一次、尊重 prefers-reduced-motion。面板静息折叠，
+  // 仅首次进入时自动下拉展示再收回，让功能自我介绍而不破坏首屏的克制美感。
+  const quickShown = quickInputOpen || quickPeeking
+  useEffect(() => {
+    if (!isPreview) return undefined
+    try {
+      if (window.sessionStorage.getItem(QI_PEEK_KEY) === '1') return undefined
+      window.sessionStorage.setItem(QI_PEEK_KEY, '1')
+    } catch {
+      // sessionStorage 不可用——宁可不演示，也不要每次进入都弹
+      return undefined
+    }
+    if (prefersReducedMotion()) return undefined // 降级：保持折叠，不强加动效
+
+    const timers = quickPeekTimersRef.current
+    timers.push(window.setTimeout(() => setQuickPeeking(true), QI_PEEK_DELAY_MS))
+    timers.push(
+      window.setTimeout(() => setQuickPeeking(false), QI_PEEK_DELAY_MS + QI_PEEK_HOLD_MS),
+    )
+    return () => {
+      timers.forEach((t) => window.clearTimeout(t))
+      quickPeekTimersRef.current = []
+    }
+    // 仅挂载时执行一次；isPreview 在页面生命周期内稳定。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const teamProfiles = useMemo(() => getTeamProfiles(), [profilesVersion])
   const historicalMatchLibrary = useMemo(() => {
@@ -992,66 +1036,78 @@ export default function NewInvestmentPage() {
 
       <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 p-4 mb-5">
         <button
-          onClick={() => setQuickInputOpen((prev) => !prev)}
+          onClick={() => {
+            // 手动点击优先于自动「秀一下」：取消在途定时器，避免面板在用户操作下被弹回。
+            quickPeekTimersRef.current.forEach((t) => window.clearTimeout(t))
+            quickPeekTimersRef.current = []
+            const next = !quickShown
+            setQuickPeeking(false)
+            setQuickInputOpen(next)
+          }}
           className="motion-v2-ghost-btn flex items-center gap-2 text-sm text-stone-600 hover:text-amber-600 transition-colors w-full"
         >
-          {quickInputOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          <ChevronRight size={14} className={`qi-chevron${quickShown ? ' is-open' : ''}`} />
           <span className="font-medium">Quick Input</span>
           <span className="ml-1 px-[5px] py-[0.5px] rounded border border-indigo-200 bg-indigo-50 text-[7.5px] font-semibold uppercase tracking-[0.08em] text-indigo-500">Beta</span>
           <span className="text-[11px] text-stone-400 ml-1">自然语言快捷录入</span>
         </button>
 
-        {quickInputOpen && (
-          <div className="mt-3 space-y-2">
-            <textarea
-              value={quickInputText}
-              onChange={(e) => setQuickInputText(e.target.value)}
-              placeholder={isPreview
-                ? '欢迎体验 · 在此粘贴一句话即可自动解析为结构化投资单\n例如：曼城 win, 赔率 1.85, 变量 α 1.3, 变量 δ 0.72, 策略 Baseline-Drift, 仓位 150'
-                : '示例：利兹联 win/平 拜仁, conf 3.5, odds 7.4, fse 0.72, mode 半, input 180\n或：arsenal W, chelsea D, conf 55 60, odds 1.8 3.2, mode 常规-稳'}
-              rows={3}
-              className="input-glow w-full px-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400 resize-none"
-            />
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleQuickInput}
-                disabled={!quickInputText.trim()}
-                className="px-4 py-1.5 rounded-lg text-xs font-medium bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                解析并填入
-              </button>
-              {quickInputText.trim() && (
+        <div
+          className={`qi-collapse${quickShown ? ' is-open' : ''}${quickPeeking ? ' is-peeking' : ''}`}
+          inert={quickShown ? undefined : ''}
+        >
+          <div className="qi-collapse-inner">
+            <div className="mt-3 space-y-2">
+              <textarea
+                value={quickInputText}
+                onChange={(e) => setQuickInputText(e.target.value)}
+                placeholder={isPreview
+                  ? '欢迎体验 · 在此粘贴一句话即可自动解析为结构化投资单\n例如：曼城 win, 赔率 1.85, 变量 α 1.3, 变量 δ 0.72, 策略 Baseline-Drift, 仓位 150'
+                  : '示例：利兹联 win/平 拜仁, conf 3.5, odds 7.4, fse 0.72, mode 半, input 180\n或：arsenal W, chelsea D, conf 55 60, odds 1.8 3.2, mode 常规-稳'}
+                rows={3}
+                className="input-glow w-full px-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400 resize-none"
+              />
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => { setQuickInputText(''); setQuickInputResult(null) }}
-                  className="px-3 py-1.5 rounded-lg text-xs text-stone-500 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+                  onClick={handleQuickInput}
+                  disabled={!quickInputText.trim()}
+                  className="px-4 py-1.5 rounded-lg text-xs font-medium bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  清空
+                  解析并填入
                 </button>
+                {quickInputText.trim() && (
+                  <button
+                    onClick={() => { setQuickInputText(''); setQuickInputResult(null) }}
+                    className="px-3 py-1.5 rounded-lg text-xs text-stone-500 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+                  >
+                    清空
+                  </button>
+                )}
+              </div>
+
+              {quickInputResult && (
+                <div className="mt-2 space-y-1">
+                  {quickInputResult.matches.length > 0 && (
+                    <p className="text-[11px] text-emerald-600">
+                      已识别 {quickInputResult.matches.length} 场比赛
+                      {quickInputResult.confidence >= 0.7 ? '' : ' (部分字段可能需要手动补充)'}
+                    </p>
+                  )}
+                  {quickInputResult.diagnostics.map((d, i) => (
+                    <p
+                      key={i}
+                      className={`text-[11px] ${
+                        d.level === 'error' ? 'text-rose-500' : d.level === 'warning' ? 'text-amber-600' : 'text-stone-400'
+                      }`}
+                    >
+                      {d.message}
+                    </p>
+                  ))}
+                </div>
               )}
             </div>
-
-            {quickInputResult && (
-              <div className="mt-2 space-y-1">
-                {quickInputResult.matches.length > 0 && (
-                  <p className="text-[11px] text-emerald-600">
-                    已识别 {quickInputResult.matches.length} 场比赛
-                    {quickInputResult.confidence >= 0.7 ? '' : ' (部分字段可能需要手动补充)'}
-                  </p>
-                )}
-                {quickInputResult.diagnostics.map((d, i) => (
-                  <p
-                    key={i}
-                    className={`text-[11px] ${
-                      d.level === 'error' ? 'text-rose-500' : d.level === 'warning' ? 'text-amber-600' : 'text-stone-400'
-                    }`}
-                  >
-                    {d.message}
-                  </p>
-                ))}
-              </div>
-            )}
           </div>
-        )}
+        </div>
       </div>
 
       <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden">

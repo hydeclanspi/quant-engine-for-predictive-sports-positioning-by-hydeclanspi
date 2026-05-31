@@ -4251,6 +4251,120 @@
 }
 
 /* ============================================================
+   Quick Input 首屏「秀一下」(展卷 · 收锋)
+   首屏 Quick Input 面板静息折叠；首次进入演示态时自动下拉展示再弹回。
+   - 展开（展卷）：高度 0fr→1fr 缓出揭开，内容带重力 Q 弹落定，并掠过一道
+     科技感扫描线——刚柔并济。
+   - 收起（收锋）：更短、加速的回弹，干净利落不拖泥带水。
+   高度走 grid-template-rows: 0fr→1fr（无需 JS 量高），内层 overflow:hidden
+   + min-height:0 负责裁剪与塌缩。
+   ============================================================ */
+.qi-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  /* 收起 = 锐利、加速回弹（收锋） */
+  transition: grid-template-rows 0.34s cubic-bezier(0.7, 0, 0.84, 0);
+}
+
+.qi-collapse.is-open {
+  grid-template-rows: 1fr;
+  /* 展开 = 缓出揭开（展卷） */
+  transition: grid-template-rows 0.48s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.qi-collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+  position: relative; /* 容纳科技感扫描线 ::after */
+}
+
+/* 内容随高度揭开同时做一次重力 Q 弹落定：上方滑入 → 轻微过冲 → 回正。 */
+.qi-collapse.is-open .qi-collapse-inner {
+  animation: qiContentIn 0.62s cubic-bezier(0.34, 1.4, 0.5, 1) both;
+}
+
+@keyframes qiContentIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-9px) scaleY(0.985);
+    filter: blur(2px);
+  }
+  55% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  72% {
+    /* 重力过冲（Q 弹的「弹」） */
+    transform: translateY(3px) scaleY(1.004);
+  }
+  86% {
+    transform: translateY(-1.5px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+    filter: blur(0);
+  }
+}
+
+/* 科技感扫描线：仅在自动「秀一下」时掠过一次；手动展开保持安静、克制。 */
+.qi-collapse.is-peeking .qi-collapse-inner::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 38%;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(99, 102, 241, 0.13) 0%,
+    rgba(99, 102, 241, 0) 100%
+  );
+  transform: translateY(-100%);
+  animation: qiScan 1.05s cubic-bezier(0.22, 0.61, 0.36, 1) 0.18s both;
+}
+
+@keyframes qiScan {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(300%);
+    opacity: 0;
+  }
+}
+
+/* 折叠/展开箭头：单个 ChevronRight 旋转 90° 即为下展态，过渡平滑高级。 */
+.qi-chevron {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.qi-chevron.is-open {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qi-collapse,
+  .qi-collapse.is-open {
+    transition: none;
+  }
+  .qi-collapse.is-open .qi-collapse-inner {
+    animation: none;
+  }
+  .qi-collapse.is-peeking .qi-collapse-inner::after {
+    display: none;
+  }
+  .qi-chevron {
+    transition: none;
+  }
+}
+
+/* ============================================================
    Global Bottom Bar — brand micro-touchpoint
    ============================================================ */
 
