@@ -5147,6 +5147,19 @@
   background: linear-gradient(to right, #f8f9fb, #fef7ee) !important;
 }
 
+/* …but vibrant chips/buttons that carry white text must NOT be washed out
+   to the near-white section tint above (white-on-near-white = invisible).
+   Restore legible, on-theme gradients. Both class combos are unique app-wide. */
+.theme-modern .bg-gradient-to-r.from-violet-500.to-purple-500 {
+  background: linear-gradient(to right, #8b5cf6, #a855f7) !important;
+}
+.theme-modern .bg-gradient-to-r.from-amber-500.to-orange-500 {
+  background: linear-gradient(to right, #6366f1, #818cf8) !important;
+}
+.theme-modern .bg-gradient-to-r.from-amber-500.to-orange-500:hover {
+  background: linear-gradient(to right, #4f46e5, #6366f1) !important;
+}
+
 /* Borders — lighter, slightly warm */
 .theme-modern .border-stone-100 {
   border-color: #eeeef2;
