@@ -5201,11 +5201,20 @@
   height: 132px;
 }
 
+/* Compact band variant (Dashboard overview, between KPI row and 噪音过滤). */
+.capital-curve.is-compact .capital-curve-svg {
+  height: 54px;
+}
+
 .capital-curve-line {
   stroke-width: 2.25;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-dasharray: 1;
+  /* Gap (2) deliberately longer than the dash (1) so that at the hidden
+     resting state (dashoffset:1) the pattern never restarts a dash within
+     the [0,1] path range — otherwise the round linecap renders a stray
+     green blob at the right endpoint before the draw-on begins. */
+  stroke-dasharray: 1 2;
   stroke-dashoffset: 1;
 }
 

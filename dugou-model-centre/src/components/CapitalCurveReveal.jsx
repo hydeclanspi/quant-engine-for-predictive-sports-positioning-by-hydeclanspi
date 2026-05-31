@@ -30,7 +30,7 @@ const toRmb = (n) => {
   return `${sign}¥${Math.abs(v).toLocaleString('en-US')}`
 }
 
-export default function CapitalCurveReveal({ investments }) {
+export default function CapitalCurveReveal({ investments, compact = false }) {
   const series = useMemo(() => {
     const settled = (Array.isArray(investments) ? investments : [])
       .filter((inv) => {
@@ -115,24 +115,28 @@ export default function CapitalCurveReveal({ investments }) {
   return (
     <div
       ref={containerRef}
-      className={`capital-curve glow-card bg-white rounded-2xl border border-stone-100 p-4 md:p-5 mb-4${
-        revealed ? ' is-revealed' : ''
-      }`}
+      className={`capital-curve glow-card bg-white rounded-2xl border border-stone-100 ${
+        compact ? 'is-compact p-4' : 'p-4 md:p-5 mb-4'
+      }${revealed ? ' is-revealed' : ''}`}
     >
-      <div className="flex items-end justify-between gap-3 mb-1.5">
-        <div>
-          <div className="text-sm font-medium text-stone-700">资金累计曲线</div>
-          <div className="text-xs text-stone-400 mt-0.5">共 {settledCount} 笔已结算 · 累计净盈亏</div>
+      <div className={`flex items-end justify-between gap-3 ${compact ? 'mb-1' : 'mb-1.5'}`}>
+        <div className="min-w-0">
+          <div className={`font-medium text-stone-700 ${compact ? 'text-[13px]' : 'text-sm'}`}>
+            资金累计曲线
+          </div>
+          <div className={`text-stone-400 ${compact ? 'text-[11px]' : 'text-xs mt-0.5'}`}>
+            共 {settledCount} 笔已结算 · 累计净盈亏
+          </div>
         </div>
         <div className="text-right leading-tight">
           <div
-            className={`text-2xl font-semibold tabular-nums capital-curve-figure ${
-              positive ? 'text-emerald-600' : 'text-rose-500'
-            }`}
+            className={`font-semibold tabular-nums capital-curve-figure ${
+              compact ? 'text-xl' : 'text-2xl'
+            } ${positive ? 'text-emerald-600' : 'text-rose-500'}`}
           >
-            {revealed ? <CountUp value={final} format={toRmb} duration={1400} /> : toRmb(0)}
+            {revealed ? <CountUp value={final} format={toRmb} duration={compact ? 1100 : 1400} /> : toRmb(0)}
           </div>
-          <div className="text-[11px] text-stone-400 mt-0.5">净盈亏 · 累计</div>
+          {!compact && <div className="text-[11px] text-stone-400 mt-0.5">净盈亏 · 累计</div>}
         </div>
       </div>
 

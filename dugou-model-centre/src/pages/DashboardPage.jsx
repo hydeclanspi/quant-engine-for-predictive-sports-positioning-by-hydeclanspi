@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { getDashboardSnapshot } from '../lib/analytics'
 import TimeRangePicker from '../components/TimeRangePicker'
 import CountUp from '../components/CountUp'
-import { getSystemConfig, saveSystemConfig, addCapitalInjection } from '../lib/localData'
+import CapitalCurveReveal from '../components/CapitalCurveReveal'
+import { getSystemConfig, saveSystemConfig, addCapitalInjection, getInvestments } from '../lib/localData'
 import { downloadWorkbook } from '../lib/excel'
 import * as XLSX from 'xlsx'
 import { Wallet, TrendingUp, BarChart3 } from 'lucide-react'
@@ -270,6 +271,14 @@ export default function DashboardPage({ openModal }) {
 
   const systemConfig = useMemo(() => getSystemConfig(), [dataVersion])
   const snapshot = useMemo(() => getDashboardSnapshot(timePeriod), [timePeriod, dataVersion])
+  // All-time settled records for the 资金累计曲线 band — deliberately
+  // independent of the time-period picker (the curve is a lifetime journey).
+  const capitalInvestments = useMemo(() => {
+    const all = getInvestments()
+    return isPreviewMode() ? all.filter((inv) => !inv.__demo_seed_pending) : all
+    // dataVersion is a manual refresh trigger (e.g. after a capital injection).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataVersion])
   // Replay the hero KPI count-up cascade whenever the underlying figures
   // change (period switch or a data mutation), and once on landing.
   const kpiRunKey = `${timePeriod}:${dataVersion}`
@@ -1540,6 +1549,8 @@ export default function DashboardPage({ openModal }) {
           </div>
         ))}
       </div>
+
+      <CapitalCurveReveal investments={capitalInvestments} compact />
 
       <div className="-mt-[14px] space-y-2.5">
         {showSmartReminder && (

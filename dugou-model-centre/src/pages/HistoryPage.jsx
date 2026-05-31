@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom'
 import { deleteInvestment, getInvestments, saveInvestment, setInvestmentArchived, updateInvestment } from '../lib/localData'
 import { useLabels } from '../lib/labels'
 import { isPreviewMode } from '../lib/displayMode'
-import CapitalCurveReveal from '../components/CapitalCurveReveal'
 
 const LEAGUE_ORDER = ['英超', '西甲', '意甲', '德甲', '法甲', '荷甲', '葡超', '土超', '沙特联', '国际赛', '其他']
 const TEAM_LEAGUE_MAP = {
@@ -810,8 +809,6 @@ export default function HistoryPage() {
           </button>
         ))}
       </div>
-
-      <CapitalCurveReveal investments={rawInvestments} />
 
       <div className="glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden">
         {layoutMode === 'modern' ? (
