@@ -30,7 +30,7 @@ import { isPreviewMode } from '../lib/displayMode'
  */
 
 const SESSION_COACH_KEY = 'dugou.adaptive_loop_coach.v1'
-const COACH_VISIBLE_MS = 7200
+const COACH_VISIBLE_MS = 5850
 const TRACE_MS = 1500 // matches the sheen animation; drop the class after
 
 const alreadyCoachedThisSession = () => {
