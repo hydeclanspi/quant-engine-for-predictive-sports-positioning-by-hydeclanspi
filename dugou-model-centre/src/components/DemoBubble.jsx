@@ -24,7 +24,11 @@ import UnlockModal from './UnlockModal'
  */
 
 const SESSION_SHOWN_KEY = 'dugou.demo_bubble_shown.v1'
-const APPEAR_DELAY_MS = 2770
+// Sequenced AFTER the homepage Quick Input「展卷·收锋」peek so the two demo
+// flourishes never play over each other. That peek starts at 2770ms and runs
+// ~2390ms (hold 2050 + retract 340), finishing ≈5160ms; we then wait 0.7s.
+//   2770 + 2050 + 340 + 700 = 5860ms
+const APPEAR_DELAY_MS = 5860
 const AUTO_FADE_MS = 7750
 const ENTER_MS = 660 // ~demoBubbleIn (640ms) + small buffer
 const LEAVE_MS = 400 // ~demoBubbleOut (380ms) + small buffer

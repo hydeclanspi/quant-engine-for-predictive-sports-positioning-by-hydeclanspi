@@ -4197,7 +4197,9 @@
   position: absolute;
   right: 6px;
   bottom: 100%;
-  margin-bottom: 9px;
+  /* Slight negative gap pulls the bubble down a touch so it points more
+     directly at the loop diagram instead of crowding the card header. */
+  margin-bottom: -4px;
   max-width: 300px;
   padding: 9px 12px;
   border-radius: 11px;

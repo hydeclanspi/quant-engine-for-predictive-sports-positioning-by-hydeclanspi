@@ -22,7 +22,10 @@ import { useDisplayMode, PREVIEW_MODE } from '../lib/displayMode'
 // Quick Input 首屏「秀一下」：首次进入（演示态）时面板自动下拉展示再收回，
 // 每会话仅一次。静息态保持折叠——克制、精致才是首屏的第一印象。
 const QI_PEEK_KEY = 'dugou.quick_input_peek.v1'
-const QI_PEEK_DELAY_MS = 460 // 让首屏先落定，再让面板「展卷」下拉
+// 等首屏完全落定后再「展卷」——沿用 DemoBubble 原本的浮现时机 (2770ms)，
+// 此刻页面已渲染完毕，动效不再与加载抢主线程、不卡顿。DemoBubble 则顺延到
+// 本动画播放完 + 0.7s 之后才浮现 (见 DemoBubble.APPEAR_DELAY_MS)，两者不打架。
+const QI_PEEK_DELAY_MS = 2770 // 首屏打开后 x 秒「展卷」(x = DemoBubble 原浮现延时)
 const QI_PEEK_HOLD_MS = 2050 // 充分展示后再「收锋」弹回
 
 const prefersReducedMotion = () => {
