@@ -74,13 +74,15 @@ const smoothstep = (u, a, b) => {
 // plateau (where the deep drawdown lives, un-masked by any rising trend), then
 // a decisive breakout leg to the final high. Spans 0 → 1.
 //
-// The plateau sits at 0.435 (not 0.40): because the walk is range-normalised,
-// its deepest point is the mid-run trough, which the plateau height alone
-// positions relative to break-even. 0.435 lifts that trough to a hair ABOVE the
-// zero line (a ~2px clearance) instead of grazing it — the drawdown keeps its
-// full peak-to-trough depth (the whole band rises together), it just no longer
-// kisses the line. The breakout leg is 0.565 so the envelope still lands on 1.
-const driftBase = (u) => 0.435 * smoothstep(u, 0, 0.26) + 0.565 * smoothstep(u, 0.54, 1)
+// The plateau sits at 0.46 (not 0.40): because the walk is range-normalised, its
+// deepest point IS the mid-run trough, so the plateau height alone positions that
+// trough relative to break-even. The curve starts exactly on the zero line and
+// the tiny first-bet dip pins that line near the plot floor, so the trough has to
+// be lifted a clear ~5px clear of it to read as "doesn't touch" — 0.46 puts the
+// trough ≈ +50 (a comfortable, visible gap) while the drawdown keeps its full
+// peak-to-trough depth (~56% of final; the whole band rises together, the dip is
+// just as deep). The breakout leg is 0.54 so the envelope still lands on 1.
+const driftBase = (u) => 0.46 * smoothstep(u, 0, 0.26) + 0.54 * smoothstep(u, 0.54, 1)
 
 const buildDemoCapitalSeries = (count, peak) => {
   const P = peak
