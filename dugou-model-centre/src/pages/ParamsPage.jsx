@@ -222,20 +222,20 @@ const clampNumber = (value, min, max) => Math.max(min, Math.min(max, value))
 //
 // In preview mode the real Supabase data is hidden, so the FIT TRAJECTORY
 // chart (mode #9 · cumulative偏差瀑布) was drawing the curated demo set, whose
-// cumulative line drifted DOWN late ("越走越下"). Production ("full" state)
-// instead climbs early then holds high. Since every calibration readout —
-// score, 近窗命中, BIAS, MAE, CI band, the four regime cards, the trajectory
-// AND the history table — all read from ratingRows[].diff, we reshape a single
-// deterministic diff series and rebuild expected/actual so the table identity
-// diff = actual − expected stays exact.
+// cumulative line drifted DOWN late ("越走越下"). This now replays an exact
+// 1:1 snapshot of the production ("full" state) ratingRows[].diff series —
+// 181 points, newest-first, lifted verbatim from the Live tab — so every
+// calibration readout (score, 近窗命中, BIAS, MAE, CI band, the four regime
+// cards, the trajectory AND the history table, all derived from diff) matches
+// Live to the digit. Expected/actual are rebuilt from each diff so the table
+// identity diff = actual − expected stays exact.
 //
-// Constants below were locked via offline search to reproduce the full-state
-// profile at n=181: score 0.82 · MAE 0.178 · BIAS +0.046 · CI ±0.341 ·
-// 近窗命中 28.7% · σ0.207 · FIT TREND Flat · STABILITY Volatile ·
-// PERSISTENCE Rotating · SHOCK Elevated — with a cumulative line that ramps
-// over the first ~half of the 120-pt window then plateaus near the top.
+// Verified fingerprint (n=181): score 0.82 · MAE 0.181 · BIAS +0.042 ·
+// CI ±0.340 · 近窗命中 28.2% · σ0.206 · FIT TREND Flat · STABILITY Volatile
+// (jump57%) · PERSISTENCE Rotating (run10% switch43%) · SHOCK Elevated
+// (tail14%) — cumulative line climbs early, holds, then lifts to a new high at
+// the right edge.
 // ---------------------------------------------------------------------------
-const PREVIEW_RATING_SAMPLE = 181
 
 const previewMulberry32 = (seed) => {
   let a = seed >>> 0
@@ -248,46 +248,37 @@ const previewMulberry32 = (seed) => {
   }
 }
 
-const previewSmoothstep = (t) => {
-  const x = Math.max(0, Math.min(1, t))
-  return x * x * (3 - 2 * x)
-}
+// Exact 1:1 snapshot of the production full-state ratingRows[].diff series
+// (newest-first, 181 pts), copied verbatim from the Live tab. Do NOT
+// regenerate — this is the real series, so the demo trajectory and every
+// derived readout are byte-identical to production.
+const PREVIEW_DEVIATION_SERIES = Object.freeze([
+  -0.03, -0.03, 0.25, -0.04, 0.4, -0.3, -0.45, 0.14, -0.21, 0.11,
+  0.11, 0.24, -0.6, -0.05, -0.05, -0.05, 0.1, 0.1, -0.1, -0.09,
+  0.11, 0.11, 0.2, 0.4, 0.05, 0.06, -0.07, 0.03, 0.03, -0.11,
+  0.23, -0.07, 0.15, 0.15, 0.15, -0.06, -0.06, -0.06, -0.04, -0.04,
+  0.16, 0.16, 0.04, 0.04, 0.21, 0.06, 0.16, 0.06, 0.04, -0.09,
+  0.16, 0.16, 0.16, -0.03, 0.15, 0.15, 0.15, 0.18, 0.15, 0.16,
+  0.18, -0.18, 0.02, 0.02, 0.02, 0.16, 0.14, 0.24, -0.08, 0.22,
+  0.09, 0.09, 0.24, 0.24, 0.24, 0.24, 0.24, 0.25, 0.25, 0.25,
+  0.1, 0.25, 0.23, 0.23, 0.23, 0.23, 0.23, 0.23, -0.37, 0.37,
+  -0.23, -0.03, 0.3, 0.3, -0.3, -0.2, 0.3, -0.3, -0.07, 0.23,
+  -0.27, 0.17, 0.17, -0.23, 0.1, -0.4, 0.24, -0.36, 0.22, 0.16,
+  0.26, 0.26, 0.19, -0.01, 0.19, -0.38, -0.34, -0.34, -0.14, -0.14,
+  -0.38, 0.22, 0.28, 0.28, 0.28, 0.11, -0.09, -0.29, 0.11, -0.09,
+  -0.29, -0.08, -0.18, -0.08, 0.22, -0.04, 0.06, 0.34, -0.28, 0.08,
+  0.08, -0.32, 0.15, -0.15, -0.15, 0.23, -0.17, 0.23, 0.15, 0.15,
+  -0.12, 0.08, -0.16, 0.24, 0.09, 0.29, -0.11, 0.29, 0.15, 0.15,
+  0.28, -0.32, -0.45, 0.17, -0.13, 0.15, 0.15, 0.21, 0.21, 0.16,
+  0.16, 0.2, 0, 0.12, -0.47, 0.28, -0.07, -0.18, -0.32, -0.32,
+  -0.36,
+])
 
-const buildPreviewDeviationSeries = (n) => {
-  // Cumulative-target ramp across the first half of the trailing 120-pt window
-  // (the slice the chart plots) + mildly auto-correlated noise → a cumulative
-  // curve that climbs then holds high instead of sagging.
-  const S = 4.6
-  const rampFrac = 0.5
-  const noiseAmp = 0.46
-  const noiseAr = 0.3
-  const plateauBias = 0.004
-  const headBias = 0
-  const rnd = previewMulberry32(710)
-  const windowStart = Math.max(0, n - 120)
-  const winLen = n - windowStart
-  const cTarget = (j) => S * previewSmoothstep(j / Math.max(1, winLen - 1) / rampFrac)
-  const diffs = []
-  let prevNoise = 0
-  for (let i = 0; i < n; i += 1) {
-    let mean
-    if (i >= windowStart) {
-      const j = i - windowStart
-      mean = cTarget(j) - cTarget(j - 1) + plateauBias
-    } else {
-      mean = headBias
-    }
-    const white = rnd() * 2 - 1
-    const noise = noiseAr * prevNoise + (1 - noiseAr) * white
-    prevNoise = noise
-    diffs.push(Math.round((mean + noise * noiseAmp) * 100) / 100)
-  }
-  return diffs
-}
+const buildPreviewDeviationSeries = () => PREVIEW_DEVIATION_SERIES.slice()
 
 const buildPreviewRatingRows = (realRows) => {
   const source = Array.isArray(realRows) ? realRows : []
-  const diffs = buildPreviewDeviationSeries(PREVIEW_RATING_SAMPLE)
+  const diffs = buildPreviewDeviationSeries()
   const centerRnd = previewMulberry32(9112)
   return diffs.map((diff, idx) => {
     const template = source.length > 0 ? source[idx % source.length] : null
