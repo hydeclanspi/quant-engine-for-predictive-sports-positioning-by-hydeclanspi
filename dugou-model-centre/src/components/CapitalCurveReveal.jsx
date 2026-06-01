@@ -39,14 +39,19 @@ const toSignedNumber = (n) => {
 const toRmb = (n) => `${toSignedNumber(n)} rmb`
 
 // ── Preview-only synthetic equity path ──────────────────────────────────
-// A deterministic (seeded → no flicker between renders) "螺旋震荡向上" curve
-// used ONLY in demo/preview mode. The real seeded sample happens to climb
-// almost monotonically, which reads as an unrealistic straight line — so for
-// the demo we model an honest-looking capital journey instead: an upward
-// trend carrying tapered oscillation, two genuine drawdowns and a closing
-// shake-out before a breakout to a fresh high. The whole path is scaled so
-// its final point lands on `peak` (the REAL cumulative figure), so only the
-// in-between shape is dramatised while the headline number stays truthful.
+// A deterministic (seeded → no flicker between renders) equity curve used
+// ONLY in demo/preview mode. The real seeded sample happens to climb almost
+// monotonically, which reads as an unrealistically smooth line — so for the
+// demo we MODEL an honest betting journey instead.
+//
+// The shape is generated, not drawn: a seeded bet-by-bet Monte-Carlo
+// (decimal odds, occasional conviction stakes, win prob = 1/odds with
+// regime-switching luck) yields a genuinely jagged P&L walk, which we then lay
+// over a "climb → plateau → breakout" drift envelope. The result spirals
+// upward, suffers one deep mid-run drawdown that retraces past the prior leg,
+// and finally breaks out to a fresh high. The whole path is affine-pinned to
+// start at 0 and END EXACTLY on `peak` (the REAL cumulative figure) — only the
+// in-between shape is dramatised; the headline number stays truthful.
 const makeRng = (seed) => {
   let t = seed >>> 0
   return () => {
@@ -57,33 +62,67 @@ const makeRng = (seed) => {
   }
 }
 
+// Smoothstep ramp 0→1 across [a, b] (Hermite; zero slope at both ends).
+const smoothstep = (u, a, b) => {
+  if (u <= a) return 0
+  if (u >= b) return 1
+  const t = (u - a) / (b - a)
+  return t * t * (3 - 2 * t)
+}
+
+// Deterministic drift envelope: a confident first climb, a flat consolidation
+// plateau (where the deep drawdown lives, un-masked by any rising trend), then
+// a decisive breakout leg to the final high. Spans 0 → 1.
+const driftBase = (u) => 0.4 * smoothstep(u, 0, 0.26) + 0.6 * smoothstep(u, 0.54, 1)
+
 const buildDemoCapitalSeries = (count, peak) => {
   const P = peak
-  const n = Math.max(12, count)
-  const rng = makeRng(0x5eed2026)
-  // Per-step noise, drawn once for micro-texture (kept deterministic).
-  const noise = []
-  for (let k = 0; k <= n; k += 1) noise.push(rng() - 0.5)
-  // A Gaussian "drawdown" notch centred at fraction `c`, width `w`, depth `d`.
-  const dip = (u, c, w, d) => -P * d * Math.exp(-((u - c) ** 2) / (2 * w * w))
-  const raw = []
-  for (let k = 0; k <= n; k += 1) {
-    const u = k / n
-    const env = Math.sin(Math.PI * u) // 0→1→0 taper keeps both ends anchored
-    const trend = P * (0.7 * u + 0.3 * u * u) // monotonic base, ends exactly at P
-    const osc =
-      P * 0.115 * env * Math.sin(u * Math.PI * 5 + 0.4) +
-      P * 0.05 * env * Math.sin(u * Math.PI * 11)
-    const draws =
-      dip(u, 0.3, 0.05, 0.15) + // first pullback
-      dip(u, 0.62, 0.065, 0.23) + // the deep drawdown
-      dip(u, 0.855, 0.042, 0.215) // deeper, later, tighter closing shake-out → sharper breakout to the final high
-    const tex = P * 0.025 * env * noise[k]
-    raw.push(trend + osc + draws + tex)
+  const N = Math.max(48, count) // plenty of points → an honestly jagged staircase
+  const rng = makeRng(0x77beef)
+
+  // Regime-switching "luck": a small edge added to / subtracted from the
+  // break-even win prob over windows in u. Negative windows are cold streaks
+  // that carve drawdowns; the late positive window powers the closing breakout.
+  const regimes = [
+    [0.1, 0.16, -0.14], // early stumble
+    [0.3, 0.5, -0.22], // the deep mid-run drawdown
+    [0.58, 0.66, 0.1], // recovery bounce
+    [0.8, 0.96, 0.16], // closing breakout
+  ]
+  const edgeAt = (u) => {
+    let e = 0
+    for (const [a, b, s] of regimes) if (u >= a && u <= b) e += s
+    return e
   }
-  raw[0] = 0 // start at break-even
-  raw[raw.length - 1] = P // land exactly on the honest cumulative figure
-  return raw.map((v) => ({ cum: Math.round(v) }))
+
+  // 1) Bet-by-bet Monte-Carlo → a jagged cumulative P&L walk `w` (length N+1).
+  const w = [0]
+  let cum = 0
+  for (let k = 0; k < N; k += 1) {
+    const u = k / (N - 1)
+    const odds = 1.55 + rng() ** 1.7 * 1.9 // decimal odds, skewed toward favourites
+    const stake = rng() < 0.15 ? 1 + rng() * 1.7 : 0.7 + rng() * 0.6 // occasional conviction
+    const p = Math.min(0.94, Math.max(0.04, 1 / odds + edgeAt(u)))
+    cum += rng() < p ? stake * (odds - 1) : -stake
+    w.push(cum)
+  }
+
+  // 2) Normalise the walk to unit range so its amplitude is seed-independent.
+  const wMin = Math.min(...w)
+  const wMax = Math.max(...w)
+  const wRange = wMax - wMin || 1
+
+  // 3) Lay the jagged walk (amplitude AMP) over the drift envelope, then affine-
+  //    pin so the path starts at 0 and ends exactly on `peak`. The +1 the
+  //    envelope contributes at u=1 keeps the denominator robust (no blow-ups),
+  //    and the breakout leg makes the final point the global high (dot at top).
+  const AMP = 0.5
+  const shaped = w.map((v, i) => driftBase(i / N) + AMP * (v / wRange))
+  const span = shaped[N] - shaped[0] || 1
+  const points = shaped.map((v) => ({ cum: Math.round(((v - shaped[0]) / span) * P) }))
+  points[0] = { cum: 0 } // anchor at break-even
+  points[points.length - 1] = { cum: Math.round(P) } // land exactly on the honest figure
+  return points
 }
 
 export default function CapitalCurveReveal({ investments, compact = false }) {

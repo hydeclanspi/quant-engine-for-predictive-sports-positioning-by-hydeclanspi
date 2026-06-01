@@ -6005,10 +6005,12 @@
   clip-path: inset(0 100% 0 0);
 }
 
-/* Compact band variant (Dashboard overview). Taller plot than a strip so the
-   realistic drawdowns / oscillation in the equity path have room to read. */
+/* Compact band variant (Dashboard overview). Matched to the AJR sparkline that
+   sits directly above it (h-[126px]) so the two stacked charts read as a pair,
+   and so the realistic drawdowns / oscillation in the equity path — which
+   auto-scale to fill this height — have the vertical room to actually land. */
 .capital-curve.is-compact .capital-curve-svg {
-  height: 103px;
+  height: 126px;
 }
 
 .capital-curve-line {
