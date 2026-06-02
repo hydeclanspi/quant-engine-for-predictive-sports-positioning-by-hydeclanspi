@@ -2406,6 +2406,9 @@ const CONSOLE_NAV_GROUPS = Object.freeze([
 const CONSOLE_NAV_LANDING_GAP = 20
 const CONSOLE_NAV_ACTIVE_OFFSET = 88
 const CONSOLE_NAV_REVEAL_AT = 280
+// demo console 整体缩放：略缩到 84%，营造更紧凑、克制的"高级仪表盘"密度感（仅 preview）。
+// 导航器 portal 在 body 上、不随此缩放，故在组件内单独再缩一点保持比例协调。
+const PREVIEW_CONSOLE_ZOOM = 0.84
 
 // 应用外壳的实际滚动容器是嵌套的 <main class="app-main-scroll …overflow-auto">，并非 window，
 // 因此需定位该滚动容器来挂监听 / 计算可见性 / 执行平滑滚动；找不到则回退到 window。
@@ -2433,6 +2436,10 @@ function ConsoleAnchorRail() {
   const canvasRef = useRef(null)
   const btnRefs = useRef([])
   const [indicator, setIndicator] = useState({ top: 0, height: 0, ready: false })
+  // 静默/浮现：默认半隐，滚动时浮到全亮、停下约 1.1s 后回落（悬停由 CSS hover 接管）。
+  const [surfaced, setSurfaced] = useState(false)
+  const surfacedRef = useRef(false)
+  const surfaceTimerRef = useRef(null)
 
   useEffect(() => {
     const readMetrics = (scroller) => {
@@ -2465,7 +2472,20 @@ function ConsoleAnchorRail() {
       if (m.scrollTop + m.clientH >= m.scrollH - 6) idx = CONSOLE_NAV_GROUPS.length - 1
       setActiveIdx(idx)
     }
+    // 浮现：滚动期间拉到全亮，停下约 1.1s 后回落到半隐。用 ref 去抖，单次滚动只触发一次 re-render。
+    const markSurfaced = () => {
+      if (!surfacedRef.current) {
+        surfacedRef.current = true
+        setSurfaced(true)
+      }
+      if (surfaceTimerRef.current) clearTimeout(surfaceTimerRef.current)
+      surfaceTimerRef.current = setTimeout(() => {
+        surfacedRef.current = false
+        setSurfaced(false)
+      }, 1100)
+    }
     const onScroll = () => {
+      markSurfaced()
       if (tickingRef.current) return
       tickingRef.current = true
       window.requestAnimationFrame(compute)
@@ -2478,6 +2498,7 @@ function ConsoleAnchorRail() {
     return () => {
       target.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onScroll)
+      if (surfaceTimerRef.current) clearTimeout(surfaceTimerRef.current)
     }
   }, [])
 
@@ -2598,8 +2619,19 @@ function ConsoleAnchorRail() {
     if (!el) return
     const scroller = scrollerRef.current
     if (scroller) {
-      const delta = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top
-      const top = scroller.scrollTop + delta - CONSOLE_NAV_LANDING_GAP
+      // console 处于 zoom 缩放下，getBoundingClientRect 的视觉位移与 scrollTop 单位并非 1:1
+      // （实测每 1 单位 scrollTop 仅约 0.9px 视觉位移）。用一次同步探针测出该比例再换算落点，
+      // 探针滚动同帧内即刻还原、无重绘故不闪烁；对任意缩放比例自适应，缩放值改了也不会失准。
+      const sTop = scroller.getBoundingClientRect().top
+      const start = scroller.scrollTop
+      const a0 = el.getBoundingClientRect().top
+      const maxTop = scroller.scrollHeight - scroller.clientHeight
+      const probe = maxTop - start > 140 ? 120 : -120
+      scroller.scrollTop = start + probe
+      const a1 = el.getBoundingClientRect().top
+      scroller.scrollTop = start
+      const ratio = (a0 - a1) / probe || 1
+      const top = start + (a0 - sTop - CONSOLE_NAV_LANDING_GAP) / ratio
       scroller.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' })
     } else {
       const top = el.getBoundingClientRect().top + (window.scrollY || 0) - CONSOLE_NAV_ACTIVE_OFFSET
@@ -2607,18 +2639,24 @@ function ConsoleAnchorRail() {
     }
   }
 
+  // 静默/浮现态：未显示=滑出全透明；显示且静默=半隐（悬停由 CSS hover 接管）；显示且滚动中=全亮。
+  const navStateClass = !visible
+    ? 'pointer-events-none translate-x-4 opacity-0'
+    : surfaced
+      ? 'pointer-events-auto translate-x-0 opacity-100'
+      : 'pointer-events-auto translate-x-0 opacity-60 hover:opacity-100'
+
   // 注意：必须 portal 到 body。页面祖先 .page-enter/.app-ambient-scope 带有 transform，
   // 会成为 position:fixed 的包含块，导致 fixed 相对该元素而非视口定位（导航会随内容滚走）。
+  // scale-[0.82] + origin-right：在 console 整体 84% 缩放之外，单独把导航器再缩一点、贴右收敛。
   if (typeof document === 'undefined') return null
   return createPortal(
     <nav
       ref={navRef}
       aria-label="参数后台分区导航"
-      className={`console-anchor-rail hidden xl:flex fixed right-4 top-1/2 z-40 -translate-y-1/2 flex-col transition-[transform,opacity] duration-500 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] ${
-        visible ? 'pointer-events-auto translate-x-0 opacity-100' : 'pointer-events-none translate-x-4 opacity-0'
-      }`}
+      className={`console-anchor-rail hidden xl:flex fixed right-4 top-1/2 z-40 origin-right -translate-y-1/2 scale-[0.82] flex-col transition-[transform,opacity] duration-500 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] ${navStateClass}`}
     >
-      <div className="relative flex flex-col gap-0.5 rounded-2xl border border-stone-200/70 bg-white/70 px-1.5 py-2 backdrop-blur-xl shadow-[0_22px_50px_-32px_rgba(79,70,229,0.55)]">
+      <div className="relative flex flex-col gap-0.5 rounded-2xl border border-stone-200/60 bg-white/55 px-1.5 py-2 backdrop-blur-xl shadow-[0_16px_40px_-34px_rgba(79,70,229,0.42)]">
         {/* 分区轨道：淡淡的竖线，把 5 个分区串成一条序列 */}
         <span
           aria-hidden
@@ -2627,13 +2665,13 @@ function ConsoleAnchorRail() {
         {/* 滑动高亮底块：跟随当前分区平滑滑动 */}
         <span
           aria-hidden
-          className="pointer-events-none absolute left-1 right-1 rounded-xl bg-gradient-to-r from-violet-100/70 to-indigo-100/55 ring-1 ring-inset ring-violet-200/55 transition-[transform,height,opacity] duration-[460ms] [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]"
+          className="pointer-events-none absolute left-1 right-1 rounded-xl bg-gradient-to-r from-violet-100/55 to-indigo-100/40 ring-1 ring-inset ring-violet-200/40 transition-[transform,height,opacity] duration-[460ms] [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]"
           style={{ top: 0, height: indicator.height, transform: `translateY(${indicator.top}px)`, opacity: indicator.ready ? 1 : 0 }}
         />
         {/* 滑动光柱：右侧发光指示，强化"你在这里" */}
         <span
           aria-hidden
-          className="pointer-events-none absolute right-[2.5px] w-[3px] rounded-full bg-gradient-to-b from-violet-400 via-violet-500 to-indigo-500 shadow-[0_0_12px_2px_rgba(139,92,246,0.5)] transition-[transform,opacity] duration-[460ms] [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]"
+          className="pointer-events-none absolute right-[2.5px] w-[2.5px] rounded-full bg-gradient-to-b from-violet-300 via-violet-400 to-indigo-400 shadow-[0_0_7px_1px_rgba(139,92,246,0.3)] transition-[transform,opacity] duration-[460ms] [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]"
           style={{ top: 0, height: 18, transform: `translateY(${indicator.top + indicator.height / 2 - 9}px)`, opacity: indicator.ready ? 1 : 0 }}
         />
         {CONSOLE_NAV_GROUPS.map((group, i) => {
@@ -2654,7 +2692,7 @@ function ConsoleAnchorRail() {
             >
               <span
                 className={`whitespace-nowrap text-right text-[11.5px] leading-none tracking-[0.02em] transition-colors duration-300 ${
-                  active ? 'font-semibold text-violet-700' : 'font-medium text-stone-400 group-hover:text-stone-600'
+                  active ? 'font-semibold text-violet-600' : 'font-medium text-stone-400 group-hover:text-stone-600'
                 }`}
               >
                 {group.label}
@@ -4213,7 +4251,10 @@ export default function ParamsPage({ openModal }) {
   const currentLayoutMode = config.layoutMode || 'modern'
 
   return (
-    <div className="page-shell page-content-wide console-motion-scope">
+    <div
+      className="page-shell page-content-wide console-motion-scope"
+      style={isPreviewMode() ? { zoom: PREVIEW_CONSOLE_ZOOM } : undefined}
+    >
       {/* demo/preview 专属：右侧分区滚动导航（fixed 定位，DOM 位置不影响布局） */}
       {isPreviewMode() && <ConsoleAnchorRail />}
       <div className="mb-6">
