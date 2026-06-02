@@ -5059,7 +5059,8 @@ export default function ParamsPage({ openModal }) {
       </div>
 
 
-      <div id="console-grp-analytics" className="order-1 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
+      <div className="flex flex-col">
+      <div className="order-4 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={LineChart} /> 回归分析校准
@@ -5239,15 +5240,15 @@ export default function ParamsPage({ openModal }) {
         </p>
       </div>
 
-      {/* Demo/preview: surface the Future Iteration roadmap below the 回归分析校准
-          card. The pt-[26px] wrapper adds +26px on top of the regression card's
-          base mb-9 (36px) gap → ~62px (≈ +72.5% breathing room); padding (not
-          margin) keeps it additive without margin-collapse. FULL mode keeps the
-          card in its original slot below. */}
+      {/* Demo/preview: surface the Future Iteration roadmap at the TOP of the
+          model-cards column (it renders as the first flex item, order-0, since the
+          column now opens above the 回归分析校准 card). The pt-[26px] wrapper adds
+          +26px on top of the Time Machine card's mb-9 (36px) gap → ~62px breathing
+          room; padding (not margin) keeps it additive without margin-collapse.
+          FULL mode renders the card in its slot below the column. */}
       {isPreviewMode() && <div className="pt-[26px]">{futureIterationCard}</div>}
 
-      <div className="flex flex-col">
-      <div className="order-5 glow-card relative overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/30 to-cyan-50/30 p-6 mb-6">
+      <div className="order-6 glow-card relative overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/30 to-cyan-50/30 p-6 mb-6">
         <div className="pointer-events-none absolute -top-14 -right-8 h-36 w-36 rounded-full bg-indigo-200/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-12 -left-10 h-36 w-36 rounded-full bg-cyan-200/20 blur-3xl" />
         <div className="relative">
@@ -5321,7 +5322,7 @@ export default function ParamsPage({ openModal }) {
         </div>
       </div>
 
-      <div className="order-6 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
+      <div className="order-7 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={Clock3} /> 时间近因机制
@@ -5439,7 +5440,7 @@ export default function ParamsPage({ openModal }) {
         )}
       </div>
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mt-6 mb-6">
+      <div id="console-grp-analytics" className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mt-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="font-medium text-stone-700 flex items-center gap-2">
@@ -5708,7 +5709,7 @@ export default function ParamsPage({ openModal }) {
         <AdaptiveWeightCard config={config} setConfig={setConfig} saveSystemConfig={saveSystemConfig} dataVersion={dataVersion} />
       </div>
 
-      <div className="order-4 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
+      <div className="order-5 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={SlidersHorizontal} /> 动态校准系数
@@ -5848,7 +5849,7 @@ export default function ParamsPage({ openModal }) {
       </div>
 
       {/* FULL mode keeps the Future Iteration card here; demo/preview renders
-          it above (right below 回归分析校准). */}
+          it at the top of the model-cards column above. */}
       {!isPreviewMode() && futureIterationCard}
 
       <div id="console-grp-data" className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
