@@ -5813,13 +5813,15 @@
    「内容撑高的 fr 轨道」上更可靠）。0fr 能真正收拢到 0 的前提是 clip 设了
    min-height:0 + overflow:hidden 且自身无 padding（padding 会成为无法消除的最小
    高度下限）。
-   注：所有 delay 都包了 calc(710ms + …) 的统一前置——展开后先静置 0.71s 再起播，
-   让视线落定后动画才开始；calc 内的变量仍承载逐行错峰量，两者叠加。 */
+   注：所有 delay 都包了 calc(var(--history-expand-settle, 710ms) + …) 的统一前置——
+   首屏「秀一下」自动展开与「全部展开」级联保留 0.71s 静置后起播（让视线落定）；而手动
+   单击某行时 JS 把 --history-expand-settle 置 0ms、错峰量也归零，即刻丝滑展开（秒响应）。
+   calc 内的 --history-expand-delay 仍承载逐行/逐块错峰量，两者叠加。 */
 .theme-modern .history-expand-shell {
   display: grid;
   grid-template-rows: 0fr;
   transition: grid-template-rows 0.46s cubic-bezier(0.16, 1, 0.3, 1);
-  transition-delay: calc(710ms + var(--history-expand-delay, 0ms));
+  transition-delay: calc(var(--history-expand-settle, 710ms) + var(--history-expand-delay, 0ms));
 }
 
 .theme-modern .history-expand-shell.is-open {
@@ -5836,7 +5838,7 @@
   opacity: 0;
   transform: translateY(-12px) scaleY(0.985);
   animation: historyExpandDrop 0.62s cubic-bezier(0.34, 1.4, 0.5, 1) both;
-  animation-delay: calc(710ms + var(--history-expand-delay, 0ms));
+  animation-delay: calc(var(--history-expand-settle, 710ms) + var(--history-expand-delay, 0ms));
   transform-origin: top center;
   will-change: transform, opacity;
 }
@@ -5844,7 +5846,7 @@
 /* 组合记录卡框：仅柔和淡入（容器本身由展卷揭开），重力交给内部各块。 */
 .theme-modern .history-expand-content--combo {
   animation: historyExpandFrame 0.4s ease-out both;
-  animation-delay: calc(710ms + var(--history-expand-delay, 0ms));
+  animation-delay: calc(var(--history-expand-settle, 710ms) + var(--history-expand-delay, 0ms));
 }
 
 /* 组合记录里每场比赛卡片：自上方重力坠入、过冲、落定（错峰）。 */
@@ -5852,7 +5854,7 @@
   opacity: 0;
   transform: translateY(-14px) scale(0.985);
   animation: historyExpandItemDrop 0.56s cubic-bezier(0.34, 1.46, 0.52, 1) both;
-  animation-delay: calc(710ms + var(--history-expand-delay, 0ms));
+  animation-delay: calc(var(--history-expand-settle, 710ms) + var(--history-expand-delay, 0ms));
   transform-origin: top center;
   will-change: transform, opacity;
 }
@@ -5862,7 +5864,7 @@
   opacity: 0;
   transform: translateY(-8px);
   animation: historyExpandTail 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-  animation-delay: calc(710ms + var(--history-expand-delay, 0ms));
+  animation-delay: calc(var(--history-expand-settle, 710ms) + var(--history-expand-delay, 0ms));
 }
 
 @keyframes historyExpandDrop {

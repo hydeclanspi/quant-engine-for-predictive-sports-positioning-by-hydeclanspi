@@ -20,7 +20,7 @@ const prefersReducedMotion = () => {
    高度过渡（与 Quick Input 折叠同款的类切换机制，在「内容撑高的 fr 轨道」上比
    @starting-style 可靠）。内容自身的重力 Q 弹落定由各自 CSS 动画在挂载时一并播放，
    两者叠合即「行从 0 撑开 + 内容自上方坠入回弹」。 */
-function HistoryExpandShell({ delay, children }) {
+function HistoryExpandShell({ delay, settle, children }) {
   const [open, setOpen] = useState(false)
   useEffect(() => {
     // 下一帧翻转 is-open，让 0fr 初始态先绘制一帧，过渡才会触发（可见时走这条路，
@@ -39,7 +39,10 @@ function HistoryExpandShell({ delay, children }) {
     }
   }, [])
   return (
-    <div className={`history-expand-shell${open ? ' is-open' : ''}`} style={{ '--history-expand-delay': delay }}>
+    <div
+      className={`history-expand-shell${open ? ' is-open' : ''}`}
+      style={{ '--history-expand-delay': delay, '--history-expand-settle': settle }}
+    >
       <div className="history-expand-clip">{children}</div>
     </div>
   )
@@ -555,6 +558,9 @@ export default function HistoryPage() {
   const [expandedComboIds, setExpandedComboIds] = useState({})
   const [expandedSoloIds, setExpandedSoloIds] = useState({})
   const [notePopup, setNotePopup] = useState(null)
+  // 展开是否走「秀一下」级联：首屏自动展开 / 全部展开时为 true（保留 0.71s 静置 +
+  // 逐行错峰的演示级联）；手动单击某行时置 false（去掉静置与错峰，即刻丝滑展开）。
+  const [cascadeExpand, setCascadeExpand] = useState(true)
 
   // 演示态首屏「秀一下」：默认全部折叠，进入 0.9s 后自动展开最近一条记录，复用
   // History 既有的展开揭示动画（historyExpandReveal）——只展开、不收回；尊重
@@ -790,6 +796,7 @@ export default function HistoryPage() {
         nextComboExpanded[row.id] = true
       }
     })
+    setCascadeExpand(true)
     setExpandedComboIds(nextComboExpanded)
     setExpandedSoloIds(nextSoloExpanded)
   }
@@ -904,7 +911,11 @@ export default function HistoryPage() {
               {filteredRows.map((row, rowIndex) => {
                 const isSolo = row.parlaySize === 1
                 const isExpanded = isSolo ? Boolean(expandedSoloIds[row.id]) : Boolean(expandedComboIds[row.id])
-                const expandBaseMs = Math.min(rowIndex, 10) * 26
+                // 手动单击展开（cascadeExpand=false）：静置归零 + 错峰归零 → 即刻丝滑。
+                // 首屏自动展开 / 全部展开（cascadeExpand=true）：保留 0.71s 静置（CSS 默认）
+                // 与逐行错峰，维持演示级联观感。
+                const expandSettle = cascadeExpand ? undefined : '0ms'
+                const expandBaseMs = cascadeExpand ? Math.min(rowIndex, 10) * 26 : 0
                 const expandDelay = `${expandBaseMs}ms`
                 const comboTailDelay = `${Math.min(expandBaseMs + 150 + (row.matchRows?.length || 0) * 70 + 30, 820)}ms`
 
@@ -915,7 +926,10 @@ export default function HistoryPage() {
                     <td className="px-3 py-2.5 font-medium text-stone-700">
                       {isSolo ? (
                         <button
-                          onClick={() => setExpandedSoloIds((prev) => ({ ...prev, [row.id]: !prev[row.id] }))}
+                          onClick={() => {
+                            setCascadeExpand(false)
+                            setExpandedSoloIds((prev) => ({ ...prev, [row.id]: !prev[row.id] }))
+                          }}
                           className="w-full flex items-center justify-between gap-3 text-left group"
                           aria-expanded={isExpanded}
                           aria-label={isExpanded ? '收起详情' : '展开详情'}
@@ -928,6 +942,7 @@ export default function HistoryPage() {
                       ) : (
                         <button
                           onClick={() => {
+                            setCascadeExpand(false)
                             setExpandedComboIds((prev) => ({ ...prev, [row.id]: !prev[row.id] }))
                           }}
                           className="inline-flex items-start gap-2 text-left group"
@@ -1016,7 +1031,7 @@ export default function HistoryPage() {
                   {isSolo && isExpanded && (
                     <tr className="history-expand-row border-t border-stone-100 bg-white text-[11px]">
                       <td colSpan={8} className="history-expand-cell px-3">
-                        <HistoryExpandShell delay={expandDelay}>
+                        <HistoryExpandShell delay={expandDelay} settle={expandSettle}>
                           <div className="history-expand-content history-expand-content--solo flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5" style={{ '--history-expand-delay': expandDelay }}>
                           <div className="flex items-center gap-1.5">
                             <span className="text-stone-400">状态</span>
@@ -1049,7 +1064,7 @@ export default function HistoryPage() {
                   {!isSolo && isExpanded && (
                     <tr className="history-expand-row border-t border-stone-100 bg-stone-50/60 text-[11px]">
                       <td colSpan={8} className="history-expand-cell px-4">
-                        <HistoryExpandShell delay={expandDelay}>
+                        <HistoryExpandShell delay={expandDelay} settle={expandSettle}>
                           <div className="history-expand-content history-expand-content--combo my-4 rounded-xl border border-stone-200 bg-white p-4" style={{ '--history-expand-delay': expandDelay }}>
                           <div className="space-y-2">
                             {row.matchRows.map((matchRow, matchIndex) => {
