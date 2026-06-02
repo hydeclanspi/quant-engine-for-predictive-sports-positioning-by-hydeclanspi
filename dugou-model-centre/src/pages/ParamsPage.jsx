@@ -4769,7 +4769,11 @@ export default function ParamsPage({ openModal }) {
               <span className="text-lg font-semibold text-stone-700">
                 {calibrationContext.regression?.slope?.toFixed(3) || '1.000'}
               </span>
-              <p className="text-[10px] text-stone-400 mt-1">β{'<'}1: 高估 · β{'>'}1: 低估</p>
+              {/* 在 demo/preview 用中性文案，避免与表头乘数判定（低估/高估）相矛盾；
+                  Live 保持原图例不动。 */}
+              <p className="text-[10px] text-stone-400 mt-1">
+                {isPreviewMode() ? '越接近 1 越好' : <>β{'<'}1: 高估 · β{'>'}1: 低估</>}
+              </p>
             </div>
             <div className="p-3 bg-stone-50 rounded-xl">
               <span className="text-xs text-stone-400 block">截距 α</span>
