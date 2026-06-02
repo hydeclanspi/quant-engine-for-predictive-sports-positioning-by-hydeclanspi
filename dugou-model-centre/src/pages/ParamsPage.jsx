@@ -2406,9 +2406,8 @@ const CONSOLE_NAV_GROUPS = Object.freeze([
 const CONSOLE_NAV_LANDING_GAP = 20
 const CONSOLE_NAV_ACTIVE_OFFSET = 88
 const CONSOLE_NAV_REVEAL_AT = 280
-// demo console 整体缩放：略缩到 84%，营造更紧凑、克制的"高级仪表盘"密度感（仅 preview）。
-// 导航器 portal 在 body 上、不随此缩放，故在组件内单独再缩一点保持比例协调。
-const PREVIEW_CONSOLE_ZOOM = 0.84
+// 光标星点拖尾的触发带：当光标 x ≥ 控制台左缘 + 宽度×该比例（即卡片右半区）时才喷洒星点。
+const CONSOLE_TRAIL_START_FRAC = 0.5
 
 // 应用外壳的实际滚动容器是嵌套的 <main class="app-main-scroll …overflow-auto">，并非 window，
 // 因此需定位该滚动容器来挂监听 / 计算可见性 / 执行平滑滚动；找不到则回退到 window。
@@ -2432,11 +2431,9 @@ function ConsoleAnchorRail() {
   const [visible, setVisible] = useState(false)
   const tickingRef = useRef(false)
   const scrollerRef = useRef(null)
-  const navRef = useRef(null)
-  const canvasRef = useRef(null)
   const btnRefs = useRef([])
   const [indicator, setIndicator] = useState({ top: 0, height: 0, ready: false })
-  // 静默/浮现：默认半隐，滚动时浮到全亮、停下约 1.1s 后回落（悬停由 CSS hover 接管）。
+  // 静默/浮现：默认半隐，滚动时浮到全亮、停下约 0.87s 后回落（悬停由 CSS hover 接管）。
   const [surfaced, setSurfaced] = useState(false)
   const surfacedRef = useRef(false)
   const surfaceTimerRef = useRef(null)
@@ -2472,7 +2469,7 @@ function ConsoleAnchorRail() {
       if (m.scrollTop + m.clientH >= m.scrollH - 6) idx = CONSOLE_NAV_GROUPS.length - 1
       setActiveIdx(idx)
     }
-    // 浮现：滚动期间拉到全亮，停下约 1.1s 后回落到半隐。用 ref 去抖，单次滚动只触发一次 re-render。
+    // 浮现：滚动期间拉到全亮，停下约 0.87s 后回落到半隐。用 ref 去抖，单次滚动只触发一次 re-render。
     const markSurfaced = () => {
       if (!surfacedRef.current) {
         surfacedRef.current = true
@@ -2482,7 +2479,7 @@ function ConsoleAnchorRail() {
       surfaceTimerRef.current = setTimeout(() => {
         surfacedRef.current = false
         setSurfaced(false)
-      }, 1100)
+      }, 870)
     }
     const onScroll = () => {
       markSurfaced()
@@ -2514,12 +2511,95 @@ function ConsoleAnchorRail() {
     return () => window.removeEventListener('resize', measure)
   }, [activeIdx, visible])
 
-  // 悬停星点拖尾：鼠标在导航栏上移动时，于 canvas 喷洒会上浮、微闪、渐隐的星点；rAF 按需启停。
-  // 尊重 prefers-reduced-motion；canvas 只覆盖面板且 pointer-events:none，不影响点击与滚动。
+  const goto = (id) => {
+    const el = document.getElementById(id)
+    if (!el) return
+    const scroller = scrollerRef.current
+    if (scroller) {
+      const delta = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top
+      const top = scroller.scrollTop + delta - CONSOLE_NAV_LANDING_GAP
+      scroller.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' })
+    } else {
+      const top = el.getBoundingClientRect().top + (window.scrollY || 0) - CONSOLE_NAV_ACTIVE_OFFSET
+      window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' })
+    }
+  }
+
+  // 静默/浮现态：未显示=滑出全透明；显示且静默=半隐（悬停由 CSS hover 接管）；显示且滚动中=全亮。
+  const navStateClass = !visible
+    ? 'pointer-events-none translate-x-4 opacity-0'
+    : surfaced
+      ? 'pointer-events-auto translate-x-0 opacity-100'
+      : 'pointer-events-auto translate-x-0 opacity-60 hover:opacity-100'
+
+  // 注意：必须 portal 到 body。页面祖先 .page-enter/.app-ambient-scope 带有 transform，
+  // 会成为 position:fixed 的包含块，导致 fixed 相对该元素而非视口定位（导航会随内容滚走）。
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <nav
+      aria-label="参数后台分区导航"
+      className={`console-anchor-rail hidden xl:flex fixed right-4 top-1/2 z-40 -translate-y-1/2 flex-col transition-[transform,opacity] duration-500 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] ${navStateClass}`}
+    >
+      <div className="relative flex flex-col gap-0.5 rounded-2xl border border-stone-200/60 bg-white/55 px-1.5 py-2 backdrop-blur-xl shadow-[0_16px_40px_-34px_rgba(79,70,229,0.42)]">
+        {/* 分区轨道：淡淡的竖线，把 5 个分区串成一条序列 */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute right-[4px] top-3 bottom-3 w-px bg-gradient-to-b from-transparent via-stone-200/80 to-transparent"
+        />
+        {/* 滑动高亮底块：跟随当前分区平滑滑动 */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute left-1 right-1 rounded-xl bg-gradient-to-r from-violet-100/55 to-indigo-100/40 ring-1 ring-inset ring-violet-200/40 transition-[transform,height,opacity] duration-[460ms] [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]"
+          style={{ top: 0, height: indicator.height, transform: `translateY(${indicator.top}px)`, opacity: indicator.ready ? 1 : 0 }}
+        />
+        {/* 滑动光柱：右侧发光指示，强化"你在这里" */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute right-[2.5px] w-[2.5px] rounded-full bg-gradient-to-b from-violet-300 via-violet-400 to-indigo-400 shadow-[0_0_7px_1px_rgba(139,92,246,0.3)] transition-[transform,opacity] duration-[460ms] [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]"
+          style={{ top: 0, height: 18, transform: `translateY(${indicator.top + indicator.height / 2 - 9}px)`, opacity: indicator.ready ? 1 : 0 }}
+        />
+        {CONSOLE_NAV_GROUPS.map((group, i) => {
+          const active = i === activeIdx
+          return (
+            <button
+              key={group.id}
+              ref={(el) => {
+                btnRefs.current[i] = el
+              }}
+              type="button"
+              onClick={() => goto(group.id)}
+              aria-current={active ? 'true' : undefined}
+              style={{ transitionDelay: visible ? `${90 + i * 48}ms` : '0ms' }}
+              className={`group relative z-[1] flex items-center justify-end rounded-xl py-1.5 pl-4 pr-3.5 transition-[transform,opacity] duration-500 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] ${
+                visible ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+              }`}
+            >
+              <span
+                className={`whitespace-nowrap text-right text-[11.5px] leading-none tracking-[0.02em] transition-colors duration-300 ${
+                  active ? 'font-semibold text-violet-600' : 'font-medium text-stone-400 group-hover:text-stone-600'
+                }`}
+              >
+                {group.label}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </nav>,
+    document.body,
+  )
+}
+
+// demo/preview 专属：覆盖控制台右半区的全屏光标星点拖尾画布。
+// 一整块 fixed 全视口 canvas（pointer-events:none，不拦截任何点击/滚动），监听 window 鼠标移动，
+// 仅当光标 x ≥ 控制台左缘 + 宽度×CONSOLE_TRAIL_START_FRAC（即卡片右半区）时才喷洒星点。
+// 星点物理与原导航栏拖尾完全一致：上浮、微闪、渐隐；rAF 按需启停；尊重 prefers-reduced-motion。
+function ConsoleCursorTrail() {
+  const canvasRef = useRef(null)
+
   useEffect(() => {
     const canvas = canvasRef.current
-    const nav = navRef.current
-    if (!canvas || !nav) return undefined
+    if (!canvas) return undefined
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined
     const ctx = canvas.getContext('2d')
     if (!ctx) return undefined
@@ -2529,21 +2609,23 @@ function ConsoleAnchorRail() {
     let rafId = 0
     let running = false
     let prev = 0
-    let rect = nav.getBoundingClientRect()
+    let vw = window.innerWidth
+    let vh = window.innerHeight
     let lx = 0
     let ly = 0
     let lt = 0
     const resize = () => {
-      rect = nav.getBoundingClientRect()
-      canvas.width = Math.max(1, Math.ceil(rect.width * dpr))
-      canvas.height = Math.max(1, Math.ceil(rect.height * dpr))
+      vw = window.innerWidth
+      vh = window.innerHeight
+      canvas.width = Math.max(1, Math.ceil(vw * dpr))
+      canvas.height = Math.max(1, Math.ceil(vh * dpr))
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     }
     const draw = () => {
       const now = performance.now()
       const dt = Math.min(now - prev, 48)
       prev = now
-      ctx.clearRect(0, 0, rect.width, rect.height)
+      ctx.clearRect(0, 0, vw, vh)
       for (let i = particles.length - 1; i >= 0; i -= 1) {
         const p = particles[i]
         p.life += dt
@@ -2598,112 +2680,34 @@ function ConsoleAnchorRail() {
       if (particles.length > 90) particles.splice(0, particles.length - 90)
       ensureLoop()
     }
-    const onMove = (e) => spawn(e.clientX - rect.left, e.clientY - rect.top)
-    const onEnter = () => {
-      rect = nav.getBoundingClientRect()
+    // 触发带左缘：控制台容器左缘 + 宽度×比例；定位失败则回退到视口中线。
+    const boundaryX = () => {
+      const scope = document.querySelector('.console-motion-scope')
+      if (!scope) return vw * CONSOLE_TRAIL_START_FRAC
+      const r = scope.getBoundingClientRect()
+      return r.left + r.width * CONSOLE_TRAIL_START_FRAC
+    }
+    const onMove = (e) => {
+      if (e.clientX < boundaryX()) return
+      spawn(e.clientX, e.clientY)
     }
     resize()
-    nav.addEventListener('mousemove', onMove)
-    nav.addEventListener('mouseenter', onEnter)
+    window.addEventListener('mousemove', onMove, { passive: true })
     window.addEventListener('resize', resize)
     return () => {
       window.cancelAnimationFrame(rafId)
-      nav.removeEventListener('mousemove', onMove)
-      nav.removeEventListener('mouseenter', onEnter)
+      window.removeEventListener('mousemove', onMove)
       window.removeEventListener('resize', resize)
     }
   }, [])
 
-  const goto = (id) => {
-    const el = document.getElementById(id)
-    if (!el) return
-    const scroller = scrollerRef.current
-    if (scroller) {
-      // console 处于 zoom 缩放下，getBoundingClientRect 的视觉位移与 scrollTop 单位并非 1:1
-      // （实测每 1 单位 scrollTop 仅约 0.9px 视觉位移）。用一次同步探针测出该比例再换算落点，
-      // 探针滚动同帧内即刻还原、无重绘故不闪烁；对任意缩放比例自适应，缩放值改了也不会失准。
-      const sTop = scroller.getBoundingClientRect().top
-      const start = scroller.scrollTop
-      const a0 = el.getBoundingClientRect().top
-      const maxTop = scroller.scrollHeight - scroller.clientHeight
-      const probe = maxTop - start > 140 ? 120 : -120
-      scroller.scrollTop = start + probe
-      const a1 = el.getBoundingClientRect().top
-      scroller.scrollTop = start
-      const ratio = (a0 - a1) / probe || 1
-      const top = start + (a0 - sTop - CONSOLE_NAV_LANDING_GAP) / ratio
-      scroller.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' })
-    } else {
-      const top = el.getBoundingClientRect().top + (window.scrollY || 0) - CONSOLE_NAV_ACTIVE_OFFSET
-      window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' })
-    }
-  }
-
-  // 静默/浮现态：未显示=滑出全透明；显示且静默=半隐（悬停由 CSS hover 接管）；显示且滚动中=全亮。
-  const navStateClass = !visible
-    ? 'pointer-events-none translate-x-4 opacity-0'
-    : surfaced
-      ? 'pointer-events-auto translate-x-0 opacity-100'
-      : 'pointer-events-auto translate-x-0 opacity-60 hover:opacity-100'
-
-  // 注意：必须 portal 到 body。页面祖先 .page-enter/.app-ambient-scope 带有 transform，
-  // 会成为 position:fixed 的包含块，导致 fixed 相对该元素而非视口定位（导航会随内容滚走）。
-  // scale-[0.82] + origin-right：在 console 整体 84% 缩放之外，单独把导航器再缩一点、贴右收敛。
   if (typeof document === 'undefined') return null
   return createPortal(
-    <nav
-      ref={navRef}
-      aria-label="参数后台分区导航"
-      className={`console-anchor-rail hidden xl:flex fixed right-4 top-1/2 z-40 origin-right -translate-y-1/2 scale-[0.82] flex-col transition-[transform,opacity] duration-500 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] ${navStateClass}`}
-    >
-      <div className="relative flex flex-col gap-0.5 rounded-2xl border border-stone-200/60 bg-white/55 px-1.5 py-2 backdrop-blur-xl shadow-[0_16px_40px_-34px_rgba(79,70,229,0.42)]">
-        {/* 分区轨道：淡淡的竖线，把 5 个分区串成一条序列 */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute right-[4px] top-3 bottom-3 w-px bg-gradient-to-b from-transparent via-stone-200/80 to-transparent"
-        />
-        {/* 滑动高亮底块：跟随当前分区平滑滑动 */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute left-1 right-1 rounded-xl bg-gradient-to-r from-violet-100/55 to-indigo-100/40 ring-1 ring-inset ring-violet-200/40 transition-[transform,height,opacity] duration-[460ms] [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]"
-          style={{ top: 0, height: indicator.height, transform: `translateY(${indicator.top}px)`, opacity: indicator.ready ? 1 : 0 }}
-        />
-        {/* 滑动光柱：右侧发光指示，强化"你在这里" */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute right-[2.5px] w-[2.5px] rounded-full bg-gradient-to-b from-violet-300 via-violet-400 to-indigo-400 shadow-[0_0_7px_1px_rgba(139,92,246,0.3)] transition-[transform,opacity] duration-[460ms] [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]"
-          style={{ top: 0, height: 18, transform: `translateY(${indicator.top + indicator.height / 2 - 9}px)`, opacity: indicator.ready ? 1 : 0 }}
-        />
-        {CONSOLE_NAV_GROUPS.map((group, i) => {
-          const active = i === activeIdx
-          return (
-            <button
-              key={group.id}
-              ref={(el) => {
-                btnRefs.current[i] = el
-              }}
-              type="button"
-              onClick={() => goto(group.id)}
-              aria-current={active ? 'true' : undefined}
-              style={{ transitionDelay: visible ? `${90 + i * 48}ms` : '0ms' }}
-              className={`group relative z-[1] flex items-center justify-end rounded-xl py-1.5 pl-4 pr-3.5 transition-[transform,opacity] duration-500 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] ${
-                visible ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
-              }`}
-            >
-              <span
-                className={`whitespace-nowrap text-right text-[11.5px] leading-none tracking-[0.02em] transition-colors duration-300 ${
-                  active ? 'font-semibold text-violet-600' : 'font-medium text-stone-400 group-hover:text-stone-600'
-                }`}
-              >
-                {group.label}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-      {/* 悬停星点拖尾画布：覆盖面板、不拦截点击 */}
-      <canvas ref={canvasRef} aria-hidden className="pointer-events-none absolute inset-0 h-full w-full" />
-    </nav>,
+    <canvas
+      ref={canvasRef}
+      aria-hidden
+      className="console-cursor-trail pointer-events-none fixed inset-0 z-30 hidden h-full w-full xl:block"
+    />,
     document.body,
   )
 }
@@ -4251,12 +4255,11 @@ export default function ParamsPage({ openModal }) {
   const currentLayoutMode = config.layoutMode || 'modern'
 
   return (
-    <div
-      className="page-shell page-content-wide console-motion-scope"
-      style={isPreviewMode() ? { zoom: PREVIEW_CONSOLE_ZOOM } : undefined}
-    >
+    <div className="page-shell page-content-wide console-motion-scope">
       {/* demo/preview 专属：右侧分区滚动导航（fixed 定位，DOM 位置不影响布局） */}
       {isPreviewMode() && <ConsoleAnchorRail />}
+      {/* demo/preview 专属：覆盖右半区的光标星点拖尾（fixed 全屏 canvas，pointer-events:none） */}
+      {isPreviewMode() && <ConsoleCursorTrail />}
       <div className="mb-6">
         <div className="mb-2.5">
           <span className="inline-flex max-w-[460px] rounded-r-xl rounded-l-none border border-sky-200/90 bg-gradient-to-r from-sky-100/75 via-cyan-50/85 to-blue-100/75 px-3 py-1.5 text-[10.5px] font-semibold leading-4 tracking-[0.03em] text-sky-700/90 backdrop-blur-md">
