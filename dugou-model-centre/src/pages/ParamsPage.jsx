@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ArrowLeft,
   AlertTriangle,
@@ -2391,6 +2392,153 @@ function AdaptiveWeightCard({ config, setConfig, saveSystemConfig, dataVersion }
   )
 }
 
+// ── /params 控制台右侧分区导航（仅 demo/preview 显示）──
+// 卡片顺序保持不变，仅按出现先后强行划分为 5 个连续大组做滚动锚点（scroll-spy）。
+// 命名按常规互联网产品视角取名，下滑时高亮当前分区，给出秩序感；点击平滑滚动到对应锚点。
+const CONSOLE_NAV_GROUPS = Object.freeze([
+  { id: 'console-grp-overview', label: '核心指标' },
+  { id: 'console-grp-settings', label: '系统配置' },
+  { id: 'console-grp-analytics', label: '模型分析' },
+  { id: 'console-grp-calibration', label: '校准引擎' },
+  { id: 'console-grp-data', label: '数据管理' },
+])
+// 点击锚点后，目标卡片落点距滚动容器顶部的间距；以及判定"当前分区"的触发线偏移
+const CONSOLE_NAV_LANDING_GAP = 20
+const CONSOLE_NAV_ACTIVE_OFFSET = 88
+const CONSOLE_NAV_REVEAL_AT = 280
+
+// 应用外壳的实际滚动容器是嵌套的 <main class="app-main-scroll …overflow-auto">，并非 window，
+// 因此需定位该滚动容器来挂监听 / 计算可见性 / 执行平滑滚动；找不到则回退到 window。
+// 注意：不能用 scrollHeight>clientHeight 判定容器——挂载初期分析数据尚未填充，页面还不够高，
+// 那样会误判为不可滚动而退回 window，导致后续真正滚动时收不到事件。改为按 CSS overflow 定位。
+const findConsoleScroller = () => {
+  const direct = document.querySelector('main.app-main-scroll')
+  if (direct) return direct
+  const seed = document.getElementById(CONSOLE_NAV_GROUPS[0].id)
+  let cur = seed ? seed.parentElement : null
+  while (cur && cur !== document.body) {
+    const oy = window.getComputedStyle(cur).overflowY
+    if (oy === 'auto' || oy === 'scroll') return cur
+    cur = cur.parentElement
+  }
+  return null
+}
+
+function ConsoleAnchorRail() {
+  const [activeIdx, setActiveIdx] = useState(0)
+  const [visible, setVisible] = useState(false)
+  const tickingRef = useRef(false)
+  const scrollerRef = useRef(null)
+
+  useEffect(() => {
+    const readMetrics = (scroller) => {
+      if (scroller) {
+        return {
+          top: scroller.getBoundingClientRect().top,
+          scrollTop: scroller.scrollTop,
+          clientH: scroller.clientHeight,
+          scrollH: scroller.scrollHeight,
+        }
+      }
+      return {
+        top: 0,
+        scrollTop: window.scrollY || window.pageYOffset || 0,
+        clientH: window.innerHeight,
+        scrollH: document.documentElement.scrollHeight,
+      }
+    }
+    const compute = () => {
+      tickingRef.current = false
+      const scroller = scrollerRef.current
+      const m = readMetrics(scroller)
+      setVisible(m.scrollTop > CONSOLE_NAV_REVEAL_AT)
+      const activeLine = m.top + CONSOLE_NAV_ACTIVE_OFFSET
+      let idx = 0
+      for (let i = 0; i < CONSOLE_NAV_GROUPS.length; i += 1) {
+        const el = document.getElementById(CONSOLE_NAV_GROUPS[i].id)
+        if (el && el.getBoundingClientRect().top <= activeLine) idx = i
+      }
+      if (m.scrollTop + m.clientH >= m.scrollH - 6) idx = CONSOLE_NAV_GROUPS.length - 1
+      setActiveIdx(idx)
+    }
+    const onScroll = () => {
+      if (tickingRef.current) return
+      tickingRef.current = true
+      window.requestAnimationFrame(compute)
+    }
+    const scroller = (scrollerRef.current = findConsoleScroller())
+    const target = scroller || window
+    compute()
+    target.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll, { passive: true })
+    return () => {
+      target.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+    }
+  }, [])
+
+  const goto = (id) => {
+    const el = document.getElementById(id)
+    if (!el) return
+    const scroller = scrollerRef.current
+    if (scroller) {
+      const delta = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top
+      const top = scroller.scrollTop + delta - CONSOLE_NAV_LANDING_GAP
+      scroller.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' })
+    } else {
+      const top = el.getBoundingClientRect().top + (window.scrollY || 0) - CONSOLE_NAV_ACTIVE_OFFSET
+      window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' })
+    }
+  }
+
+  // 注意：必须 portal 到 body。页面祖先 .page-enter/.app-ambient-scope 带有 transform，
+  // 会成为 position:fixed 的包含块，导致 fixed 相对该元素而非视口定位（导航会随内容滚走）。
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <nav
+      aria-label="参数后台分区导航"
+      className={`console-anchor-rail hidden xl:flex fixed right-4 top-1/2 z-40 -translate-y-1/2 flex-col transition-all duration-500 ease-out ${
+        visible ? 'pointer-events-auto translate-x-0 opacity-100' : 'pointer-events-none translate-x-3 opacity-0'
+      }`}
+    >
+      <div className="flex flex-col gap-0.5 rounded-2xl border border-stone-200/70 bg-white/70 px-1.5 py-2 backdrop-blur-xl shadow-[0_22px_50px_-32px_rgba(79,70,229,0.55)]">
+        {CONSOLE_NAV_GROUPS.map((group, i) => {
+          const active = i === activeIdx
+          return (
+            <button
+              key={group.id}
+              type="button"
+              onClick={() => goto(group.id)}
+              aria-current={active ? 'true' : undefined}
+              className={`group flex items-center gap-2.5 rounded-xl py-1.5 pl-3 pr-2 transition-colors duration-200 ${
+                active ? 'bg-violet-50/70' : 'hover:bg-stone-50'
+              }`}
+            >
+              <span
+                className={`flex-1 whitespace-nowrap text-right text-[11.5px] leading-none tracking-[0.01em] transition-colors duration-200 ${
+                  active ? 'font-semibold text-violet-700' : 'font-medium text-stone-400 group-hover:text-stone-600'
+                }`}
+              >
+                {group.label}
+              </span>
+              <span className="relative flex h-4 w-1 items-center justify-center">
+                <span
+                  className={`block w-1 rounded-full transition-all duration-300 ease-out ${
+                    active
+                      ? 'h-4 bg-violet-500 shadow-[0_0_0_3px_rgba(139,92,246,0.16)]'
+                      : 'h-1.5 bg-stone-300 group-hover:h-2.5 group-hover:bg-stone-400'
+                  }`}
+                />
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </nav>,
+    document.body,
+  )
+}
+
 export default function ParamsPage({ openModal }) {
   const labels = useLabels()
   const maskText = usePreviewTextMask()
@@ -3935,6 +4083,8 @@ export default function ParamsPage({ openModal }) {
 
   return (
     <div className="page-shell page-content-wide console-motion-scope">
+      {/* demo/preview 专属：右侧分区滚动导航（fixed 定位，DOM 位置不影响布局） */}
+      {isPreviewMode() && <ConsoleAnchorRail />}
       <div className="mb-6">
         <div className="mb-2.5">
           <span className="inline-flex max-w-[460px] rounded-r-xl rounded-l-none border border-sky-200/90 bg-gradient-to-r from-sky-100/75 via-cyan-50/85 to-blue-100/75 px-3 py-1.5 text-[10.5px] font-semibold leading-4 tracking-[0.03em] text-sky-700/90 backdrop-blur-md">
@@ -3962,6 +4112,7 @@ export default function ParamsPage({ openModal }) {
       </div>
 
       <div
+        id="console-grp-overview"
         onClick={openRatingModal}
         className="console-interactive-surface glow-card relative z-30 hover:z-40 overflow-visible rounded-2xl border border-indigo-200/75 bg-[linear-gradient(145deg,rgba(244,247,255,0.96),rgba(255,255,255,0.95)_48%,rgba(238,247,255,0.92))] p-6 mb-6 cursor-pointer shadow-[0_24px_44px_-34px_rgba(79,70,229,0.42)]"
       >
@@ -4460,7 +4611,7 @@ export default function ParamsPage({ openModal }) {
         </div>
       </div>
 
-      <div className="console-interactive-surface glow-card mt-6 mb-9 rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50/90 via-white/92 to-cyan-50/82 p-6 backdrop-blur-sm shadow-[0_18px_42px_rgba(56,189,248,0.16),inset_0_1px_0_rgba(255,255,255,0.88)]">
+      <div id="console-grp-settings" className="console-interactive-surface glow-card mt-6 mb-9 rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50/90 via-white/92 to-cyan-50/82 p-6 backdrop-blur-sm shadow-[0_18px_42px_rgba(56,189,248,0.16),inset_0_1px_0_rgba(255,255,255,0.88)]">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -4733,7 +4884,7 @@ export default function ParamsPage({ openModal }) {
       </div>
 
 
-      <div className="order-1 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
+      <div id="console-grp-analytics" className="order-1 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={LineChart} /> 回归分析校准
@@ -5208,7 +5359,7 @@ export default function ParamsPage({ openModal }) {
       </div>
 
 
-      <div className="order-3 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
+      <div id="console-grp-calibration" className="order-3 glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={ShieldCheck} /> 模型收口验证
@@ -5525,7 +5676,7 @@ export default function ParamsPage({ openModal }) {
           it above (right below 回归分析校准). */}
       {!isPreviewMode() && futureIterationCard}
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
+      <div id="console-grp-data" className="glow-card bg-white rounded-2xl border border-stone-100 p-6 mb-9">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <ConsoleCardIcon IconComp={FileSpreadsheet} /> Excel 数据进出
