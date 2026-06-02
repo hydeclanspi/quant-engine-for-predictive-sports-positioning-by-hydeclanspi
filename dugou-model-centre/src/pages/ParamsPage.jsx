@@ -5696,8 +5696,9 @@ export default function ParamsPage({ openModal }) {
         )}
       </div>
 
-      {/* 自适应权重优化 Beta */}
-      <div className="order-2">
+      {/* 自适应权重优化 Beta — my-4 widens the gap to the Kelly card above and the
+          模型收口 card below from 24px to 40px, a touch above the column's mb-9 rhythm. */}
+      <div className="order-2 my-4">
         <AdaptiveWeightCard config={config} setConfig={setConfig} saveSystemConfig={saveSystemConfig} dataVersion={dataVersion} />
       </div>
 
