@@ -2575,7 +2575,7 @@ function ConsoleAnchorRail() {
               }`}
             >
               <span
-                className={`whitespace-nowrap text-right text-[11.5px] leading-none tracking-[0.02em] transition-colors duration-300 ${
+                className={`whitespace-nowrap text-right text-[10.5px] leading-none tracking-[0.02em] transition-colors duration-300 ${
                   active ? 'font-semibold text-emerald-600' : 'font-medium text-stone-400 group-hover:text-emerald-500'
                 }`}
               >
