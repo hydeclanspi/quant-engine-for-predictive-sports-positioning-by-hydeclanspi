@@ -1356,7 +1356,7 @@ export default function NewInvestmentPage() {
                         <div className="col-span-5">
                           <input
                             type="text"
-                            placeholder="主胜 / 平 / 大2.5..."
+                            placeholder={isPreview ? 'win / draw / -2.5 lose' : '主胜 / 平 / 大2.5...'}
                             value={entry.name}
                             onChange={(event) => updateEntry(idx, entryIdx, 'name', event.target.value)}
                             className="input-glow w-full px-4 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400"
