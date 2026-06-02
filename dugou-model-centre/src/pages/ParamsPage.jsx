@@ -299,6 +299,141 @@ const buildPreviewRatingRows = (realRows) => {
   })
 }
 
+// ---------------------------------------------------------------------------
+// Preview / demo curation for the 回归分析校准 (Conf-vs-Actual regression) card.
+//
+// In preview mode the scatter + weighted-regression readout are replayed from
+// an exact 1:1 snapshot of the production ("full" state) calibration set —
+// slope / intercept / RMSE / n, the calibration multiplier and all 181 scatter
+// points (x, y, weight, recencyBand), lifted verbatim from the Live tab — so
+// the demo card matches production to the digit (×1.300 · β0.664 · α0.438 ·
+// RMSE0.255 · 181 点 · "Conf 系统性低估"). The render clamps x/y to 0.1–0.9 and
+// draws the first 150 points, identical to Live.
+//
+// The ONLY hand-tuned field is R²: the displayed 拟合度 is pinned to 34.6%
+// (product decision) instead of Live's natural 15.4%. regressionSnapshot reads
+// regression.r2 / .rmse, so this 34.6% also drives the 系统预期模型拟合度 core
+// metric and regime status consistently across the Console.
+// ---------------------------------------------------------------------------
+
+const PREVIEW_CALIBRATION_SCATTER = Object.freeze([
+  { x: 0.8, y: 1, weight: 1.4, recencyBand: "recent" }, { x: 0.73, y: 1, weight: 1.4, recencyBand: "recent" },
+  { x: 0.44, y: 1, weight: 1.61, recencyBand: "recent" }, { x: 0.72, y: 1, weight: 1.4, recencyBand: "recent" },
+  { x: 0.29, y: 1, weight: 1.61, recencyBand: "recent" }, { x: 0.52, y: 0.437, weight: 1.61, recencyBand: "recent" },
+  { x: 0.41, y: 0.25, weight: 1.61, recencyBand: "recent" }, { x: 0.47, y: 0.813, weight: 1.09, recencyBand: "recent" },
+  { x: 0.34, y: 0.375, weight: 1.61, recencyBand: "recent" }, { x: 0.72, y: 1, weight: 1.61, recencyBand: "recent" },
+  { x: 0.38, y: 1, weight: 1.61, recencyBand: "recent" }, { x: 0.24, y: 0.625, weight: 1.4, recencyBand: "recent" },
+  { x: 0.65, y: 0.25, weight: 1.61, recencyBand: "recent" }, { x: 0.64, y: 1, weight: 1.61, recencyBand: "recent" },
+  { x: 0.67, y: 1, weight: 1.61, recencyBand: "recent" }, { x: 0.6, y: 1, weight: 1.4, recencyBand: "recent" },
+  { x: 0.64, y: 1, weight: 1.61, recencyBand: "recent" }, { x: 0.6, y: 1, weight: 1.4, recencyBand: "recent" },
+  { x: 0.33, y: 0.75, weight: 1.32, recencyBand: "mid" }, { x: 0.33, y: 0.75, weight: 1.32, recencyBand: "mid" },
+  { x: 0.64, y: 1, weight: 1.32, recencyBand: "mid" }, { x: 0.67, y: 1, weight: 1.32, recencyBand: "mid" },
+  { x: 0.27, y: 0.75, weight: 0.9, recencyBand: "mid" }, { x: 0.35, y: 1, weight: 1.32, recencyBand: "mid" },
+  { x: 0.76, y: 0.875, weight: 1.15, recencyBand: "mid" }, { x: 0.33, y: 0.887, weight: 0.9, recencyBand: "mid" },
+  { x: 0.76, y: 0.875, weight: 1.15, recencyBand: "mid" }, { x: 0.54, y: 1, weight: 1.32, recencyBand: "mid" },
+  { x: 0.42, y: 1, weight: 1.32, recencyBand: "mid" }, { x: 0.8, y: 1, weight: 1.15, recencyBand: "mid" },
+  { x: 0.17, y: 0.563, weight: 0.9, recencyBand: "mid" }, { x: 0.71, y: 1, weight: 1.15, recencyBand: "base" },
+  { x: 0.29, y: 1, weight: 1.15, recencyBand: "base" }, { x: 0.5, y: 1, weight: 1.15, recencyBand: "base" },
+  { x: 0.71, y: 1, weight: 1.15, recencyBand: "base" }, { x: 0.6, y: 1, weight: 1.15, recencyBand: "base" },
+  { x: 0.67, y: 1, weight: 1.15, recencyBand: "base" }, { x: 0.71, y: 1, weight: 1.15, recencyBand: "base" },
+  { x: 0.64, y: 1, weight: 1.15, recencyBand: "base" }, { x: 0.66, y: 1, weight: 1.15, recencyBand: "base" },
+  { x: 0.41, y: 1, weight: 1.15, recencyBand: "base" }, { x: 0.64, y: 1, weight: 1.15, recencyBand: "base" },
+  { x: 0.6, y: 1, weight: 0.78, recencyBand: "base" }, { x: 0.45, y: 1, weight: 0.78, recencyBand: "base" },
+  { x: 0.6, y: 1, weight: 0.78, recencyBand: "base" }, { x: 0.34, y: 0.813, weight: 1.15, recencyBand: "base" },
+  { x: 0.4, y: 0.75, weight: 1.15, recencyBand: "base" }, { x: 0.62, y: 1, weight: 1.15, recencyBand: "base" },
+  { x: 0.8, y: 0.975, weight: 1, recencyBand: "base" }, { x: 0.4, y: 0.813, weight: 1, recencyBand: "base" },
+  { x: 0.8, y: 1, weight: 1.15, recencyBand: "base" }, { x: 0.53, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.55, y: 1, weight: 0.78, recencyBand: "base" }, { x: 0.62, y: 0.775, weight: 0.78, recencyBand: "base" },
+  { x: 0.6, y: 1, weight: 0.78, recencyBand: "base" }, { x: 0.45, y: 1, weight: 0.78, recencyBand: "base" },
+  { x: 0.5, y: 1, weight: 0.78, recencyBand: "base" }, { x: 0.62, y: 1, weight: 0.78, recencyBand: "base" },
+  { x: 0.45, y: 0.963, weight: 0.78, recencyBand: "base" }, { x: 0.3, y: 0.975, weight: 0.78, recencyBand: "base" },
+  { x: 0.5, y: 1, weight: 0.78, recencyBand: "base" }, { x: 0.62, y: 0.75, weight: 0.78, recencyBand: "base" },
+  { x: 0.71, y: 1, weight: 0.78, recencyBand: "base" }, { x: 0.68, y: 1, weight: 0.78, recencyBand: "base" },
+  { x: 0.76, y: 1, weight: 0.78, recencyBand: "base" }, { x: 0.6, y: 1, weight: 1.15, recencyBand: "base" },
+  { x: 0.45, y: 0.975, weight: 1.15, recencyBand: "base" }, { x: 0.31, y: 0.75, weight: 0.78, recencyBand: "base" },
+  { x: 0.53, y: 0.625, weight: 0.78, recencyBand: "base" }, { x: 0.68, y: 1, weight: 0.78, recencyBand: "base" },
+  { x: 0.33, y: 1, weight: 0.78, recencyBand: "base" }, { x: 0.8, y: 1, weight: 1.15, recencyBand: "base" },
+  { x: 0.64, y: 1, weight: 1.15, recencyBand: "base" }, { x: 0.4, y: 1, weight: 1.15, recencyBand: "base" },
+  { x: 0.8, y: 1, weight: 1.15, recencyBand: "base" }, { x: 0.6, y: 1, weight: 1.15, recencyBand: "base" },
+  { x: 0.65, y: 1, weight: 0.78, recencyBand: "base" }, { x: 0.45, y: 1, weight: 1.15, recencyBand: "base" },
+  { x: 0.8, y: 1, weight: 1.15, recencyBand: "base" }, { x: 0.64, y: 1, weight: 1.15, recencyBand: "base" },
+  { x: 0.4, y: 0.813, weight: 0.78, recencyBand: "base" }, { x: 0.67, y: 1, weight: 0.78, recencyBand: "base" },
+  { x: 0.63, y: 1, weight: 1, recencyBand: "base" }, { x: 0.8, y: 1, weight: 1.15, recencyBand: "base" },
+  { x: 0.57, y: 1, weight: 0.78, recencyBand: "base" }, { x: 0.6, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.8, y: 1, weight: 1, recencyBand: "base" }, { x: 0.4, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.6, y: 0.25, weight: 1, recencyBand: "base" }, { x: 0.7, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.3, y: 0.25, weight: 1, recencyBand: "base" }, { x: 0.3, y: 0.5, weight: 1, recencyBand: "base" },
+  { x: 0.7, y: 1, weight: 1, recencyBand: "base" }, { x: 0.5, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.3, y: 0.25, weight: 1, recencyBand: "base" }, { x: 0.7, y: 0.375, weight: 1, recencyBand: "base" },
+  { x: 0.4, y: 1, weight: 1, recencyBand: "base" }, { x: 0.4, y: 0.25, weight: 1, recencyBand: "base" },
+  { x: 0.4, y: 0.625, weight: 1, recencyBand: "base" }, { x: 0.6, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.7, y: 0.375, weight: 1, recencyBand: "base" }, { x: 0.7, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.6, y: 1, weight: 1, recencyBand: "base" }, { x: 0.6, y: 0.5, weight: 1, recencyBand: "base" },
+  { x: 0.7, y: 1, weight: 1, recencyBand: "base" }, { x: 0.7, y: 0.375, weight: 1, recencyBand: "base" },
+  { x: 0.6, y: 1, weight: 1, recencyBand: "base" }, { x: 0.6, y: 0.25, weight: 1, recencyBand: "base" },
+  { x: 0.4, y: 0.875, weight: 1, recencyBand: "base" }, { x: 0.6, y: 0.875, weight: 1, recencyBand: "base" },
+  { x: 0.4, y: 1, weight: 1, recencyBand: "base" }, { x: 0.6, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.6, y: 1, weight: 1, recencyBand: "base" }, { x: 0.7, y: 0.75, weight: 1, recencyBand: "base" },
+  { x: 0.7, y: 1, weight: 1, recencyBand: "base" }, { x: 0.6, y: 0.25, weight: 1, recencyBand: "base" },
+  { x: 0.5, y: 0.25, weight: 1, recencyBand: "base" }, { x: 0.6, y: 0.25, weight: 1, recencyBand: "base" },
+  { x: 0.4, y: 0.5, weight: 1, recencyBand: "base" }, { x: 0.6, y: 0.5, weight: 1, recencyBand: "base" },
+  { x: 0.6, y: 0.25, weight: 1, recencyBand: "base" }, { x: 0.8, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.6, y: 1, weight: 1, recencyBand: "base" }, { x: 0.4, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.4, y: 1, weight: 1, recencyBand: "base" }, { x: 0.4, y: 0.75, weight: 1, recencyBand: "base" },
+  { x: 0.45, y: 0.5, weight: 1, recencyBand: "base" }, { x: 0.35, y: 0.25, weight: 1, recencyBand: "base" },
+  { x: 0.25, y: 0.75, weight: 1, recencyBand: "base" }, { x: 0.45, y: 0.5, weight: 1, recencyBand: "base" },
+  { x: 0.35, y: 0.25, weight: 1, recencyBand: "base" }, { x: 0.2, y: 0.5, weight: 1, recencyBand: "base" },
+  { x: 0.45, y: 0.5, weight: 1, recencyBand: "base" }, { x: 0.6, y: 0.625, weight: 1, recencyBand: "base" },
+  { x: 0.8, y: 1, weight: 1, recencyBand: "base" }, { x: 0.6, y: 0.625, weight: 1, recencyBand: "base" },
+  { x: 0.4, y: 0.75, weight: 1, recencyBand: "base" }, { x: 0.3, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.3, y: 0.25, weight: 1, recencyBand: "base" }, { x: 0.6, y: 0.75, weight: 1, recencyBand: "base" },
+  { x: 0.45, y: 0.75, weight: 1, recencyBand: "base" }, { x: 0.45, y: 0.25, weight: 1, recencyBand: "base" },
+  { x: 0.6, y: 0.875, weight: 1, recencyBand: "base" }, { x: 0.4, y: 0.5, weight: 1, recencyBand: "base" },
+  { x: 0.8, y: 0.5, weight: 1, recencyBand: "base" }, { x: 0.6, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.6, y: 0.5, weight: 1, recencyBand: "base" }, { x: 0.6, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.8, y: 1, weight: 1, recencyBand: "base" }, { x: 0.8, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.6, y: 0.5, weight: 1, recencyBand: "base" }, { x: 0.3, y: 0.75, weight: 1, recencyBand: "base" },
+  { x: 0.4, y: 0.5, weight: 1, recencyBand: "base" }, { x: 0.8, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.2, y: 0.75, weight: 1, recencyBand: "base" }, { x: 0.6, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.4, y: 0.5, weight: 1, recencyBand: "base" }, { x: 0.6, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.8, y: 1, weight: 1, recencyBand: "base" }, { x: 0.8, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.6, y: 1, weight: 1, recencyBand: "base" }, { x: 0.4, y: 0.25, weight: 1, recencyBand: "base" },
+  { x: 0.2, y: 0.012, weight: 1, recencyBand: "base" }, { x: 0.7, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.6, y: 0.625, weight: 1, recencyBand: "base" }, { x: 0.7, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.8, y: 1, weight: 1, recencyBand: "base" }, { x: 0.6, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.6, y: 1, weight: 1, recencyBand: "base" }, { x: 0.6, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.8, y: 1, weight: 1, recencyBand: "base" }, { x: 0.8, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.6, y: 0.75, weight: 1, recencyBand: "base" }, { x: 0.8, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.2, y: 0.012, weight: 1, recencyBand: "base" }, { x: 0.6, y: 1, weight: 1, recencyBand: "base" },
+  { x: 0.4, y: 0.5, weight: 1, recencyBand: "base" }, { x: 0.6, y: 0.5, weight: 1, recencyBand: "base" },
+  { x: 0.4, y: 0.25, weight: 1, recencyBand: "base" }, { x: 0.6, y: 0.25, weight: 1, recencyBand: "base" },
+  { x: 0.6, y: 0.25, weight: 1, recencyBand: "base" },
+])
+
+const PREVIEW_CALIBRATION_REGRESSION = Object.freeze({
+  slope: 0.6637,
+  intercept: 0.4376,
+  r2: 0.346, // pinned to 34.6% for the demo headline (Live natural ≈0.154)
+  rmse: 0.2546,
+  n: 181,
+})
+
+const PREVIEW_CALIBRATION_MULTIPLIER = 1.3
+
+// Splice the Live scatter + regression (R² pinned to 34.6%) and the Live
+// calibration multiplier onto the real calibration context, leaving every
+// other field (multipliers / bands / repBuckets / sampleCount / n on the
+// 时间近因机制 card) untouched so that card stays internally consistent.
+const buildPreviewCalibrationContext = (realContext) => {
+  if (!realContext || !realContext.regression) return realContext
+  return {
+    ...realContext,
+    regression: { ...realContext.regression, ...PREVIEW_CALIBRATION_REGRESSION },
+    regressionMultiplier: PREVIEW_CALIBRATION_MULTIPLIER,
+    scatterData: PREVIEW_CALIBRATION_SCATTER.map((point) => ({ ...point })),
+  }
+}
+
 const buildSmoothPath = (inputPoints, tension = 0.16) => {
   if (!inputPoints.length) return ''
   if (inputPoints.length === 1) return `M ${inputPoints[0].x.toFixed(3)} ${inputPoints[0].y.toFixed(3)}`
@@ -2433,15 +2568,12 @@ export default function ParamsPage({ openModal }) {
           try {
             const calibrationContext = getPredictionCalibrationContext({ detail: 'full' })
             if (cancelled) return
-            // In preview/demo mode, present a more representative R² so the
-            // curated demo set reads as a healthy calibration fit.
-            const previewCalibrationContext =
-              isPreviewMode() && calibrationContext?.regression
-                ? {
-                    ...calibrationContext,
-                    regression: { ...calibrationContext.regression, r2: 0.397 },
-                  }
-                : calibrationContext
+            // In preview/demo mode, replay the production (Live) regression +
+            // scatter + calibration multiplier so the 回归分析校准 card mirrors
+            // production, with R² pinned to 34.6% (see buildPreviewCalibrationContext).
+            const previewCalibrationContext = isPreviewMode()
+              ? buildPreviewCalibrationContext(calibrationContext)
+              : calibrationContext
             setAnalyticsData((prev) => ({ ...prev, calibrationContext: previewCalibrationContext }))
             setAnalyticsProgress((prev) => ({ ...prev, calibration: true, phase: '模型收口验证计算中...' }))
           } catch (error) {
