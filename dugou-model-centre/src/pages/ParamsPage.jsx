@@ -2570,7 +2570,7 @@ function ConsoleAnchorRail() {
               onClick={() => goto(group.id)}
               aria-current={active ? 'true' : undefined}
               style={{ transitionDelay: visible ? `${90 + i * 48}ms` : '0ms' }}
-              className={`group relative z-[1] flex items-center justify-end rounded-xl py-1.5 pl-4 pr-3.5 transition-[transform,opacity] duration-500 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] ${
+              className={`group relative z-[1] flex items-center justify-end rounded-xl py-1.5 pl-2.5 pr-3 transition-[transform,opacity] duration-500 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] ${
                 visible ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
               }`}
             >
