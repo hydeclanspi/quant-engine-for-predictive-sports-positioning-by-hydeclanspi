@@ -67,6 +67,20 @@ const RECOMMENDATION_OUTPUT_COUNT = 20
 const QUICK_PREVIEW_RECOMMENDATION_COUNT = 7
 // 单组合方案排序默认只展示前 N 条，其余折叠到「展开剩余」按钮后。
 const RANKING_PREVIEW_COUNT = 5
+// 「建议投资组合」中【最优】行的自动「秀一下」节奏（仅演示态）：结果揭晓后稍候自动
+// 展卷一次，停留片刻再缓缓倒卷收回。复用 SettlePage 的 qi-collapse 展卷动画。
+const PORTFOLIO_PEEK_DELAY_MS = 850 // 结果揭晓 → 开始展卷 的等待
+const PORTFOLIO_PEEK_UNFURL_MS = 960 // 展卷动画时长（与 qiUnfurlCalm 对齐）
+const PORTFOLIO_PEEK_DAWN_MS = 1250 // 破晓柔光时长（与 qiDawn 对齐）后撤下
+const PORTFOLIO_PEEK_HOLD_MS = 2170 // 展卷完成 → 开始收回 的停留
+const PORTFOLIO_PEEK_REFOLD_MS = 860 // 收锋（倒卷折叠）时长（与 is-peek-refold 对齐）
+const prefersReducedMotion = () => {
+  try {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  } catch {
+    return false
+  }
+}
 const HARD_DECOUPLING_HINT_THRESHOLD = 5
 
 const SHARPE_BADGE_TONE_CLASS = {
@@ -3839,6 +3853,10 @@ export default function ComboPage({ openModal }) {
   const [expandedComboIdxSet, setExpandedComboIdxSet] = useState(() => new Set())
   const [expandedPortfolioIdxSet, setExpandedPortfolioIdxSet] = useState(() => new Set())
   const [showAllPortfolios, setShowAllPortfolios] = useState(false)
+  // 【最优】行自动「秀一下」的瞬态标记：展卷态（is-peek-unfurl + is-peek-refold）与
+  // 破晓柔光（is-peek-dawn）各自独立，由结果揭晓后的一次定时编排驱动；仅演示态触发。
+  const [portfolioPeekIdx, setPortfolioPeekIdx] = useState(null)
+  const [portfolioPeekDawnIdx, setPortfolioPeekDawnIdx] = useState(null)
   // Demo/预览模式下：今日备选比赛固定不变，默认折叠左栏，让页面更紧凑、
   // 把下方「依赖风险矩阵」卡片露出来，提示访客往下滑还有内容。
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(() => isPreviewMode())
@@ -4429,6 +4447,61 @@ export default function ComboPage({ openModal }) {
       return new Set(portfolioAllocations.map((_, idx) => idx))
     })
   }
+
+  // 演示态：结果揭晓后让「建议投资组合」的【最优】行自动「秀一下」——稍候自动展卷一次
+  // （复用 SettlePage 的 is-peek-unfurl 慢展 + is-peek-dawn 破晓柔光），停留片刻后再用
+  // is-peek-refold 缓缓倒卷收回。只在演示态触发，私用 FULL 态不打扰；尊重 reduced-motion。
+  // 键于 resultsAnimNonce（揭晓帷幕在 ~1.1s 时回调使其 +1），故「每次生成秀一次」。
+  useEffect(() => {
+    if (resultsAnimNonce === 0) return undefined
+    if (!isPreviewMode()) return undefined
+    if (portfolioAllocations.length === 0) return undefined
+    // 【最优】= 首个非「定制(pinned)」行：有 pinned 则为 idx 1，否则 idx 0。
+    const bestIdx = portfolioAllocations[0]?.pinned ? 1 : 0
+    if (bestIdx >= portfolioAllocations.length) return undefined
+    if (prefersReducedMotion()) return undefined
+    const timers = []
+    // ① 揭晓后等待 → 展卷 + 破晓柔光（is-open 由 0fr 翻 1fr 触发慢展过渡）。
+    timers.push(
+      window.setTimeout(() => {
+        setPortfolioPeekIdx(bestIdx)
+        setPortfolioPeekDawnIdx(bestIdx)
+        setExpandedPortfolioIdxSet((prev) => {
+          if (prev.has(bestIdx)) return prev
+          const next = new Set(prev)
+          next.add(bestIdx)
+          return next
+        })
+      }, PORTFOLIO_PEEK_DELAY_MS),
+    )
+    // ② 破晓柔光播完撤下（展卷态常驻保留，等收回时再清）。
+    timers.push(
+      window.setTimeout(() => {
+        setPortfolioPeekDawnIdx((cur) => (cur === bestIdx ? null : cur))
+      }, PORTFOLIO_PEEK_DELAY_MS + PORTFOLIO_PEEK_DAWN_MS),
+    )
+    // ③ 展卷完成 + 停留 → 倒卷收回（去掉 is-open，保留 is-peek-refold 走慢收）。
+    const refoldAt = PORTFOLIO_PEEK_DELAY_MS + PORTFOLIO_PEEK_UNFURL_MS + PORTFOLIO_PEEK_HOLD_MS
+    timers.push(
+      window.setTimeout(() => {
+        setExpandedPortfolioIdxSet((prev) => {
+          if (!prev.has(bestIdx)) return prev
+          const next = new Set(prev)
+          next.delete(bestIdx)
+          return next
+        })
+      }, refoldAt),
+    )
+    // ④ 收锋动画结束 → 清掉展卷标记，恢复纯净静息态。
+    timers.push(
+      window.setTimeout(() => {
+        setPortfolioPeekIdx((cur) => (cur === bestIdx ? null : cur))
+      }, refoldAt + PORTFOLIO_PEEK_REFOLD_MS),
+    )
+    return () => timers.forEach((t) => window.clearTimeout(t))
+    // 仅在揭晓脉冲变化时重跑；portfolioAllocations 在同一次生成里已与 nonce 同步就绪。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultsAnimNonce])
 
   const handleGenerate = () => {
     if (selectedMatches.length === 0) {
@@ -5951,8 +6024,12 @@ export default function ComboPage({ openModal }) {
                         <path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </div>
-                    {expandedPortfolioIdxSet.has(aIdx) && (
-                      <div className="mt-2 rounded-2xl overflow-hidden animate-fade-in" style={{ background: 'linear-gradient(135deg, rgba(249,250,255,0.95) 0%, rgba(255,255,255,0.92) 50%, rgba(245,248,255,0.95) 100%)', backdropFilter: 'blur(16px) saturate(120%)', border: '1px solid rgba(99,102,241,0.08)', boxShadow: '0 4px 20px -4px rgba(99,102,241,0.10), inset 0 1px 0 rgba(255,255,255,0.8)' }}>
+                    <div
+                      className={`qi-collapse${expandedPortfolioIdxSet.has(aIdx) ? ' is-open' : ''}${portfolioPeekIdx === aIdx ? ' is-peek-unfurl is-peek-refold' : ''}${portfolioPeekDawnIdx === aIdx ? ' is-peek-dawn' : ''}`}
+                      inert={expandedPortfolioIdxSet.has(aIdx) ? undefined : ''}
+                    >
+                      <div className="qi-collapse-inner">
+                      <div className="mt-2 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(249,250,255,0.95) 0%, rgba(255,255,255,0.92) 50%, rgba(245,248,255,0.95) 100%)', backdropFilter: 'blur(16px) saturate(120%)', border: '1px solid rgba(99,102,241,0.08)', boxShadow: '0 4px 20px -4px rgba(99,102,241,0.10), inset 0 1px 0 rgba(255,255,255,0.8)' }}>
                         {/* ─── Coverage info bar ─── */}
                         {(() => {
                           const coveredKeys = new Set()
@@ -6211,7 +6288,8 @@ export default function ComboPage({ openModal }) {
                           )}
                         </div>
                       </div>
-                    )}
+                      </div>
+                    </div>
                   </div>
                   )
                 })}

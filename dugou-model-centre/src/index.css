@@ -4760,6 +4760,15 @@
   }
 }
 
+/* 收锋·倒放（is-peek-refold）：当「最优」组合行自动展卷停留后要缓缓折回时，去掉
+   .is-open 即触发收起。基础 .qi-collapse 的收起是 0.34s 锐利回弹（收锋），太快、不
+   像「把刚才那一展倒放回去」。此处用一条 2 类选择器（特异性高于基础 1 类、低于 3 类
+   的 .is-peek-unfurl.is-open，故不影响展卷与待结算页的既有收起行为）专门把收起时长
+   拉长到与展卷同量级，做一次从容的倒卷收合。 */
+.qi-collapse.is-peek-refold {
+  transition: grid-template-rows 0.86s cubic-bezier(0.5, 0, 0.22, 1);
+}
+
 /* 折叠/展开箭头：单个 ChevronRight 旋转 90° 即为下展态，过渡平滑高级。 */
 .qi-chevron {
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
@@ -4771,7 +4780,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .qi-collapse,
-  .qi-collapse.is-open {
+  .qi-collapse.is-open,
+  .qi-collapse.is-peek-refold {
     transition: none;
   }
   .qi-collapse.is-open .qi-collapse-inner {
