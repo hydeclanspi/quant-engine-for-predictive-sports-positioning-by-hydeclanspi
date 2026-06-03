@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, Plus, RefreshCw, ShieldCheck, ShieldOff, SlidersHorizontal, Sparkles, XCircle } from 'lucide-react'
+import { Check, ChevronDown, Plus, RefreshCw, ShieldCheck, ShieldOff, SlidersHorizontal, Sparkles, XCircle } from 'lucide-react'
 import { bumpTeamSamples, getInvestments, getSystemConfig, saveInvestment } from '../lib/localData'
 import { getPredictionCalibrationContext, buildComboRetrospective } from '../lib/analytics'
 import {
@@ -65,6 +65,8 @@ const MATCH_ROLE_COMPACT_LABEL = {
 
 const RECOMMENDATION_OUTPUT_COUNT = 20
 const QUICK_PREVIEW_RECOMMENDATION_COUNT = 7
+// 单组合方案排序默认只展示前 N 条，其余折叠到「展开剩余」按钮后。
+const RANKING_PREVIEW_COUNT = 5
 const HARD_DECOUPLING_HINT_THRESHOLD = 5
 
 const SHARPE_BADGE_TONE_CLASS = {
@@ -3821,6 +3823,7 @@ export default function ComboPage({ openModal }) {
   const [showRiskProbe, setShowRiskProbe] = useState(false)
   const [showAllRecommendations, setShowAllRecommendations] = useState(false)
   const [showAllQuickRecommendations, setShowAllQuickRecommendations] = useState(false)
+  const [showAllRanking, setShowAllRanking] = useState(false)
   const [showRecommendationDetailCard, setShowRecommendationDetailCard] = useState(false)
   const [selectedRecommendationIds, setSelectedRecommendationIds] = useState({})
   const [showDeepRefresh, setShowDeepRefresh] = useState(false)
@@ -6753,8 +6756,9 @@ export default function ComboPage({ openModal }) {
           {rankingRows.length === 0 ? (
             <p className="text-sm text-stone-400">先点击「生成最优组合」查看 Top 排序。</p>
           ) : (
+            <>
             <div className="space-y-2">
-              {rankingRows.map((row) => (
+              {(showAllRanking ? rankingRows : rankingRows.slice(0, RANKING_PREVIEW_COUNT)).map((row) => (
                 <div key={`rank-${row.id}`} className="flex items-center gap-3 p-2.5 rounded-lg border border-stone-100 bg-stone-50/70">
                   <div className="w-7 h-7 rounded-lg bg-stone-200/70 text-stone-700 text-xs font-semibold flex items-center justify-center">
                     {row.rank}
@@ -6774,6 +6778,21 @@ export default function ComboPage({ openModal }) {
                 </div>
               ))}
             </div>
+            {rankingRows.length > RANKING_PREVIEW_COUNT && (
+              <button
+                onClick={() => setShowAllRanking((prev) => !prev)}
+                className="group w-full mt-2.5 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl border border-stone-200/70 bg-[linear-gradient(180deg,rgba(250,250,249,0.92),rgba(255,255,255,0.96))] text-[11.5px] font-medium tracking-[0.02em] text-stone-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] transition-all duration-300 hover:-translate-y-px hover:border-emerald-200/80 hover:text-emerald-700 hover:bg-[linear-gradient(180deg,rgba(236,253,245,0.78),rgba(255,255,255,0.96))] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_12px_24px_-18px_rgba(16,185,129,0.55)]"
+                aria-expanded={showAllRanking}
+              >
+                {showAllRanking ? '收起方案' : `展开剩余 ${rankingRows.length - RANKING_PREVIEW_COUNT} 个方案`}
+                <ChevronDown
+                  size={13}
+                  strokeWidth={2.1}
+                  className={`text-stone-400 transition-transform duration-300 group-hover:text-emerald-500 ${showAllRanking ? 'rotate-180' : ''}`}
+                />
+              </button>
+            )}
+            </>
           )}
         </div>
 
