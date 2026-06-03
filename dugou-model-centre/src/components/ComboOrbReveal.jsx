@@ -15,8 +15,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
  * - 尊重 prefers-reduced-motion：直接定格 100% 后立即收尾。
  */
 
-const ORB_COMPUTE_MS = 980 // 环从 0 填到 100 的时长
-const ORB_BLOOM_MS = 340 // 环满后「绽放」并停顿、再回调 onComplete 的时长
+// 整体节奏较初版放慢 1.4×（原 980 / 340ms），让聚光环从容一些、不显仓促。
+const ORB_COMPUTE_MS = 1372 // 环从 0 填到 100 的时长（980 × 1.4）
+const ORB_BLOOM_MS = 476 // 环满后「绽放」并停顿、再回调 onComplete 的时长（340 × 1.4）
 const ORB_RADIUS = 30
 const ORB_C = 2 * Math.PI * ORB_RADIUS // 环周长 ≈ 188.4956
 const ORB_STAGES = ['扫描相关性结构', '蒙特卡洛模拟', '求解最优配额']
@@ -124,10 +125,8 @@ export default function ComboOrbReveal({ compactPx = 500, leaving = false, onCom
               style={{ strokeDasharray: ORB_C, strokeDashoffset: dashoffset }}
             />
           </svg>
-          <div className="combo-orb-pct">
-            {pct}
-            <i>%</i>
-          </div>
+          <div className="combo-orb-pct">{pct}</div>
+          <span className="combo-orb-unit">%</span>
         </div>
         <div className="combo-orb-stage" key={stageIdx}>
           {ORB_STAGES[stageIdx]}

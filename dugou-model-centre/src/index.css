@@ -3913,19 +3913,24 @@
   justify-content: center;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
-  font-size: 1.05rem;
+  font-size: 1.12rem;
   letter-spacing: -0.01em;
   color: #4338ca;
 }
 
-.combo-orb-pct i {
-  font-style: normal;
-  font-size: 0.6rem;
+/* 「%」单位：移出光环、悬于其右上外侧，作一枚轻盈的卫星标签——与环心大号数字拉开
+   主次层级，留足呼吸距离；柔浅靛色（indigo-300）呼应环身渐变，克制大气、不局促。
+   以环心为锚向右上平移，故随绽放一同缩放、始终与环耦合不漂移。 */
+.combo-orb-unit {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(28px, -38px);
+  font-size: 0.72rem;
   font-weight: 600;
-  margin-left: 1px;
-  margin-top: 0.3rem;
-  align-self: flex-start;
-  color: #6366f1;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  color: #a5b4fc;
 }
 
 /* 阶段文案 / 跳过提示：绝对定位悬于环下方（锚定焦点盒垂直中线 + 偏移），不参与
