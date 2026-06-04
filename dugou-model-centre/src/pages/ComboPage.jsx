@@ -70,8 +70,8 @@ const RANKING_PREVIEW_COUNT = 5
 // 「建议投资组合」中【最优】行的自动「秀一下」节奏（仅演示态）：结果揭晓后稍候自动
 // 展卷一次，停留片刻再缓缓倒卷收回。复用 SettlePage 的 qi-collapse 展卷动画。
 // 结果揭晓 → 开始展卷 的等待。整段「秀一下」（展卷→破晓→停留→倒卷）均以此为基准偏移，
-// 故此值即「延后播放」的总留白：原 850ms 基线 + 970ms 延后 = 1820ms（动画内部时长不变）。
-const PORTFOLIO_PEEK_DELAY_MS = 1820 // 结果揭晓 → 开始展卷 的等待
+// 故此值即播放前留白：原 850ms 基线净 +730ms（延后 1.14s，先后提前 0.17/0.24s）= 1580ms（动画内部时长不变）。
+const PORTFOLIO_PEEK_DELAY_MS = 1580 // 结果揭晓 → 开始展卷 的等待
 const PORTFOLIO_PEEK_UNFURL_MS = 960 // 展卷动画时长（与 qiUnfurlCalm 对齐）
 const PORTFOLIO_PEEK_DAWN_MS = 1250 // 破晓柔光时长（与 qiDawn 对齐）后撤下
 const PORTFOLIO_PEEK_HOLD_MS = 1180 // 展卷完成 → 开始收回 的停留（停留累计收紧 −0.35/−0.43/−0.21s；展卷/收锋的动作速度始终不变）
