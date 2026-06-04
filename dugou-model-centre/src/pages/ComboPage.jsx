@@ -74,7 +74,7 @@ const RANKING_PREVIEW_COUNT = 5
 const PORTFOLIO_PEEK_DELAY_MS = 1820 // 结果揭晓 → 开始展卷 的等待
 const PORTFOLIO_PEEK_UNFURL_MS = 960 // 展卷动画时长（与 qiUnfurlCalm 对齐）
 const PORTFOLIO_PEEK_DAWN_MS = 1250 // 破晓柔光时长（与 qiDawn 对齐）后撤下
-const PORTFOLIO_PEEK_HOLD_MS = 1820 // 展卷完成 → 开始收回 的停留（较前缩短 0.35s，展卷/收锋的动作速度不变）
+const PORTFOLIO_PEEK_HOLD_MS = 1390 // 展卷完成 → 开始收回 的停留（在前次 −0.35s 基础上再砍 0.43s；展卷/收锋的动作速度始终不变）
 const PORTFOLIO_PEEK_REFOLD_MS = 860 // 收锋（倒卷折叠）时长（与 is-peek-refold 对齐）
 // 【最优】折回完成 → 明细列表「第一条」开始「秀一下」的间隔（接力第二段揭幕）。
 const COMBO_DETAIL_PEEK_GAP_MS = 550
