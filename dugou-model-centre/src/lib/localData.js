@@ -196,6 +196,74 @@ export const TEAM_ALIAS_LIBRARY = [
   { teamId: 'lille', teamName: '里尔', abbreviations: ['losc', 'lil', 'lille', '里尔'] },
   { teamId: 'lyon', teamName: '里昂', abbreviations: ['lyo', 'lyon', '里昂'] },
   { teamId: 'nice', teamName: '尼斯', abbreviations: ['nic', 'nice', '尼斯'] },
+
+  // ──────────────────────────────────────────────────────────────
+  //  国际赛 · 2026 美加墨世界杯 48 强（后台预备）
+  //  仅供「新建比赛」的输入解析 / 自动补全 / 缩写归一化使用：在被某场比赛
+  //  实际使用并保存之前，不会出现在「球队档案馆」列表里——档案馆只渲染历史
+  //  样本中出现过的球队。缩写取 FIFA 三字码 + 英文名 + 中文常用别名，与
+  //  teamDatabase.js 的国际赛条目保持一致；首次被保存时档案会自动继承这些别名。
+  // ──────────────────────────────────────────────────────────────
+  // A 组
+  { teamId: 'natl_mexico', teamName: '墨西哥', abbreviations: ['mex', 'mexico', '墨西哥', '墨西哥队'] },
+  { teamId: 'natl_southafrica', teamName: '南非', abbreviations: ['rsa', 'south africa', '南非', '南非队'] },
+  { teamId: 'natl_southkorea', teamName: '韩国', abbreviations: ['kor', 'korea', 'south korea', '韩国', '韩国队', '太极虎'] },
+  { teamId: 'natl_czechia', teamName: '捷克', abbreviations: ['cze', 'czech', 'czechia', '捷克', '捷克队'] },
+  // B 组
+  { teamId: 'natl_canada', teamName: '加拿大', abbreviations: ['can', 'canada', '加拿大', '加拿大队'] },
+  { teamId: 'natl_bosnia', teamName: '波黑', abbreviations: ['bih', 'bosnia', 'bosnia and herzegovina', '波黑', '波斯尼亚', '波黑队', '波斯尼亚和黑塞哥维那'] },
+  { teamId: 'natl_qatar', teamName: '卡塔尔', abbreviations: ['qat', 'qatar', '卡塔尔', '卡塔尔队'] },
+  { teamId: 'natl_switzerland', teamName: '瑞士', abbreviations: ['sui', 'switzerland', '瑞士', '瑞士队'] },
+  // C 组
+  { teamId: 'natl_brazil', teamName: '巴西', abbreviations: ['bra', 'brazil', '巴西', '巴西队', '桑巴军团', '五星巴西'] },
+  { teamId: 'natl_morocco', teamName: '摩洛哥', abbreviations: ['mar', 'morocco', '摩洛哥', '摩洛哥队', '阿特拉斯雄狮'] },
+  { teamId: 'natl_haiti', teamName: '海地', abbreviations: ['hai', 'haiti', '海地', '海地队'] },
+  { teamId: 'natl_scotland', teamName: '苏格兰', abbreviations: ['sco', 'scotland', '苏格兰', '苏格兰队'] },
+  // D 组
+  { teamId: 'natl_usa', teamName: '美国', abbreviations: ['usa', 'united states', '美国', '美国队'] },
+  { teamId: 'natl_paraguay', teamName: '巴拉圭', abbreviations: ['par', 'paraguay', '巴拉圭', '巴拉圭队'] },
+  { teamId: 'natl_australia', teamName: '澳大利亚', abbreviations: ['aus', 'australia', '澳大利亚', '澳大利亚队', '袋鼠军团'] },
+  { teamId: 'natl_turkey', teamName: '土耳其', abbreviations: ['tur', 'turkey', 'turkiye', '土耳其', '土耳其队'] },
+  // E 组
+  { teamId: 'natl_germany', teamName: '德国', abbreviations: ['ger', 'germany', '德国', '德国队', '日耳曼战车'] },
+  { teamId: 'natl_curacao', teamName: '库拉索', abbreviations: ['cuw', 'curacao', '库拉索', '库拉索队'] },
+  { teamId: 'natl_ivorycoast', teamName: '科特迪瓦', abbreviations: ['civ', 'ivory coast', 'cote divoire', '科特迪瓦', '象牙海岸', '科特迪瓦队'] },
+  { teamId: 'natl_ecuador', teamName: '厄瓜多尔', abbreviations: ['ecu', 'ecuador', '厄瓜多尔', '厄瓜多尔队'] },
+  // F 组
+  { teamId: 'natl_netherlands', teamName: '荷兰', abbreviations: ['ned', 'netherlands', 'holland', '荷兰', '荷兰队', '橙衣军团'] },
+  { teamId: 'natl_japan', teamName: '日本', abbreviations: ['jpn', 'japan', '日本', '日本队', '蓝色武士'] },
+  { teamId: 'natl_sweden', teamName: '瑞典', abbreviations: ['swe', 'sweden', '瑞典', '瑞典队'] },
+  { teamId: 'natl_tunisia', teamName: '突尼斯', abbreviations: ['tun', 'tunisia', '突尼斯', '突尼斯队'] },
+  // G 组
+  { teamId: 'natl_belgium', teamName: '比利时', abbreviations: ['bel', 'belgium', '比利时', '比利时队', '红魔', '欧洲红魔'] },
+  { teamId: 'natl_egypt', teamName: '埃及', abbreviations: ['egy', 'egypt', '埃及', '埃及队', '法老'] },
+  { teamId: 'natl_iran', teamName: '伊朗', abbreviations: ['irn', 'iran', '伊朗', '伊朗队', '波斯铁骑'] },
+  { teamId: 'natl_newzealand', teamName: '新西兰', abbreviations: ['nzl', 'new zealand', '新西兰', '新西兰队', '全白队'] },
+  // H 组
+  { teamId: 'natl_spain', teamName: '西班牙', abbreviations: ['esp', 'spain', '西班牙', '西班牙队', '斗牛士军团'] },
+  { teamId: 'natl_capeverde', teamName: '佛得角', abbreviations: ['cpv', 'cape verde', '佛得角', '佛得角队'] },
+  { teamId: 'natl_saudi', teamName: '沙特阿拉伯', abbreviations: ['ksa', 'saudi arabia', 'saudi', '沙特阿拉伯', '沙特', '沙特队'] },
+  { teamId: 'natl_uruguay', teamName: '乌拉圭', abbreviations: ['uru', 'uruguay', '乌拉圭', '乌拉圭队'] },
+  // I 组
+  { teamId: 'natl_france', teamName: '法国', abbreviations: ['fra', 'france', '法国', '法国队', '高卢雄鸡'] },
+  { teamId: 'natl_senegal', teamName: '塞内加尔', abbreviations: ['sen', 'senegal', '塞内加尔', '塞内加尔队'] },
+  { teamId: 'natl_iraq', teamName: '伊拉克', abbreviations: ['irq', 'iraq', '伊拉克', '伊拉克队'] },
+  { teamId: 'natl_norway', teamName: '挪威', abbreviations: ['nor', 'norway', '挪威', '挪威队'] },
+  // J 组
+  { teamId: 'natl_argentina', teamName: '阿根廷', abbreviations: ['arg', 'argentina', '阿根廷', '阿根廷队', '潘帕斯雄鹰'] },
+  { teamId: 'natl_algeria', teamName: '阿尔及利亚', abbreviations: ['alg', 'dza', 'algeria', '阿尔及利亚', '阿尔及利亚队'] },
+  { teamId: 'natl_austria', teamName: '奥地利', abbreviations: ['aut', 'austria', '奥地利', '奥地利队'] },
+  { teamId: 'natl_jordan', teamName: '约旦', abbreviations: ['jor', 'jordan', '约旦', '约旦队'] },
+  // K 组
+  { teamId: 'natl_portugal', teamName: '葡萄牙', abbreviations: ['por', 'portugal', '葡萄牙', '葡萄牙队'] },
+  { teamId: 'natl_drcongo', teamName: '刚果民主', abbreviations: ['cod', 'dr congo', 'congo dr', '刚果民主', '刚果民主共和国', '刚果金', 'DR刚果'] },
+  { teamId: 'natl_uzbekistan', teamName: '乌兹别克斯坦', abbreviations: ['uzb', 'uzbekistan', '乌兹别克斯坦', '乌兹别克', '乌兹别克斯坦队'] },
+  { teamId: 'natl_colombia', teamName: '哥伦比亚', abbreviations: ['col', 'colombia', '哥伦比亚', '哥伦比亚队'] },
+  // L 组
+  { teamId: 'natl_england', teamName: '英格兰', abbreviations: ['eng', 'england', '英格兰', '英格兰队', '三狮军团'] },
+  { teamId: 'natl_croatia', teamName: '克罗地亚', abbreviations: ['cro', 'croatia', '克罗地亚', '克罗地亚队', '格子军团'] },
+  { teamId: 'natl_ghana', teamName: '加纳', abbreviations: ['gha', 'ghana', '加纳', '加纳队', '黑星'] },
+  { teamId: 'natl_panama', teamName: '巴拿马', abbreviations: ['pan', 'panama', '巴拿马', '巴拿马队'] },
 ]
 
 const isBrowser = typeof window !== 'undefined'
