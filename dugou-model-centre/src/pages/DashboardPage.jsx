@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { getDashboardSnapshot } from '../lib/analytics'
 import TimeRangePicker from '../components/TimeRangePicker'
 import CountUp from '../components/CountUp'
 import CapitalCurveReveal from '../components/CapitalCurveReveal'
-import { getSystemConfig, saveSystemConfig, addCapitalInjection, getInvestments } from '../lib/localData'
+import BalanceLedgerPanel from '../components/BalanceLedgerPanel'
+import { getSystemConfig, saveSystemConfig, addCapitalInjection, getInvestments, settlePool, recallPoolSettlement } from '../lib/localData'
 import { downloadWorkbook } from '../lib/excel'
 import * as XLSX from 'xlsx'
-import { Wallet, TrendingUp, BarChart3 } from 'lucide-react'
+import { Wallet, TrendingUp, TrendingDown, BarChart3, RotateCcw } from 'lucide-react'
 import { useModeLabelMap } from '../components/ModeLabel'
 import { usePreviewTextMask } from '../lib/labels'
 import { isPreviewMode } from '../lib/displayMode'
@@ -267,7 +269,23 @@ export default function DashboardPage({ openModal }) {
   const [injectAmount, setInjectAmount] = useState('')
   const [dataVersion, setDataVersion] = useState(0)
   const [hoveredPoint, setHoveredPoint] = useState(null)
+  // 结算后的撤销窗口：{ id, type, realized, newCapital, secondsLeft }。常驻 DashboardPage，
+  // 这样即便用户关掉余额明细 Modal，撤销条仍然存在直到倒计时结束。
+  const [recall, setRecall] = useState(null)
   const exportPickerRef = useRef(null)
+
+  // 撤销条倒计时：每秒递减，归零即自动消失。
+  useEffect(() => {
+    if (!recall) return undefined
+    if (recall.secondsLeft <= 0) {
+      setRecall(null)
+      return undefined
+    }
+    const timer = setTimeout(() => {
+      setRecall((prev) => (prev ? { ...prev, secondsLeft: prev.secondsLeft - 1 } : null))
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [recall])
 
   const systemConfig = useMemo(() => getSystemConfig(), [dataVersion])
   const snapshot = useMemo(() => getDashboardSnapshot(timePeriod), [timePeriod, dataVersion])
@@ -953,56 +971,30 @@ export default function DashboardPage({ openModal }) {
   const openBalanceModal = () => {
     openModal({
       title: '蓄水池余额 · 历史明细',
-      content: (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-amber-50 rounded-xl">
-            <div>
-              <span className="text-xs text-amber-700">当前余额</span>
-              <p className="text-2xl font-bold text-amber-600">{toRmb(snapshot.poolBalance)}</p>
-            </div>
-            <div className="text-right">
-              <span className="text-xs text-stone-400">近期 ROI</span>
-              <p className="text-lg font-semibold text-emerald-600">{toPercent(snapshot.roiPeriod)}</p>
-            </div>
-          </div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-stone-200 text-left text-stone-500">
-                <th className="py-2">日期</th>
-                <th className="py-2">比赛</th>
-                <th className="py-2">操作前余额</th>
-                <th className="py-2">盈亏</th>
-                <th className="py-2">操作后余额</th>
-              </tr>
-            </thead>
-            <tbody>
-              {snapshot.balanceLedger.slice(0, 80).map((row) => (
-                <tr
-                  key={row.id}
-                  className={`border-b border-stone-100 ${row.isInjection ? 'bg-yellow-50/90' : ''}`}
-                >
-                  <td className="py-2">{row.dateLabel}</td>
-                  <td className={`py-2 ${row.isInjection ? 'text-amber-900 font-medium' : 'text-stone-700'}`}>
-                    {row.isInjection ? (
-                      <span className="inline-block rounded-sm bg-yellow-300/85 px-2 py-0.5 text-amber-900 font-semibold">
-                        {row.match}
-                      </span>
-                    ) : (
-                      row.match
-                    )}
-                  </td>
-                  <td className="py-2">{toRmb(row.before)}</td>
-                  <td className={`py-2 font-medium ${row.isInjection ? 'text-amber-700' : row.profit >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                    {row.isInjection ? `+${row.profit.toFixed(0)}` : toSigned(row.profit, 0)}
-                  </td>
-                  <td className="py-2 font-semibold">{toRmb(row.after)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ),
+      content: <BalanceLedgerPanel periodKey={timePeriod} onConfirmSettle={handleConfirmSettle} />,
     })
+  }
+
+  // 周期性结算：清空当前蓄水池、开启新周期。历史数据与所有指标计算完全不动。
+  const handleConfirmSettle = (payload) => {
+    const settlement = settlePool(payload)
+    setDataVersion((prev) => prev + 1)
+    if (settlement) {
+      setRecall({
+        id: settlement.id,
+        type: settlement.type,
+        realized: settlement.realizedProfit,
+        newCapital: settlement.newCapital,
+        secondsLeft: 14,
+      })
+    }
+  }
+
+  const handleRecall = () => {
+    if (!recall) return
+    recallPoolSettlement(recall.id)
+    setDataVersion((prev) => prev + 1)
+    setRecall(null)
   }
 
   const openRoiModal = () => {
@@ -2051,6 +2043,42 @@ export default function DashboardPage({ openModal }) {
           </div>
         </div>
       )}
+
+      {/* 结算撤销条：常驻底部，portal 到 body 以覆盖在 Modal(z-50) 之上 */}
+      {recall &&
+        createPortal(
+          <div className="theme-modern pointer-events-none fixed inset-x-0 bottom-6 z-[90] flex justify-center px-4">
+            <div className="motion-v2-scope pointer-events-auto flex items-center gap-4 rounded-2xl border border-white/10 bg-stone-900/95 px-5 py-3.5 text-white shadow-2xl backdrop-blur-md animate-slide-up">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                    recall.type === 'stop_loss' ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'
+                  }`}
+                >
+                  {recall.type === 'stop_loss' ? <TrendingDown size={16} /> : <TrendingUp size={16} />}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">已结算 · 周期性{recall.type === 'stop_loss' ? '止损' : '止盈'}</p>
+                  <p className="text-xs text-stone-400">
+                    {recall.realized >= 0 ? '+' : ''}
+                    {Number(recall.realized).toFixed(0)} rmb
+                    {recall.newCapital > 0 ? ` · 新周期 ¥${Number(recall.newCapital).toFixed(0)}` : ' · 已清零'}
+                  </p>
+                </div>
+              </div>
+              <div className="h-8 w-px bg-white/10" />
+              <button
+                type="button"
+                onClick={handleRecall}
+                className="motion-v2-ghost-btn inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/20"
+              >
+                <RotateCcw size={14} />
+                撤销 {recall.secondsLeft}s
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

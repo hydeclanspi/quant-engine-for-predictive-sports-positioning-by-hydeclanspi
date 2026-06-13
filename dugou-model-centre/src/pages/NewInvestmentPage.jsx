@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, X, ChevronDown, ChevronRight } from 'lucide-react'
 import { bumpTeamSamples, findTeamProfile, getInvestments, getSystemConfig, getTeamProfiles, saveInvestment, searchTeamProfiles } from '../lib/localData'
 import { handleNoteShortcut } from '../lib/noteFormatting'
-import { getPredictionCalibrationContext, getModeKellyRecommendations } from '../lib/analytics'
+import { getPredictionCalibrationContext, getModeKellyRecommendations, getReservoirState } from '../lib/analytics'
 import { getPrimaryEntryMarket, normalizeEntryName, normalizeEntryRecord } from '../lib/entryParsing'
 import WaxSealStampOverlay, { getWaxSealStampPoint } from '../components/WaxSealStampOverlay'
 import ExplainHover from '../components/ExplainHover'
@@ -377,9 +377,12 @@ export default function NewInvestmentPage() {
     })
     return map
   }, [historicalMatchLibrary])
+  // 实时蓄水池余额（cycle-aware）：建议下注金额与风险上限都以它为基数，
+  // 周期性结算后会自动以新周期的本金口径计算。
+  const poolCapital = useMemo(() => getReservoirState().poolBalance, [systemConfig, dataVersion])
   const riskCap = useMemo(
-    () => Math.round(systemConfig.initialCapital * systemConfig.riskCapRatio),
-    [systemConfig.initialCapital, systemConfig.riskCapRatio],
+    () => Math.round(poolCapital * systemConfig.riskCapRatio),
+    [poolCapital, systemConfig.riskCapRatio],
   )
   const [calibrationContext, setCalibrationContext] = useState(() =>
     getPredictionCalibrationContext({ detail: 'lite' }),
@@ -699,10 +702,10 @@ export default function NewInvestmentPage() {
       ? wfFeedback.adjustments.kellyDivisor
       : effectiveKellyDivisor
     const finalKellyDivisor = Math.max(1, wfKellyDivisor)
-    const raw = systemConfig.initialCapital * (kelly / finalKellyDivisor)
+    const raw = poolCapital * (kelly / finalKellyDivisor)
     // FIX: Removed confidenceLift heuristic (0.88 + expected * 0.24). Pure fractional Kelly.
     return Math.min(riskCap, Math.max(0, Math.round(raw)))
-  }, [calibrationContext, combinedAtomicProfile, effectiveKellyDivisor, riskCap, systemConfig.initialCapital])
+  }, [calibrationContext, combinedAtomicProfile, effectiveKellyDivisor, riskCap, poolCapital])
 
   const getTeamSuggestions = (query) => searchTeamProfiles(query, teamProfiles, 6)
 

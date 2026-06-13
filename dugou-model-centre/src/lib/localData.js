@@ -78,6 +78,8 @@ const DEFAULT_SYSTEM_CONFIG = {
   weightFse: 0.07,
   // 注资历史记录
   capitalInjections: [],
+  // 周期性结算记录（止盈/止损）—— 仅影响蓄水池当前周期，不影响历史总数据
+  poolSettlements: [],
   // 自适应权重优化配置
   adaptiveWeights: {
     enabled: false,                    // 是否启用自动应用
@@ -545,6 +547,69 @@ export const addCapitalInjection = (amount, note = '') => {
   const updatedInjections = [...injections, newInjection]
   saveSystemConfig({ capitalInjections: updatedInjections })
   return newInjection
+}
+
+export const getPoolSettlements = () => {
+  const config = getSystemConfig()
+  return Array.isArray(config.poolSettlements) ? config.poolSettlements : []
+}
+
+// 周期性结算：把蓄水池当前周期清零，并可选地为新周期划拨本金。
+// 历史投资与总数据完全不动 —— 结算只在 poolSettlements 上画一条时间分界线，
+// 蓄水池余额与下注基数从此只统计分界线之后的注资与盈亏。
+export const settlePool = ({ type, realizedProfit = 0, poolBefore = 0, cycleBase = 0, newCapital = 0 } = {}) => {
+  const config = getSystemConfig()
+  const settlements = Array.isArray(config.poolSettlements) ? config.poolSettlements : []
+  const injections = Array.isArray(config.capitalInjections) ? config.capitalInjections : []
+  const now = Date.now()
+  const allocation = Math.max(0, Number(newCapital) || 0)
+
+  const settlement = {
+    id: `stl_${now}_${Math.random().toString(36).slice(2, 8)}`,
+    type: type === 'stop_loss' ? 'stop_loss' : 'take_profit',
+    realizedProfit: Number(realizedProfit) || 0,
+    poolBefore: Number(poolBefore) || 0,
+    cycleBase: Number(cycleBase) || 0,
+    newCapital: allocation,
+    linkedInjectionId: null,
+    created_at: new Date(now).toISOString(),
+  }
+
+  const patch = { poolSettlements: [...settlements, settlement] }
+
+  if (allocation > 0) {
+    // 新周期划拨：记一条紧随结算之后的注资（+1ms 保证落在新周期内），
+    // 并同步抬升 initialCapital（终身资金曲线把它视为一次真实的资金注入）。
+    const injection = {
+      id: `inj_${now}_${Math.random().toString(36).slice(2, 8)}`,
+      amount: allocation,
+      note: '周期结算划拨',
+      created_at: new Date(now + 1).toISOString(),
+    }
+    settlement.linkedInjectionId = injection.id
+    patch.capitalInjections = [...injections, injection]
+    patch.initialCapital = Number(config.initialCapital || 0) + allocation
+  }
+
+  saveSystemConfig(patch)
+  return settlement
+}
+
+// 撤销结算（结算后的十几秒内可回滚）：移除结算记录及其关联的划拨注资，并还原 initialCapital。
+export const recallPoolSettlement = (settlementId) => {
+  const config = getSystemConfig()
+  const settlements = Array.isArray(config.poolSettlements) ? config.poolSettlements : []
+  const target = settlements.find((item) => item.id === settlementId)
+  if (!target) return false
+
+  const patch = { poolSettlements: settlements.filter((item) => item.id !== settlementId) }
+  if (target.linkedInjectionId) {
+    const injections = Array.isArray(config.capitalInjections) ? config.capitalInjections : []
+    patch.capitalInjections = injections.filter((item) => item.id !== target.linkedInjectionId)
+    patch.initialCapital = Math.max(0, Number(config.initialCapital || 0) - Number(target.newCapital || 0))
+  }
+  saveSystemConfig(patch)
+  return true
 }
 
 export const getTeamProfiles = () => {

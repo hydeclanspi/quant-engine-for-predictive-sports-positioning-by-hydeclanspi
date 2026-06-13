@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check, ChevronDown, Plus, RefreshCw, ShieldCheck, ShieldOff, SlidersHorizontal, Sparkles, XCircle } from 'lucide-react'
 import { bumpTeamSamples, getInvestments, getSystemConfig, saveInvestment } from '../lib/localData'
-import { getPredictionCalibrationContext, buildComboRetrospective } from '../lib/analytics'
+import { getPredictionCalibrationContext, buildComboRetrospective, getReservoirState } from '../lib/analytics'
 import {
   buildAtomicMatchProfile,
   combineAtomicMatchProfiles,
@@ -1754,7 +1754,7 @@ const normalizeHistoryRecommendation = (row, index = 0) => {
   }
 }
 
-const calcRecommendedAmount = (probability, odds, systemConfig, riskCap, calibrationContext = null) => {
+const calcRecommendedAmount = (probability, odds, systemConfig, riskCap, calibrationContext = null, poolCapital = null) => {
   if (!Number.isFinite(probability) || !Number.isFinite(odds) || odds <= 1) return 0
   const p = clamp(probability, 0.05, 0.95)
   // Pure Kelly criterion: f* = (p × b - q) / b where b = odds - 1, q = 1 - p
@@ -1770,7 +1770,9 @@ const calcRecommendedAmount = (probability, odds, systemConfig, riskCap, calibra
     : baseKellyDivisor
   const effectiveKellyDivisor = Math.max(1, wfKellyDivisor)
   const fraction = kelly / effectiveKellyDivisor
-  const raw = Math.max(0, Number(systemConfig.initialCapital || 0) * fraction)
+  // 下注基数走"实时蓄水池余额"（cycle-aware）；结算后自动以新周期本金为准。
+  const sizingBase = poolCapital != null ? Number(poolCapital) : Number(systemConfig.initialCapital || 0)
+  const raw = Math.max(0, sizingBase * fraction)
   if (raw <= 0) return 0
   const rounded = Math.round(raw / 10) * 10
   return Math.max(20, Math.min(riskCap, rounded))
@@ -3934,9 +3936,12 @@ export default function ComboPage({ openModal }) {
     }
   }, [dataVersion])
 
+  // 实时蓄水池余额（cycle-aware）：新建/组合页的资金仓管与下注建议都以它为基数，
+  // 周期性结算后会自动切换到新周期的本金口径。
+  const poolCapital = useMemo(() => getReservoirState().poolBalance, [systemConfig])
   const riskCap = useMemo(
-    () => Math.round(systemConfig.initialCapital * systemConfig.riskCapRatio),
-    [systemConfig.initialCapital, systemConfig.riskCapRatio],
+    () => Math.round(poolCapital * systemConfig.riskCapRatio),
+    [poolCapital, systemConfig.riskCapRatio],
   )
   const maxWorstDrawdownAlertPct = useMemo(() => {
     const value = Number.parseFloat(systemConfig.maxWorstDrawdownAlertPct)
@@ -3962,7 +3967,7 @@ export default function ComboPage({ openModal }) {
         const rawAtomicProfile = buildAtomicLegProfile(item, clamp(Number(item.conf) || 0.5, 0.05, 0.95), fallbackOdds)
         const effectiveOdds = Math.max(1.01, Number(atomicProfile.equivalentOdds || fallbackOdds))
         const adjustedEvPercent = Number(atomicProfile.expectedReturn || 0) * 100
-        const suggestedAmount = calcRecommendedAmount(adjustedProb, effectiveOdds, systemConfig, riskCap, calibrationContext)
+        const suggestedAmount = calcRecommendedAmount(adjustedProb, effectiveOdds, systemConfig, riskCap, calibrationContext, poolCapital)
         const autoRole = inferMatchRoleByMetrics(adjustedProb, effectiveOdds, item.conf)
         return {
           ...item,
@@ -3975,7 +3980,7 @@ export default function ComboPage({ openModal }) {
           autoRole,
         }
       }),
-    [calibrationContext, riskCap, systemConfig, todayMatches],
+    [calibrationContext, riskCap, poolCapital, systemConfig, todayMatches],
   )
 
   const displayedCandidates = useMemo(() => {
@@ -4086,12 +4091,8 @@ export default function ComboPage({ openModal }) {
     const maxSingleExposure = Math.max(0, ...exposureMap.values())
     const concentration = totalInvest > 0 ? maxSingleExposure / totalInvest : 0
 
-    const investments = getInvestments().filter((item) => !item.is_archived)
-    const settledProfit = investments.reduce((sum, item) => {
-      const profit = Number.parseFloat(item.profit)
-      return Number.isFinite(profit) ? sum + profit : sum
-    }, 0)
-    const currentPool = Math.max(1, Number(systemConfig.initialCapital || 0) + settledProfit)
+    // 回撤口径同样基于实时蓄水池余额（cycle-aware），与下注基数保持一致。
+    const currentPool = Math.max(1, poolCapital)
     const worstLoss = totalInvest
     const worstDrawdownPct = (worstLoss / currentPool) * 100
 
@@ -4103,7 +4104,7 @@ export default function ComboPage({ openModal }) {
       worstLoss,
       worstDrawdownPct,
     }
-  }, [recommendations, selectedRecommendations, systemConfig.initialCapital])
+  }, [recommendations, selectedRecommendations, poolCapital])
   const drawdownExceeded = adoptPreview.ready && adoptPreview.worstDrawdownPct > maxWorstDrawdownAlertPct
 
   const riskProbeRows = useMemo(() => {

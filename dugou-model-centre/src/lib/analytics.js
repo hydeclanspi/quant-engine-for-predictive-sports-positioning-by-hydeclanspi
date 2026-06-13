@@ -1069,6 +1069,53 @@ export const getKellyDivisorBacktest = (divisors = KELLY_DIVISOR_CANDIDATES) => 
   return snapshot
 }
 
+/**
+ * 蓄水池当前周期状态（cycle-aware）。结算会在 poolSettlements 上画一条时间分界线，
+ * 当前周期即"最近一次结算之后"。此函数是蓄水池余额与新建/组合下注基数的唯一口径；
+ * 指标、历史战绩、资金累计曲线等仍走全量数据，不受结算影响。
+ * - cycleBaseCapital: 当前周期本金（首周期=原始资金+全部注资；结算后=分界线之后的注资）
+ * - cycleProfit: 当前周期内已结算投资的盈亏总和
+ * - poolBalance: cycleBaseCapital + cycleProfit（即"蓄水池余额"）
+ */
+export const getReservoirState = () => {
+  const config = getSystemConfig()
+  const settledAll = getSettledInvestments(getActiveInvestments())
+  const injections = Array.isArray(config.capitalInjections) ? config.capitalInjections : []
+  const settlements = Array.isArray(config.poolSettlements) ? config.poolSettlements : []
+
+  const initialCapital = toNumber(config.initialCapital, 0)
+  const totalInjected = injections.reduce((sum, inj) => sum + toNumber(inj.amount), 0)
+  const originalCapital = initialCapital - totalInjected
+
+  const sortedSettlements = [...settlements].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  )
+  const lastSettlement = sortedSettlements.length > 0 ? sortedSettlements[sortedSettlements.length - 1] : null
+  const cycleStartTime = lastSettlement ? new Date(lastSettlement.created_at).getTime() : -Infinity
+
+  const cycleInjected = injections.reduce(
+    (sum, inj) => (new Date(inj.created_at).getTime() > cycleStartTime ? sum + toNumber(inj.amount) : sum),
+    0,
+  )
+  const cycleBaseCapital = (lastSettlement ? 0 : originalCapital) + cycleInjected
+
+  const cycleProfit = settledAll.reduce(
+    (sum, inv) => (new Date(inv.created_at).getTime() > cycleStartTime ? sum + toNumber(inv.profit) : sum),
+    0,
+  )
+
+  const poolBalance = cycleBaseCapital + cycleProfit
+
+  return {
+    poolBalance: Number(poolBalance.toFixed(2)),
+    cycleBaseCapital: Number(cycleBaseCapital.toFixed(2)),
+    cycleProfit: Number(cycleProfit.toFixed(2)),
+    cycleStartTime,
+    hasSettlement: !!lastSettlement,
+    lastSettlement,
+  }
+}
+
 export const getDashboardSnapshot = (periodKey = '2w') => {
   const cacheKey = getRevisionCacheKey('dashboard', periodKey)
   const cached = analyticsMemo.dashboard.get(cacheKey)
@@ -1106,84 +1153,94 @@ export const getDashboardSnapshot = (periodKey = '2w') => {
   const ratingFitPrev = calcRatingFit(ratingRowsPrev)
 
   const initialCapital = toNumber(config.initialCapital, 0)
-  const poolBalance = initialCapital + settledAll.reduce((sum, item) => sum + toNumber(item.profit), 0)
+  // 蓄水池余额走 cycle-aware 口径：结算后只统计当前周期的本金与盈亏。
+  const reservoir = getReservoirState()
+  const poolBalance = reservoir.poolBalance
 
   const conf04 = calcConf04Stats(settledPeriod)
   const confCalibration = buildConfCalibration(settledPeriod)
   const repBuckets = calcRepBuckets(settledPeriod)
   const balanceLedger = (() => {
-    // 获取注资记录
     const injections = Array.isArray(config.capitalInjections) ? config.capitalInjections : []
+    const settlements = Array.isArray(config.poolSettlements) ? config.poolSettlements : []
 
-    // 找到最早的注资时间，用于确定"旧数据"的分界点
-    const sortedInjections = [...injections].sort(
-      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    )
-    const firstInjectionTime = sortedInjections.length > 0 ? new Date(sortedInjections[0].created_at).getTime() : Infinity
-
-    // 计算第一次注资之前的初始资金（即用户设置的原始资金，不包含任何注资）
+    // 第一次注资之前的原始资金（用户设置的本金，不含任何注资）
     const totalInjected = injections.reduce((sum, inj) => sum + toNumber(inj.amount), 0)
     const originalCapital = initialCapital - totalInjected
 
-    // 按时间排序所有已结算投资
-    const sortedSettled = [...settledAll].sort(
-      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    )
+    // 统一事件流：投资 / 注资 / 结算，按时间升序折叠出每一步余额。
+    // 结算事件把 runningBalance 清零 —— 这正是蓄水池"开启新周期"的语义。
+    // priority 用于同一时间戳时的稳定排序：投资(0) < 结算(1) < 注资(2)，
+    // 保证结算先结清旧周期、其关联划拨注资紧随其后。
+    const events = []
+    settledAll.forEach((inv) => {
+      events.push({ time: new Date(inv.created_at).getTime(), priority: 0, kind: 'investment', payload: inv })
+    })
+    settlements.forEach((stl) => {
+      events.push({ time: new Date(stl.created_at).getTime(), priority: 1, kind: 'settlement', payload: stl })
+    })
+    injections.forEach((inj) => {
+      events.push({ time: new Date(inj.created_at).getTime(), priority: 2, kind: 'injection', payload: inj })
+    })
+    events.sort((a, b) => a.time - b.time || a.priority - b.priority)
 
-    // 构建账本：先处理所有投资（使用原始资金计算），然后把注资插入到正确的时间位置
     const ledgerEntries = []
     let runningBalance = originalCapital
 
-    // 投资和注资的合并索引
-    let investmentIdx = 0
-    let injectionIdx = 0
-
-    while (investmentIdx < sortedSettled.length || injectionIdx < sortedInjections.length) {
-      const nextInvestment = sortedSettled[investmentIdx]
-      const nextInjection = sortedInjections[injectionIdx]
-
-      const investmentTime = nextInvestment ? new Date(nextInvestment.created_at).getTime() : Infinity
-      const injectionTime = nextInjection ? new Date(nextInjection.created_at).getTime() : Infinity
-
-      if (injectionTime <= investmentTime && nextInjection) {
-        // 处理注资
-        const before = runningBalance
-        const amount = toNumber(nextInjection.amount)
+    events.forEach((event) => {
+      const before = runningBalance
+      if (event.kind === 'settlement') {
+        const stl = event.payload
+        const realized = toNumber(stl.realizedProfit)
+        runningBalance = 0
+        ledgerEntries.push({
+          id: stl.id,
+          date: stl.created_at,
+          dateLabel: formatDate(stl.created_at),
+          match: stl.type === 'stop_loss' ? '周期性结算止损' : '周期性结算止盈',
+          before: Number(before.toFixed(2)),
+          profit: Number(realized.toFixed(2)),
+          after: 0,
+          isInjection: false,
+          isSettlement: true,
+          settlementType: stl.type === 'stop_loss' ? 'stop_loss' : 'take_profit',
+        })
+      } else if (event.kind === 'injection') {
+        const amount = toNumber(event.payload.amount)
         const amountLabel = Number.isInteger(amount) ? String(amount) : amount.toFixed(2)
         runningBalance += amount
         ledgerEntries.push({
-          id: nextInjection.id,
-          date: nextInjection.created_at,
-          dateLabel: formatDate(nextInjection.created_at),
+          id: event.payload.id,
+          date: event.payload.created_at,
+          dateLabel: formatDate(event.payload.created_at),
           match: `注资新增 ${amountLabel} rmb`,
           before: Number(before.toFixed(2)),
           profit: Number(amount.toFixed(2)),
           after: Number(runningBalance.toFixed(2)),
           isInjection: true,
+          isSettlement: false,
         })
-        injectionIdx++
-      } else if (nextInvestment) {
-        // 处理投资
-        const before = runningBalance
-        const profit = toNumber(nextInvestment.profit)
+      } else {
+        const inv = event.payload
+        const profit = toNumber(inv.profit)
         runningBalance += profit
-        const firstMatch = nextInvestment.matches?.[0]
+        const firstMatch = inv.matches?.[0]
         ledgerEntries.push({
-          id: nextInvestment.id,
-          date: nextInvestment.created_at,
-          dateLabel: formatDate(nextInvestment.created_at),
+          id: inv.id,
+          date: inv.created_at,
+          dateLabel: formatDate(inv.created_at),
           match:
-            Number(nextInvestment.parlay_size || nextInvestment.matches?.length || 1) > 1
-              ? `${firstMatch?.home_team || '-'} vs ${firstMatch?.away_team || '-'} 等${nextInvestment.parlay_size}场`
+            Number(inv.parlay_size || inv.matches?.length || 1) > 1
+              ? `${firstMatch?.home_team || '-'} vs ${firstMatch?.away_team || '-'} 等${inv.parlay_size}场`
               : `${firstMatch?.home_team || '-'} vs ${firstMatch?.away_team || '-'}`,
           before: Number(before.toFixed(2)),
           profit: Number(profit.toFixed(2)),
           after: Number(runningBalance.toFixed(2)),
           isInjection: false,
+          isSettlement: false,
         })
-        investmentIdx++
       }
-    }
+    })
 
     return ledgerEntries.reverse()
   })()
@@ -1371,6 +1428,10 @@ export const getDashboardSnapshot = (periodKey = '2w') => {
     settledPeriod: settledPeriod.length,
     pendingPeriod: periodInvestments.length - settledPeriod.length,
     poolBalance: Number(poolBalance.toFixed(2)),
+    cycleBaseCapital: reservoir.cycleBaseCapital,
+    cycleProfit: reservoir.cycleProfit,
+    hasSettlement: reservoir.hasSettlement,
+    lastSettlement: reservoir.lastSettlement,
     roiPeriod: Number(roiPeriod.toFixed(2)),
     roiDelta: Number((roiPeriod - roiPrev).toFixed(2)),
     hitRatePeriod: Number(hitRatePeriod.toFixed(1)),
