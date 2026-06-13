@@ -119,20 +119,28 @@ export default function BalanceLedgerPanel({ periodKey = '2w', onConfirmSettle }
             {pageRows.map((row) => {
               if (row.isSettlement) {
                 const isStopLoss = row.settlementType === 'stop_loss'
+                const settleAmount = Math.round(Number(row.before) || 0)
                 return (
-                  <tr key={row.id} className="border-b border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50/40">
-                    <td className="px-3 py-2.5 text-amber-900/60">{row.dateLabel}</td>
-                    <td className="px-3 py-2.5">
-                      <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-400/90 px-2 py-0.5 font-semibold text-amber-950 shadow-sm">
+                  <tr
+                    key={row.id}
+                    className={`border-b border-stone-100 transition-colors ${isStopLoss ? 'bg-rose-50/70' : 'bg-emerald-50/70'}`}
+                  >
+                    <td className="px-3 py-2.5 text-stone-400">{row.dateLabel}</td>
+                    <td className="px-3 py-2.5 font-medium">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 font-semibold ${
+                          isStopLoss ? 'bg-rose-200/80 text-rose-900' : 'bg-emerald-200/80 text-emerald-900'
+                        }`}
+                      >
                         {isStopLoss ? <TrendingDown size={13} /> : <TrendingUp size={13} />}
-                        {row.match}
+                        {row.match} {settleAmount} rmb
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 tabular-nums text-stone-600">{toRmb(row.before)}</td>
+                    <td className="px-3 py-2.5 tabular-nums text-stone-500">{toRmb(row.before)}</td>
                     <td className={`px-3 py-2.5 font-semibold tabular-nums ${row.profit >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                       {toSigned(row.profit)}
                     </td>
-                    <td className="px-3 py-2.5 font-bold tabular-nums text-amber-700">{toRmb(row.after)}</td>
+                    <td className="px-3 py-2.5 font-semibold tabular-nums text-stone-600">{toRmb(row.after)}</td>
                   </tr>
                 )
               }
@@ -203,7 +211,7 @@ export default function BalanceLedgerPanel({ periodKey = '2w', onConfirmSettle }
       {confirming &&
         createPortal(
           <div
-            className="theme-modern fixed inset-0 z-[80] flex items-center justify-center bg-stone-900/50 p-4 backdrop-blur-sm animate-fade-in"
+            className="theme-modern fixed inset-0 z-[80] flex items-center justify-center bg-[rgba(15,23,42,0.32)] p-4 backdrop-blur-[8px] backdrop-saturate-[1.4] animate-fade-in"
             onClick={() => setConfirming(false)}
           >
             <div
@@ -232,7 +240,7 @@ export default function BalanceLedgerPanel({ periodKey = '2w', onConfirmSettle }
                   {isProfit ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
                 </div>
                 <div className="flex-1">
-                  <p className="text-xs font-medium text-stone-400">本周期{isProfit ? '止盈' : '止损'}盈亏</p>
+                  <p className="text-xs font-medium text-stone-400">本周期{isProfit ? '止盈' : '止亏'}</p>
                   <p className={`text-2xl font-bold tabular-nums ${isProfit ? 'text-emerald-600' : 'text-rose-500'}`}>
                     {toSigned(cycleProfit)}
                     <span className="ml-1 text-sm font-medium text-stone-400">rmb</span>
@@ -246,7 +254,7 @@ export default function BalanceLedgerPanel({ periodKey = '2w', onConfirmSettle }
                 <ArrowRight size={14} className="shrink-0 text-stone-300" />
                 <FlowChip label="结算清零" value="¥0" tone="amber" />
                 <ArrowRight size={14} className="shrink-0 text-stone-300" />
-                <FlowChip label="新周期" value={allocation > 0 ? toRmb(allocation) : '¥0'} tone={allocation > 0 ? 'emerald' : 'stone'} />
+                <FlowChip label="新周期" value={allocation > 0 ? toRmb(allocation) : '¥0'} tone="emerald" />
               </div>
 
               {/* 新周期启动资金（可留空 = 仅清零，稍后用 +注资 划拨） */}
@@ -255,7 +263,7 @@ export default function BalanceLedgerPanel({ periodKey = '2w', onConfirmSettle }
                   <span>新周期启动资金</span>
                   <span className="text-stone-300">可留空 · 稍后用 +注资 划拨</span>
                 </div>
-                <div className="mt-1.5 flex items-center rounded-xl border border-stone-200 bg-stone-50/50 px-3 transition focus-within:border-amber-300 focus-within:bg-white">
+                <div className="mt-1.5 flex items-center rounded-xl border border-stone-200 bg-stone-50/50 px-3 transition focus-within:border-emerald-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-100">
                   <span className="text-stone-400">¥</span>
                   <input
                     type="number"
@@ -264,7 +272,7 @@ export default function BalanceLedgerPanel({ periodKey = '2w', onConfirmSettle }
                     value={allocInput}
                     onChange={(e) => setAllocInput(e.target.value)}
                     placeholder="0"
-                    className="w-full bg-transparent px-2 py-2.5 text-sm text-stone-800 outline-none placeholder:text-stone-300"
+                    className="w-full bg-transparent px-2 py-2.5 text-sm text-stone-800 outline-none focus-visible:!outline-none placeholder:text-stone-300"
                   />
                 </div>
               </div>

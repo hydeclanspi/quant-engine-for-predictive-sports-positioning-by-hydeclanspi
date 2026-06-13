@@ -2047,8 +2047,8 @@ export default function DashboardPage({ openModal }) {
       {/* 结算撤销条：常驻底部，portal 到 body 以覆盖在 Modal(z-50) 之上 */}
       {recall &&
         createPortal(
-          <div className="theme-modern pointer-events-none fixed inset-x-0 bottom-6 z-[90] flex justify-center px-4">
-            <div className="motion-v2-scope pointer-events-auto flex items-center gap-4 rounded-2xl border border-white/10 bg-stone-900/95 px-5 py-3.5 text-white shadow-2xl backdrop-blur-md animate-slide-up">
+          <div className="theme-modern pointer-events-none fixed inset-x-0 bottom-6 z-[90] flex justify-center px-4 !bg-transparent">
+            <div className="motion-v2-scope pointer-events-auto flex items-center gap-4 rounded-2xl border border-white/15 bg-[rgba(37,99,235,0.86)] px-5 py-3.5 text-white shadow-xl shadow-blue-900/40 backdrop-blur-xl backdrop-saturate-150 animate-slide-up">
               <div className="flex items-center gap-2.5">
                 <div
                   className={`flex h-8 w-8 items-center justify-center rounded-lg ${
@@ -2059,7 +2059,7 @@ export default function DashboardPage({ openModal }) {
                 </div>
                 <div>
                   <p className="text-sm font-semibold">已结算 · 周期性{recall.type === 'stop_loss' ? '止损' : '止盈'}</p>
-                  <p className="text-xs text-stone-400">
+                  <p className="text-xs text-blue-100/90">
                     {recall.realized >= 0 ? '+' : ''}
                     {Number(recall.realized).toFixed(0)} rmb
                     {recall.newCapital > 0 ? ` · 新周期 ¥${Number(recall.newCapital).toFixed(0)}` : ' · 已清零'}
