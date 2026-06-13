@@ -211,7 +211,7 @@ export default function BalanceLedgerPanel({ periodKey = '2w', onConfirmSettle }
       {confirming &&
         createPortal(
           <div
-            className="theme-modern fixed inset-0 z-[80] flex items-center justify-center bg-[rgba(15,23,42,0.32)] p-4 backdrop-blur-[8px] backdrop-saturate-[1.4] animate-fade-in"
+            className="theme-modern fixed inset-0 z-[80] flex items-center justify-center !bg-[rgba(15,23,42,0.32)] p-4 backdrop-blur-[8px] backdrop-saturate-[1.4] animate-fade-in"
             onClick={() => setConfirming(false)}
           >
             <div
